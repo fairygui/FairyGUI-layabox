@@ -1,12 +1,12 @@
 FairyGUI-layabox
 ====
 
-FairyGUI�ٷ�QQȺ��434866637
+FairyGUI官方QQ群：434866637
 
 A flexible UI framework for Layabox, working with the FREE professional Game UI Editor: FairyGUI Editor.
 Download the editor from here: [www.fairygui.com](http://www.fairygui.com/index.php/download)
 
-![](http://www.fairygui.com/wp-content/uploads/2015/09/show2.jpg)  
+![](http://www.fairygui.com/wp-content/uploads/2016/01/2016-03-06_114556.png)  
 
 #Features
 * WYSWYG
@@ -22,19 +22,19 @@ Download the editor from here: [www.fairygui.com](http://www.fairygui.com/index.
 * Multi language support.
 * Resolution adaptive.
 
-#����
+#特性
 * WYSWYG
-* �ڱ༭�������������ָ���UI����������д���룬����Ҫ��̻�����
-* û���﷨���ӵ�Ƥ�����ã�����UIԪ�ض��������ɴ��䡣
-* �ṩʱ�������UI��Ч��
-* ֧��ͼƬѹ�������Ը����������ͼƬ���������ٷ�������С��
-* ֧������֡�����༭��ʹ�ã�������ʹ��ͼƬһ����UI��ʹ�ö���������
-* ֧��BMFont������λͼ���壬֧��ʹ��ͼƬ����λͼ���塣
-* ʹ�÷�ɢ�ļ���ʽ�洢�زģ�����ʹ�ð汾�����������й�����Ҳ�������Э���༭��
-* �ṩԤ����Ԥ��Ч����ʵ������Ч����ͬ��
-* ���ķ�����ʽ��֧���Զ����ͼ����֧�ֶ�����ͼ����
-* �������֧��
-* ���ֱַ�������Ӧ��
+* 在编辑器即可制作各种复杂UI组件，无需编写代码，不需要编程基础。
+* 没有语法复杂的皮肤配置，所有UI元素都可以自由搭配。
+* 提供时间轴设计UI动效。
+* 支持图片压缩，可以根据需求调整图片质量，减少发布包大小。
+* 支持序列帧动画编辑和使用，可以像使用图片一样在UI上使用动画剪辑。
+* 支持BMFont制作的位图字体，支持使用图片制作位图字体。
+* 使用分散文件方式存储素材，方便使用版本管理软件进行管理，也方便多人协作编辑。
+* 提供预览，预览效果和实际运行效果相同。
+* 灵活的发布方式，支持自动打包图集，支持定义多个图集。
+* 多国语言支持
+* 各种分辨率自适应。
 
 #Learn more
 Official website: [www.fairygui.com](http://www.fairygui.com)
