@@ -1,0 +1,908 @@
+package fairygui {
+	import fairygui.utils.ToolSet;
+	
+	import laya.media.Sound;
+	import laya.utils.Handler;
+	import laya.utils.Tween;
+
+    public class Transition {
+        public var name: String;
+        public var autoPlay: Boolean;
+        public var autoPlayRepeat: Number = 1;
+        public var autoPlayDelay: Number = 0;
+        
+        private var _owner: GComponent;
+        private var _ownerBaseX: Number = 0;
+        private var _ownerBaseY: Number = 0;
+        private var _items: Vector.<TransitionItem>;
+        private var _totalTimes: Number = 0;
+        private var _totalTasks: Number = 0;
+        private var _playing: Boolean = false;
+        private var _onComplete: Handler;
+        private var _options: Number = 0;
+        private var _reversed: Boolean;
+        private var _maxTime: Number = 0;
+
+        public const OPTION_IGNORE_DISPLAY_CONTROLLER: Number = 1;
+        private const FRAME_RATE: Number = 24;
+
+        public function Transition(owner: GComponent) {
+            this._owner = owner;
+            this._items = new Vector.<TransitionItem>();
+        }
+
+        public function play(onComplete: Handler = null, times: Number = 1,delay: Number = 0):void {
+            this._play(onComplete,times,delay,false);
+        }
+        
+        public function playReverse(onComplete: Handler = null, times: Number = 1,delay: Number = 0):void {
+            this._play(onComplete,times,delay,true);
+        }
+        
+        private function _play(onComplete: Handler = null, times: Number = 1,delay: Number = 0,reversed:Boolean=false):void {
+            this.stop();
+            if(times == 0)
+                times = 1;
+            else if(times==-1)
+                times = Number.MAX_VALUE;
+            this._totalTimes = times;
+            this._reversed = reversed;
+            this.internalPlay(delay);
+            this._playing = this._totalTasks > 0;
+            if(this._playing) {
+                this._onComplete = onComplete;
+                this._owner.internalVisible++;
+                if((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER) != 0) {
+                    var cnt: Number = this._items.length;
+                    for(var i: Number = 0;i < cnt;i++) {
+                        var item: TransitionItem = this._items[i];
+                        if(item.target != null && item.target != this._owner)
+                            item.target.internalVisible++;
+                    }
+                }
+            }
+            else if(onComplete != null) {
+                onComplete.run();
+            }
+        }
+
+        public function stop(setToComplete: Boolean = true,processCallback: Boolean = false):void {
+            if(this._playing) {
+                this._playing = false;
+                this._totalTasks = 0;
+                this._totalTimes = 0;
+                var handler: Handler = this._onComplete;
+                this._onComplete = null;
+
+                this._owner.internalVisible--;
+
+                var cnt: Number = this._items.length;
+                var i:Number;
+                var item:TransitionItem;
+                if(this._reversed) {
+                    for(i = cnt-1;i>=0;i--) {
+                        item = this._items[i];
+                        if(item.target == null)
+                            continue;
+
+                        this.stopItem(item,setToComplete);
+                    }
+                }
+                else {
+                    for(i = 0;i < cnt;i++) {
+                        item = this._items[i];
+                        if(item.target == null)
+                            continue;
+
+                        this.stopItem(item,setToComplete);
+                    }
+                }
+
+                if(processCallback && handler != null) {
+                    handler.run();
+                }
+            }
+        }
+        
+        private function stopItem(item:TransitionItem, setToComplete:Boolean):void {
+            if((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER) != 0) {
+                if(item.target != this._owner)
+                    item.target.internalVisible--;
+            }
+            if(item.completed)
+                return;
+
+            if(item.tweener != null) {
+                item.tweener.clear();
+                item.tweener = null;
+            }
+
+            if(item.type == TransitionActionType.Transition) {
+                var trans: Transition = GComponent(item.target).getTransition(item.value.s);
+                if(trans != null)
+                    trans.stop(setToComplete,false);
+            }
+            else if(item.type == TransitionActionType.Shake) {
+                Laya.timer.clear(item, item.__shake);
+                item.target._gearLocked = true;
+                item.target.setXY(item.target.x - item.startValue.f1,item.target.y - item.startValue.f2);
+                item.target._gearLocked = false;
+            }
+            else {
+                if(setToComplete) {
+                    if(item.tween) {
+                        if(!item.yoyo || item.repeat % 2 == 0)
+                            this.applyValue(item,this._reversed?item.startValue:item.endValue);
+                        else
+                            this.applyValue(item,this._reversed?item.endValue:item.startValue);
+                    }
+                    else if(item.type != TransitionActionType.Sound)
+                        this.applyValue(item,item.value);
+                }
+            }
+        }
+
+        public function get playing(): Boolean {
+            return this._playing;
+        }
+
+        public function setValue(label: String,...args):void {
+            var cnt: Number = this._items.length;
+            var value: TransitionValue;
+            for(var i: Number = 0;i < cnt;i++) {
+                var item: TransitionItem = this._items[i];
+                if(item.label == null && item.label2 == null)
+                    continue;
+                if(item.label == label) {
+                    if(item.tween)
+                        value = item.startValue;
+                    else
+                        value = item.value;
+                }
+                else if(item.label2 == label) {
+                    value = item.endValue;
+                }
+                else
+                    continue;
+                switch(item.type) {
+                    case TransitionActionType.XY:
+                    case TransitionActionType.Size:
+                    case TransitionActionType.Pivot:
+                    case TransitionActionType.Scale:
+                        value.b1 = true;
+                        value.b2 = true;
+                        value.f1 = parseFloat(args[0]);
+                        value.f2 = parseFloat(args[1]);
+                        break;
+                    case TransitionActionType.Alpha:
+                        value.f1 = parseFloat(args[0]);
+                        break;
+                    case TransitionActionType.Rotation:
+                        value.i = parseInt(args[0]);
+                        break;
+                    case TransitionActionType.Color:
+                        value.s = args[0];
+                        break;
+                    case TransitionActionType.Animation:
+                        value.i = parseInt(args[0]);
+                        if(args.length > 1)
+                            value.b = args[1];
+                        break;
+                    case TransitionActionType.Visible:
+                        value.b = args[0];
+                        break;
+                    case TransitionActionType.Controller:
+                        value.s = args[0];
+                        break;
+                    case TransitionActionType.Sound:
+                        value.s = args[0];
+                        if(args.length > 1)
+                            value.f1 = parseFloat(args[1]);
+                        break;
+                    case TransitionActionType.Transition:
+                        value.s = args[0];
+                        if(args.length > 1)
+                            value.i = parseInt(args[1]);
+                        break;
+                    case TransitionActionType.Shake:
+                        value.f1 = parseFloat(args[0]);
+                        if(args.length > 1)
+                            value.f2 = parseFloat(args[1]);
+                        break;
+                }
+            }
+        }
+
+        public function setHook(label: String, callback:Handler):void {
+            var cnt: Number = this._items.length;
+            for(var i: Number = 0;i < cnt;i++) {
+                var item: TransitionItem = this._items[i];
+                if(item.label == null && item.label2 == null)
+                    continue;
+                if(item.label == label)
+                    item.hook = callback;
+                else if(item.label2 == label)
+                    item.hook2 = callback;
+            }
+        }
+
+        public function clearHooks():void {
+            var cnt: Number = this._items.length;
+            for(var i: Number = 0;i < cnt;i++) {
+                var item: TransitionItem = this._items[i];
+                item.hook = null;
+                item.hook2 = null;
+            }
+        }
+
+        public function setTarget(label: String,newTarget: GObject):void {
+            var cnt: Number = this._items.length;
+            var value: TransitionValue;
+            for(var i: Number = 0;i < cnt;i++) {
+                var item: TransitionItem = this._items[i];
+                if(item.label == null && item.label2 == null)
+                    continue;
+                item.targetId = newTarget.id;
+            }
+        }
+
+        public function updateFromRelations(targetId: String,dx: Number,dy: Number):void {
+            var cnt: Number = this._items.length;
+            if(cnt == 0)
+                return;
+            for(var i: Number = 0;i < cnt;i++) {
+                var item: TransitionItem = this._items[i];
+                if(item.type == TransitionActionType.XY && item.targetId == targetId) {
+                    if(item.tween) {
+                        item.startValue.f1 += dx;
+                        item.startValue.f2 += dy;
+                        item.endValue.f1 += dx;
+                        item.endValue.f2 += dy;
+                    }
+                    else {
+                        item.value.f1 += dx;
+                        item.value.f2 += dy;
+                    }
+                }
+            }
+        }
+
+        private function internalPlay(delay: Number=0):void {
+            this._ownerBaseX = this._owner.x;
+            this._ownerBaseY = this._owner.y;
+            this._totalTasks = 0;
+            var cnt: Number = this._items.length;
+            var startTime: Number;
+            var item:TransitionItem;
+            for(var i: Number = 0;i < cnt;i++) {
+                item = this._items[i];
+                if(item.targetId)
+                    item.target = this._owner.getChildById(item.targetId);
+                else
+                    item.target = this._owner;
+                if(item.target == null)
+                    continue;                    
+                
+                if(item.tween) {
+                    if(this._reversed)
+                        startTime = delay + (this._maxTime - item.time - item.duration)*1000;
+                    else
+                        startTime = delay + item.time * 1000;
+                    item.completed = false;
+                    this._totalTasks++;
+                    if(startTime == 0)
+                        this.startTween(item);
+                    else {
+                        item.tweener = Tween.to(item.value, {}, startTime, null, Handler.create(this, this.__delayCall,[item]));
+                        item.tweener.update = null;
+                    }
+                }
+                else {
+                    if(this._reversed)
+                        startTime = delay + (this._maxTime - item.time) * 1000;
+                    else
+                        startTime = delay + item.time * 1000;
+                    if(startTime == 0)
+                        this.applyValue(item,item.value);
+                    else {
+                        item.completed = false;
+                        this._totalTasks++;
+                        item.tweener = Tween.to(item.value, {}, startTime, null, Handler.create(this, this.__delayCall2,[item]));
+                        item.tweener.update = null;
+                    }
+                }
+            }
+        }
+
+        private function prepareValue(item: TransitionItem,toProps:Object,reversed: Boolean = false):void {
+            if(!reversed) {
+                switch(item.type) {
+                    case TransitionActionType.XY:
+                        if(item.target == this._owner) {
+                            if(!item.startValue.b1)
+                                item.startValue.f1 = 0;
+                            if(!item.startValue.b2)
+                                item.startValue.f2 = 0;  
+                        }
+                        else {
+                            if(!item.startValue.b1)
+                                item.startValue.f1 = item.target.x;
+                            if(!item.startValue.b2)
+                                item.startValue.f2 = item.target.y;
+                        }
+                        item.value.f1 = item.startValue.f1;
+                        item.value.f2 = item.startValue.f2;
+                        
+                        if(!item.endValue.b1)
+                            item.endValue.f1 = item.value.f1;
+                        if(!item.endValue.b2)
+                            item.endValue.f2 = item.value.f2;  
+                        toProps.f1 = item.endValue.f1;
+                        toProps.f2 = item.endValue.f2;
+                        break;
+
+                    case TransitionActionType.Size:
+                        if(!item.startValue.b1)
+                            item.startValue.f1 = item.target.width;
+                        if(!item.startValue.b2)
+                            item.startValue.f2 = item.target.height;
+                        item.value.f1 = item.startValue.f1;
+                        item.value.f2 = item.startValue.f2;
+                        
+                        if(!item.endValue.b1)
+                            item.endValue.f1 = item.value.f1;
+                        if(!item.endValue.b2)
+                            item.endValue.f2 = item.value.f2;  
+                        toProps.f1 = item.endValue.f1;
+                        toProps.f2 = item.endValue.f2;
+                        break;
+
+                    case TransitionActionType.Scale:
+                        item.value.f1 = item.startValue.f1;
+                        item.value.f2 = item.startValue.f2;
+                        toProps.f1 = item.endValue.f1;
+                        toProps.f2 = item.endValue.f2;
+                        break;
+
+                    case TransitionActionType.Alpha:
+                        item.value.f1 = item.startValue.f1;
+                        toProps.f1 = item.endValue.f1;
+                        break;
+
+                    case TransitionActionType.Rotation:
+                        item.value.i = item.startValue.i;
+                        toProps.i = item.endValue.i;
+                        break;
+                }
+            }
+            else {
+                switch(item.type) {
+                    case TransitionActionType.XY:
+                    case TransitionActionType.Size:
+                    case TransitionActionType.Scale:
+                        toProps.f1 = item.startValue.f1;
+                        toProps.f2 = item.startValue.f2;
+
+                    case TransitionActionType.Alpha:
+                        toProps.f1 = item.startValue.f1;
+                        break;
+
+                    case TransitionActionType.Rotation:
+                        toProps.i = item.startValue.i;
+                        break;
+                }
+            }
+            
+            toProps.dummy = 0;
+        }
+
+        private function startTween(item: TransitionItem):void {
+            var toProps: Object = {};
+
+            this.prepareValue(item,toProps,this._reversed);
+            this.applyValue(item,item.value);
+            
+            var completeHandler:Handler;
+            if(item.repeat!=0) {
+                item.tweenTimes = 0;
+                completeHandler = Handler.create(this, this.__tweenRepeatComplete, [item]);
+            }
+            else
+                completeHandler = Handler.create(this, this.__tweenComplete, [item]);
+
+            item.tweener = Tween.to(item.value, 
+                toProps, 
+                item.duration*1000, 
+                item.easeType,
+                completeHandler);
+            item.tweener.update = Handler.create(this, this.__tweenUpdate, [item], false);
+
+            if(item.hook != null)
+                item.hook.run();
+        }
+
+        private function __delayCall(item: TransitionItem):void {
+            item.tweener = null;
+            this.startTween(item);
+        }
+
+        private function __delayCall2(item: TransitionItem):void {
+            item.tweener = null;
+            this._totalTasks--;
+            item.completed = true;
+            this.applyValue(item,item.value);
+            if(item.hook != null)
+                item.hook.run();
+            this.checkAllComplete();
+        }
+
+        private function __tweenUpdate(item: TransitionItem):void {
+            this.applyValue(item,item.value);
+        }
+        
+        private function __tweenComplete(item: TransitionItem):void {
+            item.tweener = null;
+            this._totalTasks--;
+            item.completed = true;
+            if(item.hook2 != null)
+                item.hook2.run();
+            this.checkAllComplete();
+        }
+        
+        private function __tweenRepeatComplete(item: TransitionItem):void {
+            item.tweenTimes++;
+            if(item.repeat==-1 || item.tweenTimes < item.repeat + 1) {
+                var toProps:Object = {};
+
+                var reversed: Boolean;
+                if(item.yoyo) {
+                    if(this._reversed)
+                        reversed = item.tweenTimes % 2 == 0;
+                    else
+                        reversed = item.tweenTimes % 2 == 1;
+                }
+                else
+                    reversed = this._reversed;
+                this.prepareValue(item,toProps,reversed);
+                item.tweener = Tween.to(item.value,
+                    toProps, 
+                    item.duration * 1000,
+                    item.easeType,
+                    Handler.create(this, this.__tweenRepeatComplete, [item]));
+                item.tweener.update = Handler.create(this, this.__tweenUpdate, [item], false);
+            }
+            else
+                this.__tweenComplete(item);
+        }
+
+        private function __playTransComplete(item: TransitionItem):void {
+            this._totalTasks--;
+            item.completed = true;
+            this.checkAllComplete();
+        }
+
+        private function checkAllComplete():void {
+            if(this._playing && this._totalTasks == 0) {
+                if(this._totalTimes < 0) {
+                    //不立刻调用的原因是egret.Tween在onComplete之后，还会调用onChange
+                    Laya.timer.callLater(this, this.internalPlay);
+                }
+                else {
+                    this._totalTimes--;
+                    if(this._totalTimes > 0)
+                        Laya.timer.callLater(this, this.internalPlay);
+                    else {
+                        this._playing = false;
+                        this._owner.internalVisible--;
+                        var cnt: Number = this._items.length;
+                        if((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER) != 0) {
+                            for(var i: Number = 0;i < cnt;i++) {
+                                var item: TransitionItem = this._items[i];
+                                if(item.target != null && item.target != this._owner)
+                                    item.target.internalVisible--;
+                            }
+                        }
+                        if(this._onComplete != null) {
+                            var handler: Handler = this._onComplete;
+                            this._onComplete = null;
+                            handler.run();
+                        }
+                    }
+                }
+            }
+        }
+
+        private function applyValue(item: TransitionItem,value: TransitionValue):void {
+            item.target._gearLocked = true;
+            switch(item.type) {
+                case TransitionActionType.XY:
+                    if(item.target == this._owner) {
+                        var f1: Number = 0,f2: Number = 0;
+                        if(!value.b1)
+                            f1 = item.target.x;
+                        else
+                            f1 = value.f1 + this._ownerBaseX;
+                        if(!value.b2)
+                            f2 = item.target.y;
+                        else
+                            f2 = value.f2 + this._ownerBaseY;
+                        item.target.setXY(f1,f2);
+                    }
+                    else {
+                        if(!value.b1)
+                            value.f1 = item.target.x;
+                        if(!value.b2)
+                            value.f2 = item.target.y;
+                        item.target.setXY(value.f1,value.f2);
+                    }
+                    break;
+                case TransitionActionType.Size:
+                    if(!value.b1)
+                        value.f1 = item.target.width;
+                    if(!value.b2)
+                        value.f2 = item.target.height;
+                    item.target.setSize(value.f1,value.f2);
+                    break;
+                case TransitionActionType.Pivot:
+                    item.target.setPivot(value.f1,value.f2);
+                    break;
+                case TransitionActionType.Alpha:
+                    item.target.alpha = value.f1;
+                    break;
+                case TransitionActionType.Rotation:
+                    item.target.rotation = value.i;
+                    break;
+                case TransitionActionType.Scale:
+                    item.target.setScale(value.f1,value.f2);
+                    break;
+                case TransitionActionType.Color:
+                    IColorGear(item.target).color = value.s;
+                    break;
+                case TransitionActionType.Animation:
+                    if(!value.b1)
+                        value.i = IAnimationGear(item.target).frame;
+                   	IAnimationGear(item.target).frame = value.i;
+                   	IAnimationGear(item.target).playing = value.b;
+                    break;
+                case TransitionActionType.Visible:
+                    item.target.visible = value.b;
+                    break;
+                case TransitionActionType.Controller:
+                    var arr: Array = value.s.split(",");
+                    var len: Number = arr.length;
+                    for(var i: Number = 0;i < len;i++) {
+                        var str: String = arr[i];
+                        var arr2: Array = str.split("=");
+                        var cc: Controller = GComponent(item.target).getController(arr2[0]);
+                        if(cc) {
+                            str = arr2[1];
+                            if(str.charAt(0) == "$") {
+                                str = str.substring(1);
+                                cc.selectedPage = str;
+                            }
+                            else
+                                cc.selectedIndex = parseInt(str);
+                        }
+                    }
+                    break;
+                case TransitionActionType.Transition:
+                    var trans: fairygui.Transition = GComponent(item.target).getTransition(value.s);
+                    if(trans != null) {
+                        if(value.i == 0)
+                            trans.stop(false,true);
+                        else if(trans.playing)
+                            trans._totalTimes = value.i==-1?Number.MAX_VALUE:value.i;
+                        else {
+                            item.completed = false;
+                            this._totalTasks++;
+                            if(this._reversed)
+                                trans.playReverse(Handler.create(this, this.__playTransComplete,[item]), item.value.i);
+                            else
+                                trans.play(Handler.create(this, this.__playTransComplete, [item]), item.value.i);
+                        }
+                    }
+                    break;
+                case TransitionActionType.Sound:
+                    var pi: PackageItem = UIPackage.getItemByURL(value.s);
+                    if(pi) {
+                        var sound: Sound = Sound(pi.owner.getItemAsset(pi));
+                        if(sound)
+                            GRoot.inst.playOneShotSound(sound,value.f1);
+                    }
+                    break;
+                case TransitionActionType.Shake:
+                    item.startValue.f1 = 0;//offsetX
+                    item.startValue.f2 = 0;//offsetY
+                    item.startValue.f3 = item.value.f2;//shakePeriod
+                    item.startValue.i = Laya.timer.currTimer;//startTime
+                    Laya.timer.frameLoop(1, item, item.__shake, [this]);
+                    this._totalTasks++;
+                    item.completed = false;
+                    break;
+            }
+            item.target._gearLocked = false;
+        }
+        
+        public function __shakeItem(item:TransitionItem):void {
+            var r: Number = Math.ceil(item.value.f1 * item.startValue.f3 / item.value.f2);
+            var rx: Number = (Math.random() * 2 - 1) * r;
+            var ry: Number = (Math.random() * 2 - 1) * r;
+            rx = rx > 0 ? Math.ceil(rx) : Math.floor(rx);
+            ry = ry > 0 ? Math.ceil(ry) : Math.floor(ry);
+            item.target._gearLocked = true;
+            item.target.setXY(item.target.x - item.startValue.f1 + rx, item.target.y - item.startValue.f2 + ry);
+            item.target._gearLocked = false;
+            item.startValue.f1 = rx;
+            item.startValue.f2 = ry;
+            var t: Number = Laya.timer.currTimer;
+            item.startValue.f3 -= (t - item.startValue.i) / 1000;
+            item.startValue.i = t;
+            if(item.startValue.f3 <= 0) {
+                item.target._gearLocked= true;
+                item.target.setXY(item.target.x - item.startValue.f1,item.target.y - item.startValue.f2);
+                item.target._gearLocked = false;
+                item.completed = true;
+                this._totalTasks--;
+                Laya.timer.clear(item, item.__shake);
+                this.checkAllComplete();
+            }
+        }
+
+        public function setup(xml: Object):void {
+            this.name = xml.getAttribute("name");
+            var str: String = xml.getAttribute("options");
+            if(str)
+                this._options = parseInt(str);
+            str = xml.getAttribute("autoPlay");
+            if(str)
+                this.autoPlay = str=="true";
+            if(this.autoPlay) {
+                str = xml.getAttribute("autoPlayRepeat");
+                if(str)
+                    this.autoPlayRepeat = parseInt(str);
+                str = xml.getAttribute("autoPlayDelay");
+                if(str)
+                    this.autoPlayDelay = parseFloat(str);
+            }
+                
+            var col: Array = xml.childNodes;
+            var length1: Number = col.length;
+            for(var i1: Number = 0;i1 < length1;i1++) {
+                var cxml: Object = col[i1];
+                if(cxml.nodeName!="item")
+                    continue;
+                    
+                var item: TransitionItem = new TransitionItem();
+                this._items.push(item);
+                item.time = parseInt(cxml.getAttribute("time")) / this.FRAME_RATE;
+                item.targetId = cxml.getAttribute("target");
+                str = cxml.getAttribute("type");
+                switch(str) {
+                    case "XY":
+                        item.type = TransitionActionType.XY;
+                        break;
+                    case "Size":
+                        item.type = TransitionActionType.Size;
+                        break;
+                    case "Scale":
+                        item.type = TransitionActionType.Scale;
+                        break;
+                    case "Pivot":
+                        item.type = TransitionActionType.Pivot;
+                        break;
+                    case "Alpha":
+                        item.type = TransitionActionType.Alpha;
+                        break;
+                    case "Rotation":
+                        item.type = TransitionActionType.Rotation;
+                        break;
+                    case "Color":
+                        item.type = TransitionActionType.Color;
+                        break;
+                    case "Animation":
+                        item.type = TransitionActionType.Animation;
+                        break;
+                    case "Visible":
+                        item.type = TransitionActionType.Visible;
+                        break;
+                    case "Controller":
+                        item.type = TransitionActionType.Controller;
+                        break;
+                    case "Sound":
+                        item.type = TransitionActionType.Sound;
+                        break;
+                    case "Transition":
+                        item.type = TransitionActionType.Transition;
+                        break;
+                    case "Shake":
+                        item.type = TransitionActionType.Shake;
+                        break;
+                    default:
+                        item.type = TransitionActionType.Unknown;
+                        break;
+                }
+                item.tween = cxml.getAttribute("tween") == "true";
+                item.label = cxml.getAttribute("label");
+                if(item.tween) {
+                    item.duration = parseInt(cxml.getAttribute("duration")) / this.FRAME_RATE;
+                    if(item.time + item.duration > this._maxTime)
+                        this._maxTime = item.time + item.duration;
+                    str = cxml.getAttribute("ease");
+                    if(str)
+                        item.easeType = ToolSet.parseEaseType(str);
+                    str = cxml.getAttribute("repeat");
+                    if(str)
+                        item.repeat = parseInt(str);
+                    item.yoyo = cxml.getAttribute("yoyo") == "true";
+                    item.label2 = cxml.getAttribute("label2");
+                    var v: String = cxml.getAttribute("endValue");
+                    if(v) {
+                        this.decodeValue(item.type,cxml.getAttribute("startValue"),item.startValue);
+                        this.decodeValue(item.type,v,item.endValue);
+                    }
+                    else {
+                        item.tween = false;
+                        this.decodeValue(item.type,cxml.getAttribute("startValue"),item.value);
+                    }
+                }
+                else {
+                    if(item.time > this._maxTime)
+                        this._maxTime = item.time;
+                    this.decodeValue(item.type,cxml.getAttribute("value"),item.value);
+                }
+            }
+        }
+
+        private function decodeValue(type: Number,str: String,value: TransitionValue):void {
+            var arr: Array;
+            switch(type) {
+                case TransitionActionType.XY:
+                case TransitionActionType.Size:
+                case TransitionActionType.Pivot:
+                    arr = str.split(",");
+                    if(arr[0] == "-") {
+                        value.b1 = false;
+                    }
+                    else {
+                        value.f1 = parseFloat(arr[0]);
+                        value.b1 = true;
+                    }
+                    if(arr[1] == "-") {
+                        value.b2 = false;
+                    }
+                    else {
+                        value.f2 = parseFloat(arr[1]);
+                        value.b2 = true;
+                    }
+                    break;
+                case TransitionActionType.Alpha:
+                    value.f1 = parseFloat(str);
+                    break;
+                case TransitionActionType.Rotation:
+                    value.i = parseInt(str);
+                    break;
+                case TransitionActionType.Scale:
+                    arr = str.split(",");
+                    value.f1 = parseFloat(arr[0]);
+                    value.f2 = parseFloat(arr[1]);
+                    break;
+                case TransitionActionType.Color:
+                    value.s = str;
+                    break;
+                case TransitionActionType.Animation:
+                    arr = str.split(",");
+                    if(arr[0] == "-") {
+                        value.b1 = false;
+                    }
+                    else {
+                        value.i = parseInt(arr[0]);
+                        value.b1 = true;
+                    }
+                    value.b = arr[1] == "p";
+                    break;
+                case TransitionActionType.Visible:
+                    value.b = str == "true";
+                    break;
+                case TransitionActionType.Controller:
+                    value.s = str;
+                    break;
+                case TransitionActionType.Sound:
+                    arr = str.split(",");
+                    value.s = arr[0];
+                    if(arr.length > 1) {
+                        var intv: Number = parseInt(arr[1]);
+                        if(intv == 0 || intv == 100)
+                            value.f1 = 1;
+                        else
+                            value.f1 = intv / 100;
+                    }
+                    else
+                        value.f1 = 1;
+                    break;
+                case TransitionActionType.Transition:
+                    arr = str.split(",");
+                    value.s = arr[0];
+                    if(arr.length > 1)
+                        value.i = parseInt(arr[1]);
+                    else
+                        value.i = 1;
+                    break;
+                case TransitionActionType.Shake:
+                    arr = str.split(",");
+                    value.f1 = parseFloat(arr[0]);
+                    value.f2 = parseFloat(arr[1]);
+                    break;
+            }
+        }
+
+    }
+}           
+import fairygui.GObject;
+
+import laya.utils.Ease;
+import laya.utils.Handler;
+import laya.utils.Tween;
+
+class TransitionActionType  {
+	public static const XY: Number = 0;
+	public static const Size: Number = 1;
+	public static const Scale: Number = 2;
+	public static const Pivot: Number = 3;
+	public static const Alpha: Number = 4;
+	public static const Rotation: Number = 5;
+	public static const Color: Number = 6;
+	public static const Animation: Number = 7;
+	public static const Visible: Number = 8;
+	public static const Controller: Number = 9;
+	public static const Sound: Number = 10;
+	public static const Transition: Number = 11;
+	public static const Shake: Number = 12;
+	public static const Unknown: Number = 13;
+}
+
+class TransitionItem {
+	public var time: Number = 0;
+	public var targetId: String;
+	public var type: Number = 0;
+	public var duration: Number = 0;
+	public var value: TransitionValue;
+	public var startValue: TransitionValue;
+	public var endValue: TransitionValue;
+	public var easeType: Function;
+	public var repeat: Number = 0;
+	public var yoyo: Boolean = false;
+	public var tween: Boolean = false;
+	public var label: String;
+	public var label2: String;
+	public var hook: Handler;
+	public var hook2: Handler;
+	
+	public var tweenTimes: Number = 0;
+	
+	public var tweener: Tween;
+	public var completed: Boolean = false;
+	public var target: GObject;
+	
+	public function TransitionItem() {
+		this.easeType = Ease.QuadOut;
+		this.value = new TransitionValue();
+		this.startValue = new TransitionValue();
+		this.endValue = new TransitionValue();
+	}
+	
+	public function __shake(trans:Object):void {
+		trans.__shakeItem(this);
+	}
+}
+	
+class TransitionValue {
+	public var f1: Number = 0;
+	public var f2: Number = 0;
+	public var f3: Number = 0;
+	public var i: Number = 0;
+	public var b: Boolean = false;
+	public var s: String;
+	public var b1: Boolean = true;
+	public var b2: Boolean = true;
+}
+                                                                                                                                                                                                                                                
