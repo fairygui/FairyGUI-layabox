@@ -268,7 +268,7 @@ package fairygui {
                 this._pivotX = xv;
                 this._pivotY = yv;
 
-                this.updatePivotOffset();
+                this.applyPivot();
             }
         }
 		
