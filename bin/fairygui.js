@@ -444,7 +444,7 @@
 				if(this._pivotX !=0 || this._pivotY !=0){
 					if(!ignorePivot)
 						this.setXY(this.x-this._pivotX *dWidth,this.y-this._pivotY *dHeight);
-					this.applyPivot();
+					this.updatePivotOffset();
 				}
 				this.handleSizeChanged();
 				if(this._gearSize.controller)
@@ -474,39 +474,36 @@
 			if(this._pivotX !=xv || this._pivotY !=yv){
 				this._pivotX=xv;
 				this._pivotY=yv;
-				this.applyPivot();
+				this.updatePivotOffset();
 			}
 		}
 
-		__proto.applyPivot=function(){
-			var ox=this._pivotOffsetX;
-			var oy=this._pivotOffsetY;
-			if(this._pivotX !=0 || this._pivotY !=0){
-				var rot=this.normalizeRotation;
-				if(rot !=0 || this._scaleX !=1 || this._scaleY !=1){
-					var rotInRad=rot *Math.PI / 180;
-					var cos=Math.cos(rotInRad);
-					var sin=Math.sin(rotInRad);
-					var a=this._scaleX *cos;
-					var b=this._scaleX *sin;
-					var c=this._scaleY *-sin;
-					var d=this._scaleY *cos;
-					var px=this._pivotX *this._width;
-					var py=this._pivotY *this._height;
-					this._pivotOffsetX=px-(a *px+c *py);
-					this._pivotOffsetY=py-(d *py+b *px);
-				}
-				else {
-					this._pivotOffsetX=0;
-					this._pivotOffsetY=0;
-				}
+		__proto.updatePivotOffset=function(){
+			var rot=this.normalizeRotation;
+			if(rot !=0 || this._scaleX !=1 || this._scaleY !=1){
+				var rotInRad=rot *Math.PI / 180;
+				var cos=Math.cos(rotInRad);
+				var sin=Math.sin(rotInRad);
+				var a=this._scaleX *cos;
+				var b=this._scaleX *sin;
+				var c=this._scaleY *-sin;
+				var d=this._scaleY *cos;
+				var px=this._pivotX *this._width;
+				var py=this._pivotY *this._height;
+				this._pivotOffsetX=px-(a *px+c *py);
+				this._pivotOffsetY=py-(d *py+b *px);
 			}
 			else {
 				this._pivotOffsetX=0;
 				this._pivotOffsetY=0;
 			}
-			if(ox !=this._pivotOffsetX || oy !=this._pivotOffsetY)
+		}
+
+		__proto.applyPivot=function(){
+			if(this._pivotX !=0 || this._pivotY !=0){
+				this.updatePivotOffset();
 				this.handleXYChanged();
+			}
 		}
 
 		__proto.updateAlpha=function(){
@@ -8964,7 +8961,6 @@
 				this._downEffect=str=="dark"?1:(str=="scale"?2:0);
 				str=xml.getAttribute("downEffectValue");
 				this._downEffectValue=parseFloat(str);
-				this.setPivot(0.5,0.5);
 			}
 			this._buttonController=this.getController("button");
 			this._titleObject=this.getChild("title");
@@ -8979,6 +8975,8 @@
 
 		__proto.setup_afterAdd=function(xml){
 			fairygui.GObject.prototype.setup_afterAdd.call(this,xml);
+			if(this._downEffect==2)
+				this.setPivot(0.5,0.5);
 			xml=ToolSet.findChildNode(xml,"Button");
 			if (xml){
 				var str;
@@ -9604,7 +9602,6 @@
 			this._selectionMode=0;
 			this._lastSelectedIndex=0;
 			this._pool=null;
-			this._selectionHandled=false;
 			this._virtual=false;
 			this._loop=false;
 			this._numItems=0;
@@ -9659,7 +9656,6 @@
 				button.selected=false;
 				button.changeStateOnClick=false;
 			}
-			child.on("mousedown",this,this.__mouseDownItem);
 			child.on("click",this,this.__clickItem);
 			return child;
 		}
@@ -9677,7 +9673,6 @@
 		__proto.removeChildAt=function(index,dispose){
 			(dispose===void 0)&& (dispose=false);
 			var child=_super.prototype.removeChildAt.call(this,index,dispose);
-			child.off("mousedown",this,this.__mouseDownItem);
 			child.off("click",this,this.__clickItem);
 			return child;
 		}
@@ -9924,31 +9919,11 @@
 				}
 		}
 
-		__proto.__mouseDownItem=function(evt){
-			var item=GObject.cast(evt.currentTarget).asButton;
-			if (item==null || this._selectionMode==3)
-				return;
-			this._selectionHandled=false;
-			if (UIConfig1.defaultScrollTouchEffect
-				&& (this.scrollPane !=null || this.parent !=null && this.parent.scrollPane !=null))
-			return;
-			if (this._selectionMode==0){
-				this.setSelectionOnEvent(item,evt);
-			}
-			else {
-				if (!item.selected)
-					this.setSelectionOnEvent(item,evt);
-			}
-		}
-
-		//如果item.selected，这里不处理selection，因为可能用户在拖动
 		__proto.__clickItem=function(evt){
 			if (this._scrollPane !=null && this._scrollPane._isMouseMoved)
 				return;
 			var item=GObject.cast(evt.currentTarget);
-			if (!this._selectionHandled)
-				this.setSelectionOnEvent(item,evt);
-			this._selectionHandled=false;
+			this.setSelectionOnEvent(item,evt);
 			if(this.scrollPane)
 				this.scrollPane.scrollToView(item,true);
 			this.displayObject.event("fui_click_item",[item,Events.createEvent("fui_click_item",this.displayObject,evt)]);
@@ -9957,7 +9932,6 @@
 		__proto.setSelectionOnEvent=function(item,evt){
 			if (!((item instanceof fairygui.GButton ))|| this._selectionMode==3)
 				return;
-			this._selectionHandled=true;
 			var dontChangeLastIndex=false;
 			var button=(item);
 			var index=this.getChildIndex(item);
@@ -12392,6 +12366,7 @@
 				this.setFrame(this._frames[this._currentFrame]);
 			else
 			this.setFrame(null);
+			this._playState.rewind();
 		});
 
 		__getset(0,__proto,'boundsRect',function(){

@@ -175,7 +175,7 @@ package fairygui {
                 if(this._pivotX != 0 || this._pivotY != 0) {
                     if(!ignorePivot)
                         this.setXY(this.x - this._pivotX * dWidth, this.y - this._pivotY * dHeight);
-                    this.applyPivot();
+                    this.updatePivotOffset();
                 }
 
                 this.handleSizeChanged();
@@ -268,39 +268,36 @@ package fairygui {
                 this._pivotX = xv;
                 this._pivotY = yv;
 
-                this.applyPivot();
+                this.updatePivotOffset();
             }
         }
+		
+		private function updatePivotOffset():void {
+			var rot: Number = this.normalizeRotation;
+			if(rot != 0 || this._scaleX != 1 || this._scaleY != 1) {
+				var rotInRad: Number = rot * Math.PI / 180;
+				var cos: Number = Math.cos(rotInRad);
+				var sin: Number = Math.sin(rotInRad);
+				var a: Number = this._scaleX * cos;
+				var b: Number = this._scaleX * sin;
+				var c: Number = this._scaleY * -sin;
+				var d: Number = this._scaleY * cos;
+				var px: Number = this._pivotX * this._width;
+				var py: Number = this._pivotY * this._height;
+				this._pivotOffsetX = px - (a * px + c * py);
+				this._pivotOffsetY = py - (d * py + b * px);
+			}
+			else {
+				this._pivotOffsetX = 0;
+				this._pivotOffsetY = 0;
+			}
+		}
 
         private function applyPivot(): void {
-            var ox: Number = this._pivotOffsetX;
-            var oy: Number = this._pivotOffsetY;
             if(this._pivotX != 0 || this._pivotY != 0) {
-                var rot: Number = this.normalizeRotation;
-                if(rot != 0 || this._scaleX != 1 || this._scaleY != 1) {
-                    var rotInRad: Number = rot * Math.PI / 180;
-                    var cos: Number = Math.cos(rotInRad);
-                    var sin: Number = Math.sin(rotInRad);
-                    var a: Number = this._scaleX * cos;
-                    var b: Number = this._scaleX * sin;
-                    var c: Number = this._scaleY * -sin;
-                    var d: Number = this._scaleY * cos;
-                    var px: Number = this._pivotX * this._width;
-                    var py: Number = this._pivotY * this._height;
-                    this._pivotOffsetX = px - (a * px + c * py);
-                    this._pivotOffsetY = py - (d * py + b * px);
-                }
-                else {
-                    this._pivotOffsetX = 0;
-                    this._pivotOffsetY = 0;
-                }
-            }
-            else {
-                this._pivotOffsetX = 0;
-                this._pivotOffsetY = 0;
-            }
-            if(ox != this._pivotOffsetX || oy != this._pivotOffsetY)
-                this.handleXYChanged();
+                this.updatePivotOffset();
+				this.handleXYChanged();
+            }                
         }
 
         public function get touchable(): Boolean {
