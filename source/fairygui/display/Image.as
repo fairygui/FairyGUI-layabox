@@ -32,17 +32,19 @@ package fairygui.display {
             if(this._texture!=value) {
                 this._texture = value;
                 if(this._texture)
-                    this.size(this._texture.width, this._texture.height);
+                    this.size(this._texture.width* this._textureScaleX, this._texture.height* this._textureScaleY);
                 else
                     this.size(0,0);
                 this.markChanged();
             }
         }
         
-        public function scaleTexture(x:Number, y:Number):void {
-            if(this._textureScaleX!=x || this._textureScaleY!=y) {
-                this._textureScaleX = x;
-                this._textureScaleY = y;
+        public function scaleTexture(sx:Number, sy:Number):void {
+            if(this._textureScaleX!=sx || this._textureScaleY!=sy) {
+                this._textureScaleX = sx;
+                this._textureScaleY = sy;
+				if(this._texture)
+					this.size(this._texture.width*sx, this._texture.height*sy);
                 this.markChanged();
             }
         }
@@ -81,12 +83,21 @@ package fairygui.display {
             var g:Graphics  = this.graphics;
             g.clear();
             if(this._texture==null)
+			{
+				this.repaint();
                 return;
+			}
                 
-            var width:Number=this.width*this._textureScaleX;
-			var height:Number=this.height*this._textureScaleY;
+            var width:Number=this.width;
+			var height:Number=this.height;
 			var sw:Number=this._texture.width;
 			var sh:Number=this._texture.height;
+			
+			if(width==0 || height==0)
+			{
+				this.repaint();
+				return;
+			}
             
             if(this._scaleByTile) {
                 var hc:Number = Math.ceil(this._textureScaleX);
@@ -109,6 +120,35 @@ package fairygui.display {
 				var right:Number = Math.max(sw - this._scale9Grid.right, 0);
                 var top:Number = this._scale9Grid.y;
 				var bottom:Number = Math.max(sh - this._scale9Grid.bottom, 0);
+				var tmp:Number;
+				
+				if (height >= (sh - this._scale9Grid.height))
+				{
+					top = this._scale9Grid.y;
+					bottom = sh - this._scale9Grid.bottom;
+				}
+				else
+				{
+					tmp = this._scale9Grid.y / (sh - this._scale9Grid.bottom);
+					tmp = height * tmp / (1 + tmp);
+					top = Math.round(tmp);
+					bottom = height - tmp;
+				}
+				
+				if (width >= (sw - this._scale9Grid.width))
+				{
+					left = this._scale9Grid.x;
+					right = sw - this._scale9Grid.right;
+				}
+				else
+				{
+					tmp = this._scale9Grid.x / (sw - this._scale9Grid.right);
+					tmp = width * tmp / (1 + tmp);
+					left = Math.round(tmp);
+					right = width - tmp;
+				}
+				var centerWidth:Number = Math.max(width - left - right,0);
+				var centerHeight:Number = Math.max(height - top - bottom,0);
 				
 				//绘制四个角
 				left && top && g.drawTexture(Image.getTexture(this._texture, 0, 0, left, top), 0, 0, left, top);
@@ -116,13 +156,13 @@ package fairygui.display {
 				left && bottom && g.drawTexture(Image.getTexture(this._texture, 0, sh - bottom, left, bottom), 0, height - bottom, left, bottom);
 				right && bottom && g.drawTexture(Image.getTexture(this._texture, sw - right, sh - bottom, right, bottom), width - right, height - bottom, right, bottom);
 				//绘制上下两个边
-				top && g.drawTexture(Image.getTexture(this._texture, left, 0, sw - left - right, top), left, 0, width - left - right, top);
-				bottom && g.drawTexture(Image.getTexture(this._texture, left, sh - bottom, sw - left - right, bottom), left, height - bottom, width - left - right, bottom);
+				centerWidth && top && g.drawTexture(Image.getTexture(this._texture, left, 0, sw - left - right, top), left, 0, centerWidth, top);				
+				centerWidth && bottom && g.drawTexture(Image.getTexture(this._texture, left, sh - bottom, sw - left - right, bottom), left, height - bottom, centerWidth, bottom);
 				//绘制左右两边
-				left && g.drawTexture(Image.getTexture(this._texture, 0, top, left, sh - top - bottom), 0, top, left, height - top - bottom);
-				right && g.drawTexture(Image.getTexture(this._texture, sw - right, top, right, sh - top - bottom), width - right, top, right, height - top - bottom);
+				centerHeight && left && g.drawTexture(Image.getTexture(this._texture, 0, top, left, sh - top - bottom), 0, top, left, centerHeight);
+				centerHeight && right && g.drawTexture(Image.getTexture(this._texture, sw - right, top, right, sh - top - bottom), width - right, top, right, centerHeight);
 				//绘制中间
-				g.drawTexture(Image.getTexture(this._texture, left, top, sw - left - right, sh - top - bottom), left, top, width - left - right, height - top - bottom);
+				centerWidth && centerHeight && g.drawTexture(Image.getTexture(this._texture, left, top, sw - left - right, sh - top - bottom), left, top, centerWidth, centerHeight);
             }
             else {
                 g.drawTexture(this._texture, 0, 0, width, height);

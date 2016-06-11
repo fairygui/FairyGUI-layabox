@@ -392,11 +392,10 @@ package fairygui {
         }
 
 		override protected function handleSizeChanged(): void {
+			super.handleSizeChanged();
+			
             if(!this._updatingLayout)
                 this.updateLayout();
-
-            this._displayObject.size(this.width, this.height);
-            this._displayObject.scale(this.scaleX, this.scaleY);
         }
 
 		override public function setup_beforeAdd(xml: Object): void {

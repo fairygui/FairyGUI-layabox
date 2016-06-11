@@ -580,7 +580,6 @@ declare module fairygui {
         gearAnimation: GearAnimation;
         gearColor: GearColor;
         handleControllerChanged(c: Controller): void;
-        protected handleSizeChanged(): void;
         constructFromResource(pkgItem: PackageItem): void;
         setup_beforeAdd(xml: Object): void;
         setup_afterAdd(xml: Object): void;
@@ -625,6 +624,9 @@ declare module fairygui {
         scaleX: number;
         scaleY: number;
         setScale(sx: number, sy: number): void;
+        skewX: number;
+        skewY: number;
+        setSkew(sx: number, sy: number): void;
         pivotX: number;
         pivotY: number;
         setPivot(xv: number, yv?: number): void;
@@ -692,6 +694,7 @@ declare module fairygui {
         protected createDisplayObject(): void;
         protected handleXYChanged(): void;
         protected handleSizeChanged(): void;
+        protected handleScaleChanged(): void;
         protected handleGrayChanged(): void;
         constructFromResource(pkgItem: PackageItem): void;
         setup_beforeAdd(xml: Object): void;

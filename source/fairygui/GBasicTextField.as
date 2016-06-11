@@ -559,7 +559,7 @@ package fairygui {
                     if(!this._widthAutoSize)
                         this.markChanged();
                     else
-                        this.doAlign();                    
+                        this.doAlign();
                 }
                 else {
                     if(!this._widthAutoSize) {

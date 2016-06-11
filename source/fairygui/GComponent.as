@@ -496,18 +496,15 @@ package fairygui {
         }
 
         override protected function handleSizeChanged(): void {
+			super.handleSizeChanged();
+			
             if(this._scrollPane)
                 this._scrollPane.setSize(this.width,this.height);
             else if(this._displayObject.mask != null)
                 this.updateMask();
-                
-            this.displayObject.size(this.width, this.height);
-
+			
             if(this._opaque)
                 this.updateOpaque();
-
-            this._displayObject.scaleX = this.scaleX;
-            this._displayObject.scaleY = this.scaleY;
         }
 
         override protected function handleGrayChanged(): void {

@@ -135,11 +135,11 @@ package fairygui {
 		}
         
         public function set promptText(value: String):void {
-            this.input.title = value;
+            this.input.prompt = value;
         }
 
         public function get promptText(): String {
-            return this.input.title;
+            return this.input.prompt;
         }
         
 		override public function get textWidth(): Number {

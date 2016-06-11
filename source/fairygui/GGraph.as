@@ -42,8 +42,8 @@ package fairygui {
             var gr:Graphics = this._displayObject.graphics;
             gr.clear();
 
-            var w: Number = this.width * this.scaleX;
-            var h: Number = this.height * this.scaleY;
+            var w: Number = this.width;
+            var h: Number = this.height;
             if(w == 0 || h == 0)
                 return;
             
@@ -60,10 +60,13 @@ package fairygui {
                     this.alpha = a;
                 }
             }
-            if (this._type == 1)
-                gr.drawRect(0,0,this.width,this.height,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
-            else
-                gr.drawCircle(this.width/2,this.height/2, this.width/2, fillColor, this._lineSize>0?lineColor:null, this._lineSize);
+            //if (this._type == 1)
+                gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
+			//wait for laya fix bugs
+           // else 
+               //gr.drawCircle(w/2,h/2,w/2, fillColor, this._lineSize>0?lineColor:null, this._lineSize);
+			
+			this._displayObject.repaint();
         }
 
         public function replaceMe(target: GObject): void {
@@ -110,17 +113,16 @@ package fairygui {
             this._displayObject.addChild(obj);
         }
         
-        override protected function createDisplayObject():void
-        {
+        override protected function createDisplayObject():void {
             super.createDisplayObject();
             this._displayObject.mouseEnabled = false;
         }
 
 		override protected function handleSizeChanged(): void {
+			super.handleSizeChanged();
+			
             if(this._type != 0)
                 this.drawCommon();
-             
-            this._displayObject.size(this.width, this.height);
         }
 
 		override public function setup_beforeAdd(xml: Object): void {

@@ -766,13 +766,16 @@ package fairygui {
             if(this._tweening == 1) {
                 this._tweening = 0;
                 this._tweener.clear();
+				this._maskHolder.mouseEnabled = true;
+				this.onScrollEnd();
             }
             else if(this._tweening == 2) {
                 this._tweening = 0;
                 this._tweener.clear();
                 this._tweenHelper.value = 1;
                 this.__tweenUpdate2();
-                this.__tweenComplete2();
+				this._maskHolder.mouseEnabled = true;
+				this.onScrollEnd();
             }           
         }
 

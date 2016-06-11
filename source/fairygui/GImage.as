@@ -41,12 +41,14 @@ package fairygui {
         public function set flip(value:int):void {
             if(this._flip!=value) {
                 this._flip = value;
-                this.image.scaleX = this.image.scaleY = 1;  
+				
+				var sx:Number = 1, sy:Number = 1;
                 if(this._flip == FlipType.Horizontal || this._flip == FlipType.Both)
-                    this.image.scaleX = -1;
+                    sx = -1;
                 if(this._flip == FlipType.Vertical || this._flip == FlipType.Both)
-                    this.image.scaleY = -1;
-                this.handleXYChanged();
+                    sy = -1;
+               	this.setScale(sx, sy);
+				handleXYChanged();
             }
         }
         
@@ -82,15 +84,14 @@ package fairygui {
         
 		override protected function handleXYChanged(): void {
             super.handleXYChanged();
-            if(this.image.scaleX==-1)
+            if(this.scaleX==-1)
                 this.image.x += this.width;
-            if(this.image.scaleY==-1)
+            if(this.scaleY==-1)
                 this.image.y += this.height;
         }
 
 		override protected function handleSizeChanged(): void {
             if(this.image.texture!=null) {
-                this.image.scale(Math.abs(this.scaleX), Math.abs(this.scaleY));
                 this.image.scaleTexture(this.width/this._sourceWidth, this.height/this._sourceHeight);
             }
         }
