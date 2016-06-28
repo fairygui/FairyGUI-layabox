@@ -24,6 +24,11 @@ package fairygui {
 			this._contentPane.addRelation(this._list,RelationType.Height);
 			this._list.on(Events.CLICK_ITEM, this, this.__clickItem);
 		}
+		
+		public function dispose():void
+		{
+			this._contentPane.dispose();
+		}
 
 		public function addItem(caption:String, handler:Handler=null):GButton
 		{

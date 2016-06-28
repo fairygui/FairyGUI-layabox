@@ -15,7 +15,7 @@ package fairygui {
         private var _focusedObject: GObject;
         private var _tooltipWin: GObject;
         private var _defaultTooltipWin: GObject;
-        private var _volumeScale: Number;
+        private var _volumeScale: Number = 0;
         private var _checkPopups:Boolean;
 
         private static var  _inst: GRoot;

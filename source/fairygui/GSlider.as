@@ -19,7 +19,7 @@ package fairygui {
         private var _barMaxHeightDelta: Number = 0;
         private var _gripObject: GObject;
         private var _clickPos: Point;
-        private var _clickPercent: Number;
+        private var _clickPercent: Number = 0;
 
         public function GSlider() {
             super();

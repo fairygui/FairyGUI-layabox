@@ -726,6 +726,13 @@ package fairygui {
             this._initHeight = this._sourceHeight;
             
             this.setSize(this._sourceWidth,this._sourceHeight);
+			
+			str = xml.getAttribute("pivot");
+			if(str) {
+				arr = str.split(",");
+				str = xml.getAttribute("anchor");
+				internalSetPivot(parseFloat(arr[0]), parseFloat(arr[1]), str=="true");				
+			}
 
             str = xml.getAttribute("opaque");
             this.opaque = str != "false";

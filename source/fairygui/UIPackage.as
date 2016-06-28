@@ -5,7 +5,6 @@ package fairygui {
 	import fairygui.display.Frame;
 	import fairygui.utils.ToolSet;
 	
-	import laya.maths.Point;
 	import laya.maths.Rectangle;
 	import laya.resource.Texture;
 	import laya.utils.Byte;
@@ -408,13 +407,8 @@ package fairygui {
 
         private function loadMovieClip(item: PackageItem): void {
             var xml: Object = Utils.parseXMLFromString(this.getDesc(item.id + ".xml")).firstChild;
-            item.pivot = new Point();
-            var str: String = xml.getAttribute("pivot");
-            if (str) {
-                var arr: Array = str.split(UIPackage.sep0);
-                item.pivot.x = parseInt(arr[0]);
-                item.pivot.y = parseInt(arr[1]);
-            }
+            var str: String;
+			var arr:Array;
 
             str = xml.getAttribute("interval");
             if (str != null)

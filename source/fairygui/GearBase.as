@@ -9,8 +9,8 @@ package fairygui {
         protected var _pageSet: PageOptionSet;
         protected var _tween: Boolean;
         protected var _easeType: Function;
-        protected var _tweenTime: Number;
-        protected var _delay: Number;
+        protected var _tweenTime: Number = 0.3;
+        protected var _delay: Number = 0;
 
         protected var _owner: GObject;
         protected var _controller: Controller;
@@ -19,8 +19,6 @@ package fairygui {
             this._owner = owner;
             this._pageSet = new PageOptionSet();
             this._easeType = Ease.QuadOut;
-            this._tweenTime = 0.3;
-            this._delay = 0;
         }
 
         public function get controller(): Controller {

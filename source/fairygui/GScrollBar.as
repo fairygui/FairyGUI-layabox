@@ -13,7 +13,7 @@ package fairygui {
         private var _target: ScrollPane;
 
         private var _vertical: Boolean;
-        private var _scrollPerc: Number;
+        private var _scrollPerc: Number = 0;
         private var _fixedGripSize: Boolean;
 
         private var _dragOffset: laya.maths.Point;

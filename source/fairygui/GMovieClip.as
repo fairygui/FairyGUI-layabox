@@ -89,6 +89,8 @@ package fairygui {
             pkgItem.load();
 
             this.movieClip.interval = this._packageItem.interval;
+			this.movieClip.swing = this._packageItem.swing;
+			this.movieClip.repeatDelay = this._packageItem.repeatDelay;
             this.movieClip.frames = this._packageItem.frames;
             this.movieClip.boundsRect = new Rectangle(0, 0, this.sourceWidth, this.sourceHeight);
         }

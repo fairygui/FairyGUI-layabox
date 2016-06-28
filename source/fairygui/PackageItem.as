@@ -1,7 +1,6 @@
 package fairygui {
 	import fairygui.display.BitmapFont;
 	
-	import laya.maths.Point;
 	import laya.maths.Rectangle;
 	import laya.media.Sound;
 	import laya.resource.Texture;
@@ -24,9 +23,8 @@ package fairygui {
         public var texture: Texture;
 
         //movieclip
-        public var pivot: Point;
-        public var interval: Number;
-        public var repeatDelay: Number;
+        public var interval: Number = 0;
+        public var repeatDelay: Number = 0;
         public var swing: Boolean;
         public var frames: Array;
 

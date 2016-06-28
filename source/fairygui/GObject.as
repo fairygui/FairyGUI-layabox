@@ -14,8 +14,6 @@ package fairygui {
         private var _y: Number = 0;
         private var _width: Number = 0;
         private var _height: Number = 0;
-        private var _pivotX: Number = 0;
-        private var _pivotY: Number = 0;
         private var _alpha: Number = 1;
         private var _rotation: Number = 0;
         private var _visible: Boolean = true;
@@ -26,6 +24,9 @@ package fairygui {
         private var _scaleY: Number = 1;
 		private var _skewX: Number = 0;
 		private var _skewY: Number = 0;
+		private var _pivotX: Number = 0;
+		private var _pivotY: Number = 0;
+		private var _pivotAsAnchor: Boolean = false;
         private var _pivotOffsetX: Number = 0;
         private var _pivotOffsetY: Number = 0;
         private var _sortingOrder: Number = 0;
@@ -178,9 +179,14 @@ package fairygui {
 
 				this.handleSizeChanged();
                 if(this._pivotX != 0 || this._pivotY != 0) {
-                    if(!ignorePivot)
-                        this.setXY(this.x - this._pivotX * dWidth, this.y - this._pivotY * dHeight);
-                    this.updatePivotOffset();
+					if(!this._pivotAsAnchor)
+					{
+	                    if(!ignorePivot)
+	                        this.setXY(this.x - this._pivotX * dWidth, this.y - this._pivotY * dHeight);
+	                    this.updatePivotOffset();
+					}
+					else
+						this.applyPivot();
                 }
 
                 if(this._gearSize.controller)
@@ -293,15 +299,24 @@ package fairygui {
             this.setPivot(this._pivotX,value);
         }
         
-        public function setPivot(xv: Number,yv: Number = 0): void {
-            if(this._pivotX != xv || this._pivotY != yv) {
+        public function setPivot(xv: Number,yv: Number = 0, asAnchor:Boolean=false): void {
+            if(this._pivotX != xv || this._pivotY != yv || this._pivotAsAnchor!=asAnchor) {
                 this._pivotX = xv;
                 this._pivotY = yv;
+				this._pivotAsAnchor = asAnchor;
 				
                 this.updatePivotOffset();
 				this.handleXYChanged();
             }
         }
+		
+		protected function internalSetPivot(xv:Number, yv:Number, asAnchor:Boolean):void {
+			this._pivotX = xv;
+			this._pivotY = yv;
+			this._pivotAsAnchor = asAnchor;
+			if(this._pivotAsAnchor)
+				this.handleXYChanged();
+		}
 		
 		private function updatePivotOffset():void {
 			if(this._displayObject!=null)
@@ -784,8 +799,12 @@ package fairygui {
         }
 
         protected function handleXYChanged(): void {
-            this._displayObject.pos(Math.floor(this._x)+ this._pivotOffsetX,
-				Math.floor(this._y + this._yOffset)+this._pivotOffsetY);
+			if(this._pivotAsAnchor)
+				this._displayObject.pos(Math.floor(this._x-this._pivotX*this._width)+ this._pivotOffsetX,
+					Math.floor(this._y-this._pivotY*this._height + this._yOffset)+this._pivotOffsetY);
+			else
+            	this._displayObject.pos(Math.floor(this._x)+ this._pivotOffsetX,
+					Math.floor(this._y + this._yOffset)+this._pivotOffsetY);
         }
 
 		protected function handleSizeChanged():void
@@ -841,7 +860,7 @@ package fairygui {
                 arr = str.split(",");
                 this._initWidth = parseInt(arr[0]);
                 this._initHeight = parseInt(arr[1]);
-                this.setSize(this._initWidth, this._initHeight);
+                this.setSize(this._initWidth, this._initHeight, true);
             }
             
             str = xml.getAttribute("scale");
@@ -863,8 +882,11 @@ package fairygui {
             str = xml.getAttribute("pivot");
             if (str) {
                 arr = str.split(",");
-                this.setPivot(parseFloat(arr[0]), parseFloat(arr[1]));
+				str = xml.getAttribute("anchor");
+                this.setPivot(parseFloat(arr[0]), parseFloat(arr[1]), str=="true");
             }
+			else
+				this.setPivot(0,0,false);			
 
             str = xml.getAttribute("alpha");
             if (str)

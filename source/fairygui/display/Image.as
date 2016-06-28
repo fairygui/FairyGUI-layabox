@@ -10,8 +10,8 @@ package fairygui.display {
         private var _texture:Texture;
         private var _scaleByTile:Boolean;
         private var _scale9Grid:Rectangle;
-        private var _textureScaleX:Number;
-        private var _textureScaleY:Number;
+        private var _textureScaleX:Number = 0;
+        private var _textureScaleY:Number = 0;
         private var _needRebuild:Boolean;
         
         private static var _textureCache:Object = {};

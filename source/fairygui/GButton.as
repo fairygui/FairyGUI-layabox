@@ -17,13 +17,13 @@ package fairygui {
         private var _icon: String;
         private var _selectedIcon: String;
         private var _sound: String;
-        private var _soundVolumeScale: Number;
+        private var _soundVolumeScale: Number = 0;
         private var _pageOption: PageOption;
         private var _buttonController: Controller;
         private var _changeStateOnClick: Boolean;
         private var _linkedPopup: GObject;
-        private var _downEffect:Number;
-        private var _downEffectValue:Number;
+        private var _downEffect:Number = 0;
+        private var _downEffectValue:Number = 0;
 
         private var _down: Boolean;
         private var _over: Boolean;
@@ -45,7 +45,6 @@ package fairygui {
             this._soundVolumeScale = fairygui.UIConfig.buttonSoundVolumeScale;
             this._pageOption = new PageOption();
             this._changeStateOnClick = true;
-            this._downEffect = 0;
             this._downEffectValue = 0.8;
         }
 
@@ -256,7 +255,7 @@ package fairygui {
                     for(var i: Number = 0;i < cnt;i++) {
                         var obj: GObject = this.getChildAt(i);
                         if((obj is GImage) || (obj is GLoader) 
-                            || (obj is GMovieClip) || (obj is GTextField))//instanceof IColorGear
+                            || (obj is GMovieClip))//instanceof IColorGear
                             IColorGear(obj).color = color;
                     }
                 }
@@ -264,7 +263,7 @@ package fairygui {
                     for(i = 0;i < cnt;i++) {
                         obj = this.getChildAt(i);
                         if((obj is GImage) || (obj is GLoader)
-                            || (obj is GMovieClip) || (obj is GTextField))
+                            || (obj is GMovieClip))
                             IColorGear(obj).color = "#FFFFFF";
                     }
                 }

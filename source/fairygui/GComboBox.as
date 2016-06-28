@@ -5,8 +5,9 @@ package fairygui {
 	import laya.utils.Log;
 
     public class GComboBox extends GComponent {
+		public var dropdown: GComponent;
+		
         protected var _titleObject: GTextField;
-        protected var _dropdownObject: GComponent;
         protected var _list: GList;
 
         private var _visibleItemCount: Number = 0;
@@ -120,6 +121,17 @@ package fairygui {
             if (this._buttonController)
                 this._buttonController.selectedPage = val;
         }
+		
+		override public function dispose():void
+		{
+			if(this.dropdown)
+			{
+				this.dropdown.dispose();
+				this.dropdown = null;
+			}
+			
+			super.dispose();
+		}
 
 		override protected function constructFromXML(xml: Object): void {
             super.constructFromXML(xml);
@@ -131,26 +143,26 @@ package fairygui {
             this._titleObject = GTextField(this.getChild("title"));
             str = xml.getAttribute("dropdown");
             if (str) {
-                this._dropdownObject = GComponent(UIPackage.createObjectFromURL(str));
-                if (!this._dropdownObject) {
+                this.dropdown = GComponent(UIPackage.createObjectFromURL(str));
+                if (!this.dropdown) {
 					Log.print("下拉框必须为元件");
                     return;
                 }
-                this._dropdownObject.name = "this._dropdownObject";
-                this._list = this._dropdownObject.getChild("list").asList;
+                this.dropdown.name = "this._dropdownObject";
+                this._list = this.dropdown.getChild("list").asList;
                 if (this._list == null) {
 					Log.print(this.resourceURL + ": 下拉框的弹出元件里必须包含名为list的列表");
                     return;
                 }
                 this._list.on(Events.CLICK_ITEM, this, this.__clickItem);
 
-                this._list.addRelation(this._dropdownObject, RelationType.Width);
-                this._list.removeRelation(this._dropdownObject, RelationType.Height);
+                this._list.addRelation(this.dropdown, RelationType.Width);
+                this._list.removeRelation(this.dropdown, RelationType.Height);
 
-                this._dropdownObject.addRelation(this._list, RelationType.Height);
-                this._dropdownObject.removeRelation(this._list, RelationType.Width);
+                this.dropdown.addRelation(this._list, RelationType.Height);
+                this.dropdown.removeRelation(this._list, RelationType.Width);
 
-                this._dropdownObject.displayObject.on(Event.UNDISPLAY, this, this.__popupWinClosed);
+                this.dropdown.displayObject.on(Event.UNDISPLAY, this, this.__popupWinClosed);
             }
 
             this.on(Event.ROLL_OVER, this, this.__rollover);
@@ -201,7 +213,7 @@ package fairygui {
             if (this._itemsUpdated) {
                 this._itemsUpdated = false;
  
-                this._list.removeChildren();
+                this._list.removeChildrenToPool();
                 var cnt: Number = this._items.length;
                 for (var i: Number = 0; i < cnt; i++) {
                     var item: GObject = this._list.addItemFromPool();
@@ -211,10 +223,10 @@ package fairygui {
                 this._list.resizeToFit(this._visibleItemCount);
             }
             this._list.selectedIndex = -1;
-            this._dropdownObject.width = this.width;
+            this.dropdown.width = this.width;
 
-            this.root.togglePopup(this._dropdownObject, this, true);
-            if (this._dropdownObject.parent)
+            this.root.togglePopup(this.dropdown, this, true);
+            if (this.dropdown.parent)
                 this.setState(GButton.DOWN);
         }
 
@@ -230,8 +242,8 @@ package fairygui {
         }
         
         private function __clickItem2(index:Number, evt:Event):void {
-            if (this._dropdownObject.parent is GRoot)
-                GRoot(this._dropdownObject.parent).hidePopup();
+            if (this.dropdown.parent is GRoot)
+                GRoot(this.dropdown.parent).hidePopup();
 
             this._selectedIndex = index;
             if (this._selectedIndex >= 0)
@@ -243,7 +255,7 @@ package fairygui {
 
         private function __rollover(): void {
             this._over = true;
-            if (this._down || this._dropdownObject && this._dropdownObject.parent)
+            if (this._down || this.dropdown && this.dropdown.parent)
                 return;
 
             this.setState(GButton.OVER);
@@ -251,7 +263,7 @@ package fairygui {
 
         private function __rollout(): void {
             this._over = false;
-            if (this._down || this._dropdownObject && this._dropdownObject.parent)
+            if (this._down || this.dropdown && this.dropdown.parent)
                 return;
 
             this.setState(GButton.UP);
@@ -263,7 +275,7 @@ package fairygui {
             
             Laya.stage.on(Event.MOUSE_UP, this, this.__mouseup);
 
-            if (this._dropdownObject)
+            if (this.dropdown)
                 this.showDropdown();
         }
 
@@ -272,7 +284,7 @@ package fairygui {
                 this._down = false;
                  Laya.stage.off(Event.MOUSE_UP, this, this.__mouseup);
 
-                if(this._dropdownObject && !this._dropdownObject.parent) {
+                if(this.dropdown && !this.dropdown.parent) {
                     if(this._over)
                         this.setState(GButton.OVER);
                     else

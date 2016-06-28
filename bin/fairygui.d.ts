@@ -629,7 +629,7 @@ declare module fairygui {
         setSkew(sx: number, sy: number): void;
         pivotX: number;
         pivotY: number;
-        setPivot(xv: number, yv?: number): void;
+        setPivot(xv: number, yv?: number, asAnchor?: boolean): void;
         touchable: boolean;
         grayed: boolean;
         enabled: boolean;

@@ -28,7 +28,7 @@ package fairygui {
         private var _viewCount: Number = 0; //item count in view
         private var _curLineItemCount: Number = 0; //item count in one line
         private var _itemSize:Point;
-        private var _virtualListChanged: Number; //1-content changed, 2-size changed
+        private var _virtualListChanged: Number = 0; //1-content changed, 2-size changed
         private var _eventLocked: Boolean;
         
         public function GList() {

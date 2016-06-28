@@ -113,11 +113,10 @@
 	var PlayState=(function(){
 		function PlayState(){
 			this.reachEnding=false;
-			this.frameStarting=false;
 			this.reversed=false;
 			this.repeatedCount=0;
 			this._curFrame=0;
-			this._lastTime=NaN;
+			this._lastTime=0;
 			this._curFrameDelay=0;
 		}
 
@@ -128,22 +127,36 @@
 			var elapsed=t-this._lastTime;
 			this._lastTime=t;
 			this.reachEnding=false;
-			this.frameStarting=false;
 			this._curFrameDelay+=elapsed;
-			var realFrame=this.reversed ? mc.frameCount-this._curFrame-1 :this._curFrame;
-			var interval=mc.interval+mc.frames[realFrame].addDelay+((realFrame==0 && this.repeatedCount > 0)? mc.repeatDelay :0);
+			var interval=mc.interval+mc.frames[this._curFrame].addDelay+((this._curFrame==0 && this.repeatedCount > 0)? mc.repeatDelay :0);
 			if (this._curFrameDelay < interval)
 				return;
 			this._curFrameDelay=0;
-			this._curFrame++;
-			this.frameStarting=true;
-			if (this._curFrame > mc.frameCount-1){
-				this._curFrame=0;
-				this.repeatedCount++;
-				this.reachEnding=true;
-				if (mc.swing){
-					this.reversed=!this.reversed;
+			if (mc.swing){
+				if(this.reversed){
+					this._curFrame--;
+					if(this._curFrame<0){
+						this._curFrame=Math.min(1,mc.frameCount-1);
+						this.repeatedCount++;
+						this.reversed=!this.reversed;
+					}
+				}
+				else{
 					this._curFrame++;
+					if (this._curFrame > mc.frameCount-1){
+						this._curFrame=Math.max(0,mc.frameCount-2);
+						this.repeatedCount++;
+						this.reachEnding=true;
+						this.reversed=!this.reversed;
+					}
+				}
+			}
+			else{
+				this._curFrame++;
+				if (this._curFrame > mc.frameCount-1){
+					this._curFrame=0;
+					this.repeatedCount++;
+					this.reachEnding=true;
 				}
 			}
 		}
@@ -344,8 +357,6 @@
 			this._y=0;
 			this._width=0;
 			this._height=0;
-			this._pivotX=0;
-			this._pivotY=0;
 			this._alpha=1;
 			this._rotation=0;
 			this._visible=true;
@@ -356,6 +367,9 @@
 			this._scaleY=1;
 			this._skewX=0;
 			this._skewY=0;
+			this._pivotX=0;
+			this._pivotY=0;
+			this._pivotAsAnchor=false;
 			this._pivotOffsetX=0;
 			this._pivotOffsetY=0;
 			this._sortingOrder=0;
@@ -446,9 +460,13 @@
 				this._height=hv;
 				this.handleSizeChanged();
 				if(this._pivotX !=0 || this._pivotY !=0){
-					if(!ignorePivot)
-						this.setXY(this.x-this._pivotX *dWidth,this.y-this._pivotY *dHeight);
-					this.updatePivotOffset();
+					if(!this._pivotAsAnchor){
+						if(!ignorePivot)
+							this.setXY(this.x-this._pivotX *dWidth,this.y-this._pivotY *dHeight);
+						this.updatePivotOffset();
+					}
+					else
+					this.applyPivot();
 				}
 				if(this._gearSize.controller)
 					this._gearSize.updateState();
@@ -483,14 +501,24 @@
 			}
 		}
 
-		__proto.setPivot=function(xv,yv){
+		__proto.setPivot=function(xv,yv,asAnchor){
 			(yv===void 0)&& (yv=0);
-			if(this._pivotX !=xv || this._pivotY !=yv){
+			(asAnchor===void 0)&& (asAnchor=false);
+			if(this._pivotX !=xv || this._pivotY !=yv || this._pivotAsAnchor!=asAnchor){
 				this._pivotX=xv;
 				this._pivotY=yv;
+				this._pivotAsAnchor=asAnchor;
 				this.updatePivotOffset();
 				this.handleXYChanged();
 			}
+		}
+
+		__proto.internalSetPivot=function(xv,yv,asAnchor){
+			this._pivotX=xv;
+			this._pivotY=yv;
+			this._pivotAsAnchor=asAnchor;
+			if(this._pivotAsAnchor)
+				this.handleXYChanged();
 		}
 
 		__proto.updatePivotOffset=function(){
@@ -669,6 +697,10 @@
 		}
 
 		__proto.handleXYChanged=function(){
+			if(this._pivotAsAnchor)
+				this._displayObject.pos(Math.floor(this._x-this._pivotX*this._width)+this._pivotOffsetX,
+			Math.floor(this._y-this._pivotY*this._height+this._yOffset)+this._pivotOffsetY);
+			else
 			this._displayObject.pos(Math.floor(this._x)+this._pivotOffsetX,
 			Math.floor(this._y+this._yOffset)+this._pivotOffsetY);
 		}
@@ -719,7 +751,7 @@
 				arr=str.split(",");
 				this._initWidth=parseInt(arr[0]);
 				this._initHeight=parseInt(arr[1]);
-				this.setSize(this._initWidth,this._initHeight);
+				this.setSize(this._initWidth,this._initHeight,true);
 			}
 			str=xml.getAttribute("scale");
 			if(str){
@@ -737,8 +769,11 @@
 			str=xml.getAttribute("pivot");
 			if (str){
 				arr=str.split(",");
-				this.setPivot(parseFloat(arr[0]),parseFloat(arr[1]));
+				str=xml.getAttribute("anchor");
+				this.setPivot(parseFloat(arr[0]),parseFloat(arr[1]),str=="true");
 			}
+			else
+			this.setPivot(0,0,false);
 			str=xml.getAttribute("alpha");
 			if (str)
 				this.alpha=parseFloat(str);
@@ -1247,15 +1282,13 @@
 			this._pageSet=null;
 			this._tween=false;
 			this._easeType=null;
-			this._tweenTime=NaN;
-			this._delay=NaN;
+			this._tweenTime=0.3;
+			this._delay=0;
 			this._owner=null;
 			this._controller=null;
 			this._owner=owner;
 			this._pageSet=new PageOptionSet();
 			this._easeType=Ease.QuadOut;
-			this._tweenTime=0.3;
-			this._delay=0;
 		}
 
 		__class(GearBase,'fairygui.GearBase');
@@ -1561,9 +1594,8 @@
 			this.scaleByTile=false;
 			this.smoothing=false;
 			this.texture=null;
-			this.pivot=null;
-			this.interval=NaN;
-			this.repeatDelay=NaN;
+			this.interval=0;
+			this.repeatDelay=0;
 			this.swing=false;
 			this.frames=null;
 			this.componentData=null;
@@ -1752,6 +1784,10 @@
 
 		__class(PopupMenu,'fairygui.PopupMenu');
 		var __proto=PopupMenu.prototype;
+		__proto.dispose=function(){
+			this._contentPane.dispose();
+		}
+
 		__proto.addItem=function(caption,handler){
 			var item=this._list.addItemFromPool().asButton;
 			item.title=caption;
@@ -5051,13 +5087,8 @@
 
 		__proto.loadMovieClip=function(item){
 			var xml=Utils.parseXMLFromString(this.getDesc(item.id+".xml")).firstChild;
-			item.pivot=new Point();
-			var str=xml.getAttribute("pivot");
-			if (str){
-				var arr=str.split(",");
-				item.pivot.x=parseInt(arr[0]);
-				item.pivot.y=parseInt(arr[1]);
-			}
+			var str;
+			var arr;
 			str=xml.getAttribute("interval");
 			if (str !=null)
 				item.interval=parseInt(str);
@@ -6686,6 +6717,12 @@
 			this._initWidth=this._sourceWidth;
 			this._initHeight=this._sourceHeight;
 			this.setSize(this._sourceWidth,this._sourceHeight);
+			str=xml.getAttribute("pivot");
+			if(str){
+				arr=str.split(",");
+				str=xml.getAttribute("anchor");
+				this.internalSetPivot(parseFloat(arr[0]),parseFloat(arr[1]),str=="true");
+			}
 			str=xml.getAttribute("opaque");
 			this.opaque=str !="false";
 			var overflow=0;
@@ -7780,6 +7817,8 @@
 					this._contentSourceWidth=this._contentItem.width;
 					this._contentSourceHeight=this._contentItem.height;
 					(this._content).interval=this._contentItem.interval;
+					(this._content).swing=this._contentItem.swing;
+					(this._content).repeatDelay=this._contentItem.repeatDelay;
 					(this._content).frames=this._contentItem.frames;
 					(this._content).boundsRect=new Rectangle(0,0,this._contentSourceWidth,this._contentSourceHeight);
 					this.updateLayout();
@@ -8236,6 +8275,8 @@
 			this.setSize(this._sourceWidth,this._sourceHeight);
 			pkgItem.load();
 			this.movieClip.interval=this._packageItem.interval;
+			this.movieClip.swing=this._packageItem.swing;
+			this.movieClip.repeatDelay=this._packageItem.repeatDelay;
 			this.movieClip.frames=this._packageItem.frames;
 			this.movieClip.boundsRect=new Rectangle(0,0,this.sourceWidth,this.sourceHeight);
 		}
@@ -8889,13 +8930,13 @@
 			this._icon=null;
 			this._selectedIcon=null;
 			this._sound=null;
-			this._soundVolumeScale=NaN;
+			this._soundVolumeScale=0;
 			this._pageOption=null;
 			this._buttonController=null;
 			this._changeStateOnClick=false;
 			this._linkedPopup=null;
-			this._downEffect=NaN;
-			this._downEffectValue=NaN;
+			this._downEffect=0;
+			this._downEffectValue=0;
 			this._down=false;
 			this._over=false;
 			GButton.__super.call(this);
@@ -8906,7 +8947,6 @@
 			this._soundVolumeScale=UIConfig1.buttonSoundVolumeScale;
 			this._pageOption=new PageOption();
 			this._changeStateOnClick=true;
-			this._downEffect=0;
 			this._downEffectValue=0.8;
 		}
 
@@ -8933,7 +8973,7 @@
 					for(var i=0;i < cnt;i++){
 						var obj=this.getChildAt(i);
 						if(((obj instanceof fairygui.GImage ))|| ((obj instanceof fairygui.GLoader ))
-							|| ((obj instanceof fairygui.GMovieClip ))|| ((obj instanceof fairygui.GTextField )))
+							|| ((obj instanceof fairygui.GMovieClip )))
 						(obj).color=color;
 					}
 				}
@@ -8941,7 +8981,7 @@
 					for(i=0;i < cnt;i++){
 						obj=this.getChildAt(i);
 						if(((obj instanceof fairygui.GImage ))|| ((obj instanceof fairygui.GLoader ))
-							|| ((obj instanceof fairygui.GMovieClip ))|| ((obj instanceof fairygui.GTextField )))
+							|| ((obj instanceof fairygui.GMovieClip )))
 						(obj).color="#FFFFFF";
 					}
 				}
@@ -9280,8 +9320,8 @@
 	//class fairygui.GComboBox extends fairygui.GComponent
 	var GComboBox=(function(_super){
 		function GComboBox(){
+			this.dropdown=null;
 			this._titleObject=null;
-			this._dropdownObject=null;
 			this._list=null;
 			this._visibleItemCount=0;
 			this._items=null;
@@ -9306,6 +9346,14 @@
 				this._buttonController.selectedPage=val;
 		}
 
+		__proto.dispose=function(){
+			if(this.dropdown){
+				this.dropdown.dispose();
+				this.dropdown=null;
+			}
+			_super.prototype.dispose.call(this);
+		}
+
 		__proto.constructFromXML=function(xml){
 			_super.prototype.constructFromXML.call(this,xml);
 			xml=ToolSet.findChildNode(xml,"ComboBox");
@@ -9314,23 +9362,23 @@
 			this._titleObject=(this.getChild("title"));
 			str=xml.getAttribute("dropdown");
 			if (str){
-				this._dropdownObject=(UIPackage.createObjectFromURL(str));
-				if (!this._dropdownObject){
+				this.dropdown=(UIPackage.createObjectFromURL(str));
+				if (!this.dropdown){
 					Log.print("下拉框必须为元件");
 					return;
 				}
-				this._dropdownObject.name="this._dropdownObject";
-				this._list=this._dropdownObject.getChild("list").asList;
+				this.dropdown.name="this._dropdownObject";
+				this._list=this.dropdown.getChild("list").asList;
 				if (this._list==null){
 					Log.print(this.resourceURL+": 下拉框的弹出元件里必须包含名为list的列表");
 					return;
 				}
 				this._list.on("fui_click_item",this,this.__clickItem);
-				this._list.addRelation(this._dropdownObject,14);
-				this._list.removeRelation(this._dropdownObject,15);
-				this._dropdownObject.addRelation(this._list,15);
-				this._dropdownObject.removeRelation(this._list,14);
-				this._dropdownObject.displayObject.on("undisplay",this,this.__popupWinClosed);
+				this._list.addRelation(this.dropdown,14);
+				this._list.removeRelation(this.dropdown,15);
+				this.dropdown.addRelation(this._list,15);
+				this.dropdown.removeRelation(this._list,14);
+				this.dropdown.displayObject.on("undisplay",this,this.__popupWinClosed);
 			}
 			this.on("mouseover",this,this.__rollover);
 			this.on("mouseout",this,this.__rollout);
@@ -9374,7 +9422,7 @@
 		__proto.showDropdown=function(){
 			if (this._itemsUpdated){
 				this._itemsUpdated=false;
-				this._list.removeChildren();
+				this._list.removeChildrenToPool();
 				var cnt=this._items.length;
 				for (var i=0;i < cnt;i++){
 					var item=this._list.addItemFromPool();
@@ -9384,9 +9432,9 @@
 				this._list.resizeToFit(this._visibleItemCount);
 			}
 			this._list.selectedIndex=-1;
-			this._dropdownObject.width=this.width;
-			this.root.togglePopup(this._dropdownObject,this,true);
-			if (this._dropdownObject.parent)
+			this.dropdown.width=this.width;
+			this.root.togglePopup(this.dropdown,this,true);
+			if (this.dropdown.parent)
 				this.setState("down");
 		}
 
@@ -9402,8 +9450,8 @@
 		}
 
 		__proto.__clickItem2=function(index,evt){
-			if ((this._dropdownObject.parent instanceof fairygui.GRoot ))
-				(this._dropdownObject.parent).hidePopup();
+			if ((this.dropdown.parent instanceof fairygui.GRoot ))
+				(this.dropdown.parent).hidePopup();
 			this._selectedIndex=index;
 			if (this._selectedIndex >=0)
 				this.text=this._items[this._selectedIndex];
@@ -9414,14 +9462,14 @@
 
 		__proto.__rollover=function(){
 			this._over=true;
-			if (this._down || this._dropdownObject && this._dropdownObject.parent)
+			if (this._down || this.dropdown && this.dropdown.parent)
 				return;
 			this.setState("over");
 		}
 
 		__proto.__rollout=function(){
 			this._over=false;
-			if (this._down || this._dropdownObject && this._dropdownObject.parent)
+			if (this._down || this.dropdown && this.dropdown.parent)
 				return;
 			this.setState("up");
 		}
@@ -9430,7 +9478,7 @@
 			this._down=true;
 			GRoot.inst.checkPopups(evt.target);
 			Laya.stage.on("mouseup",this,this.__mouseup);
-			if (this._dropdownObject)
+			if (this.dropdown)
 				this.showDropdown();
 		}
 
@@ -9438,7 +9486,7 @@
 			if(this._down){
 				this._down=false;
 				Laya.stage.off("mouseup",this,this.__mouseup);
-				if(this._dropdownObject && !this._dropdownObject.parent){
+				if(this.dropdown && !this.dropdown.parent){
 					if(this._over)
 						this.setState("over");
 					else
@@ -9643,7 +9691,7 @@
 			this._viewCount=0;
 			this._curLineItemCount=0;
 			this._itemSize=null;
-			this._virtualListChanged=NaN;
+			this._virtualListChanged=0;
 			this._eventLocked=false;
 			GList.__super.call(this);
 			this._trackBounds=true;
@@ -11193,7 +11241,7 @@
 			this._focusedObject=null;
 			this._tooltipWin=null;
 			this._defaultTooltipWin=null;
-			this._volumeScale=NaN;
+			this._volumeScale=0;
 			this._checkPopups=false;
 			GRoot.__super.call(this);
 			if(fairygui.GRoot._inst==null)
@@ -11579,7 +11627,7 @@
 			this._bar=null;
 			this._target=null;
 			this._vertical=false;
-			this._scrollPerc=NaN;
+			this._scrollPerc=0;
 			this._fixedGripSize=false;
 			this._dragOffset=null;
 			GScrollBar.__super.call(this);
@@ -11733,7 +11781,7 @@
 			this._barMaxHeightDelta=0;
 			this._gripObject=null;
 			this._clickPos=null;
-			this._clickPercent=NaN;
+			this._clickPercent=0;
 			GSlider.__super.call(this);
 			this._titleType=0;
 			this._value=50;
@@ -12157,8 +12205,8 @@
 			this._texture=null;
 			this._scaleByTile=false;
 			this._scale9Grid=null;
-			this._textureScaleX=NaN;
-			this._textureScaleY=NaN;
+			this._textureScaleX=0;
+			this._textureScaleY=0;
 			this._needRebuild=false;
 			Image.__super.call(this);
 			this.mouseEnabled=false;
