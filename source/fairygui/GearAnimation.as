@@ -30,13 +30,8 @@ package fairygui {
 		override public function apply(): void {
             this._owner._gearLocked = true;
 
-            var gv: GearAnimationValue;
-            if (this.connected) {
-                gv = this._storage[this._controller.selectedPageId];
-                if (!gv)
-                    gv = this._default;
-            }
-            else
+            var gv: GearAnimationValue = this._storage[this._controller.selectedPageId];
+            if (!gv)
                 gv = this._default;
 
 			IAnimationGear(this._owner).frame = gv.frame;
@@ -50,16 +45,11 @@ package fairygui {
                 return;
 
             var mc: IAnimationGear = IAnimationGear(this._owner);
-            var gv: GearAnimationValue;
-            if(this.connected) {
-                gv = this._storage[this._controller.selectedPageId];
-                if(!gv) {
-                    gv = new GearAnimationValue();
-                    this._storage[this._controller.selectedPageId] = gv;
-                }
+            var gv: GearAnimationValue = this._storage[this._controller.selectedPageId];
+            if(!gv) {
+                gv = new GearAnimationValue();
+                this._storage[this._controller.selectedPageId] = gv;
             }
-            else
-                gv = this._default;
 
             gv.frame = mc.frame;
             gv.playing = mc.playing;

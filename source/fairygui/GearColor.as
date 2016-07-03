@@ -23,13 +23,9 @@ package fairygui {
 		override public function apply(): void {
             this._owner._gearLocked = true;
 
-            if (this.connected) {
-                var data: * = this._storage[this._controller.selectedPageId];
-                if (data != undefined)
-					IColorGear(this._owner).color = data;
-                else
-					IColorGear(this._owner).color = this._default;
-            }
+            var data: * = this._storage[this._controller.selectedPageId];
+            if (data != undefined)
+				IColorGear(this._owner).color = data;
             else
 				IColorGear(this._owner).color = this._default;
 
@@ -40,10 +36,7 @@ package fairygui {
             if (this._owner._gearLocked)
                 return;
 
-            if (this.connected)
-                this._storage[this._controller.selectedPageId] = IColorGear(this._owner).color;
-            else
-                this._default = IColorGear(this._owner).color;
+            this._storage[this._controller.selectedPageId] = IColorGear(this._owner).color;
         }
     }
 }

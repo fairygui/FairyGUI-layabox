@@ -32,21 +32,14 @@ package fairygui {
         }
 
 		override public function apply(): void {
-            var pt: Point;
-            var ct: Boolean = this.connected;
-            if (ct) {
-                pt = this._storage[this._controller.selectedPageId];
-                if (!pt)
-                    pt = this._default;
-            }
-            else
+            var pt: Point = this._storage[this._controller.selectedPageId];
+            if (!pt)
                 pt = this._default;
                 
             if(this._tweener)
                 this._tweener.complete();
                 
-            if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect
-                && ct && this._pageSet.containsId(this._controller.previousPageId)) {
+            if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect) {
 
                 if(this._owner.x != pt.x || this._owner.y != pt.y) {
                     this._owner.internalVisible++;
@@ -85,16 +78,10 @@ package fairygui {
             if (this._owner._gearLocked)
                 return;
 
-            var pt:Point;
-            if (this.connected) {
-                pt = this._storage[this._controller.selectedPageId];
-                if(!pt) {
-                    pt = new Point();
-                    this._storage[this._controller.selectedPageId] = pt;
-                }
-            }
-            else {
-                pt = this._default;
+            var pt:Point = this._storage[this._controller.selectedPageId];
+            if(!pt) {
+                pt = new Point();
+                this._storage[this._controller.selectedPageId] = pt;
             }
 
             pt.x = this._owner.x;

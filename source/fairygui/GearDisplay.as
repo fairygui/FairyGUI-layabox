@@ -1,19 +1,23 @@
 package fairygui {
 
     public class GearDisplay extends GearBase {
+		public var pages:Vector.<String>;
+		
         public function GearDisplay(owner: GObject) {
             super(owner);
         }
 
-		override protected function get connected(): Boolean {
-            if (this._controller && !this._pageSet.empty)
-                return this._pageSet.containsId(this._controller.selectedPageId);
-            else
-                return true;
-        }
+		override protected function init():void
+		{
+			if(this.pages==null)
+				this.pages = new Vector.<String>();
+			else
+				this.pages.length = 0;
+		}
 
 		override public function apply(): void {
-            if(this.connected)
+			if(this._controller && this.pages!=null && this.pages.length>0 
+				&& this.pages.indexOf(this._controller.selectedPageId)!=-1)
                 this._owner.internalVisible++;
             else
                 this._owner.internalVisible = 0;

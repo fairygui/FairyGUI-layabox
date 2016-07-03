@@ -34,21 +34,14 @@ package fairygui {
 
 		override public function apply(): void {           
 
-            var gv: GearLookValue;
-            var ct: Boolean = this.connected;
-            if(ct) {
-                gv = this._storage[this._controller.selectedPageId];
-                if(!gv)
-                    gv = this._default;
-            }
-            else
+            var gv: GearLookValue = this._storage[this._controller.selectedPageId];
+            if(!gv)
                 gv = this._default;
                 
             if(this._tweener)
                 this._tweener.complete();
 
-            if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect
-                && ct && this._pageSet.containsId(this._controller.previousPageId)) {
+            if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect) {
                 this._owner._gearLocked = true;
                 this._owner.grayed = gv.grayed;
                 this._owner._gearLocked = false;
@@ -97,18 +90,12 @@ package fairygui {
             if(this._owner._gearLocked)
                 return;
 
-            var gv: GearLookValue;
-            if(this.connected) {
-                gv = this._storage[this._controller.selectedPageId];
-                if(!gv) {
-                    gv = new GearLookValue();
-                    this._storage[this._controller.selectedPageId] = gv;
-                }
+            var gv: GearLookValue = this._storage[this._controller.selectedPageId];
+            if(!gv) {
+                gv = new GearLookValue();
+                this._storage[this._controller.selectedPageId] = gv;
             }
-            else {
-                gv = this._default;
-            }
-
+			
             gv.alpha = this._owner.alpha;
             gv.rotation = this._owner.rotation;
             gv.grayed = this._owner.grayed;
