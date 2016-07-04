@@ -7012,8 +7012,8 @@
 		}
 
 		__proto.apply=function(){
-			if(this._controller && this.pages!=null && this.pages.length>0
-				&& this.pages.indexOf(this._controller.selectedPageId)!=-1)
+			if(!this._controller || this.pages==null || this.pages.length==0
+				|| this.pages.indexOf(this._controller.selectedPageId)!=-1)
 			this._owner.internalVisible++;
 			else
 			this._owner.internalVisible=0;
