@@ -884,7 +884,7 @@ class TransitionItem {
 	public var target: GObject;
 	
 	public function TransitionItem() {
-		this.easeType = Ease.QuadOut;
+		this.easeType = Ease.quadOut;
 		this.value = new TransitionValue();
 		this.startValue = new TransitionValue();
 		this.endValue = new TransitionValue();
