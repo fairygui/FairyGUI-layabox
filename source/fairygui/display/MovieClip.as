@@ -158,8 +158,6 @@ package fairygui.display {
                     this.setFrame(this._frames[this._currentFrame]);
                 }
             }
-            else
-                this.setFrame(null);
         }
 
         private function setFrame(frame: Frame): void {

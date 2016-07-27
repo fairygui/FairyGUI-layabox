@@ -35,7 +35,8 @@ package fairygui {
         private var _pageMode: Boolean;
         private var _pageSizeH: Number;
         private var _pageSizeV: Number;
-
+		private var _inertiaDisabled:Boolean;
+		
         private var _yPerc: Number;
         private var _xPerc: Number;
         private var _vScroll: Boolean;
@@ -113,7 +114,8 @@ package fairygui {
                 this._bouncebackEffect = false;
             else
                 this._bouncebackEffect = fairygui.UIConfig.defaultScrollBounceEffect;
-                
+			this._inertiaDisabled = (flags & 256) != 0;
+			
             this._xPerc = 0;
             this._yPerc = 0;
             this._aniFlag = true;
@@ -914,13 +916,13 @@ package fairygui {
             if (sv) {
                 var y: Number = Math.floor(pt.y - this._yOffset);
                 if (y > 0) {
-                    if (!this._bouncebackEffect)
+                    if (!this._bouncebackEffect || this._inertiaDisabled)
                         this._maskContentHolder.y = 0;
                     else
                         this._maskContentHolder.y = Math.floor(y * 0.5);
                 }
                 else if (y < -this._yOverlap) {
-                    if (!this._bouncebackEffect)
+                    if (!this._bouncebackEffect || this._inertiaDisabled)
                         this._maskContentHolder.y = -Math.floor(this._yOverlap);
                     else
                         this._maskContentHolder.y = Math.floor((y - this._yOverlap) * 0.5);
@@ -940,12 +942,12 @@ package fairygui {
             if (sh) {
                 var x: Number = Math.floor(pt.x - this._xOffset);
                 if (x > 0) {
-                    if (!this._bouncebackEffect)
+                    if (!this._bouncebackEffect || this._inertiaDisabled)
                         this._maskContentHolder.x = 0;
                     else
                         this._maskContentHolder.x = Math.floor(x * 0.5);
                 }
-                else if (x < 0 - this._xOverlap) {
+                else if (x < 0 - this._xOverlap || this._inertiaDisabled) {
                     if (!this._bouncebackEffect)
                         this._maskContentHolder.x = -Math.floor(this._xOverlap);
                     else
@@ -982,6 +984,9 @@ package fairygui {
 
             if (!this._isMouseMoved)
                 return;
+			
+			if(this._inertiaDisabled)
+				return;
 
             var time: Number = (Laya.timer.currTimer - this._time2) / 1000;
             if (time == 0)

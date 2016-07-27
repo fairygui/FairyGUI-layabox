@@ -16,7 +16,8 @@ package fairygui {
         private var _itemsUpdated: Boolean;
         private var _selectedIndex: Number = 0;
         private var _buttonController: Controller;
-
+		private var _popupDownward:* = true;
+		
         private var _over: Boolean;
         private var _down: Boolean;
 
@@ -60,6 +61,16 @@ package fairygui {
         public function set visibleItemCount(value: Number):void {
             this._visibleItemCount = value;
         }
+		
+		public function get popupDownward():*
+		{
+			return this._popupDownward;
+		}
+		
+		public function set popupDownward(value:*):void
+		{
+			this._popupDownward = value;
+		}
 
         public function get items(): Array {
             return this._items;
@@ -206,6 +217,15 @@ package fairygui {
                 }
                 else
                     this._selectedIndex = -1;
+				
+				str = xml.getAttribute("direction");
+				if(str)
+				{
+					if(str=="up")
+						this._popupDownward = false;
+					else if(str=="auto")
+						this._popupDownward = null;
+				}
             }
         }
 
@@ -225,7 +245,7 @@ package fairygui {
             this._list.selectedIndex = -1;
             this.dropdown.width = this.width;
 
-            this.root.togglePopup(this.dropdown, this, true);
+            this.root.togglePopup(this.dropdown, this, this._popupDownward);
             if (this.dropdown.parent)
                 this.setState(GButton.DOWN);
         }

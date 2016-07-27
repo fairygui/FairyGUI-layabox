@@ -9,7 +9,8 @@ package fairygui {
          * itemRenderer(int index, GObject item);
          */
         public var itemRenderer:Handler;
-        
+		public var scrollItemToViewOnClick: Boolean;
+		
         private var _layout: int;
         private var _lineItemCount:Number = 0;
         private var _lineGap: Number = 0;
@@ -41,6 +42,7 @@ package fairygui {
             this._lastSelectedIndex = -1;
             this._selectionMode = ListSelectionMode.Single;
             this.opaque = true;
+			this.scrollItemToViewOnClick = true;
         }
 
         override public function dispose(): void {
@@ -246,6 +248,8 @@ package fairygui {
         public function addSelection(index: Number, scrollItToView: Boolean= false): void {
             if (this._selectionMode == ListSelectionMode.None)
                 return;
+			
+			this.checkVirtualList();
 
             if (this._selectionMode == ListSelectionMode.Single)
                 this.clearSelection();
@@ -301,6 +305,8 @@ package fairygui {
         }
 
         public function selectAll(): void {
+			this.checkVirtualList();
+			
             var cnt: Number = this._children.length;
             for (var i: Number = 0; i < cnt; i++) {
                 var obj: GButton = this._children[i].asButton;
@@ -310,6 +316,8 @@ package fairygui {
         }
 
         public function selectNone(): void {
+			this.checkVirtualList();
+			
             var cnt: Number = this._children.length;
             for (var i: Number = 0; i < cnt; i++) {
                 var obj: GButton = this._children[i].asButton;
@@ -464,7 +472,7 @@ package fairygui {
             var item: GObject = GObject.cast(evt.currentTarget);
            	this.setSelectionOnEvent(item, evt);
 
-            if(this.scrollPane)
+            if(this.scrollPane && scrollItemToViewOnClick)
                 this.scrollPane.scrollToView(item,true);
 
             this.displayObject.event(Events.CLICK_ITEM, [item, Events.createEvent(Events.CLICK_ITEM, this.displayObject,evt)]);
@@ -660,6 +668,8 @@ package fairygui {
         
         public function scrollToView(index: Number, ani: Boolean = false, setFirst: Boolean = false):void  {				
             if(this._virtual) {
+				this.checkVirtualList();
+				
                 if(this.scrollPane != null)
                     this.scrollPane.scrollToView(this.getItemRect(index),ani,setFirst);
                 else if(this.parent != null && this.parent.scrollPane != null)
@@ -771,9 +781,18 @@ package fairygui {
             }
         }
         
-        private function __parentSizeChanged():void {
-            this.setVirtualListChangedFlag();
-        }
+		public function refreshVirtualList():void
+		{
+			this.setVirtualListChangedFlag(false);
+		}
+		
+		private function checkVirtualList():void
+		{
+			if(this._virtualListChanged!=0) { 
+				this._refreshVirtualList();
+				Laya.timer.clear(this, this._refreshVirtualList);
+			}
+		}
         
         private function setVirtualListChangedFlag(layoutChanged:Boolean = false):void {
             if(layoutChanged)
@@ -781,10 +800,10 @@ package fairygui {
             else if(this._virtualListChanged == 0)
                 this._virtualListChanged = 1;
     
-            Laya.timer.callLater(this, this.refreshVirtualList);
+            Laya.timer.callLater(this, this._refreshVirtualList);
         }
         
-        private function refreshVirtualList(): void {
+        private function _refreshVirtualList(): void {
             if(this._virtualListChanged == 0)
                 return;
 
@@ -1269,6 +1288,9 @@ package fairygui {
                         GLabel(obj).title =cxml.getAttribute("title");
                         GLabel(obj).icon = cxml.getAttribute("icon");
                     }
+					str = cxml.getAttribute("name");
+					if(str)
+						obj.name = str;
                 }
             }
         }

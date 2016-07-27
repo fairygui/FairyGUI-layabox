@@ -346,8 +346,12 @@ package fairygui {
             xml = ToolSet.findChildNode(xml, "Button");
             if (xml) {
                 var str: String;
-                this.title = xml.getAttribute("title");
-                this.icon = xml.getAttribute("icon");
+                str = xml.getAttribute("title");
+				if (str)
+					this.title = str;
+                str = xml.getAttribute("icon");
+				if (str)
+					this.icon = str;
                 str = xml.getAttribute("selectedTitle");
                 if (str)
                     this.selectedTitle = str;

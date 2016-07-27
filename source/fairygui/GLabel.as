@@ -93,9 +93,13 @@ package fairygui {
 
             xml = ToolSet.findChildNode(xml, "Label");
             if (xml) {
-                this.text = xml.getAttribute("title");
-                this.icon = xml.getAttribute("icon");
-                var str: String;
+				var str: String;
+                str = xml.getAttribute("title");
+				if(str)
+					this.text = str;
+                str = xml.getAttribute("icon");
+				if(str)
+					this.icon = str;                
                 str = xml.getAttribute("titleColor");
                 if (str)
                     this.titleColor = str;
