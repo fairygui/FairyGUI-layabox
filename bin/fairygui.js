@@ -8,9 +8,9 @@
 	var Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound,SoundChannel=laya.media.SoundChannel;
 	var Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text,Texture=laya.resource.Texture;
 	var Tween=laya.utils.Tween,Utils=laya.utils.Utils;
-	Laya.interface('fairygui.IAnimationGear');
 	Laya.interface('fairygui.IColorGear');
 	Laya.interface('fairygui.IUISource');
+	Laya.interface('fairygui.IAnimationGear');
 	//class fairygui.AutoSizeType
 	var AutoSizeType=(function(){
 		function AutoSizeType(){}
@@ -1301,7 +1301,7 @@
 			this._owner=null;
 			this._controller=null;
 			this._owner=owner;
-			this._easeType=Ease.QuadOut;
+			this._easeType=Ease.quadOut;
 		}
 
 		__class(GearBase,'fairygui.GearBase');
@@ -4626,7 +4626,7 @@
 					this.tweener=null;
 					this.completed=false;
 					this.target=null;
-					this.easeType=Ease.QuadOut;
+					this.easeType=Ease.quadOut;
 					this.value=new TransitionValue();
 					this.startValue=new TransitionValue();
 					this.endValue=new TransitionValue();
@@ -5564,9 +5564,9 @@
 				"Elastic.In":Ease.elasticIn,
 				"Elastic.Out":Ease.elasticOut,
 				"Elastic.InOut":Ease.elasticInOut,
-				"Quad.In":Ease.QuadIn,
-				"Quad.Out":Ease.QuadOut,
-				"Quad.InOut":Ease.QuadInOut,
+				"Quad.In":Ease.quadIn,
+				"Quad.Out":Ease.quadOut,
+				"Quad.InOut":Ease.quadInOut,
 				"Cube.In":Ease.cubicIn,
 				"Cube.Out":Ease.cubicOut,
 				"Cube.InOut":Ease.cubicInOut,
@@ -11185,137 +11185,6 @@
 	})(GComponent)
 
 
-	//class fairygui.GTextInput extends fairygui.GTextField
-	var GTextInput=(function(_super){
-		function GTextInput(){
-			this.input=null;
-			GTextInput.__super.call(this);
-		}
-
-		__class(GTextInput,'fairygui.GTextInput',_super);
-		var __proto=GTextInput.prototype;
-		Laya.imps(__proto,{"fairygui.IColorGear":true})
-		__proto.createDisplayObject=function(){
-			this._displayObject=this.input=new Input();
-			this._displayObject.mouseEnabled=true;
-			this._displayObject["$owner"]=this;
-		}
-
-		__proto.handleSizeChanged=function(){
-			this.input.size(this.width,this.height);
-		}
-
-		__proto.setup_beforeAdd=function(xml){
-			_super.prototype.setup_beforeAdd.call(this,xml);
-			var str=xml.getAttribute('prompt');
-			if(str)
-				this.promptText=str;
-		}
-
-		__getset(0,__proto,'leading',function(){
-			return this.input.leading;
-			},function(value){
-			this.input.leading=value;
-		});
-
-		__getset(0,__proto,'text',function(){
-			return this.input.text;
-			},function(value){
-			this.input.text=value;
-		});
-
-		__getset(0,__proto,'font',function(){
-			return this.input.font;
-			},function(value){
-			this.input.font=value;
-		});
-
-		__getset(0,__proto,'italic',function(){
-			return this.input.italic;
-			},function(value){
-			this.input.italic=value;
-		});
-
-		__getset(0,__proto,'valign',function(){
-			return this.input.valign;
-			},function(value){
-			this.input.valign=value;
-		});
-
-		__getset(0,__proto,'fontSize',function(){
-			return this.input.fontSize;
-			},function(value){
-			this.input.fontSize=value;
-		});
-
-		__getset(0,__proto,'color',function(){
-			return this.input.color;
-			},function(value){
-			this.input.color=value;
-		});
-
-		__getset(0,__proto,'strokeColor',function(){
-			return this.input.strokeColor;
-			},function(value){
-			this.input.strokeColor=value;
-		});
-
-		__getset(0,__proto,'align',function(){
-			return this.input.align;
-			},function(value){
-			this.input.align=value;
-		});
-
-		__getset(0,__proto,'bold',function(){
-			return this.input.bold;
-			},function(value){
-			this.input.bold=value;
-		});
-
-		__getset(0,__proto,'asPassword',function(){
-			return this.input.asPassword;
-			},function(value){
-			this.input.asPassword=value;
-		});
-
-		__getset(0,__proto,'singleLine',function(){
-			return !this.input.multiline;
-			},function(value){
-			this.input.multiline=!value;
-		});
-
-		__getset(0,__proto,'stroke',function(){
-			return this.input.stroke;
-			},function(value){
-			this.input.stroke=value;
-		});
-
-		__getset(0,__proto,'editable',function(){
-			return this.input.editable;
-			},function(value){
-			this.input.editable=value;
-		});
-
-		__getset(0,__proto,'maxChars',function(){
-			return this.input.maxChars;
-			},function(value){
-			this.input.maxChars=value;
-		});
-
-		__getset(0,__proto,'promptText',function(){
-			return this.input.prompt;
-			},function(value){
-			this.input.prompt=value;
-		});
-
-		__getset(0,__proto,'textWidth',function(){
-			return this.input.textWidth;
-		});
-
-		return GTextInput;
-	})(GTextField)
-
-
 	//class fairygui.GRoot extends fairygui.GComponent
 	var GRoot=(function(_super){
 		function GRoot(){
@@ -11701,6 +11570,137 @@
 		GRoot._inst=null
 		return GRoot;
 	})(GComponent)
+
+
+	//class fairygui.GTextInput extends fairygui.GTextField
+	var GTextInput=(function(_super){
+		function GTextInput(){
+			this.input=null;
+			GTextInput.__super.call(this);
+		}
+
+		__class(GTextInput,'fairygui.GTextInput',_super);
+		var __proto=GTextInput.prototype;
+		Laya.imps(__proto,{"fairygui.IColorGear":true})
+		__proto.createDisplayObject=function(){
+			this._displayObject=this.input=new Input();
+			this._displayObject.mouseEnabled=true;
+			this._displayObject["$owner"]=this;
+		}
+
+		__proto.handleSizeChanged=function(){
+			this.input.size(this.width,this.height);
+		}
+
+		__proto.setup_beforeAdd=function(xml){
+			_super.prototype.setup_beforeAdd.call(this,xml);
+			var str=xml.getAttribute('prompt');
+			if(str)
+				this.promptText=str;
+		}
+
+		__getset(0,__proto,'leading',function(){
+			return this.input.leading;
+			},function(value){
+			this.input.leading=value;
+		});
+
+		__getset(0,__proto,'text',function(){
+			return this.input.text;
+			},function(value){
+			this.input.text=value;
+		});
+
+		__getset(0,__proto,'font',function(){
+			return this.input.font;
+			},function(value){
+			this.input.font=value;
+		});
+
+		__getset(0,__proto,'italic',function(){
+			return this.input.italic;
+			},function(value){
+			this.input.italic=value;
+		});
+
+		__getset(0,__proto,'valign',function(){
+			return this.input.valign;
+			},function(value){
+			this.input.valign=value;
+		});
+
+		__getset(0,__proto,'fontSize',function(){
+			return this.input.fontSize;
+			},function(value){
+			this.input.fontSize=value;
+		});
+
+		__getset(0,__proto,'color',function(){
+			return this.input.color;
+			},function(value){
+			this.input.color=value;
+		});
+
+		__getset(0,__proto,'strokeColor',function(){
+			return this.input.strokeColor;
+			},function(value){
+			this.input.strokeColor=value;
+		});
+
+		__getset(0,__proto,'align',function(){
+			return this.input.align;
+			},function(value){
+			this.input.align=value;
+		});
+
+		__getset(0,__proto,'bold',function(){
+			return this.input.bold;
+			},function(value){
+			this.input.bold=value;
+		});
+
+		__getset(0,__proto,'asPassword',function(){
+			return this.input.asPassword;
+			},function(value){
+			this.input.asPassword=value;
+		});
+
+		__getset(0,__proto,'singleLine',function(){
+			return !this.input.multiline;
+			},function(value){
+			this.input.multiline=!value;
+		});
+
+		__getset(0,__proto,'stroke',function(){
+			return this.input.stroke;
+			},function(value){
+			this.input.stroke=value;
+		});
+
+		__getset(0,__proto,'editable',function(){
+			return this.input.editable;
+			},function(value){
+			this.input.editable=value;
+		});
+
+		__getset(0,__proto,'maxChars',function(){
+			return this.input.maxChars;
+			},function(value){
+			this.input.maxChars=value;
+		});
+
+		__getset(0,__proto,'promptText',function(){
+			return this.input.prompt;
+			},function(value){
+			this.input.prompt=value;
+		});
+
+		__getset(0,__proto,'textWidth',function(){
+			return this.input.textWidth;
+		});
+
+		return GTextInput;
+	})(GTextField)
 
 
 	//class fairygui.GScrollBar extends fairygui.GComponent

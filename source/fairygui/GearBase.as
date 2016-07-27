@@ -16,7 +16,7 @@ package fairygui {
 
         public function GearBase(owner: GObject) {
             this._owner = owner;
-            this._easeType = Ease.QuadOut;
+            this._easeType = Ease.quadOut;
         }
 
         public function get controller(): Controller {
