@@ -73,7 +73,7 @@ package fairygui {
             }
         }
         
-        public function tweenValue(value:Number, duration:Number):void
+        public function tweenValue(value:Number, duration:Number):Tween
 		{
             if(this._value != value) {
                 if(this._tweener)
@@ -83,7 +83,10 @@ package fairygui {
                 this._value = value;
                 this._tweener = Tween.to(this, { _tweenValue: value }, duration * 1000, GProgressBar.easeLinear); 
                 this._tweener.update = Handler.create(this, this.onUpdateTween, null, false);
+				return this._tweener;
             }
+			else
+				return null;
         }
     
         private function onUpdateTween(): void {

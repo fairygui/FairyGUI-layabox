@@ -265,6 +265,7 @@ declare module fairygui {
         text: string;
         titleColor: string;
         visibleItemCount: number;
+        popupDownward: any;
         items: Array<any>;
         values: Array<any>;
         selectedIndex: number;
@@ -392,6 +393,7 @@ declare module fairygui {
 }
 declare module fairygui {
     class GearLook extends GearBase {
+    		tweener: laya.utils.Tween;
         constructor(owner: GObject);
         protected init(): void;
         protected addStatus(pageId: string, value: string): void;
@@ -407,6 +409,7 @@ declare module fairygui {
 }
 declare module fairygui {
     class GearSize extends GearBase {
+    		tweener: laya.utils.Tween;
         constructor(owner: GObject);
         protected init(): void;
         protected addStatus(pageId: string, value: string): void;
@@ -424,6 +427,7 @@ declare module fairygui {
 }
 declare module fairygui {
     class GearXY extends GearBase {
+    		tweener: laya.utils.Tween;
         constructor(owner: GObject);
         protected init(): void;
         protected addStatus(pageId: string, value: string): void;
@@ -605,6 +609,7 @@ declare module fairygui {
         name: string;
         x: number;
         y: number;
+        pixelSnapping: boolean;
         setXY(xv: number, yv: number): void;
         center(restraint?: boolean): void;
         width: number;
@@ -720,7 +725,7 @@ declare module fairygui {
         titleType: number;
         max: number;
         value: number;
-        tweenValue(value: number, duration: number): void;
+        tweenValue(value: number, duration: number): laya.utils.Tween;
         update(newValue: number): void;
         protected constructFromXML(xml: Object): void;
         protected handleSizeChanged(): void;
@@ -1253,6 +1258,7 @@ declare module fairygui {
         static getItemURL(pkgName: string, resName: string): string;
         static getItemByURL(url: string): PackageItem;
         static getBitmapFontByURL(url: string): fairygui.display.BitmapFont;
+        static setStringsSource(source: string): void;
         dispose(): void;
         id: string;
         name: string;

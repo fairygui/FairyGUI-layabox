@@ -28,7 +28,8 @@ package fairygui {
         private static var _packageInstById: Object = {};
         private static var _packageInstByName: Object = {};
         private static var _bitmapFonts: Object = {};
-
+		private static var _stringsSource: Object = null;
+		
         private static const sep0: String = ",";
         private static const sep1: String = "\n";
         private static const sep2: String = " ";
@@ -107,6 +108,33 @@ package fairygui {
         public static function getBitmapFontByURL(url: String): BitmapFont {
             return UIPackage._bitmapFonts[url];
         }
+		
+		public static function setStringsSource(source:String):void	{
+			UIPackage._stringsSource = {};
+			var xml:Object = Utils.parseXMLFromString(source);
+			var resNode:Object = ToolSet.findChildNode(xml, "resources");			
+			var nodes: Array = resNode.childNodes;
+			var length1: Number = nodes.length;			
+			for (var i1: Number = 0; i1 < length1; i1++) {
+				var cxml: Object = nodes[i1];
+				if (cxml.nodeName == "string") {
+					var key:String = cxml.getAttribute("name");
+					var text:String = cxml.textContent;
+					var i:int = key.indexOf("-");
+					if(i==-1)
+						continue;
+					
+					var key2:String = key.substr(0, i);
+					var key3:String = key.substr(i+1);
+					var col:Object = UIPackage._stringsSource[key2];
+					if(!col) {
+						col = {};
+						UIPackage._stringsSource[key2] = col;
+					}
+					col[key3] = text;
+				}
+			}
+		}
 
         private function create(resKey: String): void {
             this._resKey = resKey;
@@ -373,7 +401,13 @@ package fairygui {
                     if (!item.decoded) {
                         item.decoded = true;
                         var str: String = this.getDesc(item.id + ".xml");
-                        item.componentData = Utils.parseXMLFromString(str).firstChild;
+						var xml: Object = Utils.parseXMLFromString(str);
+						if(UIPackage._stringsSource!=null) {
+							var col:Object = UIPackage._stringsSource[this.id + item.id];
+							if(col!=null)
+								this.translateComponent(xml, col);
+						}
+                        item.componentData = xml.firstChild;
                     }
                     return item.componentData;
 
@@ -385,7 +419,97 @@ package fairygui {
         private function getDesc(fn:String):String {
             return this._resData[fn];
         }
-
+		
+		private function translateComponent(xml:Object, strings:Object):void {
+			var displayList:Object = ToolSet.findChildNode(xml.firstChild, "displayList");
+			var nodes: Array = displayList.childNodes;
+			var length1: Number = nodes.length;
+			var length2: Number;
+			var value:*;
+			var cxml:Object, dxml:Object, exml:Object;
+			var ename:String;
+			var elementId:String;
+			var items:Array;
+			var i1:Number, i2:Number, j:Number;
+			var str:String;
+			
+			for (i1 = 0; i1 < length1; i1++) {
+				cxml = nodes[i1];
+				ename = cxml.nodeName;
+				elementId = cxml.getAttribute("id");
+				
+				str = cxml.getAttribute("tooltips");
+				if(str)	{
+					value = strings[elementId+"-tips"];
+					if(value!=undefined)
+						cxml.setAttribute("tooltips", value);
+				}
+				
+				if(ename=="text" || ename=="richtext")	{
+					value = strings[elementId];
+					if(value!=undefined)
+						cxml.setAttribute("text", value);
+					value = strings[elementId+"-prompt"];
+					if(value!=undefined)
+						cxml.setAttribute("prompt", value);
+				}
+				else if(ename=="list")	{
+					items = cxml.childNodes;
+					length2 = items.length;
+					j = 0;
+					for (i2 = 0; i2 < length2; i2++) {
+						exml = items[i2];
+						if(exml.nodeName!="item")
+							continue;
+						value = strings[elementId+"-"+j];
+						if(value!=undefined)
+							exml.setAttribute("title", value);
+						j++;
+					}
+				}
+				else if(ename=="component")	{
+					dxml = ToolSet.findChildNode(cxml, "Button");
+					if(dxml) {
+						value = strings[elementId];
+						if(value!=undefined)
+							dxml.setAttribute("title", value);
+						value = strings[elementId+"-0"];
+						if(value!=undefined)
+							dxml.setAttribute("selectedTitle", value);
+					}
+					else {						
+						dxml = ToolSet.findChildNode(cxml, "Label");
+						if(dxml) {
+							value = strings[elementId];
+							if(value!=undefined)
+								dxml.setAttribute("title", value);
+						}
+						else {
+							dxml = ToolSet.findChildNode(cxml, "ComboBox");
+							if(dxml) {
+								value = strings[elementId];
+								if(value!=undefined)
+									dxml.setAttribute("title", value);
+								
+								items = dxml.childNodes;
+								length2 = items.length;
+								j = 0;
+								for (i2 = 0; i2 < length2; i2++) {
+									exml = items[i2];
+									if(exml.nodeName!="item")
+										continue;
+									value = strings[elementId+"-"+j];
+									if(value!=undefined)
+										exml.setAttribute("title", value);
+									j++;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
         private function createSpriteTexture(sprite: AtlasSprite): Texture {
             var atlasItem: PackageItem = this._itemsById[sprite.atlas];
             if (atlasItem != null) {

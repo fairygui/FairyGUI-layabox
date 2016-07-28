@@ -4,10 +4,12 @@ package fairygui {
 	import laya.utils.Tween;
 
     public class GearXY extends GearBase {
+		public var tweener: Tween;
+		
         private var _storage: Object;
         private var _default: Point;
         private var _tweenValue: Point;
-        private var _tweener: Tween;
+		private var _tweenTarget: Point;
 
         public function GearXY (owner: GObject) {
             super(owner);
@@ -36,24 +38,31 @@ package fairygui {
             if (!pt)
                 pt = this._default;
                 
-            if(this._tweener)
-                this._tweener.complete();
-                
             if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect) {
-
+				if(this.tweener) {
+					if(this._tweenTarget.x!=pt.x || this._tweenTarget.y!=pt.y) {
+						this.tweener.complete();
+						this.tweener = null;
+					}
+					else
+						return;
+				}
+				
                 if(this._owner.x != pt.x || this._owner.y != pt.y) {
                     this._owner.internalVisible++;
+					this._tweenTarget = pt;
+					
                     if(this._tweenValue == null)
                         this._tweenValue = new Point();
                     this._tweenValue.x = this._owner.x;
                     this._tweenValue.y = this._owner.y;
-                    this._tweener = Tween.to(this._tweenValue, 
+                    this.tweener = Tween.to(this._tweenValue, 
                         { x: pt.x,y: pt.y },
                         this._tweenTime*1000, 
                         this._easeType,
                         Handler.create(this, this.__tweenComplete),
                         this._delay*1000);
-                    this._tweener.update = Handler.create(this, this.__tweenUpdate, null, false);
+                    this.tweener.update = Handler.create(this, this.__tweenUpdate, null, false);
                 }
             }
             else {
@@ -71,7 +80,7 @@ package fairygui {
         
         private function __tweenComplete():void {
             this._owner.internalVisible--;
-            this._tweener = null;
+            this.tweener = null;
         }
         
 		override public function updateState(): void {

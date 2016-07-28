@@ -4,10 +4,12 @@ package fairygui {
 	import laya.utils.Tween;
     
     public class GearLook extends GearBase {
+		public var tweener: Tween;
+		
         private var _storage: Object;
         private var _default: GearLookValue;
         private var _tweenValue: Point;
-        private var _tweener: Tween;
+		private var _tweenTarget: GearLookValue;
 
         public function GearLook(owner: GObject) {
             super(owner);
@@ -37,30 +39,38 @@ package fairygui {
             var gv: GearLookValue = this._storage[this._controller.selectedPageId];
             if(!gv)
                 gv = this._default;
-                
-            if(this._tweener)
-                this._tweener.complete();
 
             if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect) {
                 this._owner._gearLocked = true;
                 this._owner.grayed = gv.grayed;
                 this._owner._gearLocked = false;
+				
+				if (this.tweener != null) {
+					if (this._tweenTarget.alpha != gv.alpha || this._tweenTarget.rotation != gv.rotation) {
+						this.tweener.complete();
+						this.tweener = null;
+					}
+					else
+						return;
+				}
                 
                 var a: Boolean = gv.alpha != this._owner.alpha;
                 var b: Boolean = gv.rotation != this._owner.rotation;
                 if(a || b) {
                     this._owner.internalVisible++;
+					this._tweenTarget = gv;
+					
                     if(this._tweenValue == null)
                         this._tweenValue = new Point();
                     this._tweenValue.x = this._owner.alpha;
                     this._tweenValue.y = this._owner.rotation;
-                    this._tweener = Tween.to(this._tweenValue, 
+                    this.tweener = Tween.to(this._tweenValue, 
                         { x: gv.alpha, y: gv.rotation }, 
                         this._tweenTime*1000, 
                         this._easeType,
                         Handler.create(this, this.__tweenComplete),
                         this._delay*1000);
-                    this._tweener.update = Handler.create(this, this.__tweenUpdate, [a,b], false);
+                    this.tweener.update = Handler.create(this, this.__tweenUpdate, [a,b], false);
                 }
             }
             else {
@@ -83,7 +93,7 @@ package fairygui {
         
         private function __tweenComplete():void {
             this._owner.internalVisible--;
-            this._tweener = null;
+            this.tweener = null;
         }
 
         override public function updateState(): void {

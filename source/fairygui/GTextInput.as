@@ -1,4 +1,6 @@
 package fairygui {
+	import fairygui.utils.ToolSet;
+	
 	import laya.display.Input;
 
     public class GTextInput extends GTextField implements IColorGear {
@@ -149,5 +151,14 @@ package fairygui {
 		override protected function handleSizeChanged(): void {
             this.input.size(this.width, this.height);
         }
+		
+		override public function setup_beforeAdd(xml:Object):void
+		{
+			super.setup_beforeAdd(xml);
+			
+			var str:String = xml.@prompt;
+			if(str)
+				this.promptText = str;
+		}
     }
 }

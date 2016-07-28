@@ -8,9 +8,9 @@
 	var Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound,SoundChannel=laya.media.SoundChannel;
 	var Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text,Texture=laya.resource.Texture;
 	var Tween=laya.utils.Tween,Utils=laya.utils.Utils;
-	Laya.interface('fairygui.IAnimationGear');
 	Laya.interface('fairygui.IColorGear');
 	Laya.interface('fairygui.IUISource');
+	Laya.interface('fairygui.IAnimationGear');
 	//class fairygui.AutoSizeType
 	var AutoSizeType=(function(){
 		function AutoSizeType(){}
@@ -376,6 +376,7 @@
 			this._internalVisible=1;
 			this._focusable=false;
 			this._tooltips=null;
+			this._pixelSnapping=false;
 			this._relations=null;
 			this._group=null;
 			this._gearDisplay=null;
@@ -697,12 +698,17 @@
 		}
 
 		__proto.handleXYChanged=function(){
-			if(this._pivotAsAnchor)
-				this._displayObject.pos(Math.floor(this._x-this._pivotX*this._width)+this._pivotOffsetX,
-			Math.floor(this._y-this._pivotY*this._height+this._yOffset)+this._pivotOffsetY);
-			else
-			this._displayObject.pos(Math.floor(this._x)+this._pivotOffsetX,
-			Math.floor(this._y+this._yOffset)+this._pivotOffsetY);
+			var xv=this._x;
+			var yv=this._y+this._yOffset;
+			if(this._pivotAsAnchor){
+				xv-=this._pivotX*this._width;
+				yv-=this._pivotY*this._height;
+			}
+			if(this._pixelSnapping){
+				xv=Math.round(xv);
+				yv=Math.round(yv);
+			}
+			this._displayObject.pos(xv+this._pivotOffsetX,yv+this._pivotOffsetY);
 		}
 
 		__proto.handleSizeChanged=function(){
@@ -917,6 +923,16 @@
 			this._parent=val;
 		});
 
+		__getset(0,__proto,'asButton',function(){
+			return this;
+		});
+
+		__getset(0,__proto,'x',function(){
+			return this._x;
+			},function(value){
+			this.setXY(value,this._y);
+		});
+
 		__getset(0,__proto,'asLabel',function(){
 			return this;
 		});
@@ -939,14 +955,37 @@
 			this.setXY(this._x,value);
 		});
 
-		__getset(0,__proto,'asButton',function(){
+		__getset(0,__proto,'displayObject',function(){
+			return this._displayObject;
+		});
+
+		__getset(0,__proto,'pixelSnapping',function(){
+			return this._pixelSnapping;
+			},function(value){
+			if(this._pixelSnapping!=value){
+				this._pixelSnapping=value;
+				this.handleXYChanged();
+			}
+		});
+
+		__getset(0,__proto,'asComboBox',function(){
 			return this;
 		});
 
-		__getset(0,__proto,'x',function(){
-			return this._x;
+		__getset(0,__proto,'scaleX',function(){
+			return this._scaleX;
 			},function(value){
-			this.setXY(value,this._y);
+			this.setScale(value,this._scaleY);
+		});
+
+		__getset(0,__proto,'sourceWidth',function(){
+			return this._sourceWidth;
+		});
+
+		__getset(0,__proto,'tooltips',function(){
+			return this._tooltips;
+			},function(value){
+			this._tooltips=value;
 		});
 
 		__getset(0,__proto,'gearSize',function(){
@@ -979,26 +1018,6 @@
 
 		__getset(0,__proto,'sourceHeight',function(){
 			return this._sourceHeight;
-		});
-
-		__getset(0,__proto,'asComboBox',function(){
-			return this;
-		});
-
-		__getset(0,__proto,'scaleX',function(){
-			return this._scaleX;
-			},function(value){
-			this.setScale(value,this._scaleY);
-		});
-
-		__getset(0,__proto,'sourceWidth',function(){
-			return this._sourceWidth;
-		});
-
-		__getset(0,__proto,'tooltips',function(){
-			return this._tooltips;
-			},function(value){
-			this._tooltips=value;
 		});
 
 		__getset(0,__proto,'initWidth',function(){
@@ -1221,10 +1240,6 @@
 			return this._relations;
 		});
 
-		__getset(0,__proto,'displayObject',function(){
-			return this._displayObject;
-		});
-
 		__getset(0,__proto,'asCom',function(){
 			return this;
 		});
@@ -1286,7 +1301,7 @@
 			this._owner=null;
 			this._controller=null;
 			this._owner=owner;
-			this._easeType=Ease.QuadOut;
+			this._easeType=Ease.quadOut;
 		}
 
 		__class(GearBase,'fairygui.GearBase');
@@ -2650,6 +2665,7 @@
 			this._pageMode=false;
 			this._pageSizeH=NaN;
 			this._pageSizeV=NaN;
+			this._inertiaDisabled=false;
 			this._yPerc=NaN;
 			this._xPerc=NaN;
 			this._vScroll=false;
@@ -2708,6 +2724,7 @@
 			this._bouncebackEffect=false;
 			else
 			this._bouncebackEffect=UIConfig1.defaultScrollBounceEffect;
+			this._inertiaDisabled=(flags & 256)!=0;
 			this._xPerc=0;
 			this._yPerc=0;
 			this._aniFlag=true;
@@ -3334,13 +3351,13 @@
 			if (sv){
 				var y=Math.floor(pt.y-this._yOffset);
 				if (y > 0){
-					if (!this._bouncebackEffect)
+					if (!this._bouncebackEffect || this._inertiaDisabled)
 						this._maskContentHolder.y=0;
 					else
 					this._maskContentHolder.y=Math.floor(y *0.5);
 				}
 				else if (y <-this._yOverlap){
-					if (!this._bouncebackEffect)
+					if (!this._bouncebackEffect || this._inertiaDisabled)
 						this._maskContentHolder.y=-Math.floor(this._yOverlap);
 					else
 					this._maskContentHolder.y=Math.floor((y-this._yOverlap)*0.5);
@@ -3357,12 +3374,12 @@
 			if (sh){
 				var x=Math.floor(pt.x-this._xOffset);
 				if (x > 0){
-					if (!this._bouncebackEffect)
+					if (!this._bouncebackEffect || this._inertiaDisabled)
 						this._maskContentHolder.x=0;
 					else
 					this._maskContentHolder.x=Math.floor(x *0.5);
 				}
-				else if (x < 0-this._xOverlap){
+				else if (x < 0-this._xOverlap || this._inertiaDisabled){
 					if (!this._bouncebackEffect)
 						this._maskContentHolder.x=-Math.floor(this._xOverlap);
 					else
@@ -3393,6 +3410,8 @@
 				return;
 			}
 			if (!this._isMouseMoved)
+				return;
+			if(this._inertiaDisabled)
 				return;
 			var time=(Laya.timer.currTimer-this._time2)/ 1000;
 			if (time==0)
@@ -4607,7 +4626,7 @@
 					this.tweener=null;
 					this.completed=false;
 					this.target=null;
-					this.easeType=Ease.QuadOut;
+					this.easeType=Ease.quadOut;
 					this.value=new TransitionValue();
 					this.startValue=new TransitionValue();
 					this.endValue=new TransitionValue();
@@ -4981,7 +5000,13 @@
 					if (!item.decoded){
 						item.decoded=true;
 						var str=this.getDesc(item.id+".xml");
-						item.componentData=Utils.parseXMLFromString(str).firstChild;
+						var xml=Utils.parseXMLFromString(str);
+						if(fairygui.UIPackage._stringsSource!=null){
+							var col=fairygui.UIPackage._stringsSource[this.id+item.id];
+							if(col!=null)
+								this.translateComponent(xml,col);
+						}
+						item.componentData=xml.firstChild;
 					}
 					return item.componentData;
 				default :
@@ -4991,6 +5016,92 @@
 
 		__proto.getDesc=function(fn){
 			return this._resData[fn];
+		}
+
+		__proto.translateComponent=function(xml,strings){
+			var displayList=ToolSet.findChildNode(xml.firstChild,"displayList");
+			var nodes=displayList.childNodes;
+			var length1=nodes.length;
+			var length2=NaN;
+			var value;
+			var cxml,dxml,exml;
+			var ename;
+			var elementId;
+			var items;
+			var i1=NaN,i2=NaN,j=NaN;
+			var str;
+			for (i1=0;i1 < length1;i1++){
+				cxml=nodes[i1];
+				ename=cxml.nodeName;
+				elementId=cxml.getAttribute("id");
+				str=cxml.getAttribute("tooltips");
+				if(str){
+					value=strings[elementId+"-tips"];
+					if(value!=undefined)
+						cxml.setAttribute("tooltips",value);
+				}
+				if(ename=="text" || ename=="richtext"){
+					value=strings[elementId];
+					if(value!=undefined)
+						cxml.setAttribute("text",value);
+					value=strings[elementId+"-prompt"];
+					if(value!=undefined)
+						cxml.setAttribute("prompt",value);
+				}
+				else if(ename=="list"){
+					items=cxml.childNodes;
+					length2=items.length;
+					j=0;
+					for (i2=0;i2 < length2;i2++){
+						exml=items[i2];
+						if(exml.nodeName!="item")
+							continue ;
+						value=strings[elementId+"-"+j];
+						if(value!=undefined)
+							exml.setAttribute("title",value);
+						j++;
+					}
+				}
+				else if(ename=="component"){
+					dxml=ToolSet.findChildNode(cxml,"Button");
+					if(dxml){
+						value=strings[elementId];
+						if(value!=undefined)
+							dxml.setAttribute("title",value);
+						value=strings[elementId+"-0"];
+						if(value!=undefined)
+							dxml.setAttribute("selectedTitle",value);
+					}
+					else {
+						dxml=ToolSet.findChildNode(cxml,"Label");
+						if(dxml){
+							value=strings[elementId];
+							if(value!=undefined)
+								dxml.setAttribute("title",value);
+						}
+						else {
+							dxml=ToolSet.findChildNode(cxml,"ComboBox");
+							if(dxml){
+								value=strings[elementId];
+								if(value!=undefined)
+									dxml.setAttribute("title",value);
+								items=dxml.childNodes;
+								length2=items.length;
+								j=0;
+								for (i2=0;i2 < length2;i2++){
+									exml=items[i2];
+									if(exml.nodeName!="item")
+										continue ;
+									value=strings[elementId+"-"+j];
+									if(value!=undefined)
+										exml.setAttribute("title",value);
+									j++;
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 
 		__proto.createSpriteTexture=function(sprite){
@@ -5240,10 +5351,37 @@
 			return fairygui.UIPackage._bitmapFonts[url];
 		}
 
+		UIPackage.setStringsSource=function(source){
+			fairygui.UIPackage._stringsSource={};
+			var xml=Utils.parseXMLFromString(source);
+			var resNode=ToolSet.findChildNode(xml,"resources");
+			var nodes=resNode.childNodes;
+			var length1=nodes.length;
+			for (var i1=0;i1 < length1;i1++){
+				var cxml=nodes[i1];
+				if (cxml.nodeName=="string"){
+					var key=cxml.getAttribute("name");
+					var text=cxml.textContent;
+					var i=key.indexOf("-");
+					if(i==-1)
+						continue ;
+					var key2=key.substr(0,i);
+					var key3=key.substr(i+1);
+					var col=fairygui.UIPackage._stringsSource[key2];
+					if(!col){
+						col={};
+						fairygui.UIPackage._stringsSource[key2]=col;
+					}
+					col[key3]=text;
+				}
+			}
+		}
+
 		UIPackage._constructing=0;
 		UIPackage._packageInstById={};
 		UIPackage._packageInstByName={};
 		UIPackage._bitmapFonts={};
+		UIPackage._stringsSource=null;
 		UIPackage.sep0=",";
 		UIPackage.sep1="\n";
 		UIPackage.sep2=" ";
@@ -5426,9 +5564,9 @@
 				"Elastic.In":Ease.elasticIn,
 				"Elastic.Out":Ease.elasticOut,
 				"Elastic.InOut":Ease.elasticInOut,
-				"Quad.In":Ease.QuadIn,
-				"Quad.Out":Ease.QuadOut,
-				"Quad.InOut":Ease.QuadInOut,
+				"Quad.In":Ease.quadIn,
+				"Quad.Out":Ease.quadOut,
+				"Quad.InOut":Ease.quadInOut,
 				"Cube.In":Ease.cubicIn,
 				"Cube.Out":Ease.cubicOut,
 				"Cube.InOut":Ease.cubicInOut,
@@ -7171,10 +7309,11 @@
 	var GearLook=(function(_super){
 		var GearLookValue;
 		function GearLook(owner){
+			this.tweener=null;
 			this._storage=null;
 			this._default=null;
 			this._tweenValue=null;
-			this._tweener=null;
+			this._tweenTarget=null;
 			GearLook.__super.call(this,owner);
 		}
 
@@ -7203,27 +7342,34 @@
 			var gv=this._storage[this._controller.selectedPageId];
 			if(!gv)
 				gv=this._default;
-			if(this._tweener)
-				this._tweener.complete();
 			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
 				this._owner._gearLocked=true;
 				this._owner.grayed=gv.grayed;
 				this._owner._gearLocked=false;
+				if (this.tweener !=null){
+					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
+						this.tweener.complete();
+						this.tweener=null;
+					}
+					else
+					return;
+				};
 				var a=gv.alpha !=this._owner.alpha;
 				var b=gv.rotation !=this._owner.rotation;
 				if(a || b){
 					this._owner.internalVisible++;
+					this._tweenTarget=gv;
 					if(this._tweenValue==null)
 						this._tweenValue=new Point();
 					this._tweenValue.x=this._owner.alpha;
 					this._tweenValue.y=this._owner.rotation;
-					this._tweener=Tween.to(this._tweenValue,
+					this.tweener=Tween.to(this._tweenValue,
 					{x:gv.alpha,y:gv.rotation },
 					this._tweenTime*1000,
 					this._easeType,
 					Handler.create(this,this.__tweenComplete),
 					this._delay*1000);
-					this._tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
+					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
 				}
 			}
 			else {
@@ -7246,7 +7392,7 @@
 
 		__proto.__tweenComplete=function(){
 			this._owner.internalVisible--;
-			this._tweener=null;
+			this.tweener=null;
 		}
 
 		__proto.updateState=function(){
@@ -7478,10 +7624,11 @@
 	var GearSize=(function(_super){
 		var GearSizeValue;
 		function GearSize(owner){
+			this.tweener=null;
 			this._storage=null;
 			this._default=null;
 			this._tweenValue=null;
-			this._tweener=null;
+			this._tweenTarget=null;
 			GearSize.__super.call(this,owner);
 		}
 
@@ -7514,26 +7661,34 @@
 			var gv=this._storage[this._controller.selectedPageId];
 			if (!gv)
 				gv=this._default;
-			if(this._tweener)
-				this._tweener.complete();
 			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+				if(this.tweener!=null){
+					if (this._tweenTarget.width !=gv.width || this._tweenTarget.height !=gv.height
+						|| this._tweenTarget.scaleX !=gv.scaleX || this._tweenTarget.scaleY !=gv.scaleY){
+						this.tweener.complete();
+						this.tweener=null;
+					}
+					else
+					return;
+				};
 				var a=gv.width !=this._owner.width || gv.height !=this._owner.height;
 				var b=gv.scaleX !=this._owner.scaleX || gv.scaleY !=this._owner.scaleY;
 				if(a || b){
 					this._owner.internalVisible++;
+					this._tweenTarget=gv;
 					if(this._tweenValue==null)
 						this._tweenValue=new GearSizeValue();
 					this._tweenValue.width=this._owner.width;
 					this._tweenValue.height=this._owner.height;
 					this._tweenValue.scaleX=this._owner.scaleX;
 					this._tweenValue.scaleY=this._owner.scaleY;
-					this._tweener=Tween.to(this._tweenValue,
+					this.tweener=Tween.to(this._tweenValue,
 					{width:gv.width,height:gv.height,scaleX:gv.scaleX,scaleY:gv.scaleY },
 					this._tweenTime*1000,
 					this._easeType,
 					Handler.create(this,this.__tweenComplete),
 					this._delay*1000);
-					this._tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
+					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
 				}
 			}
 			else {
@@ -7555,7 +7710,7 @@
 
 		__proto.__tweenComplete=function(){
 			this._owner.internalVisible--;
-			this._tweener=null;
+			this.tweener=null;
 		}
 
 		__proto.updateState=function(){
@@ -7612,10 +7767,11 @@
 	//class fairygui.GearXY extends fairygui.GearBase
 	var GearXY=(function(_super){
 		function GearXY(owner){
+			this.tweener=null;
 			this._storage=null;
 			this._default=null;
 			this._tweenValue=null;
-			this._tweener=null;
+			this._tweenTarget=null;
 			GearXY.__super.call(this,owner);
 		}
 
@@ -7643,22 +7799,29 @@
 			var pt=this._storage[this._controller.selectedPageId];
 			if (!pt)
 				pt=this._default;
-			if(this._tweener)
-				this._tweener.complete();
 			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+				if(this.tweener){
+					if(this._tweenTarget.x!=pt.x || this._tweenTarget.y!=pt.y){
+						this.tweener.complete();
+						this.tweener=null;
+					}
+					else
+					return;
+				}
 				if(this._owner.x !=pt.x || this._owner.y !=pt.y){
 					this._owner.internalVisible++;
+					this._tweenTarget=pt;
 					if(this._tweenValue==null)
 						this._tweenValue=new Point();
 					this._tweenValue.x=this._owner.x;
 					this._tweenValue.y=this._owner.y;
-					this._tweener=Tween.to(this._tweenValue,
+					this.tweener=Tween.to(this._tweenValue,
 					{x:pt.x,y:pt.y },
 					this._tweenTime*1000,
 					this._easeType,
 					Handler.create(this,this.__tweenComplete),
 					this._delay*1000);
-					this._tweener.update=Handler.create(this,this.__tweenUpdate,null,false);
+					this.tweener.update=Handler.create(this,this.__tweenUpdate,null,false);
 				}
 			}
 			else {
@@ -7676,7 +7839,7 @@
 
 		__proto.__tweenComplete=function(){
 			this._owner.internalVisible--;
-			this._tweener=null;
+			this.tweener=null;
 		}
 
 		__proto.updateState=function(){
@@ -8345,9 +8508,10 @@
 			var lineBuffer="";
 			var lineY=2;
 			var line;
-			var textWidth=0,textHeight=0;
 			var wordWrap=!this._widthAutoSize && !this._singleLine;
 			var fontScale=this._bitmapFont.resizable?this.fontSize/this._bitmapFont.size:1;
+			this._textWidth=0;
+			this._textHeight=0;
 			var textLength=this._text.length;
 			for (var offset=0;offset < textLength;++offset){
 				var ch=this._text.charAt(offset);
@@ -8369,8 +8533,8 @@
 					line.text=lineBuffer;
 					line.y=lineY;
 					lineY+=(line.height+lineSpacing);
-					if (line.width > textWidth)
-						textWidth=line.width;
+					if (line.width > this._textWidth)
+						this._textWidth=line.width;
 					this._lines.push(line);
 					lineBuffer="";
 					lineWidth=0;
@@ -8445,8 +8609,8 @@
 					}
 					line.y=lineY;
 					lineY+=(line.height+lineSpacing);
-					if (line.width > textWidth)
-						textWidth=line.width;
+					if (line.width > this._textWidth)
+						this._textWidth=line.width;
 					wordChars=0;
 					wordStart=0;
 					wordEnd=0;
@@ -8465,34 +8629,34 @@
 				line.textHeight=lineTextHeight;
 				line.text=lineBuffer;
 				line.y=lineY;
-				if (line.width > textWidth)
-					textWidth=line.width;
+				if (line.width > this._textWidth)
+					this._textWidth=line.width;
 				this._lines.push(line);
 			}
-			if (textWidth > 0)
-				textWidth+=2 *2;
+			if (this._textWidth > 0)
+				this._textWidth+=2 *2;
 			var count=this._lines.length;
 			if (count==0){
-				textHeight=0;
+				this._textHeight=0;
 			}
 			else {
 				line=this._lines[this._lines.length-1];
-				textHeight=line.y+line.height+2;
+				this._textHeight=line.y+line.height+2;
 			};
 			var w=NaN,h=0;
 			if (this._widthAutoSize){
-				if (textWidth==0)
+				if (this.textWidth==0)
 					w=0;
 				else
-				w=textWidth;
+				w=this.textWidth;
 			}
 			else
 			w=this.width;
 			if (this._heightAutoSize){
-				if (textHeight==0)
+				if (this._textHeight==0)
 					h=0;
 				else
-				h=textHeight;
+				h=this._textHeight;
 			}
 			else
 			h=this.height;
@@ -8927,8 +9091,12 @@
 			xml=ToolSet.findChildNode(xml,"Button");
 			if (xml){
 				var str;
-				this.title=xml.getAttribute("title");
-				this.icon=xml.getAttribute("icon");
+				str=xml.getAttribute("title");
+				if (str)
+					this.title=str;
+				str=xml.getAttribute("icon");
+				if (str)
+					this.icon=str;
 				str=xml.getAttribute("selectedTitle");
 				if (str)
 					this.selectedTitle=str;
@@ -9202,6 +9370,7 @@
 			this._itemsUpdated=false;
 			this._selectedIndex=0;
 			this._buttonController=null;
+			this._popupDownward=true;
 			this._over=false;
 			this._down=false;
 			GComboBox.__super.call(this);
@@ -9289,6 +9458,13 @@
 				}
 				else
 				this._selectedIndex=-1;
+				str=xml.getAttribute("direction");
+				if(str){
+					if(str=="up")
+						this._popupDownward=false;
+					else if(str=="auto")
+					this._popupDownward=null;
+				}
 			}
 		}
 
@@ -9306,7 +9482,7 @@
 			}
 			this._list.selectedIndex=-1;
 			this.dropdown.width=this.width;
-			this.root.togglePopup(this.dropdown,this,true);
+			this.root.togglePopup(this.dropdown,this,this._popupDownward);
 			if (this.dropdown.parent)
 				this.setState("down");
 		}
@@ -9412,6 +9588,12 @@
 			this._visibleItemCount=value;
 		});
 
+		__getset(0,__proto,'popupDownward',function(){
+			return this._popupDownward;
+			},function(value){
+			this._popupDownward=value;
+		});
+
 		__getset(0,__proto,'items',function(){
 			return this._items;
 			},function(value){
@@ -9464,9 +9646,13 @@
 			fairygui.GObject.prototype.setup_afterAdd.call(this,xml);
 			xml=ToolSet.findChildNode(xml,"Label");
 			if (xml){
-				this.text=xml.getAttribute("title");
-				this.icon=xml.getAttribute("icon");
 				var str;
+				str=xml.getAttribute("title");
+				if(str)
+					this.text=str;
+				str=xml.getAttribute("icon");
+				if(str)
+					this.icon=str;
 				str=xml.getAttribute("titleColor");
 				if (str)
 					this.titleColor=str;
@@ -9548,6 +9734,7 @@
 	var GList=(function(_super){
 		function GList(){
 			this.itemRenderer=null;
+			this.scrollItemToViewOnClick=false;
 			this._layout=0;
 			this._lineItemCount=0;
 			this._lineGap=0;
@@ -9574,6 +9761,7 @@
 			this._lastSelectedIndex=-1;
 			this._selectionMode=0;
 			this.opaque=true;
+			this.scrollItemToViewOnClick=true;
 		}
 
 		__class(GList,'fairygui.GList',_super);
@@ -9671,6 +9859,7 @@
 			(scrollItToView===void 0)&& (scrollItToView=false);
 			if (this._selectionMode==3)
 				return;
+			this.checkVirtualList();
 			if (this._selectionMode==0)
 				this.clearSelection();
 			if(scrollItToView)
@@ -9721,6 +9910,7 @@
 		}
 
 		__proto.selectAll=function(){
+			this.checkVirtualList();
 			var cnt=this._children.length;
 			for (var i=0;i < cnt;i++){
 				var obj=this._children[i].asButton;
@@ -9730,6 +9920,7 @@
 		}
 
 		__proto.selectNone=function(){
+			this.checkVirtualList();
 			var cnt=this._children.length;
 			for (var i=0;i < cnt;i++){
 				var obj=this._children[i].asButton;
@@ -9879,7 +10070,7 @@
 				return;
 			var item=GObject.cast(evt.currentTarget);
 			this.setSelectionOnEvent(item,evt);
-			if(this.scrollPane)
+			if(this.scrollPane && this.scrollItemToViewOnClick)
 				this.scrollPane.scrollToView(item,true);
 			this.displayObject.event("fui_click_item",[item,Events.createEvent("fui_click_item",this.displayObject,evt)]);
 		}
@@ -10064,6 +10255,7 @@
 			(ani===void 0)&& (ani=false);
 			(setFirst===void 0)&& (setFirst=false);
 			if(this._virtual){
+				this.checkVirtualList();
 				if(this.scrollPane !=null)
 					this.scrollPane.scrollToView(this.getItemRect(index),ani,setFirst);
 				else if(this.parent !=null && this.parent.scrollPane !=null)
@@ -10130,8 +10322,15 @@
 			}
 		}
 
-		__proto.__parentSizeChanged=function(){
-			this.setVirtualListChangedFlag();
+		__proto.refreshVirtualList=function(){
+			this.setVirtualListChangedFlag(false);
+		}
+
+		__proto.checkVirtualList=function(){
+			if(this._virtualListChanged!=0){
+				this._refreshVirtualList();
+				Laya.timer.clear(this,this._refreshVirtualList);
+			}
 		}
 
 		__proto.setVirtualListChangedFlag=function(layoutChanged){
@@ -10140,10 +10339,10 @@
 				this._virtualListChanged=2;
 			else if(this._virtualListChanged==0)
 			this._virtualListChanged=1;
-			Laya.timer.callLater(this,this.refreshVirtualList);
+			Laya.timer.callLater(this,this._refreshVirtualList);
 		}
 
-		__proto.refreshVirtualList=function(){
+		__proto._refreshVirtualList=function(){
 			if(this._virtualListChanged==0)
 				return;
 			var layoutChanged=this._virtualListChanged==2;
@@ -10575,6 +10774,9 @@
 						(obj).title=cxml.getAttribute("title");
 						(obj).icon=cxml.getAttribute("icon");
 					}
+					str=cxml.getAttribute("name");
+					if(str)
+						obj.name=str;
 				}
 			}
 		}
@@ -10845,7 +11047,10 @@
 				this._value=value;
 				this._tweener=Tween.to(this,{_tweenValue:value },duration *1000,fairygui.GProgressBar.easeLinear);
 				this._tweener.update=Handler.create(this,this.onUpdateTween,null,false);
+				return this._tweener;
 			}
+			else
+			return null;
 		}
 
 		__proto.onUpdateTween=function(){
@@ -10978,130 +11183,6 @@
 		]);
 		return GProgressBar;
 	})(GComponent)
-
-
-	//class fairygui.GTextInput extends fairygui.GTextField
-	var GTextInput=(function(_super){
-		function GTextInput(){
-			this.input=null;
-			GTextInput.__super.call(this);
-		}
-
-		__class(GTextInput,'fairygui.GTextInput',_super);
-		var __proto=GTextInput.prototype;
-		Laya.imps(__proto,{"fairygui.IColorGear":true})
-		__proto.createDisplayObject=function(){
-			this._displayObject=this.input=new Input();
-			this._displayObject.mouseEnabled=true;
-			this._displayObject["$owner"]=this;
-		}
-
-		__proto.handleSizeChanged=function(){
-			this.input.size(this.width,this.height);
-		}
-
-		__getset(0,__proto,'leading',function(){
-			return this.input.leading;
-			},function(value){
-			this.input.leading=value;
-		});
-
-		__getset(0,__proto,'text',function(){
-			return this.input.text;
-			},function(value){
-			this.input.text=value;
-		});
-
-		__getset(0,__proto,'font',function(){
-			return this.input.font;
-			},function(value){
-			this.input.font=value;
-		});
-
-		__getset(0,__proto,'italic',function(){
-			return this.input.italic;
-			},function(value){
-			this.input.italic=value;
-		});
-
-		__getset(0,__proto,'valign',function(){
-			return this.input.valign;
-			},function(value){
-			this.input.valign=value;
-		});
-
-		__getset(0,__proto,'fontSize',function(){
-			return this.input.fontSize;
-			},function(value){
-			this.input.fontSize=value;
-		});
-
-		__getset(0,__proto,'color',function(){
-			return this.input.color;
-			},function(value){
-			this.input.color=value;
-		});
-
-		__getset(0,__proto,'strokeColor',function(){
-			return this.input.strokeColor;
-			},function(value){
-			this.input.strokeColor=value;
-		});
-
-		__getset(0,__proto,'align',function(){
-			return this.input.align;
-			},function(value){
-			this.input.align=value;
-		});
-
-		__getset(0,__proto,'bold',function(){
-			return this.input.bold;
-			},function(value){
-			this.input.bold=value;
-		});
-
-		__getset(0,__proto,'asPassword',function(){
-			return this.input.asPassword;
-			},function(value){
-			this.input.asPassword=value;
-		});
-
-		__getset(0,__proto,'singleLine',function(){
-			return !this.input.multiline;
-			},function(value){
-			this.input.multiline=!value;
-		});
-
-		__getset(0,__proto,'stroke',function(){
-			return this.input.stroke;
-			},function(value){
-			this.input.stroke=value;
-		});
-
-		__getset(0,__proto,'editable',function(){
-			return this.input.editable;
-			},function(value){
-			this.input.editable=value;
-		});
-
-		__getset(0,__proto,'maxChars',function(){
-			return this.input.maxChars;
-			},function(value){
-			this.input.maxChars=value;
-		});
-
-		__getset(0,__proto,'promptText',function(){
-			return this.input.prompt;
-			},function(value){
-			this.input.prompt=value;
-		});
-
-		__getset(0,__proto,'textWidth',function(){
-			return this.input.textWidth;
-		});
-
-		return GTextInput;
-	})(GTextField)
 
 
 	//class fairygui.GRoot extends fairygui.GComponent
@@ -11489,6 +11570,137 @@
 		GRoot._inst=null
 		return GRoot;
 	})(GComponent)
+
+
+	//class fairygui.GTextInput extends fairygui.GTextField
+	var GTextInput=(function(_super){
+		function GTextInput(){
+			this.input=null;
+			GTextInput.__super.call(this);
+		}
+
+		__class(GTextInput,'fairygui.GTextInput',_super);
+		var __proto=GTextInput.prototype;
+		Laya.imps(__proto,{"fairygui.IColorGear":true})
+		__proto.createDisplayObject=function(){
+			this._displayObject=this.input=new Input();
+			this._displayObject.mouseEnabled=true;
+			this._displayObject["$owner"]=this;
+		}
+
+		__proto.handleSizeChanged=function(){
+			this.input.size(this.width,this.height);
+		}
+
+		__proto.setup_beforeAdd=function(xml){
+			_super.prototype.setup_beforeAdd.call(this,xml);
+			var str=xml.getAttribute('prompt');
+			if(str)
+				this.promptText=str;
+		}
+
+		__getset(0,__proto,'leading',function(){
+			return this.input.leading;
+			},function(value){
+			this.input.leading=value;
+		});
+
+		__getset(0,__proto,'text',function(){
+			return this.input.text;
+			},function(value){
+			this.input.text=value;
+		});
+
+		__getset(0,__proto,'font',function(){
+			return this.input.font;
+			},function(value){
+			this.input.font=value;
+		});
+
+		__getset(0,__proto,'italic',function(){
+			return this.input.italic;
+			},function(value){
+			this.input.italic=value;
+		});
+
+		__getset(0,__proto,'valign',function(){
+			return this.input.valign;
+			},function(value){
+			this.input.valign=value;
+		});
+
+		__getset(0,__proto,'fontSize',function(){
+			return this.input.fontSize;
+			},function(value){
+			this.input.fontSize=value;
+		});
+
+		__getset(0,__proto,'color',function(){
+			return this.input.color;
+			},function(value){
+			this.input.color=value;
+		});
+
+		__getset(0,__proto,'strokeColor',function(){
+			return this.input.strokeColor;
+			},function(value){
+			this.input.strokeColor=value;
+		});
+
+		__getset(0,__proto,'align',function(){
+			return this.input.align;
+			},function(value){
+			this.input.align=value;
+		});
+
+		__getset(0,__proto,'bold',function(){
+			return this.input.bold;
+			},function(value){
+			this.input.bold=value;
+		});
+
+		__getset(0,__proto,'asPassword',function(){
+			return this.input.asPassword;
+			},function(value){
+			this.input.asPassword=value;
+		});
+
+		__getset(0,__proto,'singleLine',function(){
+			return !this.input.multiline;
+			},function(value){
+			this.input.multiline=!value;
+		});
+
+		__getset(0,__proto,'stroke',function(){
+			return this.input.stroke;
+			},function(value){
+			this.input.stroke=value;
+		});
+
+		__getset(0,__proto,'editable',function(){
+			return this.input.editable;
+			},function(value){
+			this.input.editable=value;
+		});
+
+		__getset(0,__proto,'maxChars',function(){
+			return this.input.maxChars;
+			},function(value){
+			this.input.maxChars=value;
+		});
+
+		__getset(0,__proto,'promptText',function(){
+			return this.input.prompt;
+			},function(value){
+			this.input.prompt=value;
+		});
+
+		__getset(0,__proto,'textWidth',function(){
+			return this.input.textWidth;
+		});
+
+		return GTextInput;
+	})(GTextField)
 
 
 	//class fairygui.GScrollBar extends fairygui.GComponent
@@ -12310,8 +12522,6 @@
 					this.setFrame(this._frames[this._currentFrame]);
 				}
 			}
-			else
-			this.setFrame(null);
 		}
 
 		__proto.setFrame=function(frame){

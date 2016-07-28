@@ -338,9 +338,10 @@ package fairygui {
             var lineBuffer: String = "";
             var lineY: Number = GBasicTextField.GUTTER_Y;
             var line: LineInfo;
-            var textWidth: Number = 0, textHeight: Number = 0;
             var wordWrap: Boolean = !this._widthAutoSize && !this._singleLine;
             var fontScale: Number = this._bitmapFont.resizable?this.fontSize/this._bitmapFont.size:1;
+			this._textWidth = 0;
+			this._textHeight = 0;
 
             var textLength: Number = this._text.length;
             for (var offset: Number = 0; offset < textLength; ++offset) {
@@ -364,8 +365,8 @@ package fairygui {
                     line.text = lineBuffer;
                     line.y = lineY;
                     lineY += (line.height + lineSpacing);
-                    if (line.width > textWidth)
-                        textWidth = line.width;
+                    if (line.width > this._textWidth)
+						this._textWidth = line.width;
                     this._lines.push(line);
 
                     lineBuffer = "";
@@ -447,8 +448,8 @@ package fairygui {
                     }
                     line.y = lineY;
                     lineY += (line.height + lineSpacing);
-                    if (line.width > textWidth)
-                        textWidth = line.width;
+                    if (line.width > this._textWidth)
+						this._textWidth = line.width;
 
                     wordChars = 0;
                     wordStart = 0;
@@ -469,21 +470,21 @@ package fairygui {
                 line.textHeight = lineTextHeight;
                 line.text = lineBuffer;
                 line.y = lineY;
-                if (line.width > textWidth)
-                    textWidth = line.width;
+                if (line.width > this._textWidth)
+					this._textWidth = line.width;
                 this._lines.push(line);
             }
 
-            if (textWidth > 0)
-                textWidth += GBasicTextField.GUTTER_X * 2;
+            if (this._textWidth > 0)
+				this._textWidth += GBasicTextField.GUTTER_X * 2;
 
             var count: Number = this._lines.length;
             if (count == 0) {
-                textHeight = 0;
+                this._textHeight = 0;
             }
             else {
                 line = this._lines[this._lines.length - 1];
-                textHeight = line.y + line.height + GBasicTextField.GUTTER_Y;
+				this._textHeight = line.y + line.height + GBasicTextField.GUTTER_Y;
             }
 
             var w: Number, h: Number = 0;
@@ -497,10 +498,10 @@ package fairygui {
                 w = this.width;
 
             if (this._heightAutoSize) {
-                if (textHeight == 0)
+                if (this._textHeight == 0)
                     h = 0;
                 else
-                    h = textHeight;
+                    h = this._textHeight;
             }
             else
                 h = this.height;

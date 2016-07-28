@@ -33,7 +33,8 @@ package fairygui {
         private var _internalVisible: Number = 1;
         private var _focusable: Boolean = false;
         private var _tooltips: String;
-
+		private var _pixelSnapping: Boolean = false;
+		
         private var _relations: Relations;
         private var _group: GGroup;
         private var _gearDisplay: GearDisplay;
@@ -127,7 +128,21 @@ package fairygui {
                 }
             }
         }
-
+		
+		public function get pixelSnapping():Boolean
+		{
+			return this._pixelSnapping;
+		}
+		
+		public function set pixelSnapping(value:Boolean):void
+		{
+			if(this._pixelSnapping!=value)
+			{
+				this._pixelSnapping = value;
+				this.handleXYChanged();
+			}
+		}
+		
         public function center(restraint: Boolean = false): void {
             var r: GComponent;
             if(this._parent != null)
@@ -799,12 +814,20 @@ package fairygui {
         }
 
         protected function handleXYChanged(): void {
+			var xv:Number = this._x;
+			var yv:Number = this._y+_yOffset;
 			if(this._pivotAsAnchor)
-				this._displayObject.pos(Math.floor(this._x-this._pivotX*this._width)+ this._pivotOffsetX,
-					Math.floor(this._y-this._pivotY*this._height + this._yOffset)+this._pivotOffsetY);
-			else
-            	this._displayObject.pos(Math.floor(this._x)+ this._pivotOffsetX,
-					Math.floor(this._y + this._yOffset)+this._pivotOffsetY);
+			{					
+				xv -= this._pivotX*this._width;
+				yv -= this._pivotY*this._height;
+			}
+			if(_pixelSnapping)
+			{
+				xv = Math.round(xv);
+				yv = Math.round(yv);
+			}
+			
+			this._displayObject.pos(xv+this._pivotOffsetX, yv+this._pivotOffsetY);
         }
 
 		protected function handleSizeChanged():void
