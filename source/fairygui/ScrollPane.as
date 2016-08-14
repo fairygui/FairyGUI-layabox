@@ -90,6 +90,7 @@ package fairygui {
 
             this._maskContentHolder = this._owner._container;
             this._maskContentHolder.pos(0,0);
+			this._maskHolder.scrollRect = new Rectangle();
             this._maskHolder.addChild(this._maskContentHolder);
             
             this._scrollType = scrollType;
@@ -274,7 +275,7 @@ package fairygui {
         }
 
         public function get isBottomMost(): Boolean {
-            return this._yPerc == 1 || this._maskHeight <= this._maskHeight;
+            return this._yPerc == 1 || this._contentHeight <= this._maskHeight;
         }
 
         public function get isRightMost(): Boolean {
@@ -557,14 +558,10 @@ package fairygui {
                 }
             }
 
-            if(this._maskHolder.mask==null) {
-                this._maskHolder.mask = new Sprite();
-                this._maskHolder.mask.graphics.drawRect(0,0,this._maskWidth,this._maskHeight, "#000000");
-            }
-            else {
-                this._maskHolder.mask.graphics.clear();
-                this._maskHolder.mask.graphics.drawRect(0,0,this._maskWidth,this._maskHeight, "#000000");
-            }
+			var rect:Rectangle = this._maskHolder.scrollRect;
+			rect.width = this._maskWidth;
+			rect.height = this._maskHeight;
+			this._maskHolder.scrollRect = rect;
                 
             this._xOverlap = Math.max(0, this._contentWidth - this._maskWidth);
             this._yOverlap = Math.max(0, this._contentHeight - this._maskHeight);

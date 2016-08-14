@@ -60,11 +60,10 @@ package fairygui {
                     this.alpha = a;
                 }
             }
-            //if (this._type == 1)
+           	if (this._type == 1)
                 gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
-			//wait for laya fix bugs
-           // else 
-               //gr.drawCircle(w/2,h/2,w/2, fillColor, this._lineSize>0?lineColor:null, this._lineSize);
+           	else 
+            	gr.drawCircle(w/2,h/2,w/2, fillColor, this._lineSize>0?lineColor:null, this._lineSize);
 			
 			this._displayObject.repaint();
         }
