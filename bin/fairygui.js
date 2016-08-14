@@ -8,9 +8,9 @@
 	var Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound,SoundChannel=laya.media.SoundChannel;
 	var Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text,Texture=laya.resource.Texture;
 	var Tween=laya.utils.Tween,Utils=laya.utils.Utils;
-	Laya.interface('fairygui.IColorGear');
 	Laya.interface('fairygui.IUISource');
 	Laya.interface('fairygui.IAnimationGear');
+	Laya.interface('fairygui.IColorGear');
 	//class fairygui.AutoSizeType
 	var AutoSizeType=(function(){
 		function AutoSizeType(){}
@@ -2701,6 +2701,7 @@
 			this._container.addChild(this._maskHolder);
 			this._maskContentHolder=this._owner._container;
 			this._maskContentHolder.pos(0,0);
+			this._maskHolder.scrollRect=new Rectangle();
 			this._maskHolder.addChild(this._maskContentHolder);
 			this._scrollType=scrollType;
 			this._scrollBarMargin=scrollBarMargin;
@@ -3039,15 +3040,11 @@
 					else
 					this._hzScrollBar.displayPerc=Math.min(1,this._maskWidth / this._contentWidth);
 				}
-			}
-			if(this._maskHolder.mask==null){
-				this._maskHolder.mask=new Sprite();
-				this._maskHolder.mask.graphics.drawRect(0,0,this._maskWidth,this._maskHeight,"#000000");
-			}
-			else {
-				this._maskHolder.mask.graphics.clear();
-				this._maskHolder.mask.graphics.drawRect(0,0,this._maskWidth,this._maskHeight,"#000000");
-			}
+			};
+			var rect=this._maskHolder.scrollRect;
+			rect.width=this._maskWidth;
+			rect.height=this._maskHeight;
+			this._maskHolder.scrollRect=rect;
 			this._xOverlap=Math.max(0,this._contentWidth-this._maskWidth);
 			this._yOverlap=Math.max(0,this._contentHeight-this._maskHeight);
 			switch(this._scrollType){
@@ -3662,7 +3659,7 @@
 		});
 
 		__getset(0,__proto,'isBottomMost',function(){
-			return this._yPerc==1 || this._maskHeight <=this._maskHeight;
+			return this._yPerc==1 || this._contentHeight <=this._maskHeight;
 		});
 
 		__getset(0,__proto,'isRightMost',function(){
@@ -6534,7 +6531,7 @@
 		}
 
 		__proto.isChildInView=function(child){
-			if(this._displayObject.mask !=null){
+			if(this._displayObject.scrollRect !=null){
 				return child.x+child.width >=0 && child.x <=this.width
 				&& child.y+child.height >=0 && child.y <=this.height;
 			}
@@ -6562,18 +6559,14 @@
 		}
 
 		__proto.updateMask=function(){
-			var left=this._margin.left;
-			var top=this._margin.top;
-			var w=this.width-(this._margin.left+this._margin.right);
-			var h=this.height-(this._margin.top+this._margin.bottom);
-			if(this._displayObject.mask==null){
-				this._displayObject.mask=new Sprite();
-				this._displayObject.mask.graphics.drawRect(left,top,w,h,"#000000");
-			}
-			else {
-				this._displayObject.mask.graphics.clear();
-				this._displayObject.mask.graphics.drawRect(left,top,w,h,"#000000");
-			}
+			var rect=this._displayObject.scrollRect;
+			if(rect==null)
+				rect=new Rectangle();
+			rect.x=this._margin.left;
+			rect.y=this._margin.top;
+			rect.width=this.width-(this._margin.left+this._margin.right);
+			rect.height=this.height-(this._margin.top+this._margin.bottom);
+			this._displayObject.scrollRect=rect;
 		}
 
 		__proto.setupScroll=function(scrollBarMargin,scroll,scrollBarDisplay,flags,vtScrollBarRes,hzScrollBarRes){
@@ -6602,7 +6595,7 @@
 			_super.prototype.handleSizeChanged.call(this);
 			if(this._scrollPane)
 				this._scrollPane.setSize(this.width,this.height);
-			else if(this._displayObject.mask !=null)
+			else if(this._displayObject.scrollRect !=null)
 			this.updateMask();
 			if(this._opaque)
 				this.updateOpaque();
@@ -6996,7 +6989,7 @@
 			return this._margin;
 			},function(value){
 			this._margin.copy(value);
-			if(this._displayObject.mask){
+			if(this._displayObject.scrollRect!=null){
 				this._container.pos(this._margin.left,this._margin.top);
 			}
 			this.handleSizeChanged();
@@ -7213,7 +7206,10 @@
 					this.alpha=a;
 				}
 			}
-			gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
+			if (this._type==1)
+				gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
+			else
+			gr.drawCircle(w/2,h/2,w/2,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
 			this._displayObject.repaint();
 		}
 
@@ -9122,6 +9118,8 @@
 			this._over=true;
 			if (this._down)
 				return;
+			if(this.grayed && this._buttonController.hasPage("disabled"))
+				return;
 			this.setState(this._selected ? "selectedOver" :"over");
 		}
 
@@ -9130,6 +9128,8 @@
 				return;
 			this._over=false;
 			if (this._down)
+				return;
+			if(this.grayed && this._buttonController.hasPage("disabled"))
 				return;
 			this.setState(this._selected ? "down" :"up");
 		}
@@ -12596,5 +12596,5 @@
 	})(Sprite)
 
 
-	Laya.__init([UIPackage,RelationItem,GBasicTextField,GearSize,GearAnimation,Controller,GearLook,ScrollPane,Transition]);
+	Laya.__init([UIPackage,GBasicTextField,Controller,GearAnimation,GearLook,GearSize,RelationItem,ScrollPane,Transition]);
 })(window,document,Laya);
