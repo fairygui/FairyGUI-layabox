@@ -1,6 +1,4 @@
 package fairygui {
-	import fairygui.utils.ToolSet;
-	
 	import laya.display.Input;
 
     public class GTextInput extends GTextField implements IColorGear {
@@ -156,9 +154,15 @@ package fairygui {
 		{
 			super.setup_beforeAdd(xml);
 			
-			var str:String = xml.@prompt;
+			var str:String = xml.getAttribute("prompt");
 			if(str)
 				this.promptText = str;
+			str = xml.getAttribute("maxLength");
+			if(str)
+				this.input.maxChars = parseInt(str);
+			str = xml.getAttribute("restrict");
+			if(str)
+				this.input.restrict = str;
 		}
     }
 }

@@ -11594,9 +11594,15 @@
 
 		__proto.setup_beforeAdd=function(xml){
 			_super.prototype.setup_beforeAdd.call(this,xml);
-			var str=xml.getAttribute('prompt');
+			var str=xml.getAttribute("prompt");
 			if(str)
 				this.promptText=str;
+			str=xml.getAttribute("maxLength");
+			if(str)
+				this.input.maxChars=parseInt(str);
+			str=xml.getAttribute("restrict");
+			if(str)
+				this.input.restrict=str;
 		}
 
 		__getset(0,__proto,'leading',function(){
