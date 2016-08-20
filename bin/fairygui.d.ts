@@ -196,6 +196,7 @@ declare module fairygui {
         letterSpacing: number;
         bold: boolean;
         italic: boolean;
+        underline: boolean;
         singleLine: boolean;
         stroke: number;
         strokeColor: string;
@@ -820,6 +821,7 @@ declare module fairygui {
         letterSpacing: number;
         bold: boolean;
         italic: boolean;
+        underline: boolean;
         singleLine: boolean;
         stroke: number;
         strokeColor: string;

@@ -6074,6 +6074,7 @@
 			this.ubbEnabled=xml.getAttribute("ubb")=="true";
 			this.italic=xml.getAttribute("italic")=="true";
 			this.bold=xml.getAttribute("bold")=="true";
+			this.underline=xml.getAttribute("underline")=="true";
 			this.singleLine=xml.getAttribute("singleLine")=="true";
 			str=xml.getAttribute("strokeColor");
 			if (str){
@@ -6143,6 +6144,11 @@
 
 		__getset(0,__proto,'letterSpacing',function(){
 			return 0;
+			},function(value){
+		});
+
+		__getset(0,__proto,'underline',function(){
+			return false;
 			},function(value){
 		});
 
@@ -8861,6 +8867,12 @@
 			return this.textField.italic;
 			},function(value){
 			this.textField.italic=value;
+		});
+
+		__getset(0,__proto,'underline',function(){
+			return this.textField.underline;
+			},function(value){
+			this.textField.underline=value;
 		});
 
 		__getset(0,__proto,'asPassword',function(){
