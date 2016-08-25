@@ -65,6 +65,7 @@ package fairygui {
         
 		override protected function createDisplayObject(): void {
             this._displayObject = this.image = new Image();
+			this.image.mouseEnabled = false;
             this._displayObject["$owner"] = this;
         }
 

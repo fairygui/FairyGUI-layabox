@@ -30,6 +30,7 @@ package fairygui {
         override protected function createDisplayObject(): void {
             super.createDisplayObject();
             this._displayObject.mouseEnabled = true;
+			this._displayObject.mouseThrough = true;
             this._container = this._displayObject;
         }
 
@@ -426,9 +427,15 @@ package fairygui {
             if(this._opaque != value) {
                 this._opaque = value;
                 if(this._opaque)
+				{
                     this.updateOpaque();
+					this._displayObject.mouseThrough = false;
+				}
                 else
+				{
                     this._displayObject.hitArea = null;
+					this._displayObject.mouseThrough = true;
+				}
             }
         }
         
@@ -807,7 +814,7 @@ package fairygui {
                     }
                 }
 
-                if(displayList.length>0) {
+                if(displayList!=null && displayList.length>0) {
                     var u: GObject;
                     var length2: Number = displayList.length;
                     for(var i2: Number = 0;i2 < length2;i2++) {

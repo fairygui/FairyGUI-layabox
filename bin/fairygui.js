@@ -6210,6 +6210,7 @@
 		__proto.createDisplayObject=function(){
 			_super.prototype.createDisplayObject.call(this);
 			this._displayObject.mouseEnabled=true;
+			this._displayObject.mouseThrough=true;
 			this._container=this._displayObject;
 		}
 
@@ -6852,7 +6853,7 @@
 						controller.setup(cxml);
 					}
 				}
-				if(displayList.length>0){
+				if(displayList!=null && displayList.length>0){
 					var u;
 					var length2=displayList.length;
 					for(var i2=0;i2 < length2;i2++){
@@ -6984,10 +6985,14 @@
 			},function(value){
 			if(this._opaque !=value){
 				this._opaque=value;
-				if(this._opaque)
+				if(this._opaque){
 					this.updateOpaque();
-				else
-				this._displayObject.hitArea=null;
+					this._displayObject.mouseThrough=false;
+				}
+				else{
+					this._displayObject.hitArea=null;
+					this._displayObject.mouseThrough=true;
+				}
 			}
 		});
 
@@ -7539,6 +7544,7 @@
 
 		__proto.createDisplayObject=function(){
 			this._displayObject=this.image=new Image1();
+			this.image.mouseEnabled=false;
 			this._displayObject["$owner"]=this;
 		}
 
@@ -8284,6 +8290,7 @@
 		Laya.imps(__proto,{"fairygui.IAnimationGear":true,"fairygui.IColorGear":true})
 		__proto.createDisplayObject=function(){
 			this._displayObject=this.movieClip=new MovieClip1();
+			this.movieClip.mouseEnabled=false;
 			this._displayObject["$owner"]=this;
 		}
 

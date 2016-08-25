@@ -26,6 +26,7 @@ package fairygui {
 
 		override protected function createDisplayObject(): void {
             this._displayObject = this.movieClip = new MovieClip();
+			this.movieClip.mouseEnabled = false;
             this._displayObject["$owner"] = this;
         }
 
