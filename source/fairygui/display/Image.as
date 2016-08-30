@@ -100,20 +100,7 @@ package fairygui.display {
 			}
             
             if(this._scaleByTile) {
-                var hc:Number = Math.ceil(this._textureScaleX);
-				var vc:Number = Math.ceil(this._textureScaleY);
-				var remainWidth:Number = width - (hc - 1) * sw;
-				var remainHeight:Number = height - (vc - 1) * sh;
-				for (var i:Number = 0; i < hc; i++)
-				{
-					for (var j:Number = 0; j < vc; j++)
-					{
-						if(i==hc-1 || j==vc-1)
-                            g.drawTexture(Image.getTexture(this._texture, 0, 0, i==hc-1?remainWidth:sw, j==vc-1?remainHeight:sh), i*sw, j*sh);
-						else
-							g.drawTexture(this._texture, i*sw, j*sh);
-					}
-				}
+				g.fillTexture(this._texture, 0, 0, width, height);
             }
             else if(this._scale9Grid!=null) {
                 var left:Number = this._scale9Grid.x;

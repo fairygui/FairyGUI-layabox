@@ -8,8 +8,8 @@
 	var Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound,SoundChannel=laya.media.SoundChannel;
 	var Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text,Texture=laya.resource.Texture;
 	var Tween=laya.utils.Tween,Utils=laya.utils.Utils;
-	Laya.interface('fairygui.IUISource');
 	Laya.interface('fairygui.IAnimationGear');
+	Laya.interface('fairygui.IUISource');
 	Laya.interface('fairygui.IColorGear');
 	//class fairygui.AutoSizeType
 	var AutoSizeType=(function(){
@@ -7312,6 +7312,88 @@
 	})(GObject)
 
 
+	//class fairygui.GGroup extends fairygui.GObject
+	var GGroup=(function(_super){
+		function GGroup(){
+			this._updating=false;
+			this._empty=false;
+			GGroup.__super.call(this);
+		}
+
+		__class(GGroup,'fairygui.GGroup',_super);
+		var __proto=GGroup.prototype;
+		__proto.updateBounds=function(){
+			if (this._updating || !this.parent)
+				return;
+			var cnt=this._parent.numChildren;
+			var i=0;
+			var child;
+			var ax=Number.POSITIVE_INFINITY,ay=Number.POSITIVE_INFINITY;
+			var ar=Number.NEGATIVE_INFINITY,ab=Number.NEGATIVE_INFINITY;
+			var tmp=0;
+			this._empty=true;
+			for (i=0;i < cnt;i++){
+				child=this._parent.getChildAt(i);
+				if (child.group==this){
+					tmp=child.x;
+					if (tmp < ax)
+						ax=tmp;
+					tmp=child.y;
+					if (tmp < ay)
+						ay=tmp;
+					tmp=child.x+child.width;
+					if (tmp > ar)
+						ar=tmp;
+					tmp=child.y+child.height;
+					if (tmp > ab)
+						ab=tmp;
+					this._empty=false;
+				}
+			}
+			this._updating=true;
+			if (!this._empty){
+				this.setXY(ax,ay);
+				this.setSize(ar-ax,ab-ay);
+			}
+			else
+			this.setSize(0,0);
+			this._updating=false;
+		}
+
+		__proto.moveChildren=function(dx,dy){
+			if (this._updating || !this.parent)
+				return;
+			this._updating=true;
+			var cnt=this._parent.numChildren;
+			var i=0;
+			var child;
+			for (i=0;i < cnt;i++){
+				child=this._parent.getChildAt(i);
+				if (child.group==this){
+					child.setXY(child.x+dx,child.y+dy);
+				}
+			}
+			this._updating=false;
+		}
+
+		__proto.updateAlpha=function(){
+			_super.prototype.updateAlpha.call(this);
+			if(this._underConstruct)
+				return;
+			var cnt=this._parent.numChildren;
+			var i=NaN;
+			var child;
+			for(i=0;i<cnt;i++){
+				child=this._parent.getChildAt(i);
+				if(child.group==this)
+					child.alpha=this.alpha;
+			}
+		}
+
+		return GGroup;
+	})(GObject)
+
+
 	//class fairygui.GearLook extends fairygui.GearBase
 	var GearLook=(function(_super){
 		var GearLookValue;
@@ -7436,88 +7518,6 @@
 
 		return GearLook;
 	})(GearBase)
-
-
-	//class fairygui.GGroup extends fairygui.GObject
-	var GGroup=(function(_super){
-		function GGroup(){
-			this._updating=false;
-			this._empty=false;
-			GGroup.__super.call(this);
-		}
-
-		__class(GGroup,'fairygui.GGroup',_super);
-		var __proto=GGroup.prototype;
-		__proto.updateBounds=function(){
-			if (this._updating || !this.parent)
-				return;
-			var cnt=this._parent.numChildren;
-			var i=0;
-			var child;
-			var ax=Number.POSITIVE_INFINITY,ay=Number.POSITIVE_INFINITY;
-			var ar=Number.NEGATIVE_INFINITY,ab=Number.NEGATIVE_INFINITY;
-			var tmp=0;
-			this._empty=true;
-			for (i=0;i < cnt;i++){
-				child=this._parent.getChildAt(i);
-				if (child.group==this){
-					tmp=child.x;
-					if (tmp < ax)
-						ax=tmp;
-					tmp=child.y;
-					if (tmp < ay)
-						ay=tmp;
-					tmp=child.x+child.width;
-					if (tmp > ar)
-						ar=tmp;
-					tmp=child.y+child.height;
-					if (tmp > ab)
-						ab=tmp;
-					this._empty=false;
-				}
-			}
-			this._updating=true;
-			if (!this._empty){
-				this.setXY(ax,ay);
-				this.setSize(ar-ax,ab-ay);
-			}
-			else
-			this.setSize(0,0);
-			this._updating=false;
-		}
-
-		__proto.moveChildren=function(dx,dy){
-			if (this._updating || !this.parent)
-				return;
-			this._updating=true;
-			var cnt=this._parent.numChildren;
-			var i=0;
-			var child;
-			for (i=0;i < cnt;i++){
-				child=this._parent.getChildAt(i);
-				if (child.group==this){
-					child.setXY(child.x+dx,child.y+dy);
-				}
-			}
-			this._updating=false;
-		}
-
-		__proto.updateAlpha=function(){
-			_super.prototype.updateAlpha.call(this);
-			if(this._underConstruct)
-				return;
-			var cnt=this._parent.numChildren;
-			var i=NaN;
-			var child;
-			for(i=0;i<cnt;i++){
-				child=this._parent.getChildAt(i);
-				if(child.group==this)
-					child.alpha=this.alpha;
-			}
-		}
-
-		return GGroup;
-	})(GObject)
 
 
 	//class fairygui.GImage extends fairygui.GObject
@@ -12360,18 +12360,7 @@
 				return;
 			}
 			if(this._scaleByTile){
-				var hc=Math.ceil(this._textureScaleX);
-				var vc=Math.ceil(this._textureScaleY);
-				var remainWidth=width-(hc-1)*sw;
-				var remainHeight=height-(vc-1)*sh;
-				for (var i=0;i < hc;i++){
-					for (var j=0;j < vc;j++){
-						if(i==hc-1 || j==vc-1)
-							g.drawTexture(fairygui.display.Image.getTexture(this._texture,0,0,i==hc-1?remainWidth:sw,j==vc-1?remainHeight:sh),i*sw,j*sh);
-						else
-						g.drawTexture(this._texture,i*sw,j*sh);
-					}
-				}
+				g.fillTexture(this._texture,0,0,width,height);
 			}
 			else if(this._scale9Grid!=null){
 				var left=this._scale9Grid.x;
@@ -12621,5 +12610,5 @@
 	})(Sprite)
 
 
-	Laya.__init([UIPackage,GBasicTextField,Controller,GearAnimation,GearLook,GearSize,RelationItem,ScrollPane,Transition]);
+	Laya.__init([UIPackage,GBasicTextField,Transition,Controller,GearAnimation,GearLook,GearSize,RelationItem,ScrollPane]);
 })(window,document,Laya);
