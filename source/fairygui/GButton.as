@@ -379,6 +379,9 @@ package fairygui {
             this._over = true;
             if (this._down)
                 return;
+			
+			if(this.grayed && this._buttonController.hasPage(GButton.DISABLED))
+				return;
 
             this.setState(this._selected ? GButton.SELECTED_OVER : GButton.OVER);
         }
@@ -390,6 +393,9 @@ package fairygui {
             this._over = false;
             if (this._down)
                 return;
+			
+			if(this.grayed && this._buttonController.hasPage(GButton.DISABLED))
+				return;
 
             this.setState(this._selected ? GButton.DOWN : GButton.UP);
         }

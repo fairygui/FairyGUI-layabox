@@ -30,6 +30,7 @@ package fairygui {
         override protected function createDisplayObject(): void {
             super.createDisplayObject();
             this._displayObject.mouseEnabled = true;
+			this._displayObject.mouseThrough = true;
             this._container = this._displayObject;
         }
 
@@ -393,7 +394,7 @@ package fairygui {
         }
 
         public function isChildInView(child: GObject): Boolean {
-            if(this._displayObject.mask != null) {
+            if(this._displayObject.scrollRect != null) {
                 return child.x + child.width >= 0 && child.x <= this.width
                     && child.y + child.height >= 0 && child.y <= this.height;
             }
@@ -426,9 +427,15 @@ package fairygui {
             if(this._opaque != value) {
                 this._opaque = value;
                 if(this._opaque)
+				{
                     this.updateOpaque();
+					this._displayObject.mouseThrough = false;
+				}
                 else
+				{
                     this._displayObject.hitArea = null;
+					this._displayObject.mouseThrough = true;
+				}
             }
         }
         
@@ -438,7 +445,7 @@ package fairygui {
 
         public function set margin(value: Margin):void {
             this._margin.copy(value);
-            if(this._displayObject.mask) {
+            if(this._displayObject.scrollRect!=null) {
                 this._container.pos(this._margin.left, this._margin.top);
             }
             this.handleSizeChanged();
@@ -451,19 +458,16 @@ package fairygui {
         }
         
         protected function updateMask():void {
-            var left: Number = this._margin.left;
-            var top: Number = this._margin.top;
-            var w: Number = this.width - (this._margin.left + this._margin.right);
-            var h: Number = this.height - (this._margin.top + this._margin.bottom);
-            
-            if(this._displayObject.mask==null) {
-                this._displayObject.mask = new Sprite();
-                this._displayObject.mask.graphics.drawRect(left,top, w, h, "#000000");
-            }
-            else {
-                this._displayObject.mask.graphics.clear();
-                this._displayObject.mask.graphics.drawRect(left,top, w, h, "#000000");
-            }
+			var rect:Rectangle = this._displayObject.scrollRect;
+			if(rect==null)
+				rect = new Rectangle();
+			
+			rect.x = this._margin.left;
+            rect.y = this._margin.top;
+            rect.width = this.width - (this._margin.left + this._margin.right);
+           	rect.height = this.height - (this._margin.top + this._margin.bottom);
+			
+			this._displayObject.scrollRect = rect;
         }
 
         protected function setupScroll(scrollBarMargin: Margin,
@@ -500,7 +504,7 @@ package fairygui {
 			
             if(this._scrollPane)
                 this._scrollPane.setSize(this.width,this.height);
-            else if(this._displayObject.mask != null)
+            else if(this._displayObject.scrollRect != null)
                 this.updateMask();
 			
             if(this._opaque)
@@ -810,7 +814,7 @@ package fairygui {
                     }
                 }
 
-                if(displayList.length>0) {
+                if(displayList!=null && displayList.length>0) {
                     var u: GObject;
                     var length2: Number = displayList.length;
                     for(var i2: Number = 0;i2 < length2;i2++) {

@@ -180,6 +180,14 @@ package fairygui {
 		override public function set italic(value: Boolean):void {
             this.textField.italic = value;
         }
+		
+		override public function get underline(): Boolean {
+			return this.textField.underline;
+		}
+		
+		override public function set underline(value: Boolean):void {
+			this.textField.underline = value;
+		}
 
 		override public function get singleLine(): Boolean {
             return this._singleLine;

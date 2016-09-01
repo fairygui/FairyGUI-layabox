@@ -73,6 +73,13 @@ package fairygui {
 
         public function set italic(value: Boolean):void {
         }
+		
+		public function get underline(): Boolean {
+			return false;
+		}
+		
+		public function set underline(value: Boolean):void {
+		}
 
         public function get singleLine(): Boolean {
             return false;
@@ -164,6 +171,7 @@ package fairygui {
             this.ubbEnabled = xml.getAttribute("ubb") == "true";           
             this.italic = xml.getAttribute("italic") == "true";
             this.bold = xml.getAttribute("bold") == "true";
+			this.underline = xml.getAttribute("underline") == "true";
             this.singleLine = xml.getAttribute("singleLine") == "true";
             str = xml.getAttribute("strokeColor");
             if (str) {

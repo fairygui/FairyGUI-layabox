@@ -8,9 +8,9 @@
 	var Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound,SoundChannel=laya.media.SoundChannel;
 	var Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text,Texture=laya.resource.Texture;
 	var Tween=laya.utils.Tween,Utils=laya.utils.Utils;
-	Laya.interface('fairygui.IColorGear');
-	Laya.interface('fairygui.IUISource');
 	Laya.interface('fairygui.IAnimationGear');
+	Laya.interface('fairygui.IUISource');
+	Laya.interface('fairygui.IColorGear');
 	//class fairygui.AutoSizeType
 	var AutoSizeType=(function(){
 		function AutoSizeType(){}
@@ -2701,6 +2701,7 @@
 			this._container.addChild(this._maskHolder);
 			this._maskContentHolder=this._owner._container;
 			this._maskContentHolder.pos(0,0);
+			this._maskHolder.scrollRect=new Rectangle();
 			this._maskHolder.addChild(this._maskContentHolder);
 			this._scrollType=scrollType;
 			this._scrollBarMargin=scrollBarMargin;
@@ -3039,15 +3040,11 @@
 					else
 					this._hzScrollBar.displayPerc=Math.min(1,this._maskWidth / this._contentWidth);
 				}
-			}
-			if(this._maskHolder.mask==null){
-				this._maskHolder.mask=new Sprite();
-				this._maskHolder.mask.graphics.drawRect(0,0,this._maskWidth,this._maskHeight,"#000000");
-			}
-			else {
-				this._maskHolder.mask.graphics.clear();
-				this._maskHolder.mask.graphics.drawRect(0,0,this._maskWidth,this._maskHeight,"#000000");
-			}
+			};
+			var rect=this._maskHolder.scrollRect;
+			rect.width=this._maskWidth;
+			rect.height=this._maskHeight;
+			this._maskHolder.scrollRect=rect;
 			this._xOverlap=Math.max(0,this._contentWidth-this._maskWidth);
 			this._yOverlap=Math.max(0,this._contentHeight-this._maskHeight);
 			switch(this._scrollType){
@@ -3662,7 +3659,7 @@
 		});
 
 		__getset(0,__proto,'isBottomMost',function(){
-			return this._yPerc==1 || this._maskHeight <=this._maskHeight;
+			return this._yPerc==1 || this._contentHeight <=this._maskHeight;
 		});
 
 		__getset(0,__proto,'isRightMost',function(){
@@ -6077,6 +6074,7 @@
 			this.ubbEnabled=xml.getAttribute("ubb")=="true";
 			this.italic=xml.getAttribute("italic")=="true";
 			this.bold=xml.getAttribute("bold")=="true";
+			this.underline=xml.getAttribute("underline")=="true";
 			this.singleLine=xml.getAttribute("singleLine")=="true";
 			str=xml.getAttribute("strokeColor");
 			if (str){
@@ -6149,6 +6147,11 @@
 			},function(value){
 		});
 
+		__getset(0,__proto,'underline',function(){
+			return false;
+			},function(value){
+		});
+
 		__getset(0,__proto,'asPassword',function(){
 			return false;
 			},function(value){
@@ -6207,6 +6210,7 @@
 		__proto.createDisplayObject=function(){
 			_super.prototype.createDisplayObject.call(this);
 			this._displayObject.mouseEnabled=true;
+			this._displayObject.mouseThrough=true;
 			this._container=this._displayObject;
 		}
 
@@ -6534,7 +6538,7 @@
 		}
 
 		__proto.isChildInView=function(child){
-			if(this._displayObject.mask !=null){
+			if(this._displayObject.scrollRect !=null){
 				return child.x+child.width >=0 && child.x <=this.width
 				&& child.y+child.height >=0 && child.y <=this.height;
 			}
@@ -6562,18 +6566,14 @@
 		}
 
 		__proto.updateMask=function(){
-			var left=this._margin.left;
-			var top=this._margin.top;
-			var w=this.width-(this._margin.left+this._margin.right);
-			var h=this.height-(this._margin.top+this._margin.bottom);
-			if(this._displayObject.mask==null){
-				this._displayObject.mask=new Sprite();
-				this._displayObject.mask.graphics.drawRect(left,top,w,h,"#000000");
-			}
-			else {
-				this._displayObject.mask.graphics.clear();
-				this._displayObject.mask.graphics.drawRect(left,top,w,h,"#000000");
-			}
+			var rect=this._displayObject.scrollRect;
+			if(rect==null)
+				rect=new Rectangle();
+			rect.x=this._margin.left;
+			rect.y=this._margin.top;
+			rect.width=this.width-(this._margin.left+this._margin.right);
+			rect.height=this.height-(this._margin.top+this._margin.bottom);
+			this._displayObject.scrollRect=rect;
 		}
 
 		__proto.setupScroll=function(scrollBarMargin,scroll,scrollBarDisplay,flags,vtScrollBarRes,hzScrollBarRes){
@@ -6602,7 +6602,7 @@
 			_super.prototype.handleSizeChanged.call(this);
 			if(this._scrollPane)
 				this._scrollPane.setSize(this.width,this.height);
-			else if(this._displayObject.mask !=null)
+			else if(this._displayObject.scrollRect !=null)
 			this.updateMask();
 			if(this._opaque)
 				this.updateOpaque();
@@ -6853,7 +6853,7 @@
 						controller.setup(cxml);
 					}
 				}
-				if(displayList.length>0){
+				if(displayList!=null && displayList.length>0){
 					var u;
 					var length2=displayList.length;
 					for(var i2=0;i2 < length2;i2++){
@@ -6985,10 +6985,14 @@
 			},function(value){
 			if(this._opaque !=value){
 				this._opaque=value;
-				if(this._opaque)
+				if(this._opaque){
 					this.updateOpaque();
-				else
-				this._displayObject.hitArea=null;
+					this._displayObject.mouseThrough=false;
+				}
+				else{
+					this._displayObject.hitArea=null;
+					this._displayObject.mouseThrough=true;
+				}
 			}
 		});
 
@@ -6996,7 +7000,7 @@
 			return this._margin;
 			},function(value){
 			this._margin.copy(value);
-			if(this._displayObject.mask){
+			if(this._displayObject.scrollRect!=null){
 				this._container.pos(this._margin.left,this._margin.top);
 			}
 			this.handleSizeChanged();
@@ -7213,7 +7217,10 @@
 					this.alpha=a;
 				}
 			}
-			gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
+			if (this._type==1)
+				gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
+			else
+			gr.drawCircle(w/2,h/2,w/2,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
 			this._displayObject.repaint();
 		}
 
@@ -7302,6 +7309,88 @@
 		}
 
 		return GGraph;
+	})(GObject)
+
+
+	//class fairygui.GGroup extends fairygui.GObject
+	var GGroup=(function(_super){
+		function GGroup(){
+			this._updating=false;
+			this._empty=false;
+			GGroup.__super.call(this);
+		}
+
+		__class(GGroup,'fairygui.GGroup',_super);
+		var __proto=GGroup.prototype;
+		__proto.updateBounds=function(){
+			if (this._updating || !this.parent)
+				return;
+			var cnt=this._parent.numChildren;
+			var i=0;
+			var child;
+			var ax=Number.POSITIVE_INFINITY,ay=Number.POSITIVE_INFINITY;
+			var ar=Number.NEGATIVE_INFINITY,ab=Number.NEGATIVE_INFINITY;
+			var tmp=0;
+			this._empty=true;
+			for (i=0;i < cnt;i++){
+				child=this._parent.getChildAt(i);
+				if (child.group==this){
+					tmp=child.x;
+					if (tmp < ax)
+						ax=tmp;
+					tmp=child.y;
+					if (tmp < ay)
+						ay=tmp;
+					tmp=child.x+child.width;
+					if (tmp > ar)
+						ar=tmp;
+					tmp=child.y+child.height;
+					if (tmp > ab)
+						ab=tmp;
+					this._empty=false;
+				}
+			}
+			this._updating=true;
+			if (!this._empty){
+				this.setXY(ax,ay);
+				this.setSize(ar-ax,ab-ay);
+			}
+			else
+			this.setSize(0,0);
+			this._updating=false;
+		}
+
+		__proto.moveChildren=function(dx,dy){
+			if (this._updating || !this.parent)
+				return;
+			this._updating=true;
+			var cnt=this._parent.numChildren;
+			var i=0;
+			var child;
+			for (i=0;i < cnt;i++){
+				child=this._parent.getChildAt(i);
+				if (child.group==this){
+					child.setXY(child.x+dx,child.y+dy);
+				}
+			}
+			this._updating=false;
+		}
+
+		__proto.updateAlpha=function(){
+			_super.prototype.updateAlpha.call(this);
+			if(this._underConstruct)
+				return;
+			var cnt=this._parent.numChildren;
+			var i=NaN;
+			var child;
+			for(i=0;i<cnt;i++){
+				child=this._parent.getChildAt(i);
+				if(child.group==this)
+					child.alpha=this.alpha;
+			}
+		}
+
+		return GGroup;
 	})(GObject)
 
 
@@ -7431,88 +7520,6 @@
 	})(GearBase)
 
 
-	//class fairygui.GGroup extends fairygui.GObject
-	var GGroup=(function(_super){
-		function GGroup(){
-			this._updating=false;
-			this._empty=false;
-			GGroup.__super.call(this);
-		}
-
-		__class(GGroup,'fairygui.GGroup',_super);
-		var __proto=GGroup.prototype;
-		__proto.updateBounds=function(){
-			if (this._updating || !this.parent)
-				return;
-			var cnt=this._parent.numChildren;
-			var i=0;
-			var child;
-			var ax=Number.POSITIVE_INFINITY,ay=Number.POSITIVE_INFINITY;
-			var ar=Number.NEGATIVE_INFINITY,ab=Number.NEGATIVE_INFINITY;
-			var tmp=0;
-			this._empty=true;
-			for (i=0;i < cnt;i++){
-				child=this._parent.getChildAt(i);
-				if (child.group==this){
-					tmp=child.x;
-					if (tmp < ax)
-						ax=tmp;
-					tmp=child.y;
-					if (tmp < ay)
-						ay=tmp;
-					tmp=child.x+child.width;
-					if (tmp > ar)
-						ar=tmp;
-					tmp=child.y+child.height;
-					if (tmp > ab)
-						ab=tmp;
-					this._empty=false;
-				}
-			}
-			this._updating=true;
-			if (!this._empty){
-				this.setXY(ax,ay);
-				this.setSize(ar-ax,ab-ay);
-			}
-			else
-			this.setSize(0,0);
-			this._updating=false;
-		}
-
-		__proto.moveChildren=function(dx,dy){
-			if (this._updating || !this.parent)
-				return;
-			this._updating=true;
-			var cnt=this._parent.numChildren;
-			var i=0;
-			var child;
-			for (i=0;i < cnt;i++){
-				child=this._parent.getChildAt(i);
-				if (child.group==this){
-					child.setXY(child.x+dx,child.y+dy);
-				}
-			}
-			this._updating=false;
-		}
-
-		__proto.updateAlpha=function(){
-			_super.prototype.updateAlpha.call(this);
-			if(this._underConstruct)
-				return;
-			var cnt=this._parent.numChildren;
-			var i=NaN;
-			var child;
-			for(i=0;i<cnt;i++){
-				child=this._parent.getChildAt(i);
-				if(child.group==this)
-					child.alpha=this.alpha;
-			}
-		}
-
-		return GGroup;
-	})(GObject)
-
-
 	//class fairygui.GImage extends fairygui.GObject
 	var GImage=(function(_super){
 		function GImage(){
@@ -7537,6 +7544,7 @@
 
 		__proto.createDisplayObject=function(){
 			this._displayObject=this.image=new Image1();
+			this.image.mouseEnabled=false;
 			this._displayObject["$owner"]=this;
 		}
 
@@ -8282,6 +8290,7 @@
 		Laya.imps(__proto,{"fairygui.IAnimationGear":true,"fairygui.IColorGear":true})
 		__proto.createDisplayObject=function(){
 			this._displayObject=this.movieClip=new MovieClip1();
+			this.movieClip.mouseEnabled=false;
 			this._displayObject["$owner"]=this;
 		}
 
@@ -8867,6 +8876,12 @@
 			this.textField.italic=value;
 		});
 
+		__getset(0,__proto,'underline',function(){
+			return this.textField.underline;
+			},function(value){
+			this.textField.underline=value;
+		});
+
 		__getset(0,__proto,'asPassword',function(){
 			return this.textField.asPassword;
 			},function(value){
@@ -9122,6 +9137,8 @@
 			this._over=true;
 			if (this._down)
 				return;
+			if(this.grayed && this._buttonController.hasPage("disabled"))
+				return;
 			this.setState(this._selected ? "selectedOver" :"over");
 		}
 
@@ -9130,6 +9147,8 @@
 				return;
 			this._over=false;
 			if (this._down)
+				return;
+			if(this.grayed && this._buttonController.hasPage("disabled"))
 				return;
 			this.setState(this._selected ? "down" :"up");
 		}
@@ -11594,9 +11613,15 @@
 
 		__proto.setup_beforeAdd=function(xml){
 			_super.prototype.setup_beforeAdd.call(this,xml);
-			var str=xml.getAttribute('prompt');
+			var str=xml.getAttribute("prompt");
 			if(str)
 				this.promptText=str;
+			str=xml.getAttribute("maxLength");
+			if(str)
+				this.input.maxChars=parseInt(str);
+			str=xml.getAttribute("restrict");
+			if(str)
+				this.input.restrict=str;
 		}
 
 		__getset(0,__proto,'leading',function(){
@@ -12335,18 +12360,7 @@
 				return;
 			}
 			if(this._scaleByTile){
-				var hc=Math.ceil(this._textureScaleX);
-				var vc=Math.ceil(this._textureScaleY);
-				var remainWidth=width-(hc-1)*sw;
-				var remainHeight=height-(vc-1)*sh;
-				for (var i=0;i < hc;i++){
-					for (var j=0;j < vc;j++){
-						if(i==hc-1 || j==vc-1)
-							g.drawTexture(fairygui.display.Image.getTexture(this._texture,0,0,i==hc-1?remainWidth:sw,j==vc-1?remainHeight:sh),i*sw,j*sh);
-						else
-						g.drawTexture(this._texture,i*sw,j*sh);
-					}
-				}
+				g.fillTexture(this._texture,0,0,width,height);
 			}
 			else if(this._scale9Grid!=null){
 				var left=this._scale9Grid.x;
@@ -12596,5 +12610,5 @@
 	})(Sprite)
 
 
-	Laya.__init([UIPackage,RelationItem,GBasicTextField,GearSize,GearAnimation,Controller,GearLook,ScrollPane,Transition]);
+	Laya.__init([UIPackage,GBasicTextField,Transition,Controller,GearAnimation,GearLook,GearSize,RelationItem,ScrollPane]);
 })(window,document,Laya);
