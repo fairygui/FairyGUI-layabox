@@ -239,10 +239,13 @@ package fairygui {
             else
                 this.textField.overflow = Text.HIDDEN;*/
             this.textField.wordWrap = !this._widthAutoSize;
-            if(!this._heightAutoSize)
-                this.textField.size(this.width, this.height);
-            else if(!this._widthAutoSize)
-                this.textField.width = this.width;
+			if(!this._underConstruct)
+			{
+	            if(!this._heightAutoSize)
+	                this.textField.size(this.width, this.height);
+	            else if(!this._widthAutoSize)
+	                this.textField.width = this.width;
+			}
         }
 
         public function get autoSize(): int {
@@ -563,7 +566,13 @@ package fairygui {
         }
         
 		override protected function handleSizeChanged(): void {
-            if(!this._updatingSize) {
+            if(this._updatingSize)
+				return;
+			
+			if(this._underConstruct)
+				this.textField.size(this.width, this.height);
+			else
+			{
                 if(this._bitmapFont!=null) {
                     if(!this._widthAutoSize)
                         this.markChanged();
