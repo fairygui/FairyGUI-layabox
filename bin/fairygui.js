@@ -4978,7 +4978,7 @@
 				case 3:
 					if (!item.decoded){
 						item.decoded=true;
-						item.sound=Laya.loader.getRes(this._resKey+"@"+item.id);
+						item.sound=Laya.loader.getRes(this._resKey+"@"+item.file);
 					}
 					return item.sound;
 				case 6:
@@ -5007,7 +5007,7 @@
 					}
 					return item.componentData;
 				default :
-					return Laya.loader.getRes(this._resKey+"@"+item.id);
+					return Laya.loader.getRes(this._resKey+"@"+item.file);
 				}
 		}
 
@@ -6571,8 +6571,8 @@
 				rect=new Rectangle();
 			rect.x=this._margin.left;
 			rect.y=this._margin.top;
-			rect.width=this.width-(this._margin.left+this._margin.right);
-			rect.height=this.height-(this._margin.top+this._margin.bottom);
+			rect.width=this.width-this._margin.right;
+			rect.height=this.height-this._margin.bottom;
 			this._displayObject.scrollRect=rect;
 		}
 

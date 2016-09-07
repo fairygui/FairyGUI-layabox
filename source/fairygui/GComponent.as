@@ -464,8 +464,8 @@ package fairygui {
 			
 			rect.x = this._margin.left;
             rect.y = this._margin.top;
-            rect.width = this.width - (this._margin.left + this._margin.right);
-           	rect.height = this.height - (this._margin.top + this._margin.bottom);
+            rect.width = this.width - this._margin.right;
+           	rect.height = this.height -this._margin.bottom;
 			
 			this._displayObject.scrollRect = rect;
         }
