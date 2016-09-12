@@ -4978,7 +4978,7 @@
 				case 3:
 					if (!item.decoded){
 						item.decoded=true;
-						item.sound=Laya.loader.getRes(this._resKey+"@"+item.id);
+						item.sound=Laya.loader.getRes(this._resKey+"@"+item.file);
 					}
 					return item.sound;
 				case 6:
@@ -5007,7 +5007,7 @@
 					}
 					return item.componentData;
 				default :
-					return Laya.loader.getRes(this._resKey+"@"+item.id);
+					return Laya.loader.getRes(this._resKey+"@"+item.file);
 				}
 		}
 
@@ -6571,8 +6571,8 @@
 				rect=new Rectangle();
 			rect.x=this._margin.left;
 			rect.y=this._margin.top;
-			rect.width=this.width-(this._margin.left+this._margin.right);
-			rect.height=this.height-(this._margin.top+this._margin.bottom);
+			rect.width=this.width-this._margin.right;
+			rect.height=this.height-this._margin.bottom;
 			this._displayObject.scrollRect=rect;
 		}
 
@@ -8436,10 +8436,12 @@
 			this._widthAutoSize=value==1;
 			this._heightAutoSize=value==1 || value==2;
 			this.textField.wordWrap=!this._widthAutoSize;
-			if(!this._heightAutoSize)
-				this.textField.size(this.width,this.height);
-			else if(!this._widthAutoSize)
-			this.textField.width=this.width;
+			if(!this._underConstruct){
+				if(!this._heightAutoSize)
+					this.textField.size(this.width,this.height);
+				else if(!this._widthAutoSize)
+				this.textField.width=this.width;
+			}
 		}
 
 		__proto.ensureSizeCorrect=function(){
@@ -8714,7 +8716,11 @@
 
 		//line loop
 		__proto.handleSizeChanged=function(){
-			if(!this._updatingSize){
+			if(this._updatingSize)
+				return;
+			if(this._underConstruct)
+				this.textField.size(this.width,this.height);
+			else{
 				if(this._bitmapFont!=null){
 					if(!this._widthAutoSize)
 						this.markChanged();
