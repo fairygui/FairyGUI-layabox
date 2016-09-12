@@ -102,11 +102,11 @@ package fairygui {
 
             var str: String;
             str = xml.getAttribute("color");
-            if(str)
+            if(str && str!="")
                 this.color = str;
                 
             str = xml.getAttribute("flip");
-            if(str)
+            if(str && str!="")
                 this.flip = FlipType.parse(str);	
         }
         

@@ -307,17 +307,17 @@ package fairygui {
 
             var str: String;
             str = xml.getAttribute("mode");
-            if (str)
+            if (str && str!="")
                 this._mode = ButtonMode.parse(str);
                 
             str= xml.getAttribute("sound");
-            if(str != null)
+            if(str != null && str!="")
                 this._sound = str;
             str = xml.getAttribute("volume");
-            if(str)
+            if(str && str!="")
                 this._soundVolumeScale = parseInt(str) / 100;
             str = xml.getAttribute("downEffect");
-            if(str)
+            if(str && str!="")
             {
                 this._downEffect = str=="dark"?1:(str=="scale"?2:0);
                 str = xml.getAttribute("downEffectValue");
@@ -347,23 +347,23 @@ package fairygui {
             if (xml) {
                 var str: String;
                 str = xml.getAttribute("title");
-				if (str)
+				if (str && str!="")
 					this.title = str;
                 str = xml.getAttribute("icon");
-				if (str)
+				if (str && str!="")
 					this.icon = str;
                 str = xml.getAttribute("selectedTitle");
-                if (str)
+                if (str && str!="")
                     this.selectedTitle = str;
                 str = xml.getAttribute("selectedIcon");
-                if (str)
+                if (str && str!="")
                     this.selectedIcon = str;
 
                 str = xml.getAttribute("titleColor");
-                if (str)
+                if (str && str!="")
                     this.titleColor = str;
                 str = xml.getAttribute("controller");
-                if (str)
+                if (str && str!="")
                     this._relatedController = this._parent.getController(str);
                 else
                     this._relatedController = null;

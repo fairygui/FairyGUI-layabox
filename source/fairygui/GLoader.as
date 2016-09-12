@@ -241,7 +241,7 @@ package fairygui {
         }
 
         protected function loadExternal(): void {
-            Laya.loader.load(this._url, Handler.create(this, this.__getResCompleted));
+			AssetProxy.inst.load(this._url, Handler.create(this, this.__getResCompleted));
         }
         
         protected function freeExternal(texture: Texture): void {
@@ -405,31 +405,31 @@ package fairygui {
 
             var str: String;
             str = xml.getAttribute("url");
-            if (str)
+            if (str && str!="")
                 this._url = str;
 
             str = xml.getAttribute("align");
-            if (str)
+            if (str && str!="")
                 this._align = str;
 
             str = xml.getAttribute("vAlign");
-            if (str)
+            if (str && str!="")
                 this._valign = str;
 
             str = xml.getAttribute("fill");
-            if (str)
+            if (str && str!="")
                 this._fill = FillType.parse(str);
 
             this._autoSize = xml.getAttribute("autoSize") == "true";
 
             str = xml.getAttribute("errorSign");
-            if (str)
+            if (str && str!="")
                 this._showErrorSign = str == "true";
 
             this._playing = xml.getAttribute("playing") != "false";
 
             str = xml.getAttribute("color");
-            if(str)
+            if(str && str!="")
                 this.color = str;
                         
             if (this._url)

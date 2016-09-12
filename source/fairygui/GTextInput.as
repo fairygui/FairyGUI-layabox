@@ -111,11 +111,14 @@ package fairygui {
         }
 
 		override public function get asPassword(): Boolean {
-            return this.input.asPassword;
+            return input.type="password";
         }
 
 		override public function set asPassword(value: Boolean):void {
-            this.input.asPassword = value;
+			if (value)
+				this.input.type = "password";
+			else
+				this.input.type = "number";
         }
         
         public function set editable(value:Boolean):void {
@@ -155,13 +158,13 @@ package fairygui {
 			super.setup_beforeAdd(xml);
 			
 			var str:String = xml.getAttribute("prompt");
-			if(str)
+			if(str && str!="")
 				this.promptText = str;
 			str = xml.getAttribute("maxLength");
-			if(str)
+			if(str && str!="")
 				this.input.maxChars = parseInt(str);
 			str = xml.getAttribute("restrict");
-			if(str)
+			if(str && str!="")
 				this.input.restrict = str;
 		}
     }

@@ -95,19 +95,19 @@ package fairygui {
             if (xml) {
 				var str: String;
                 str = xml.getAttribute("title");
-				if(str)
+				if(str && str!="")
 					this.text = str;
                 str = xml.getAttribute("icon");
-				if(str)
+				if(str && str!="")
 					this.icon = str;                
                 str = xml.getAttribute("titleColor");
-                if (str)
+                if (str && str!="")
                     this.titleColor = str;
                     
                 if(this._titleObject is GTextInput)
                 {
                     str = xml.getAttribute("promptText");
-                    if(str)
+                    if(str && str!="")
                         GTextInput(this._titleObject).promptText = str;
                 }
             }

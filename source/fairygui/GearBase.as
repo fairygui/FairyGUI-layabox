@@ -73,25 +73,25 @@ package fairygui {
             var str: String;
 
             str = xml.getAttribute("tween");
-            if (str)
+            if (str && str!="")
                 this._tween = true;
 
             str = xml.getAttribute("ease");
-            if (str)
+            if (str && str!="")
                 this._easeType = ToolSet.parseEaseType(str);
 
             str = xml.getAttribute("duration");
-            if (str)
+            if (str && str!="")
                 this._tweenTime = parseFloat(str);
                 
             str = xml.getAttribute("delay");
-            if (str)
+            if (str && str!="")
                 this._delay = parseFloat(str);
 			
 			if(this is GearDisplay)
 			{
 				str = xml.getAttribute("pages");
-				if(str)
+				if(str && str!="")
 				{
 					var arr:Array = str.split(",");
 					for each(str in arr)
@@ -106,11 +106,11 @@ package fairygui {
 				var values:Array;
 				
 				str = xml.getAttribute("pages");				
-				if(str)
+				if(str && str!="")
 					pages = str.split(",");
 				
 				str = xml.getAttribute("values");				
-				if(str)
+				if(str && str!="")
 					values = str.split("|");
 				
 				if(pages && values)
@@ -124,7 +124,7 @@ package fairygui {
 				}
 				
 				str = xml.getAttribute("default");
-				if(str)
+				if(str && str!="")
 					addStatus(null, str);
 			}
         }
