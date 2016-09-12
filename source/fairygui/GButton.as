@@ -311,7 +311,7 @@ package fairygui {
                 this._mode = ButtonMode.parse(str);
                 
             str= xml.getAttribute("sound");
-            if(str != null)
+            if(str)
                 this._sound = str;
             str = xml.getAttribute("volume");
             if(str)
