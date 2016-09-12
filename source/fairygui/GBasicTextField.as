@@ -253,12 +253,12 @@ package fairygui {
         }
 
 		override public function get asPassword(): Boolean {
-            return this.textField.asPassword;
+            return false;
         }
 
 		override public function set asPassword(value: Boolean):void {
-            this.textField.asPassword = value;
-            this.markChanged();
+//            this.textField.asPassword = value;
+//            this.markChanged();
         }
         
 		override public function get textWidth(): Number {

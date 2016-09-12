@@ -241,7 +241,7 @@ package fairygui {
         }
 
         protected function loadExternal(): void {
-            Laya.loader.load(this._url, Handler.create(this, this.__getResCompleted));
+			AssetProxy.inst.load(this._url, Handler.create(this, this.__getResCompleted));
         }
         
         protected function freeExternal(texture: Texture): void {

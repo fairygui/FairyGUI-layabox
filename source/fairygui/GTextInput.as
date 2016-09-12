@@ -111,11 +111,14 @@ package fairygui {
         }
 
 		override public function get asPassword(): Boolean {
-            return this.input.asPassword;
+			return input.type=="password";
         }
 
 		override public function set asPassword(value: Boolean):void {
-            this.input.asPassword = value;
+			if (value)
+				this.input.type = "password";
+			else
+				this.input.type = "text";
         }
         
         public function set editable(value:Boolean):void {

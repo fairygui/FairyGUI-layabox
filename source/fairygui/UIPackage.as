@@ -146,7 +146,7 @@ package fairygui {
             var str: String;
             var arr: Array;
 
-            this.decompressPackage(Laya.loader.getRes(this._resKey+".fui"));
+            this.decompressPackage(AssetProxy.inst.getRes(this._resKey+".fui"));
 
             str = this.getDesc("sprites.bytes");
 
@@ -372,14 +372,14 @@ package fairygui {
                     if (!item.decoded) {
                         item.decoded = true;
                         var fileName:String = (item.file != null && item.file.length > 0) ? item.file : (item.id + ".png");
-                        item.texture = Laya.loader.getRes(this._resKey + "@" + fileName);
+                        item.texture = AssetProxy.inst.getRes(this._resKey + "@" + fileName);
                     }
                     return item.texture;
 
                 case PackageItemType.Sound:
                     if (!item.decoded) {
                         item.decoded = true;
-                        item.sound = Laya.loader.getRes(this._resKey + "@" + item.id);
+                        item.sound = AssetProxy.inst.getRes(this._resKey + "@" + item.id);
                     }
                     return item.sound;
 
@@ -412,7 +412,7 @@ package fairygui {
                     return item.componentData;
 
                 default:
-                    return Laya.loader.getRes(this._resKey + "@" + item.id);
+                    return AssetProxy.inst.getRes(this._resKey + "@" + item.id);
             }
         }
         
@@ -535,13 +535,13 @@ package fairygui {
 			var arr:Array;
 
             str = xml.getAttribute("interval");
-            if (str != null)
+            if (str)
                 item.interval = parseInt(str);
             str = xml.getAttribute("swing");
-            if (str != null)
+            if (str)
                 item.swing = str == "true";
             str = xml.getAttribute("repeatDelay");
-            if (str != null)
+            if (str)
                 item.repeatDelay = parseInt(str);
 
             var frameCount: Number = parseInt(xml.getAttribute("frameCount"));

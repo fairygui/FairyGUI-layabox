@@ -129,7 +129,7 @@ package fairygui {
 
             var type: String = xml.getAttribute("type");
                 
-            if (type!=null && type!="empty") {
+            if (type && type!="empty") {
                 var str: String;
                 
                 str = xml.getAttribute("lineSize");
