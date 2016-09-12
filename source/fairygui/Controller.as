@@ -237,7 +237,7 @@ package fairygui {
             var i: Number = 0;
             var k: Number = 0;
             var str: String = xml.getAttribute("pages");
-            if (str && str!="") {
+            if (str) {
                 var arr: Array = str.split(",");
                 var cnt: Number = arr.length;
                 for (i = 0; i < cnt; i += 2) {
@@ -247,7 +247,7 @@ package fairygui {
             }
             
             str = xml.getAttribute("transitions");
-            if(str && str!="") {
+            if(str) {
                 this._pageTransitions = new Vector.<PageTransition>();
                 arr = str.split(",");
                 cnt = arr.length;

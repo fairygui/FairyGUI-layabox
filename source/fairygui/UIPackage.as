@@ -146,7 +146,7 @@ package fairygui {
             var str: String;
             var arr: Array;
 
-            this.decompressPackage(AssetProxy.inst.getRes(this._resKey+".fui"));
+            this.decompressPackage(Laya.loader.getRes(this._resKey+".fui"));
 
             str = this.getDesc("sprites.bytes");
 
@@ -372,14 +372,14 @@ package fairygui {
                     if (!item.decoded) {
                         item.decoded = true;
                         var fileName:String = (item.file != null && item.file.length > 0) ? item.file : (item.id + ".png");
-                        item.texture = AssetProxy.inst.getRes(this._resKey + "@" + fileName);
+                        item.texture = Laya.loader.getRes(this._resKey + "@" + fileName);
                     }
                     return item.texture;
 
                 case PackageItemType.Sound:
                     if (!item.decoded) {
                         item.decoded = true;
-                        item.sound = AssetProxy.inst.getRes(this._resKey + "@" + item.id);
+                        item.sound = Laya.loader.getRes(this._resKey + "@" + item.id);
                     }
                     return item.sound;
 
@@ -412,7 +412,7 @@ package fairygui {
                     return item.componentData;
 
                 default:
-                    return AssetProxy.inst.getRes(this._resKey + "@" + item.id);
+                    return Laya.loader.getRes(this._resKey + "@" + item.id);
             }
         }
         

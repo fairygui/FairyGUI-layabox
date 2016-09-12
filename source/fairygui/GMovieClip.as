@@ -101,13 +101,13 @@ package fairygui {
 
             var str: String;
             str = xml.getAttribute("frame");
-            if (str && str!="")
+            if (str)
                 this.movieClip.currentFrame = parseInt(str);
             str = xml.getAttribute("playing");
             this.movieClip.playing = str != "false";
             
             str = xml.getAttribute("color");
-            if(str && str!="")
+            if(str)
                 this.color = str;
         }
 

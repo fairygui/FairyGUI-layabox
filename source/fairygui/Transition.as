@@ -651,17 +651,17 @@ package fairygui {
         public function setup(xml: Object):void {
             this.name = xml.getAttribute("name");
             var str: String = xml.getAttribute("options");
-            if(str && str!="")
+            if(str)
                 this._options = parseInt(str);
             str = xml.getAttribute("autoPlay");
-            if(str && str!="")
+            if(str)
                 this.autoPlay = str=="true";
             if(this.autoPlay) {
                 str = xml.getAttribute("autoPlayRepeat");
-                if(str && str!="")
+                if(str)
                     this.autoPlayRepeat = parseInt(str);
                 str = xml.getAttribute("autoPlayDelay");
-                if(str && str!="")
+                if(str)
                     this.autoPlayDelay = parseFloat(str);
             }
                 
@@ -728,10 +728,10 @@ package fairygui {
                     if(item.time + item.duration > this._maxTime)
                         this._maxTime = item.time + item.duration;
                     str = cxml.getAttribute("ease");
-                    if(str && str!="")
+                    if(str)
                         item.easeType = ToolSet.parseEaseType(str);
                     str = cxml.getAttribute("repeat");
-                    if(str && str!="")
+                    if(str)
                         item.repeat = parseInt(str);
                     item.yoyo = cxml.getAttribute("yoyo") == "true";
                     item.label2 = cxml.getAttribute("label2");

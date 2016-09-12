@@ -129,15 +129,15 @@ package fairygui {
 
             var type: String = xml.getAttribute("type");
                 
-            if (type!=null && type!="empty" && type!="") {
+            if (type!=null && type!="empty") {
                 var str: String;
                 
                 str = xml.getAttribute("lineSize");
-                if (str && str!="")
+                if (str)
                     this._lineSize = parseInt(str);
 
                 str = xml.getAttribute("lineColor");
-                if (str && str!="") {
+                if (str) {
                     var c: Number = ToolSet.convertFromHtmlColor(str, true);
                     var a:Number = ((c >> 24) & 0xFF) / 0xFF;
                     if(a!=1)
@@ -147,7 +147,7 @@ package fairygui {
                 }
 
                 str = xml.getAttribute("fillColor");
-                if (str && str!="") {
+                if (str) {
                     c = ToolSet.convertFromHtmlColor(str, true);
                     a= ((c >> 24) & 0xFF) / 0xFF;
                     if(a!=1)

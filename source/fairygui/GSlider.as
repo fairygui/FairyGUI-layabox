@@ -102,7 +102,7 @@ package fairygui {
 
             var str: String;
             str = xml.getAttribute("titleType");
-            if(str && str!="")
+            if(str)
                 this._titleType = ProgressTitleType.parse(str);
 
             this._titleObject = GTextField(this.getChild("title"));

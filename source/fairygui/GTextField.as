@@ -139,33 +139,33 @@ package fairygui {
             this.asPassword = xml.getAttribute("password") == "true";
             
             str = xml.getAttribute("font");
-            if (str && str!="")
+            if (str)
                 this.font = str;
 
             str = xml.getAttribute("fontSize");
-            if (str && str!="")
+            if (str)
                 this.fontSize = parseInt(str);
 
             str = xml.getAttribute("color");
-            if (str && str!="")
+            if (str)
                 this.color = str;
 
             str = xml.getAttribute("align");
-            if (str && str!="")
+            if (str)
                 this.align = str;
 
             str = xml.getAttribute("vAlign");
-            if (str && str!="")
+            if (str)
                 this.valign = str;
 
             str = xml.getAttribute("leading");
-            if (str && str!="")
+            if (str)
                 this.leading = parseInt(str);
             else
                 this.leading = 3;
                 
             str = xml.getAttribute("letterSpacing");
-            if (str && str!="")
+            if (str)
                 this.letterSpacing = parseInt(str);
 
             this.ubbEnabled = xml.getAttribute("ubb") == "true";           
@@ -174,10 +174,10 @@ package fairygui {
 			this.underline = xml.getAttribute("underline") == "true";
             this.singleLine = xml.getAttribute("singleLine") == "true";
             str = xml.getAttribute("strokeColor");
-            if (str && str!="") {
+            if (str) {
                 this.strokeColor = str;
                 str = xml.getAttribute("strokeSize");
-                if(str && str!="")
+                if(str)
                     this.stroke = parseInt(str) + 1;
                 else
                     this.stroke = 2;

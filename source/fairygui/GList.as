@@ -1186,51 +1186,51 @@ package fairygui {
             var arr: Array;
             
             str = xml.getAttribute("layout");
-            if (str && str!="")
+            if (str)
                 this._layout = ListLayoutType.parse(str);
 
             var overflow: int;
             str = xml.getAttribute("overflow");
-            if (str && str!="")
+            if (str)
                 overflow = OverflowType.parse(str);
             else
                 overflow = OverflowType.Visible;
 
             str = xml.getAttribute("margin");
-            if(str && str!="")
+            if(str)
                 this._margin.parse(str);
                 
             if(overflow == OverflowType.Scroll) {
                 var scroll: int;
                 str = xml.getAttribute("scroll");
-                if (str && str!="")
+                if (str)
                     scroll = ScrollType.parse(str);
                 else
                     scroll = ScrollType.Vertical;
     
                 var scrollBarDisplay: int;
                 str = xml.getAttribute("scrollBar");
-                if (str && str!="")
+                if (str)
                     scrollBarDisplay = ScrollBarDisplayType.parse(str);
                 else
                     scrollBarDisplay = ScrollBarDisplayType.Default;
     
                 var scrollBarFlags: Number;
                 str = xml.getAttribute("scrollBarFlags");
-                if(str && str!="")
+                if(str)
                     scrollBarFlags = parseInt(str);
                 else
                     scrollBarFlags = 0;
     
                 var scrollBarMargin: Margin = new Margin();
                 str = xml.getAttribute("scrollBarMargin");
-                if(str && str!="")
+                if(str)
                      scrollBarMargin.parse(str);
                 
                 var vtScrollBarRes: String;
                 var hzScrollBarRes: String;
                 str = xml.getAttribute("scrollBarRes");
-                if(str && str!="") {
+                if(str) {
                     arr = str.split(",");
                     vtScrollBarRes = arr[0];
                     hzScrollBarRes = arr[1];
@@ -1242,23 +1242,23 @@ package fairygui {
                 this.setupOverflow(overflow);
             
             str = xml.getAttribute("lineGap");
-            if (str && str!="")
+            if (str)
                 this._lineGap = parseInt(str);
 
             str = xml.getAttribute("colGap");
-            if (str && str!="")
+            if (str)
                 this._columnGap = parseInt(str);
                 
             str = xml.getAttribute("lineItemCount");
-            if(str && str!="")
+            if(str)
                 this._lineItemCount = parseInt(str);
                 
             str = xml.getAttribute("selectionMode");
-            if (str && str!="")
+            if (str)
                 this._selectionMode = ListSelectionMode.parse(str);
 
             str = xml.getAttribute("defaultItem");
-            if (str && str!="")
+            if (str)
                 this._defaultItem = str;
                 
             str = xml.getAttribute("autoItemSize");
@@ -1272,9 +1272,9 @@ package fairygui {
                     continue;
                 
                 var url: String = cxml.getAttribute("url");
-                if (!url || url == "")
+                if (!url)
                     url = this._defaultItem;
-                if (!url || url == "")
+                if (!url)
                     continue;
 
                 var obj: GObject = this.getFromPool(url);
@@ -1289,7 +1289,7 @@ package fairygui {
                         GLabel(obj).icon = cxml.getAttribute("icon");
                     }
 					str = cxml.getAttribute("name");
-					if(str && str!="")
+					if(str)
 						obj.name = str;
                 }
             }

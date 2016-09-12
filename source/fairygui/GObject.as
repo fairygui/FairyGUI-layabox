@@ -879,7 +879,7 @@ package fairygui {
             this.setXY(parseInt(arr[0]), parseInt(arr[1]));
 
             str = xml.getAttribute("size");
-            if (str && str!="") {
+            if (str) {
                 arr = str.split(",");
                 this._initWidth = parseInt(arr[0]);
                 this._initHeight = parseInt(arr[1]);
@@ -887,23 +887,23 @@ package fairygui {
             }
             
             str = xml.getAttribute("scale");
-            if(str && str!="") {
+            if(str) {
                 arr = str.split(",");
                 this.setScale(parseFloat(arr[0]),parseFloat(arr[1]));
             }
 			
 			str = xml.getAttribute("skew");
-			if(str && str!="") {
+			if(str) {
 				arr = str.split(",");
 				this.setSkew(parseFloat(arr[0]),parseFloat(arr[1]));
 			}
 
             str = xml.getAttribute("rotation");
-            if (str && str!="")
+            if (str)
                 this.rotation = parseInt(str);
 
             str = xml.getAttribute("pivot");
-            if (str && str!="") {
+            if (str) {
                 arr = str.split(",");
 				str = xml.getAttribute("anchor");
                 this.setPivot(parseFloat(arr[0]), parseFloat(arr[1]), str=="true");
@@ -912,7 +912,7 @@ package fairygui {
 				this.setPivot(0,0,false);			
 
             str = xml.getAttribute("alpha");
-            if (str && str!="")
+            if (str)
                 this.alpha = parseFloat(str);
 
             if(xml.getAttribute("touchable") == "false")
@@ -928,7 +928,7 @@ package fairygui {
             var cxml: Object;
 
             var str: String = xml.getAttribute("group");
-            if (str && str!="")
+            if (str)
                 this._group = this._parent.getChildById(str) as GGroup;
 
             var col: Array = xml.childNodes;

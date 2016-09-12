@@ -153,7 +153,7 @@ package fairygui {
             this._buttonController = this.getController("button");
             this._titleObject = GTextField(this.getChild("title"));
             str = xml.getAttribute("dropdown");
-            if (str && str!="") {
+            if (str) {
                 this.dropdown = GComponent(UIPackage.createObjectFromURL(str));
                 if (!this.dropdown) {
 					Log.print("下拉框必须为元件");
@@ -188,10 +188,10 @@ package fairygui {
             if (xml) {
                 var str: String;
                 str = xml.getAttribute("titleColor");
-                if (str && str!="")
+                if (str)
                     this.titleColor = str;
                 str = xml.getAttribute("visibleItemCount");
-                if (str && str!="")
+                if (str)
                     this._visibleItemCount = parseInt(str);
 
                 var col: Array = xml.childNodes;
@@ -205,7 +205,7 @@ package fairygui {
                 }
 
                 str = xml.getAttribute("title");
-                if(str && str!="")
+                if(str)
                 {
                     this.text = str;
                     this._selectedIndex = this._items.indexOf(str);
@@ -219,7 +219,7 @@ package fairygui {
                     this._selectedIndex = -1;
 				
 				str = xml.getAttribute("direction");
-				if(str && str!="")
+				if(str)
 				{
 					if(str=="up")
 						this._popupDownward = false;
