@@ -205,22 +205,9 @@ declare module fairygui {
         asPassword: boolean;
         textWidth: number;
         ensureSizeCorrect(): void;
-        protected markChanged(): void;
         protected handleSizeChanged(): void;
         protected handleGrayChanged(): void;
         setup_beforeAdd(xml: Object): void;
-    }
-    class LineInfo {
-        width: number;
-        height: number;
-        textHeight: number;
-        text: string;
-        y: number;
-        private static pool;
-        static borrow(): LineInfo;
-        static returns(value: LineInfo): void;
-        static returnList(value: Array<any>): void;
-        LineInfo(): any;
     }
 }
 declare module fairygui {

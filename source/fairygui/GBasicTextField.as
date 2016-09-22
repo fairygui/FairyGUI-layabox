@@ -21,12 +21,10 @@ package fairygui {
         private var _heightAutoSize: Boolean;
         
         private var _updatingSize: Boolean;
-		private var _sizeDirty: Boolean;
         private var _textWidth: Number = 0;
         private var _textHeight: Number = 0;
-        private var _changed: Boolean;
 
-        private var _bitmapFont: BitmapFont;
+		private var _bitmapFont: BitmapFont;
         private var _lines: Vector.<LineInfo>;
 
         private static const GUTTER_X: Number = 2;
@@ -43,11 +41,9 @@ package fairygui {
         }
 
         override protected function createDisplayObject(): void {
-            super.createDisplayObject();
-            
+			this._displayObject = this.textField = new TextExt(this);
+			this._displayObject["$owner"] = this;
             this._displayObject.mouseEnabled = false;
-            this.textField = new Text();
-            this._displayObject.addChild(this.textField);
         }
 
 		override public function set text(value: String):void {
@@ -63,11 +59,14 @@ package fairygui {
                 else
                     this.textField.text = this._text;
             }
+			else
+			{
+				this.textField.text = "";
+				this.textField["setChanged"]();
+			}
                 
             if(this.parent && this.parent._underConstruct)
-                this.applyChange(true);
-            else
-                this.markChanged();
+				this.textField.typeset();
         }
 
 		override public function get text(): String {
@@ -82,6 +81,7 @@ package fairygui {
             this._font = value;
             if(ToolSet.startsWith(this._font,"ui://")) {
                 this._bitmapFont = UIPackage.getBitmapFontByURL(this._font);
+				this.textField["setChanged"]();
             }
             else {
                 this._bitmapFont = null;
@@ -91,15 +91,6 @@ package fairygui {
                 else
                     this.textField.font = fairygui.UIConfig.defaultFont;
             }
-            
-            if(this._bitmapFont!=null && this.textField.parent!=null)
-                 this._displayObject.removeChild(this.textField);
-            else if(this._bitmapFont==null && this.textField.parent==null) {
-                 this._displayObject.graphics.clear();
-                 this._displayObject.addChild(this.textField);
-            }
-
-            this.markChanged();
         }
 
 		override public function get fontSize(): Number {
@@ -108,7 +99,6 @@ package fairygui {
 
 		override public function set fontSize(value: Number):void {
             this.textField.fontSize = value;
-            this.markChanged();
         }
 
 		override public function get color(): String {
@@ -135,7 +125,6 @@ package fairygui {
 
 		override public function set align(value: String):void {
             this.textField.align = value;
-            this.markChanged();
         }
 
 		override public function get valign(): String {
@@ -144,7 +133,6 @@ package fairygui {
 
 		override public function set valign(value: String):void {
             this.textField.valign = value;
-            this.markChanged();
         }
 
 		override public function get leading(): Number {
@@ -153,7 +141,6 @@ package fairygui {
 
 		override public function set leading(value: Number):void {
             this.textField.leading = value;
-            this.markChanged();
         }
         
 		override public function get letterSpacing(): Number {
@@ -162,7 +149,6 @@ package fairygui {
 
 		override public function set letterSpacing(value: Number):void {
             this._letterSpacing = value;
-            this.markChanged();
         }
         
 		override public function get bold(): Boolean {
@@ -195,7 +181,6 @@ package fairygui {
 
 		override public function set singleLine(value: Boolean):void {
             this._singleLine = value;
-            this.markChanged();
         }
 
 		override public function get stroke(): Number {
@@ -225,7 +210,6 @@ package fairygui {
         public function set autoSize(value: int):void {
             if (this._autoSize != value) {
                 this.setAutoSize(value);
-                this.markChanged();
             }
         }
         
@@ -252,48 +236,22 @@ package fairygui {
             return this._autoSize;
         }
 
-		override public function get asPassword(): Boolean {
-            return false;
-        }
-
-		override public function set asPassword(value: Boolean):void {
-//            this.textField.asPassword = value;
-//            this.markChanged();
-        }
-        
 		override public function get textWidth(): Number {
-			if (this._changed)
-				this.applyChange();
+			if (this.textField["_isChanged"])
+				this.textField.typeset();
             return this._textWidth;
         }
 
 		override public function ensureSizeCorrect(): void {
-            if (this._sizeDirty && this._changed)
-                this.applyChange();
+			if (!this._underConstruct && this.textField["_isChanged"])
+				this.textField.typeset();
         }
 
-        protected function markChanged(): void {
-            if(!this._changed) {
-                this._changed = true;
-				Laya.timer.callLater(this, this.applyChange);
-			}
-			
-            if(!this._sizeDirty && (this._widthAutoSize || this._heightAutoSize)) {
-				this._sizeDirty = true;
-                this._displayObject.event(Events.SIZE_DELAY_CHANGE);
-			}
-        }
-        
-        private function applyChange(force:Boolean = false):void {
-            if(this._changed || force) {
-                this._changed = false;
-                this._sizeDirty = false;
-				
-                if(this._bitmapFont!=null)
-                    this.renderWithBitmapFont();
-                else if(this._widthAutoSize || this._heightAutoSize)
-                    this.updateSize();
-            }
+		public function typeset():void {
+            if(this._bitmapFont!=null)
+                this.renderWithBitmapFont();
+            else if(this._widthAutoSize || this._heightAutoSize)
+                this.updateSize();
         }
 
         private function updateSize(): void {
@@ -500,10 +458,10 @@ package fairygui {
 
             var w: Number, h: Number = 0;
             if (this._widthAutoSize) {
-                if (textWidth == 0)
+                if (this._textWidth == 0)
                     w = 0;
                 else
-                    w = textWidth;
+                    w = this._textWidth;
             }
             else
                 w = this.width;
@@ -575,7 +533,7 @@ package fairygui {
 			{
                 if(this._bitmapFont!=null) {
                     if(!this._widthAutoSize)
-                        this.markChanged();
+                        this.textField["setChanged"]();
                     else
                         this.doAlign();
                 }
@@ -583,10 +541,8 @@ package fairygui {
                     if(!this._widthAutoSize) {
                         if(!this._heightAutoSize)
                             this.textField.size(this.width, this.height);
-                        else {
+                        else
                             this.textField.width = this.width;
-                            this.markChanged();   
-                        }
                     }
                 }
             }
@@ -623,11 +579,15 @@ package fairygui {
             str = xml.getAttribute("autoSize");
             if (str)
                 this.setAutoSize(AutoSizeType.parse(str));
-			
-			this._sizeDirty = false;
         }
     }
 }
+
+import fairygui.AutoSizeType;
+import fairygui.Events;
+import fairygui.GBasicTextField;
+
+import laya.display.Text;
 
 class LineInfo {
 	public var width: Number = 0;
@@ -666,5 +626,40 @@ class LineInfo {
 	}
 	
 	public function LineInfo() {
+	}
+}
+
+class TextExt extends Text
+{
+	private var _owner:GBasicTextField;
+	
+	public function TextExt(owner:GBasicTextField)
+	{
+		super();
+		this._owner = owner;
+	}
+	
+	override public function typeset():void
+	{
+		super.typeset();
+		this._owner.typeset();
+		if(this._isChanged) {
+			Laya.timer.clear(super, super.typeset);
+			this._isChanged = false;
+		}
+	}
+	
+	public function setChanged():void
+	{
+		this.isChanged = true;
+	}
+	
+	override protected function set isChanged(value:Boolean):void {
+		if (this._isChanged !== value) {
+			if(this._owner.autoSize!=AutoSizeType.None)
+				this.event(Events.SIZE_DELAY_CHANGE);
+		}
+		
+		super.isChanged = value;
 	}
 }
