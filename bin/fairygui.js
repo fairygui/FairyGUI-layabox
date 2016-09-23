@@ -11,6 +11,40 @@
 	Laya.interface('fairygui.IAnimationGear');
 	Laya.interface('fairygui.IUISource');
 	Laya.interface('fairygui.IColorGear');
+	//class fairygui.AssetProxy
+	var AssetProxy=(function(){
+		function AssetProxy(){
+			this._asset=null;
+			this._asset=Laya.loader;
+		}
+
+		__class(AssetProxy,'fairygui.AssetProxy');
+		var __proto=AssetProxy.prototype;
+		__proto.getRes=function(url){
+			return this._asset.getRes(url);
+		}
+
+		__proto.load=function(url,complete,progress,type,priority,cache){
+			(priority===void 0)&& (priority=1);
+			(cache===void 0)&& (cache=true);
+			this._asset.load(url,complete,progress,type,priority,cache);
+		}
+
+		__proto.setAsset=function(asset){
+			this._asset=asset;
+		}
+
+		__getset(1,AssetProxy,'inst',function(){
+			if(fairygui.AssetProxy._inst==null)
+				AssetProxy._inst=new AssetProxy();
+			return fairygui.AssetProxy._inst;
+		});
+
+		AssetProxy._inst=null
+		return AssetProxy;
+	})()
+
+
 	//class fairygui.AutoSizeType
 	var AutoSizeType=(function(){
 		function AutoSizeType(){}
@@ -4795,7 +4829,7 @@
 		__proto.loadPackage=function(){
 			var str;
 			var arr;
-			this.decompressPackage(Laya.loader.getRes(this._resKey+".fui"));
+			this.decompressPackage(AssetProxy.inst.getRes(this._resKey+".fui"));
 			str=this.getDesc("sprites.bytes");
 			arr=str.split("\n");
 			var cnt=arr.length;
@@ -4972,13 +5006,13 @@
 					if (!item.decoded){
 						item.decoded=true;
 						var fileName=(item.file !=null && item.file.length > 0)? item.file :(item.id+".png");
-						item.texture=Laya.loader.getRes(this._resKey+"@"+fileName);
+						item.texture=AssetProxy.inst.getRes(this._resKey+"@"+fileName);
 					}
 					return item.texture;
 				case 3:
 					if (!item.decoded){
 						item.decoded=true;
-						item.sound=Laya.loader.getRes(this._resKey+"@"+item.file);
+						item.sound=AssetProxy.inst.getRes(this._resKey+"@"+item.id);
 					}
 					return item.sound;
 				case 6:
@@ -5007,7 +5041,7 @@
 					}
 					return item.componentData;
 				default :
-					return Laya.loader.getRes(this._resKey+"@"+item.file);
+					return AssetProxy.inst.getRes(this._resKey+"@"+item.id);
 				}
 		}
 
@@ -5125,13 +5159,13 @@
 			var str;
 			var arr;
 			str=xml.getAttribute("interval");
-			if (str !=null)
+			if (str)
 				item.interval=parseInt(str);
 			str=xml.getAttribute("swing");
-			if (str !=null)
+			if (str)
 				item.swing=str=="true";
 			str=xml.getAttribute("repeatDelay");
-			if (str !=null)
+			if (str)
 				item.repeatDelay=parseInt(str);
 			var frameCount=parseInt(xml.getAttribute("frameCount"));
 			item.frames=[];
@@ -7277,7 +7311,7 @@
 		__proto.setup_beforeAdd=function(xml){
 			_super.prototype.setup_beforeAdd.call(this,xml);
 			var type=xml.getAttribute("type");
-			if (type!=null && type!="empty"){
+			if (type && type!="empty"){
 				var str;
 				str=xml.getAttribute("lineSize");
 				if (str)
@@ -7309,88 +7343,6 @@
 		}
 
 		return GGraph;
-	})(GObject)
-
-
-	//class fairygui.GGroup extends fairygui.GObject
-	var GGroup=(function(_super){
-		function GGroup(){
-			this._updating=false;
-			this._empty=false;
-			GGroup.__super.call(this);
-		}
-
-		__class(GGroup,'fairygui.GGroup',_super);
-		var __proto=GGroup.prototype;
-		__proto.updateBounds=function(){
-			if (this._updating || !this.parent)
-				return;
-			var cnt=this._parent.numChildren;
-			var i=0;
-			var child;
-			var ax=Number.POSITIVE_INFINITY,ay=Number.POSITIVE_INFINITY;
-			var ar=Number.NEGATIVE_INFINITY,ab=Number.NEGATIVE_INFINITY;
-			var tmp=0;
-			this._empty=true;
-			for (i=0;i < cnt;i++){
-				child=this._parent.getChildAt(i);
-				if (child.group==this){
-					tmp=child.x;
-					if (tmp < ax)
-						ax=tmp;
-					tmp=child.y;
-					if (tmp < ay)
-						ay=tmp;
-					tmp=child.x+child.width;
-					if (tmp > ar)
-						ar=tmp;
-					tmp=child.y+child.height;
-					if (tmp > ab)
-						ab=tmp;
-					this._empty=false;
-				}
-			}
-			this._updating=true;
-			if (!this._empty){
-				this.setXY(ax,ay);
-				this.setSize(ar-ax,ab-ay);
-			}
-			else
-			this.setSize(0,0);
-			this._updating=false;
-		}
-
-		__proto.moveChildren=function(dx,dy){
-			if (this._updating || !this.parent)
-				return;
-			this._updating=true;
-			var cnt=this._parent.numChildren;
-			var i=0;
-			var child;
-			for (i=0;i < cnt;i++){
-				child=this._parent.getChildAt(i);
-				if (child.group==this){
-					child.setXY(child.x+dx,child.y+dy);
-				}
-			}
-			this._updating=false;
-		}
-
-		__proto.updateAlpha=function(){
-			_super.prototype.updateAlpha.call(this);
-			if(this._underConstruct)
-				return;
-			var cnt=this._parent.numChildren;
-			var i=NaN;
-			var child;
-			for(i=0;i<cnt;i++){
-				child=this._parent.getChildAt(i);
-				if(child.group==this)
-					child.alpha=this.alpha;
-			}
-		}
-
-		return GGroup;
 	})(GObject)
 
 
@@ -7518,6 +7470,88 @@
 
 		return GearLook;
 	})(GearBase)
+
+
+	//class fairygui.GGroup extends fairygui.GObject
+	var GGroup=(function(_super){
+		function GGroup(){
+			this._updating=false;
+			this._empty=false;
+			GGroup.__super.call(this);
+		}
+
+		__class(GGroup,'fairygui.GGroup',_super);
+		var __proto=GGroup.prototype;
+		__proto.updateBounds=function(){
+			if (this._updating || !this.parent)
+				return;
+			var cnt=this._parent.numChildren;
+			var i=0;
+			var child;
+			var ax=Number.POSITIVE_INFINITY,ay=Number.POSITIVE_INFINITY;
+			var ar=Number.NEGATIVE_INFINITY,ab=Number.NEGATIVE_INFINITY;
+			var tmp=0;
+			this._empty=true;
+			for (i=0;i < cnt;i++){
+				child=this._parent.getChildAt(i);
+				if (child.group==this){
+					tmp=child.x;
+					if (tmp < ax)
+						ax=tmp;
+					tmp=child.y;
+					if (tmp < ay)
+						ay=tmp;
+					tmp=child.x+child.width;
+					if (tmp > ar)
+						ar=tmp;
+					tmp=child.y+child.height;
+					if (tmp > ab)
+						ab=tmp;
+					this._empty=false;
+				}
+			}
+			this._updating=true;
+			if (!this._empty){
+				this.setXY(ax,ay);
+				this.setSize(ar-ax,ab-ay);
+			}
+			else
+			this.setSize(0,0);
+			this._updating=false;
+		}
+
+		__proto.moveChildren=function(dx,dy){
+			if (this._updating || !this.parent)
+				return;
+			this._updating=true;
+			var cnt=this._parent.numChildren;
+			var i=0;
+			var child;
+			for (i=0;i < cnt;i++){
+				child=this._parent.getChildAt(i);
+				if (child.group==this){
+					child.setXY(child.x+dx,child.y+dy);
+				}
+			}
+			this._updating=false;
+		}
+
+		__proto.updateAlpha=function(){
+			_super.prototype.updateAlpha.call(this);
+			if(this._underConstruct)
+				return;
+			var cnt=this._parent.numChildren;
+			var i=NaN;
+			var child;
+			for(i=0;i<cnt;i++){
+				child=this._parent.getChildAt(i);
+				if(child.group==this)
+					child.alpha=this.alpha;
+			}
+		}
+
+		return GGroup;
+	})(GObject)
 
 
 	//class fairygui.GImage extends fairygui.GObject
@@ -7772,111 +7806,6 @@
 	})(GearBase)
 
 
-	//class fairygui.GearXY extends fairygui.GearBase
-	var GearXY=(function(_super){
-		function GearXY(owner){
-			this.tweener=null;
-			this._storage=null;
-			this._default=null;
-			this._tweenValue=null;
-			this._tweenTarget=null;
-			GearXY.__super.call(this,owner);
-		}
-
-		__class(GearXY,'fairygui.GearXY',_super);
-		var __proto=GearXY.prototype;
-		__proto.init=function(){
-			this._default=new Point(this._owner.x,this._owner.y);
-			this._storage={};
-		}
-
-		__proto.addStatus=function(pageId,value){
-			var arr=value.split(",");
-			var pt;
-			if (pageId==null)
-				pt=this._default;
-			else {
-				pt=new Point();
-				this._storage[pageId]=pt;
-			}
-			pt.x=parseInt(arr[0]);
-			pt.y=parseInt(arr[1]);
-		}
-
-		__proto.apply=function(){
-			var pt=this._storage[this._controller.selectedPageId];
-			if (!pt)
-				pt=this._default;
-			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-				if(this.tweener){
-					if(this._tweenTarget.x!=pt.x || this._tweenTarget.y!=pt.y){
-						this.tweener.complete();
-						this.tweener=null;
-					}
-					else
-					return;
-				}
-				if(this._owner.x !=pt.x || this._owner.y !=pt.y){
-					this._owner.internalVisible++;
-					this._tweenTarget=pt;
-					if(this._tweenValue==null)
-						this._tweenValue=new Point();
-					this._tweenValue.x=this._owner.x;
-					this._tweenValue.y=this._owner.y;
-					this.tweener=Tween.to(this._tweenValue,
-					{x:pt.x,y:pt.y },
-					this._tweenTime*1000,
-					this._easeType,
-					Handler.create(this,this.__tweenComplete),
-					this._delay*1000);
-					this.tweener.update=Handler.create(this,this.__tweenUpdate,null,false);
-				}
-			}
-			else {
-				this._owner._gearLocked=true;
-				this._owner.setXY(pt.x,pt.y);
-				this._owner._gearLocked=false;
-			}
-		}
-
-		__proto.__tweenUpdate=function(){
-			this._owner._gearLocked=true;
-			this._owner.setXY(this._tweenValue.x,this._tweenValue.y);
-			this._owner._gearLocked=false;
-		}
-
-		__proto.__tweenComplete=function(){
-			this._owner.internalVisible--;
-			this.tweener=null;
-		}
-
-		__proto.updateState=function(){
-			if (this._owner._gearLocked)
-				return;
-			var pt=this._storage[this._controller.selectedPageId];
-			if(!pt){
-				pt=new Point();
-				this._storage[this._controller.selectedPageId]=pt;
-			}
-			pt.x=this._owner.x;
-			pt.y=this._owner.y;
-		}
-
-		__proto.updateFromRelations=function(dx,dy){
-			for (var key in this._storage){
-				var pt=this._storage[key];
-				pt.x+=dx;
-				pt.y+=dy;
-			}
-			this._default.x+=dx;
-			this._default.y+=dy;
-			this.updateState();
-		}
-
-		return GearXY;
-	})(GearBase)
-
-
 	//class fairygui.GLoader extends fairygui.GObject
 	var GLoader=(function(_super){
 		function GLoader(){
@@ -7985,7 +7914,7 @@
 		}
 
 		__proto.loadExternal=function(){
-			Laya.loader.load(this._url,Handler.create(this,this.__getResCompleted));
+			AssetProxy.inst.load(this._url,Handler.create(this,this.__getResCompleted));
 		}
 
 		__proto.freeExternal=function(texture){}
@@ -8273,6 +8202,111 @@
 	})(GObject)
 
 
+	//class fairygui.GearXY extends fairygui.GearBase
+	var GearXY=(function(_super){
+		function GearXY(owner){
+			this.tweener=null;
+			this._storage=null;
+			this._default=null;
+			this._tweenValue=null;
+			this._tweenTarget=null;
+			GearXY.__super.call(this,owner);
+		}
+
+		__class(GearXY,'fairygui.GearXY',_super);
+		var __proto=GearXY.prototype;
+		__proto.init=function(){
+			this._default=new Point(this._owner.x,this._owner.y);
+			this._storage={};
+		}
+
+		__proto.addStatus=function(pageId,value){
+			var arr=value.split(",");
+			var pt;
+			if (pageId==null)
+				pt=this._default;
+			else {
+				pt=new Point();
+				this._storage[pageId]=pt;
+			}
+			pt.x=parseInt(arr[0]);
+			pt.y=parseInt(arr[1]);
+		}
+
+		__proto.apply=function(){
+			var pt=this._storage[this._controller.selectedPageId];
+			if (!pt)
+				pt=this._default;
+			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+				if(this.tweener){
+					if(this._tweenTarget.x!=pt.x || this._tweenTarget.y!=pt.y){
+						this.tweener.complete();
+						this.tweener=null;
+					}
+					else
+					return;
+				}
+				if(this._owner.x !=pt.x || this._owner.y !=pt.y){
+					this._owner.internalVisible++;
+					this._tweenTarget=pt;
+					if(this._tweenValue==null)
+						this._tweenValue=new Point();
+					this._tweenValue.x=this._owner.x;
+					this._tweenValue.y=this._owner.y;
+					this.tweener=Tween.to(this._tweenValue,
+					{x:pt.x,y:pt.y },
+					this._tweenTime*1000,
+					this._easeType,
+					Handler.create(this,this.__tweenComplete),
+					this._delay*1000);
+					this.tweener.update=Handler.create(this,this.__tweenUpdate,null,false);
+				}
+			}
+			else {
+				this._owner._gearLocked=true;
+				this._owner.setXY(pt.x,pt.y);
+				this._owner._gearLocked=false;
+			}
+		}
+
+		__proto.__tweenUpdate=function(){
+			this._owner._gearLocked=true;
+			this._owner.setXY(this._tweenValue.x,this._tweenValue.y);
+			this._owner._gearLocked=false;
+		}
+
+		__proto.__tweenComplete=function(){
+			this._owner.internalVisible--;
+			this.tweener=null;
+		}
+
+		__proto.updateState=function(){
+			if (this._owner._gearLocked)
+				return;
+			var pt=this._storage[this._controller.selectedPageId];
+			if(!pt){
+				pt=new Point();
+				this._storage[this._controller.selectedPageId]=pt;
+			}
+			pt.x=this._owner.x;
+			pt.y=this._owner.y;
+		}
+
+		__proto.updateFromRelations=function(dx,dy){
+			for (var key in this._storage){
+				var pt=this._storage[key];
+				pt.x+=dx;
+				pt.y+=dy;
+			}
+			this._default.x+=dx;
+			this._default.y+=dy;
+			this.updateState();
+		}
+
+		return GearXY;
+	})(GearBase)
+
+
 	//class fairygui.GMovieClip extends fairygui.GObject
 	var GMovieClip=(function(_super){
 		function GMovieClip(){
@@ -8395,7 +8429,7 @@
 
 	//class fairygui.GBasicTextField extends fairygui.GTextField
 	var GBasicTextField=(function(_super){
-		var LineInfo;
+		var LineInfo,TextExt;
 		function GBasicTextField(){
 			this.textField=null;
 			this._font=null;
@@ -8408,10 +8442,8 @@
 			this._widthAutoSize=false;
 			this._heightAutoSize=false;
 			this._updatingSize=false;
-			this._sizeDirty=false;
 			this._textWidth=0;
 			this._textHeight=0;
-			this._changed=false;
 			this._bitmapFont=null;
 			this._lines=null;
 			GBasicTextField.__super.call(this);
@@ -8425,10 +8457,9 @@
 		__class(GBasicTextField,'fairygui.GBasicTextField',_super);
 		var __proto=GBasicTextField.prototype;
 		__proto.createDisplayObject=function(){
-			fairygui.GObject.prototype.createDisplayObject.call(this);
+			this._displayObject=this.textField=new TextExt(this);
+			this._displayObject["$owner"]=this;
 			this._displayObject.mouseEnabled=false;
-			this.textField=new Text();
-			this._displayObject.addChild(this.textField);
 		}
 
 		__proto.setAutoSize=function(value){
@@ -8445,31 +8476,15 @@
 		}
 
 		__proto.ensureSizeCorrect=function(){
-			if (this._sizeDirty && this._changed)
-				this.applyChange();
+			if (!this._underConstruct && this.textField["_isChanged"])
+				this.textField.typeset();
 		}
 
-		__proto.markChanged=function(){
-			if(!this._changed){
-				this._changed=true;
-				Laya.timer.callLater(this,this.applyChange);
-			}
-			if(!this._sizeDirty && (this._widthAutoSize || this._heightAutoSize)){
-				this._sizeDirty=true;
-				this._displayObject.event("fui_size_delay_change");
-			}
-		}
-
-		__proto.applyChange=function(force){
-			(force===void 0)&& (force=false);
-			if(this._changed || force){
-				this._changed=false;
-				this._sizeDirty=false;
-				if(this._bitmapFont!=null)
-					this.renderWithBitmapFont();
-				else if(this._widthAutoSize || this._heightAutoSize)
-				this.updateSize();
-			}
+		__proto.typeset=function(){
+			if(this._bitmapFont!=null)
+				this.renderWithBitmapFont();
+			else if(this._widthAutoSize || this._heightAutoSize)
+			this.updateSize();
 		}
 
 		__proto.updateSize=function(){
@@ -8656,10 +8671,10 @@
 			};
 			var w=NaN,h=0;
 			if (this._widthAutoSize){
-				if (this.textWidth==0)
+				if (this._textWidth==0)
 					w=0;
 				else
-				w=this.textWidth;
+				w=this._textWidth;
 			}
 			else
 			w=this.width;
@@ -8723,7 +8738,7 @@
 			else{
 				if(this._bitmapFont!=null){
 					if(!this._widthAutoSize)
-						this.markChanged();
+						this.textField["setChanged"]();
 					else
 					this.doAlign();
 				}
@@ -8731,10 +8746,8 @@
 					if(!this._widthAutoSize){
 						if(!this._heightAutoSize)
 							this.textField.size(this.width,this.height);
-						else {
-							this.textField.width=this.width;
-							this.markChanged();
-						}
+						else
+						this.textField.width=this.width;
 					}
 				}
 			}
@@ -8769,14 +8782,12 @@
 			str=xml.getAttribute("autoSize");
 			if (str)
 				this.setAutoSize(AutoSizeType.parse(str));
-			this._sizeDirty=false;
 		}
 
 		__getset(0,__proto,'leading',function(){
 			return this.textField.leading;
 			},function(value){
 			this.textField.leading=value;
-			this.markChanged();
 		});
 
 		__getset(0,__proto,'text',function(){
@@ -8793,10 +8804,12 @@
 				else
 				this.textField.text=this._text;
 			}
+			else{
+				this.textField.text="";
+				this.textField["setChanged"]();
+			}
 			if(this.parent && this.parent._underConstruct)
-				this.applyChange(true);
-			else
-			this.markChanged();
+				this.textField.typeset();
 		});
 
 		__getset(0,__proto,'font',function(){
@@ -8805,6 +8818,7 @@
 			this._font=value;
 			if(ToolSet.startsWith(this._font,"ui://")){
 				this._bitmapFont=UIPackage.getBitmapFontByURL(this._font);
+				this.textField["setChanged"]();
 			}
 			else {
 				this._bitmapFont=null;
@@ -8813,27 +8827,18 @@
 				else
 				this.textField.font=UIConfig1.defaultFont;
 			}
-			if(this._bitmapFont!=null && this.textField.parent!=null)
-				this._displayObject.removeChild(this.textField);
-			else if(this._bitmapFont==null && this.textField.parent==null){
-				this._displayObject.graphics.clear();
-				this._displayObject.addChild(this.textField);
-			}
-			this.markChanged();
 		});
 
 		__getset(0,__proto,'valign',function(){
 			return this.textField.valign;
 			},function(value){
 			this.textField.valign=value;
-			this.markChanged();
 		});
 
 		__getset(0,__proto,'fontSize',function(){
 			return this.textField.fontSize;
 			},function(value){
 			this.textField.fontSize=value;
-			this.markChanged();
 		});
 
 		__getset(0,__proto,'color',function(){
@@ -8860,7 +8865,6 @@
 			return this.textField.align;
 			},function(value){
 			this.textField.align=value;
-			this.markChanged();
 		});
 
 		__getset(0,__proto,'bold',function(){
@@ -8873,7 +8877,6 @@
 			return this._letterSpacing;
 			},function(value){
 			this._letterSpacing=value;
-			this.markChanged();
 		});
 
 		__getset(0,__proto,'italic',function(){
@@ -8888,18 +8891,10 @@
 			this.textField.underline=value;
 		});
 
-		__getset(0,__proto,'asPassword',function(){
-			return this.textField.asPassword;
-			},function(value){
-			this.textField.asPassword=value;
-			this.markChanged();
-		});
-
 		__getset(0,__proto,'singleLine',function(){
 			return this._singleLine;
 			},function(value){
 			this._singleLine=value;
-			this.markChanged();
 		});
 
 		__getset(0,__proto,'stroke',function(){
@@ -8919,13 +8914,12 @@
 			},function(value){
 			if (this._autoSize !=value){
 				this.setAutoSize(value);
-				this.markChanged();
 			}
 		});
 
 		__getset(0,__proto,'textWidth',function(){
-			if (this._changed)
-				this.applyChange();
+			if (this.textField["_isChanged"])
+				this.textField.typeset();
 			return this._textWidth;
 		});
 
@@ -8969,6 +8963,35 @@
 				LineInfo.pool=[];
 				return LineInfo;
 			})()
+			//class TextExt extends laya.display.Text
+			TextExt=(function(_super){
+				function TextExt(owner){
+					this._owner=null;
+					TextExt.__super.call(this);
+					this._owner=owner;
+				}
+				__class(TextExt,'',_super);
+				var __proto=TextExt.prototype;
+				__proto.typeset=function(){
+					_super.prototype.typeset.call(this);
+					this._owner.typeset();
+					if(this._isChanged){
+						Laya.timer.clear(_super,this.typeset);
+						this._isChanged=false;
+					}
+				}
+				__proto.setChanged=function(){
+					this.isChanged=true;
+				}
+				__getset(0,__proto,'isChanged',null,function(value){
+					if (this._isChanged!==value){
+						if(this._owner.autoSize!=0)
+							this.event("fui_size_delay_change");
+					}
+					_super.prototype._$set_isChanged.call(this,value);
+				});
+				return TextExt;
+			})(Text)
 		}
 
 		return GBasicTextField;
@@ -9083,7 +9106,7 @@
 			if (str)
 				this._mode=ButtonMode.parse(str);
 			str=xml.getAttribute("sound");
-			if(str !=null)
+			if(str)
 				this._sound=str;
 			str=xml.getAttribute("volume");
 			if(str)
@@ -11691,9 +11714,12 @@
 		});
 
 		__getset(0,__proto,'asPassword',function(){
-			return this.input.asPassword;
+			return this.input.type=="password";
 			},function(value){
-			this.input.asPassword=value;
+			if (value)
+				this.input.type="password";
+			else
+			this.input.type="text";
 		});
 
 		__getset(0,__proto,'singleLine',function(){
