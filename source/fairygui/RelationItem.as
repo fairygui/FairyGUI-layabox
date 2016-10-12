@@ -46,13 +46,29 @@ package fairygui {
                     return;
             }
 
-            var info: RelationDef = new RelationDef();
-            info.affectBySelfSizeChanged = relationType >= RelationType.Center_Center && relationType <= RelationType.Right_Right
-                || relationType >= RelationType.Middle_Middle && relationType <= RelationType.Bottom_Bottom;
-            info.percent = usePercent;
-            info.type = relationType;
-            this._defs.push(info);
+			this.internalAdd(relationType, usePercent);
         }
+		
+		public function internalAdd(relationType:Number, usePercent:Boolean):void
+		{
+			if (relationType == RelationType.Size)
+			{
+				internalAdd(RelationType.Width, usePercent);
+				internalAdd(RelationType.Height, usePercent);
+				return;
+			}
+			
+			var info:RelationDef = new RelationDef();
+			info.percent = usePercent;
+			info.type = relationType;
+			_defs.push(info);
+			
+			//当使用中线关联时，因为需要除以2，很容易因为奇数宽度/高度造成小数点坐标；当使用百分比时，也会造成小数坐标；
+			//所以设置了这类关联的对象，自动启用pixelSnapping
+			if (usePercent || relationType == RelationType.Left_Center || relationType == RelationType.Center_Center || relationType == RelationType.Right_Center
+				|| relationType == RelationType.Top_Middle || relationType == RelationType.Middle_Middle || relationType == RelationType.Bottom_Middle)
+				_owner.pixelSnapping = true;
+		}
 
         public function remove(relationType: Number = 0): void {
             if (relationType == RelationType.Size) {
@@ -101,27 +117,25 @@ package fairygui {
             var length: Number = this._defs.length;
             for (var i: Number = 0; i < length; i++) {
                 var info: RelationDef = this._defs[i];
-                if (info.affectBySelfSizeChanged) {
-                    switch (info.type) {
-                        case RelationType.Center_Center:
-                        case RelationType.Right_Center:
-                            this._owner.x -= dWidth / 2;
-                            break;
+                switch (info.type) {
+                    case RelationType.Center_Center:
+                    case RelationType.Right_Center:
+                        this._owner.x -= dWidth / 2;
+                        break;
 
-                        case RelationType.Right_Left:
-                        case RelationType.Right_Right:
-                            this._owner.x -= dWidth;
-                            break;
+                    case RelationType.Right_Left:
+                    case RelationType.Right_Right:
+                        this._owner.x -= dWidth;
+                        break;
 
-                        case RelationType.Middle_Middle:
-                        case RelationType.Bottom_Middle:
-                            this._owner.y -= dHeight / 2;
-                            break;
-                        case RelationType.Bottom_Top:
-                        case RelationType.Bottom_Bottom:
-                            this._owner.y -= dHeight;
-                            break;
-                    }
+                    case RelationType.Middle_Middle:
+                    case RelationType.Bottom_Middle:
+                        this._owner.y -= dHeight / 2;
+                        break;
+                    case RelationType.Bottom_Top:
+                    case RelationType.Bottom_Bottom:
+                        this._owner.y -= dHeight;
+                        break;
                 }
             }
 
@@ -129,8 +143,7 @@ package fairygui {
                 ox = this._owner.x - ox;
                 oy = this._owner.y - oy;
 
-                if (this._owner.gearXY.controller != null)
-                   this._owner.gearXY.updateFromRelations(ox, oy);
+                this._owner.updateGearFromRelations(1, ox, oy);
 
                 if(this._owner.parent != null) {
                     var len: Number = this._owner.parent._transitions.length;
@@ -411,8 +424,7 @@ package fairygui {
                 ox = this._owner.x - ox;
                 oy = this._owner.y - oy;
 
-                if (this._owner.gearXY.controller != null)
-                    this._owner.gearXY.updateFromRelations(ox, oy);
+				this._owner.updateGearFromRelations(1, ox, oy);
 
                 if(this._owner.parent != null) {
                     var len: Number = this._owner.parent._transitions.length;
@@ -448,8 +460,7 @@ package fairygui {
                 ox = this._owner.x - ox;
                 oy = this._owner.y - oy;
 
-                if (this._owner.gearXY.controller != null)
-                    this._owner.gearXY.updateFromRelations(ox, oy);
+				this._owner.updateGearFromRelations(1, ox, oy);
 
                 if(this._owner.parent != null) {
                     var len: Number = this._owner.parent._transitions.length;
@@ -465,8 +476,7 @@ package fairygui {
                 ow = this._owner._rawWidth - ow;
                 oh = this._owner._rawHeight - oh;
 
-                if(this._owner.gearSize.controller != null)
-                    this._owner.gearSize.updateFromRelations(ow,oh);
+				this._owner.updateGearFromRelations(2, ow, oh);
             }
             
             this._owner.relations.handling = null;
@@ -480,7 +490,6 @@ package fairygui {
 
 
 class RelationDef {
-	public var affectBySelfSizeChanged: Boolean;
 	public var percent: Boolean;
 	public var type: Number;
 	
@@ -488,7 +497,6 @@ class RelationDef {
 	}
 	
 	public function copyFrom(source: RelationDef): void {
-		this.affectBySelfSizeChanged = source.affectBySelfSizeChanged;
 		this.percent = source.percent;
 		this.type = source.type;
 	}

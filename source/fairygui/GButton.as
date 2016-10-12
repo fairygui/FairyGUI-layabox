@@ -48,19 +48,16 @@ package fairygui {
             this._downEffectValue = 0.8;
         }
 
-        public function get icon(): String {
+        override public function get icon(): String {
             return this._icon;
         }
 
-        public function set icon(value: String):void {
+        override public function set icon(value: String):void {
             this._icon = value;
             value = (this._selected && this._selectedIcon) ? this._selectedIcon : this._icon;
-            if(this._iconObject is GLoader)
-                GLoader(this._iconObject).url = value;
-            else if(this._iconObject is GLabel)
-                GLabel(this._iconObject).icon = value;
-            else if(this._iconObject is GButton)
-                GButton(this._iconObject).icon = value;       
+            if(this._iconObject!=null)
+                this._iconObject.icon = value;
+			this.updateGear(7);
         }
 
         public function get selectedIcon(): String {
@@ -70,12 +67,8 @@ package fairygui {
         public function set selectedIcon(value: String):void {
             this._selectedIcon = value;
             value = (this._selected && this._selectedIcon) ? this._selectedIcon : this._icon;
-            if(this._iconObject is GLoader)
-               GLoader(this._iconObject).url = value;
-            else if(this._iconObject is GLabel)
-                GLabel(this._iconObject).icon = value;
-            else if(this._iconObject is GButton)
-               GButton(this._iconObject).icon = value;
+            if(this._iconObject!=null)
+               this._iconObject.icon = value;
         }
 
         public function get title(): String {
@@ -86,6 +79,7 @@ package fairygui {
             this._title = value;
             if (this._titleObject)
                 this._titleObject.text = (this._selected && this._selectedTitle) ? this._selectedTitle : this._title;
+			this.updateGear(6);
         }
 
         override public function get text(): String {
@@ -164,12 +158,8 @@ package fairygui {
                     this._titleObject.text = this._selected ? this._selectedTitle : this._title;
                 if(this._selectedIcon) {
                     var str: String = this._selected ? this._selectedIcon : this._icon;
-                    if(this._iconObject is GLoader)
-                        GLoader(this._iconObject).url = str;
-                    else if(this._iconObject is GLabel)
-                        GLabel(this._iconObject).icon = str;
-                    else if(this._iconObject is GButton)
-                        GButton(this._iconObject).icon = str;
+                    if(this._iconObject!=null)
+                        this._iconObject.icon = str;
                 }
                 if(this._relatedController
                     && this._parent

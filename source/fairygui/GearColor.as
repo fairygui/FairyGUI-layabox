@@ -14,6 +14,9 @@ package fairygui {
         }
 
 		override protected function addStatus(pageId: String, value: String): void {
+			if(value=="-")
+				return;
+			
             if (pageId == null)
                 this._default = value;
             else
@@ -33,8 +36,8 @@ package fairygui {
         }
 
 		override public function updateState(): void {
-            if (this._owner._gearLocked)
-                return;
+			if (this._controller == null || this._owner._gearLocked || this._owner._underConstruct)
+				return;
 
             this._storage[this._controller.selectedPageId] = IColorGear(this._owner).color;
         }

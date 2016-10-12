@@ -1,19 +1,15 @@
 package fairygui {
 	import fairygui.display.Image;
-	import fairygui.utils.ToolSet;
 	
     public class GImage extends GObject implements IColorGear {
         public var image: Image;
         
         private var _color: String;
         private var _flip: int;
-        
-        private var _gearColor: GearColor;
 
         public function GImage() {
             super();
             this._color = "#FFFFFF";
-            this._gearColor = new GearColor(this);
         }
         
         public function get color(): String {
@@ -23,9 +19,7 @@ package fairygui {
         public function set color(value: String):void {
             if(this._color != value) {
                 this._color = value;
-                if(this._gearColor.controller != null)
-                    this._gearColor.updateState();
-
+                this.updateGear(4);
                 this.applyColor();
             }
         }
@@ -50,17 +44,6 @@ package fairygui {
                	this.setScale(sx, sy);
 				handleXYChanged();
             }
-        }
-        
-        public function get gearColor(): GearColor {
-            return this._gearColor;
-        }
-
-		override public function handleControllerChanged(c: Controller): void {
-            super.handleControllerChanged(c);
-
-            if(this._gearColor.controller == c)
-                this._gearColor.apply();
         }
         
 		override protected function createDisplayObject(): void {
@@ -108,14 +91,6 @@ package fairygui {
             str = xml.getAttribute("flip");
             if(str)
                 this.flip = FlipType.parse(str);	
-        }
-        
-		override public function setup_afterAdd(xml: Object): void {
-            super.setup_afterAdd(xml);
-
-            var cxml:Object = ToolSet.findChildNode(xml, "gearColor");
-            if(cxml)
-                this._gearColor.setup(cxml);
         }
     }
 }

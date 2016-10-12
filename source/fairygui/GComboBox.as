@@ -40,6 +40,7 @@ package fairygui {
 		override public function set text(value: String):void {
             if (this._titleObject)
                 this._titleObject.text = value;
+			this.updateGear(6);
         }
 
         public function get titleColor(): String {

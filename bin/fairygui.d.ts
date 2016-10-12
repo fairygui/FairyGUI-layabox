@@ -455,13 +455,11 @@ declare module fairygui {
         color: string;
         flip: number;
         gearColor: GearColor;
-        handleControllerChanged(c: Controller): void;
         protected createDisplayObject(): void;
         constructFromResource(pkgItem: PackageItem): void;
         protected handleXYChanged(): void;
         protected handleSizeChanged(): void;
         setup_beforeAdd(xml: Object): void;
-        setup_afterAdd(xml: Object): void;
     }
 }
 declare module fairygui {
@@ -533,6 +531,7 @@ declare module fairygui {
         protected createDisplayObject(): void;
         dispose(): void;
         url: string;
+        icon: string;
         align: string;
         verticalAlign: string;
         fill: number;
@@ -548,12 +547,8 @@ declare module fairygui {
         protected freeExternal(texture: laya.resource.Texture): void;
         protected onExternalLoadSuccess(texture: laya.resource.Texture): void;
         protected onExternalLoadFailed(): void;
-        gearAnimation: GearAnimation;
-        gearColor: GearColor;
-        handleControllerChanged(c: Controller): void;
         protected handleSizeChanged(): void;
         setup_beforeAdd(xml: Object): void;
-        setup_afterAdd(xml: Object): void;
     }
 }
 declare module fairygui {
@@ -565,12 +560,8 @@ declare module fairygui {
         playing: boolean;
         frame: number;
         setPlaySettings(start?: number, end?: number, times?: number, endAt?: number, endHandler?: laya.utils.Handler): void;
-        gearAnimation: GearAnimation;
-        gearColor: GearColor;
-        handleControllerChanged(c: Controller): void;
         constructFromResource(pkgItem: PackageItem): void;
         setup_beforeAdd(xml: Object): void;
-        setup_afterAdd(xml: Object): void;
     }
 }
 declare module fairygui {
@@ -638,7 +629,8 @@ declare module fairygui {
         onStage: boolean;
         resourceURL: string;
         group: GGroup;
-        gearDisplay: GearDisplay;
+        getGear(index: number): fairygui.GearBase;
+        updateGear(index: number): void;
         gearXY: GearXY;
         gearSize: GearSize;
         gearLook: GearLook;
@@ -664,6 +656,7 @@ declare module fairygui {
         asComboBox: GComboBox;
         asMovieClip: GMovieClip;
         text: string;
+        icon: string;
         dispose(): void;
         onClick(thisObj: any, listener: Function, args?: Array<any>): void;
         offClick(thisObj: any, listener: Function): void;
@@ -797,7 +790,6 @@ declare module fairygui {
 }
 declare module fairygui {
     class GTextField extends GObject implements IColorGear {
-        protected _gearColor: GearColor;
         constructor();
         font: string;
         fontSize: number;
@@ -813,10 +805,7 @@ declare module fairygui {
         stroke: number;
         strokeColor: string;
         ubbEnabled: boolean;
-        asPassword: boolean;
         textWidth: number;
-        gearColor: GearColor;
-        handleControllerChanged(c: Controller): void;
         setup_beforeAdd(xml: Object): void;
         setup_afterAdd(xml: Object): void;
     }
@@ -840,7 +829,9 @@ declare module fairygui {
         strokeColor: string;
         asPassword: boolean;
         editable: boolean;
-        maxChars: number;
+        maxLength: number;
+        password: boolean;
+        restrict: string;
         promptText: string;
         textWidth: number;
         protected handleSizeChanged(): void;

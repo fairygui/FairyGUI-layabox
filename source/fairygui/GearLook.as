@@ -21,6 +21,9 @@ package fairygui {
         }
 
 		override protected function addStatus(pageId: String,value: String): void {
+			if(value=="-")
+				return;
+			
             var arr: Array = value.split(",");
             var gv: GearLookValue;
             if(pageId == null)
@@ -97,8 +100,8 @@ package fairygui {
         }
 
         override public function updateState(): void {
-            if(this._owner._gearLocked)
-                return;
+			if (this._controller == null || this._owner._gearLocked || this._owner._underConstruct)
+				return;
 
             var gv: GearLookValue = this._storage[this._controller.selectedPageId];
             if(!gv) {

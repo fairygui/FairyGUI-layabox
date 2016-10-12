@@ -116,11 +116,7 @@ package fairygui {
 				if(pages && values)
 				{
 					for(var i:Number=0;i<values.length;i++)
-					{
-						str = values[i];
-						if(str!="-")
-							addStatus(pages[i], str);
-					}
+						addStatus(pages[i], values[i]);
 				}
 				
 				str = xml.getAttribute("default");
@@ -128,6 +124,10 @@ package fairygui {
 					addStatus(null, str);
 			}
         }
+		
+		public function updateFromRelations(dx: Number, dy: Number): void {
+			
+		}
         
         protected function addStatus(pageId: String, value: String): void {
             
