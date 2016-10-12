@@ -69,7 +69,7 @@ package fairygui {
         private var _vtScrollBar: GScrollBar;
         
         private static var sHelperRect:Rectangle = new Rectangle();
-
+		
         public function ScrollPane(owner: GComponent,
             scrollType: Number,
             scrollBarMargin: Margin,
@@ -1001,8 +1001,14 @@ package fairygui {
             var endY: Number = 0;
             var page: Number = 0;
             var delta: Number = 0;
-            
+			var fireRelease:int = 0;
+			
             if (this._scrollType == ScrollType.Both || this._scrollType == ScrollType.Horizontal) {
+				if (this._maskContentHolder.x > fairygui.UIConfig.touchDragSensitivity)
+					fireRelease = 1;
+				else if (this._maskContentHolder.x < Math.min(this._maskWidth - this._contentWidth) - fairygui.UIConfig.touchDragSensitivity)
+					fireRelease = 2;
+				
                 change1.x = TweenHelper.calculateChange(xVelocity, duration);
                 change2.x = 0;
                 endX = this._maskContentHolder.x + change1.x;
@@ -1031,6 +1037,11 @@ package fairygui {
                 change1.x = change2.x = 0;
 
             if (this._scrollType == ScrollType.Both || this._scrollType == ScrollType.Vertical) {
+				if (this._maskContentHolder.y > fairygui.UIConfig.touchDragSensitivity)
+					fireRelease = 1;
+				else if (this._maskContentHolder.y < Math.min(this._maskHeight - this._contentHeight, 0) - fairygui.UIConfig.touchDragSensitivity)
+					fireRelease = 2;
+				
                 change1.y = TweenHelper.calculateChange(yVelocity, duration);
                 change2.y = 0;
                 endY = this._maskContentHolder.y + change1.y;
@@ -1102,6 +1113,11 @@ package fairygui {
                 ScrollPane._easeTypeFunc,
                 Handler.create(this, this.__tweenComplete2));
             this._tweener.update = Handler.create(this, this.__tweenUpdate2, null, false);
+			
+			if (fireRelease == 1)
+				Events.dispatch(Events.PULL_DOWN_RELEASE, this._container);
+			else if (fireRelease == 2)
+				Events.dispatch(Events.PULL_UP_RELEASE, this._container);
         }
         
         private function __click(): void {

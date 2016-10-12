@@ -15,6 +15,9 @@ package fairygui {
         }
 
 		override protected function addStatus(pageId: String, value: String): void {
+			if(value=="-")
+				return;
+			
             var gv: GearAnimationValue;
             if (pageId == null)
                 gv = this._default;
@@ -41,8 +44,8 @@ package fairygui {
         }
 
         override public function updateState(): void {
-            if (this._owner._gearLocked)
-                return;
+			if (this._controller == null || this._owner._gearLocked || this._owner._underConstruct)
+				return;
 
             var mc: IAnimationGear = IAnimationGear(this._owner);
             var gv: GearAnimationValue = this._storage[this._controller.selectedPageId];

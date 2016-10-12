@@ -6,15 +6,10 @@ package fairygui {
 
     public class GMovieClip extends GObject implements IAnimationGear, IColorGear {
         public var movieClip: MovieClip;
-        
-        private var _gearAnimation: GearAnimation;
-        private var _gearColor:GearColor;
-
+ 
         public function GMovieClip() {
             super();
 			this._sizeImplType = 1;
-            this._gearAnimation = new GearAnimation(this);
-            this._gearColor = new GearColor(this);
         }
         
         public function get color(): String {
@@ -37,8 +32,7 @@ package fairygui {
         public function set playing(value: Boolean):void {
             if (this.movieClip.playing != value) {
                 this.movieClip.playing = value;
-                if (this._gearAnimation.controller)
-                    this._gearAnimation.updateState();
+				this.updateGear(5);
             }
         }
 
@@ -49,8 +43,7 @@ package fairygui {
         public function set frame(value: Number):void {
             if (this.movieClip.currentFrame != value) {
                 this.movieClip.currentFrame = value;
-                if (this._gearAnimation.controller)
-                    this._gearAnimation.updateState();
+				this.updateGear(5);
             }
         }
         
@@ -59,22 +52,6 @@ package fairygui {
             times: Number = 0,endAt: Number = -1,
             endHandler: Handler = null): void {
             this.movieClip.setPlaySettings(start, end, times, endAt, endHandler);
-        }
-
-        public function get gearAnimation(): GearAnimation {
-            return this._gearAnimation;
-        }
-        
-        public function get gearColor(): GearColor {
-            return this._gearColor;
-        }
-
-		override public function handleControllerChanged(c: Controller): void {
-            super.handleControllerChanged(c);
-            if(this._gearAnimation.controller == c)
-                this._gearAnimation.apply();
-            if(this._gearColor.controller == c)
-                this._gearColor.apply();
         }
 
 		override public function constructFromResource(pkgItem: PackageItem): void {
@@ -109,24 +86,6 @@ package fairygui {
             str = xml.getAttribute("color");
             if(str)
                 this.color = str;
-        }
-
-		override public function setup_afterAdd(xml: Object): void {
-            super.setup_afterAdd(xml);
-
-            var col: Array = xml.childNodes;
-            var length1: Number = col.length;
-            for (var i1: Number = 0; i1 < length1; i1++) {
-                var cxml: Object = col[i1];
-                if (cxml.nodeName == "gearAni") {
-                    this._gearAnimation.setup(cxml);
-                    break;
-                }
-                else if (cxml.nodeName == "gearColor") {
-                    this._gearColor.setup(cxml);
-                    break;
-                }
-            }
         }
     }
 }

@@ -1,6 +1,6 @@
 
 package fairygui {
-	import fairygui.utils.ToolSet;
+	
 
     public class GTextField extends GObject implements IColorGear {
         protected var _gearColor:GearColor;
@@ -108,13 +108,6 @@ package fairygui {
         public function get ubbEnabled(): Boolean {
             return false;
         }
-
-        public function get asPassword(): Boolean {
-            return false;
-        }
-
-        public function set asPassword(value: Boolean):void {
-        }
         
         public function get textWidth(): Number {
             return 0;
@@ -135,8 +128,6 @@ package fairygui {
             super.setup_beforeAdd(xml);
 
             var str: String;
-            
-            this.asPassword = xml.getAttribute("password") == "true";
             
             str = xml.getAttribute("font");
             if (str)
@@ -190,10 +181,6 @@ package fairygui {
             var str:String = xml.getAttribute("text");
             if(str != null && str.length > 0)
                 this.text = str;
-
-            var cxml:Object = ToolSet.findChildNode(xml, "gearColor");
-            if(cxml) 
-                this._gearColor.setup(cxml);
         }
     }
 }

@@ -10,9 +10,6 @@ package fairygui {
 	import laya.utils.Handler;
 
     public class GLoader extends GObject implements IAnimationGear,IColorGear {
-        private var _gearAnimation: GearAnimation;
-        private var _gearColor: GearColor;
-
         private var _url: String;
         private var _align: String;
         private var _valign: String;
@@ -44,9 +41,6 @@ package fairygui {
             this._valign = "top";
             this._showErrorSign = true;
             this._color = "#FFFFFF";
-
-            this._gearAnimation = new GearAnimation(this);
-            this._gearColor = new GearColor(this);
         }
 
 		override protected function createDisplayObject(): void {
@@ -75,7 +69,18 @@ package fairygui {
 
             this._url = value;
             this.loadContent();
-        }
+			updateGear(7);
+		}
+		
+		override public function get icon():String
+		{
+			return _url;
+		}
+		
+		override public function set icon(value:String):void
+		{
+			this.url = value;
+		}
 
         public function get align(): String {
             return this._align;
@@ -130,9 +135,7 @@ package fairygui {
                 this._playing = value;
                 if (this._content is MovieClip)
                     MovieClip(this._content).playing = value;
-
-                if (this._gearAnimation.controller != null)
-                    this._gearAnimation.updateState();
+				this.updateGear(5);
             }
         }
 
@@ -145,9 +148,7 @@ package fairygui {
                 this._frame = value;
                 if (this._content is MovieClip)
                     MovieClip(this._content).currentFrame = value;
-
-                if (this._gearAnimation.controller != null)
-                    this._gearAnimation.updateState();
+				this.updateGear(5);
             }
         }
         
@@ -158,9 +159,7 @@ package fairygui {
         public function set color(value: String):void {
             if(this._color != value) {
                 this._color = value;
-                if(this._gearColor.controller != null)
-                    this._gearColor.updateState();
-
+				this.updateGear(4);
                 this.applyColor();
             }
         }
@@ -376,22 +375,6 @@ package fairygui {
 
             this._contentItem = null;
         }
-        
-        public function get gearAnimation(): GearAnimation {
-            return this._gearAnimation;
-        }
-                            
-        public function get gearColor(): GearColor {
-            return this._gearColor;
-        }
-        
-        override public function handleControllerChanged(c: Controller): void {
-            super.handleControllerChanged(c);
-            if(this._gearAnimation.controller == c)
-                this._gearAnimation.apply();
-            if(this._gearColor.controller == c)
-                this._gearColor.apply();
-        }
 
 		override protected function handleSizeChanged(): void {
 			super.handleSizeChanged();
@@ -434,24 +417,6 @@ package fairygui {
                         
             if (this._url)
                 this.loadContent();
-        }
-        
-		override public function setup_afterAdd(xml: Object): void {
-            super.setup_afterAdd(xml);
-
-            var col: Array = xml.childNodes;
-            var length1: Number = col.length;
-            for(var i1: Number = 0;i1 < length1;i1++) {
-                var cxml: Object = col[i1];
-                if(cxml.nodeName == "gearAni") {
-                    this._gearAnimation.setup(cxml);
-                    break;
-                }
-                else if(cxml.nodeName == "gearColor") {
-                    this._gearColor.setup(cxml);
-                    break;
-                }
-            }
         }
     }
 }

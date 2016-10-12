@@ -60,6 +60,9 @@ package fairygui {
             var s: String;
             var usePercent: Boolean;
             var i: Number;
+			
+			var newItem:RelationItem = new RelationItem(_owner);
+			newItem.target = target;
 
             for (i = 0; i < 2; i++) {
                 s = arr[i];
@@ -80,8 +83,9 @@ package fairygui {
                 if (t == -1)
                     throw "invalid relation type";
 
-                this.add(target, t, usePercent);
+				newItem.internalAdd(t, usePercent);
             }
+			_items.push(newItem);
         }
 
         public function remove(target: GObject, relationType: Number = 0): void {

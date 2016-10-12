@@ -327,6 +327,8 @@
 		Events.DRAG_START="fui_drag_start";
 		Events.DRAG_MOVE="fui_drag_move";
 		Events.DRAG_END="fui_drag_end";
+		Events.PULL_DOWN_RELEASE="fui_pull_down_release";
+		Events.PULL_UP_RELEASE="fui_pull_up_release";
 		__static(Events,
 		['$event',function(){return this.$event=new Event();}
 		]);
@@ -413,10 +415,7 @@
 			this._pixelSnapping=false;
 			this._relations=null;
 			this._group=null;
-			this._gearDisplay=null;
-			this._gearXY=null;
-			this._gearSize=null;
-			this._gearLook=null;
+			this._gears=null;
 			this._dragBounds=null;
 			this._displayObject=null;
 			this._yOffset=0;
@@ -440,10 +439,7 @@
 			this._name="";
 			this.createDisplayObject();
 			this._relations=new Relations(this);
-			this._gearDisplay=new GearDisplay(this);
-			this._gearXY=new GearXY(this);
-			this._gearSize=new GearSize(this);
-			this._gearLook=new GearLook(this);
+			this._gears=__newvec(8,null);
 		}
 
 		__class(GObject,'fairygui.GObject');
@@ -457,8 +453,7 @@
 				this.handleXYChanged();
 				if((this instanceof fairygui.GGroup ))
 					(this).moveChildren(dx,dy);
-				if(this._gearXY.controller)
-					this._gearXY.updateState();
+				this.updateGear(1);
 				if(this._parent && !((this._parent instanceof fairygui.GList ))){
 					this._parent.setBoundsChangedFlag();
 					this.displayObject.event("fui_xy_changed");
@@ -503,8 +498,7 @@
 					else
 					this.applyPivot();
 				}
-				if(this._gearSize.controller)
-					this._gearSize.updateState();
+				this.updateGear(2);
 				if(this._parent){
 					this._relations.onOwnerSizeChanged(dWidth,dHeight);
 					this._parent.setBoundsChangedFlag();
@@ -520,8 +514,7 @@
 				this._scaleY=sy;
 				this.handleScaleChanged();
 				this.applyPivot();
-				if(this._gearSize.controller)
-					this._gearSize.updateState();
+				this.updateGear(2);
 			}
 		}
 
@@ -588,8 +581,7 @@
 		__proto.updateAlpha=function(){
 			if(this._displayObject)
 				this._displayObject.alpha=this._alpha;
-			if(this._gearLook.controller)
-				this._gearLook.updateState();
+			this.updateGear(3);
 		}
 
 		__proto.requestFocus=function(){
@@ -598,6 +590,52 @@
 			p=p.parent;
 			if (p !=null)
 				this.root.focus=p;
+		}
+
+		__proto.getGear=function(index){
+			var gear=this._gears[index];
+			if (gear==null){
+				switch (index){
+					case 0:
+						gear=new GearDisplay(this);
+						break ;
+					case 1:
+						gear=new GearXY(this);
+						break ;
+					case 2:
+						gear=new GearSize(this);
+						break ;
+					case 3:
+						gear=new GearLook(this);
+						break ;
+					case 4:
+						gear=new GearColor(this);
+						break ;
+					case 5:
+						gear=new GearAnimation(this);
+						break ;
+					case 6:
+						gear=new GearText(this);
+						break ;
+					case 7:
+						gear=new GearIcon(this);
+						break ;
+					default :
+						throw new Error("FairyGUI: invalid gear index!");
+					}
+				this._gears[index]=gear;
+			}
+			return gear;
+		}
+
+		__proto.updateGear=function(index){
+			if (this._gears[index] !=null)
+				this._gears[index].updateState();
+		}
+
+		__proto.updateGearFromRelations=function(index,dx,dy){
+			if (this._gears[index] !=null)
+				this._gears[index].updateFromRelations(dx,dy);
 		}
 
 		__proto.addRelation=function(target,relationType,usePercent){
@@ -716,14 +754,11 @@
 		}
 
 		__proto.handleControllerChanged=function(c){
-			if(this._gearDisplay.controller==c)
-				this._gearDisplay.apply();
-			if(this._gearXY.controller==c)
-				this._gearXY.apply();
-			if(this._gearSize.controller==c)
-				this._gearSize.apply();
-			if(this._gearLook.controller==c)
-				this._gearLook.apply();
+			for (var i=0;i < 8;i++){
+				var gear=this._gears[i];
+				if (gear !=null && gear.controller==c)
+					gear.apply();
+			}
 		}
 
 		__proto.createDisplayObject=function(){
@@ -827,26 +862,18 @@
 		}
 
 		__proto.setup_afterAdd=function(xml){
-			var cxml;
 			var str=xml.getAttribute("group");
 			if (str)
 				this._group=this._parent.getChildById(str);
 			var col=xml.childNodes;
 			var length1=col.length;
 			for (var i1=0;i1 < length1;i1++){
-				cxml=col[i1];
-				if (cxml.nodeName=="gearDisplay"){
-					this._gearDisplay.setup(cxml);
-				}
-				else if (cxml.nodeName=="gearXY"){
-					this._gearXY.setup(cxml);
-				}
-				else if (cxml.nodeName=="gearSize"){
-					this._gearSize.setup(cxml);
-				}
-				else if (cxml.nodeName=="gearLook"){
-					this._gearLook.setup(cxml);
-				}
+				var cxml=col[i1];
+				if(cxml.nodeType!=1)
+					continue ;
+				var index=fairygui.GObject.GearXMLKeys[cxml.nodeName];
+				if(index!=undefined)
+					this.getGear(index).setup(cxml);
 			}
 		}
 
@@ -976,7 +1003,7 @@
 		});
 
 		__getset(0,__proto,'gearLook',function(){
-			return this._gearLook;
+			return (this.getGear(3));
 		});
 
 		__getset(0,__proto,'initHeight',function(){
@@ -1023,7 +1050,7 @@
 		});
 
 		__getset(0,__proto,'gearSize',function(){
-			return this._gearSize;
+			return (this.getGear(2));
 		});
 
 		__getset(0,__proto,'skewX',function(){
@@ -1075,8 +1102,7 @@
 					this._displayObject.rotation=this.normalizeRotation;
 					this.applyPivot();
 				}
-				if(this._gearLook.controller)
-					this._gearLook.updateState();
+				this.updateGear(3);
 			}
 		});
 
@@ -1130,6 +1156,7 @@
 			if(this._grayed !=value){
 				this._grayed=value;
 				this.handleGrayChanged();
+				this.updateGear(3);
 			}
 		});
 
@@ -1238,10 +1265,6 @@
 			this._group=value;
 		});
 
-		__getset(0,__proto,'gearDisplay',function(){
-			return this._gearDisplay;
-		});
-
 		__getset(0,__proto,'asGroup',function(){
 			return this;
 		});
@@ -1255,7 +1278,7 @@
 		});
 
 		__getset(0,__proto,'gearXY',function(){
-			return this._gearXY;
+			return (this.getGear(1));
 		});
 
 		__getset(0,__proto,'root',function(){
@@ -1302,6 +1325,11 @@
 			return this;
 		});
 
+		__getset(0,__proto,'icon',function(){
+			return null;
+			},function(value){
+		});
+
 		__getset(0,__proto,'draggable',function(){
 			return this._draggable;
 			},function(value){
@@ -1319,7 +1347,17 @@
 		GObject.sDragging=null
 		GObject.sDraggingQuery=false;
 		__static(GObject,
-		['sGlobalDragStart',function(){return this.sGlobalDragStart=new Point();},'sGlobalRect',function(){return this.sGlobalRect=new Rectangle();},'sHelperPoint',function(){return this.sHelperPoint=new Point();},'sDragHelperRect',function(){return this.sDragHelperRect=new Rectangle();}
+		['GearXMLKeys',function(){return this.GearXMLKeys={
+				"gearDisplay":0,
+				"gearXY":1,
+				"gearSize":2,
+				"gearLook":3,
+				"gearColor":4,
+				"gearAni":5,
+				"gearText":6,
+				"gearIcon":7
+		};},'sGlobalDragStart',function(){return this.sGlobalDragStart=new Point();},'sGlobalRect',function(){return this.sGlobalRect=new Rectangle();},'sHelperPoint',function(){return this.sHelperPoint=new Point();},'sDragHelperRect',function(){return this.sDragHelperRect=new Rectangle();}
+
 		]);
 		return GObject;
 	})()
@@ -1379,11 +1417,8 @@
 				if(str)
 					values=str.split("|");
 				if(pages && values){
-					for(var i=0;i<values.length;i++){
-						str=values[i];
-						if(str!="-")
-							this.addStatus(pages[i],str);
-					}
+					for(var i=0;i<values.length;i++)
+					this.addStatus(pages[i],values[i]);
 				}
 				str=xml.getAttribute("default");
 				if(str)
@@ -1391,6 +1426,7 @@
 			}
 		}
 
+		__proto.updateFromRelations=function(dx,dy){}
 		__proto.addStatus=function(pageId,value){}
 		__proto.init=function(){}
 		__proto.apply=function(){}
@@ -1967,13 +2003,23 @@
 				var def=this._defs[i];
 				if (def.type==relationType)
 					return;
+			}
+			this.internalAdd(relationType,usePercent);
+		}
+
+		__proto.internalAdd=function(relationType,usePercent){
+			if (relationType==24){
+				this.internalAdd(14,usePercent);
+				this.internalAdd(15,usePercent);
+				return;
 			};
 			var info=new RelationDef();
-			info.affectBySelfSizeChanged=relationType >=3 && relationType <=6
-			|| relationType >=10 && relationType <=13;
 			info.percent=usePercent;
 			info.type=relationType;
 			this._defs.push(info);
+			if (usePercent || relationType==1 || relationType==3 || relationType==5
+				|| relationType==8 || relationType==10 || relationType==12)
+			this._owner.pixelSnapping=true;
 		}
 
 		__proto.remove=function(relationType){
@@ -2017,32 +2063,29 @@
 			var length=this._defs.length;
 			for (var i=0;i < length;i++){
 				var info=this._defs[i];
-				if (info.affectBySelfSizeChanged){
-					switch (info.type){
-						case 3:
-						case 5:
-							this._owner.x-=dWidth / 2;
-							break ;
-						case 4:
-						case 6:
-							this._owner.x-=dWidth;
-							break ;
-						case 10:
-						case 12:
-							this._owner.y-=dHeight / 2;
-							break ;
-						case 11:
-						case 13:
-							this._owner.y-=dHeight;
-							break ;
-						}
-				}
+				switch (info.type){
+					case 3:
+					case 5:
+						this._owner.x-=dWidth / 2;
+						break ;
+					case 4:
+					case 6:
+						this._owner.x-=dWidth;
+						break ;
+					case 10:
+					case 12:
+						this._owner.y-=dHeight / 2;
+						break ;
+					case 11:
+					case 13:
+						this._owner.y-=dHeight;
+						break ;
+					}
 			}
 			if (ox !=this._owner.x || oy !=this._owner.y){
 				ox=this._owner.x-ox;
 				oy=this._owner.y-oy;
-				if (this._owner.gearXY.controller !=null)
-					this._owner.gearXY.updateFromRelations(ox,oy);
+				this._owner.updateGearFromRelations(1,ox,oy);
 				if(this._owner.parent !=null){
 					var len=this._owner.parent._transitions.length;
 					if(len > 0){
@@ -2306,8 +2349,7 @@
 			if (ox !=this._owner.x || oy !=this._owner.y){
 				ox=this._owner.x-ox;
 				oy=this._owner.y-oy;
-				if (this._owner.gearXY.controller !=null)
-					this._owner.gearXY.updateFromRelations(ox,oy);
+				this._owner.updateGearFromRelations(1,ox,oy);
 				if(this._owner.parent !=null){
 					var len=this._owner.parent._transitions.length;
 					if(len > 0){
@@ -2338,8 +2380,7 @@
 			if (ox !=this._owner.x || oy !=this._owner.y){
 				ox=this._owner.x-ox;
 				oy=this._owner.y-oy;
-				if (this._owner.gearXY.controller !=null)
-					this._owner.gearXY.updateFromRelations(ox,oy);
+				this._owner.updateGearFromRelations(1,ox,oy);
 				if(this._owner.parent !=null){
 					var len=this._owner.parent._transitions.length;
 					if(len > 0){
@@ -2352,8 +2393,7 @@
 			if(ow !=this._owner._rawWidth || oh !=this._owner._rawHeight){
 				ow=this._owner._rawWidth-ow;
 				oh=this._owner._rawHeight-oh;
-				if(this._owner.gearSize.controller !=null)
-					this._owner.gearSize.updateFromRelations(ow,oh);
+				this._owner.updateGearFromRelations(2,ow,oh);
 			}
 			this._owner.relations.handling=null;
 		}
@@ -2386,14 +2426,12 @@
 			//class RelationDef
 			RelationDef=(function(){
 				function RelationDef(){
-					this.affectBySelfSizeChanged=false;
 					this.percent=false;
 					this.type=NaN;
 				}
 				__class(RelationDef,'');
 				var __proto=RelationDef.prototype;
 				__proto.copyFrom=function(source){
-					this.affectBySelfSizeChanged=source.affectBySelfSizeChanged;
 					this.percent=source.percent;
 					this.type=source.type;
 				}
@@ -2439,6 +2477,8 @@
 			var s;
 			var usePercent=false;
 			var i=NaN;
+			var newItem=new RelationItem(this._owner);
+			newItem.target=target;
 			for (i=0;i < 2;i++){
 				s=arr[i];
 				if (!s)
@@ -2455,8 +2495,9 @@
 				var t=fairygui.Relations.RELATION_NAMES.indexOf(s);
 				if (t==-1)
 					throw "invalid relation type";
-				this.add(target,t,usePercent);
+				newItem.internalAdd(t,usePercent);
 			}
+			this._items.push(newItem);
 		}
 
 		__proto.remove=function(target,relationType){
@@ -3458,7 +3499,12 @@
 			var endY=0;
 			var page=0;
 			var delta=0;
+			var fireRelease=0;
 			if (this._scrollType==2 || this._scrollType==0){
+				if (this._maskContentHolder.x > UIConfig1.touchDragSensitivity)
+					fireRelease=1;
+				else if (this._maskContentHolder.x < Math.min(this._maskWidth-this._contentWidth)-UIConfig1.touchDragSensitivity)
+				fireRelease=2;
 				change1.x=TweenHelper.calculateChange(xVelocity,duration);
 				change2.x=0;
 				endX=this._maskContentHolder.x+change1.x;
@@ -3482,6 +3528,10 @@
 			else
 			change1.x=change2.x=0;
 			if (this._scrollType==2 || this._scrollType==1){
+				if (this._maskContentHolder.y > UIConfig1.touchDragSensitivity)
+					fireRelease=1;
+				else if (this._maskContentHolder.y < Math.min(this._maskHeight-this._contentHeight,0)-UIConfig1.touchDragSensitivity)
+				fireRelease=2;
 				change1.y=TweenHelper.calculateChange(yVelocity,duration);
 				change2.y=0;
 				endY=this._maskContentHolder.y+change1.y;
@@ -3543,6 +3593,10 @@
 			fairygui.ScrollPane._easeTypeFunc,
 			Handler.create(this,this.__tweenComplete2));
 			this._tweener.update=Handler.create(this,this.__tweenUpdate2,null,false);
+			if (fireRelease==1)
+				Events.dispatch("fui_pull_down_release",this._container);
+			else if (fireRelease==2)
+			Events.dispatch("fui_pull_up_release",this._container);
 		}
 
 		__proto.__click=function(){
@@ -6081,7 +6135,6 @@
 		__proto.setup_beforeAdd=function(xml){
 			_super.prototype.setup_beforeAdd.call(this,xml);
 			var str;
-			this.asPassword=xml.getAttribute("password")=="true";
 			str=xml.getAttribute("font");
 			if (str)
 				this.font=str;
@@ -6126,9 +6179,6 @@
 			var str=xml.getAttribute("text");
 			if(str !=null && str.length > 0)
 				this.text=str;
-			var cxml=ToolSet.findChildNode(xml,"gearColor");
-			if(cxml)
-				this._gearColor.setup(cxml);
 		}
 
 		__getset(0,__proto,'font',function(){
@@ -6182,11 +6232,6 @@
 		});
 
 		__getset(0,__proto,'underline',function(){
-			return false;
-			},function(value){
-		});
-
-		__getset(0,__proto,'asPassword',function(){
 			return false;
 			},function(value){
 		});
@@ -7074,6 +7119,8 @@
 		}
 
 		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
 			var gv;
 			if (pageId==null)
 				gv=this._default;
@@ -7097,7 +7144,7 @@
 		}
 
 		__proto.updateState=function(){
-			if (this._owner._gearLocked)
+			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
 				return;
 			var mc=(this._owner);
 			var gv=this._storage[this._controller.selectedPageId];
@@ -7145,6 +7192,8 @@
 		}
 
 		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
 			if (pageId==null)
 				this._default=value;
 			else
@@ -7162,7 +7211,7 @@
 		}
 
 		__proto.updateState=function(){
-			if (this._owner._gearLocked)
+			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
 				return;
 			this._storage[this._controller.selectedPageId]=(this._owner).color;
 		}
@@ -7196,6 +7245,48 @@
 		}
 
 		return GearDisplay;
+	})(GearBase)
+
+
+	//class fairygui.GearIcon extends fairygui.GearBase
+	var GearIcon=(function(_super){
+		function GearIcon(owner){
+			this._storage=null;
+			this._default=null;
+			GearIcon.__super.call(this,owner);
+		}
+
+		__class(GearIcon,'fairygui.GearIcon',_super);
+		var __proto=GearIcon.prototype;
+		__proto.init=function(){
+			this._default=this._owner.icon;
+			this._storage={};
+		}
+
+		__proto.addStatus=function(pageId,value){
+			if(pageId==null)
+				this._default=value;
+			else
+			this._storage[pageId]=value;
+		}
+
+		__proto.apply=function(){
+			this._owner._gearLocked=true;
+			var data=this._storage[this._controller.selectedPageId];
+			if(data!=undefined)
+				this._owner.icon=String(data);
+			else
+			this._owner.icon=this._default;
+			this._owner._gearLocked=false;
+		}
+
+		__proto.updateState=function(){
+			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
+				return;
+			this._storage[this._controller.selectedPageId]=this._owner.icon;
+		}
+
+		return GearIcon;
 	})(GearBase)
 
 
@@ -7366,6 +7457,8 @@
 		}
 
 		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
 			var arr=value.split(",");
 			var gv;
 			if(pageId==null)
@@ -7437,7 +7530,7 @@
 		}
 
 		__proto.updateState=function(){
-			if(this._owner._gearLocked)
+			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
 				return;
 			var gv=this._storage[this._controller.selectedPageId];
 			if(!gv){
@@ -7554,114 +7647,6 @@
 	})(GObject)
 
 
-	//class fairygui.GImage extends fairygui.GObject
-	var GImage=(function(_super){
-		function GImage(){
-			this.image=null;
-			this._color=null;
-			this._flip=0;
-			this._gearColor=null;
-			GImage.__super.call(this);
-			this._color="#FFFFFF";
-			this._gearColor=new GearColor(this);
-		}
-
-		__class(GImage,'fairygui.GImage',_super);
-		var __proto=GImage.prototype;
-		Laya.imps(__proto,{"fairygui.IColorGear":true})
-		__proto.applyColor=function(){}
-		__proto.handleControllerChanged=function(c){
-			_super.prototype.handleControllerChanged.call(this,c);
-			if(this._gearColor.controller==c)
-				this._gearColor.apply();
-		}
-
-		__proto.createDisplayObject=function(){
-			this._displayObject=this.image=new Image1();
-			this.image.mouseEnabled=false;
-			this._displayObject["$owner"]=this;
-		}
-
-		__proto.constructFromResource=function(pkgItem){
-			this._packageItem=pkgItem;
-			pkgItem.load();
-			this._sourceWidth=this._packageItem.width;
-			this._sourceHeight=this._packageItem.height;
-			this._initWidth=this._sourceWidth;
-			this._initHeight=this._sourceHeight;
-			this.image.scale9Grid=pkgItem.scale9Grid;
-			this.image.scaleByTile=pkgItem.scaleByTile;
-			this.image.texture=pkgItem.texture;
-			this.setSize(this._sourceWidth,this._sourceHeight);
-		}
-
-		__proto.handleXYChanged=function(){
-			_super.prototype.handleXYChanged.call(this);
-			if(this.scaleX==-1)
-				this.image.x+=this.width;
-			if(this.scaleY==-1)
-				this.image.y+=this.height;
-		}
-
-		__proto.handleSizeChanged=function(){
-			if(this.image.texture!=null){
-				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
-			}
-		}
-
-		__proto.setup_beforeAdd=function(xml){
-			_super.prototype.setup_beforeAdd.call(this,xml);
-			var str;
-			str=xml.getAttribute("color");
-			if(str)
-				this.color=str;
-			str=xml.getAttribute("flip");
-			if(str)
-				this.flip=FlipType.parse(str);
-		}
-
-		__proto.setup_afterAdd=function(xml){
-			_super.prototype.setup_afterAdd.call(this,xml);
-			var cxml=ToolSet.findChildNode(xml,"gearColor");
-			if(cxml)
-				this._gearColor.setup(cxml);
-		}
-
-		__getset(0,__proto,'color',function(){
-			return this._color;
-			},function(value){
-			if(this._color !=value){
-				this._color=value;
-				if(this._gearColor.controller !=null)
-					this._gearColor.updateState();
-				this.applyColor();
-			}
-		});
-
-		__getset(0,__proto,'gearColor',function(){
-			return this._gearColor;
-		});
-
-		//not supported yet
-		__getset(0,__proto,'flip',function(){
-			return this._flip;
-			},function(value){
-			if(this._flip!=value){
-				this._flip=value;
-				var sx=1,sy=1;
-				if(this._flip==1 || this._flip==3)
-					sx=-1;
-				if(this._flip==2 || this._flip==3)
-					sy=-1;
-				this.setScale(sx,sy);
-				this.handleXYChanged();
-			}
-		});
-
-		return GImage;
-	})(GObject)
-
-
 	//class fairygui.GearSize extends fairygui.GearBase
 	var GearSize=(function(_super){
 		var GearSizeValue;
@@ -7683,6 +7668,8 @@
 		}
 
 		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
 			var arr=value.split(",");
 			var gv;
 			if (pageId==null)
@@ -7756,7 +7743,7 @@
 		}
 
 		__proto.updateState=function(){
-			if (this._owner._gearLocked)
+			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
 				return;
 			var gv=this._storage[this._controller.selectedPageId];
 			if(!gv){
@@ -7806,11 +7793,139 @@
 	})(GearBase)
 
 
+	//class fairygui.GImage extends fairygui.GObject
+	var GImage=(function(_super){
+		function GImage(){
+			this.image=null;
+			this._color=null;
+			this._flip=0;
+			GImage.__super.call(this);
+			this._color="#FFFFFF";
+		}
+
+		__class(GImage,'fairygui.GImage',_super);
+		var __proto=GImage.prototype;
+		Laya.imps(__proto,{"fairygui.IColorGear":true})
+		__proto.applyColor=function(){}
+		__proto.createDisplayObject=function(){
+			this._displayObject=this.image=new Image1();
+			this.image.mouseEnabled=false;
+			this._displayObject["$owner"]=this;
+		}
+
+		__proto.constructFromResource=function(pkgItem){
+			this._packageItem=pkgItem;
+			pkgItem.load();
+			this._sourceWidth=this._packageItem.width;
+			this._sourceHeight=this._packageItem.height;
+			this._initWidth=this._sourceWidth;
+			this._initHeight=this._sourceHeight;
+			this.image.scale9Grid=pkgItem.scale9Grid;
+			this.image.scaleByTile=pkgItem.scaleByTile;
+			this.image.texture=pkgItem.texture;
+			this.setSize(this._sourceWidth,this._sourceHeight);
+		}
+
+		__proto.handleXYChanged=function(){
+			_super.prototype.handleXYChanged.call(this);
+			if(this.scaleX==-1)
+				this.image.x+=this.width;
+			if(this.scaleY==-1)
+				this.image.y+=this.height;
+		}
+
+		__proto.handleSizeChanged=function(){
+			if(this.image.texture!=null){
+				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
+			}
+		}
+
+		__proto.setup_beforeAdd=function(xml){
+			_super.prototype.setup_beforeAdd.call(this,xml);
+			var str;
+			str=xml.getAttribute("color");
+			if(str)
+				this.color=str;
+			str=xml.getAttribute("flip");
+			if(str)
+				this.flip=FlipType.parse(str);
+		}
+
+		__getset(0,__proto,'color',function(){
+			return this._color;
+			},function(value){
+			if(this._color !=value){
+				this._color=value;
+				this.updateGear(4);
+				this.applyColor();
+			}
+		});
+
+		//not supported yet
+		__getset(0,__proto,'flip',function(){
+			return this._flip;
+			},function(value){
+			if(this._flip!=value){
+				this._flip=value;
+				var sx=1,sy=1;
+				if(this._flip==1 || this._flip==3)
+					sx=-1;
+				if(this._flip==2 || this._flip==3)
+					sy=-1;
+				this.setScale(sx,sy);
+				this.handleXYChanged();
+			}
+		});
+
+		return GImage;
+	})(GObject)
+
+
+	//class fairygui.GearText extends fairygui.GearBase
+	var GearText=(function(_super){
+		function GearText(owner){
+			this._storage=null;
+			this._default=null;
+			GearText.__super.call(this,owner);
+		}
+
+		__class(GearText,'fairygui.GearText',_super);
+		var __proto=GearText.prototype;
+		__proto.init=function(){
+			this._default=this._owner.text;
+			this._storage={};
+		}
+
+		__proto.addStatus=function(pageId,value){
+			if(pageId==null)
+				this._default=value;
+			else
+			this._storage[pageId]=value;
+		}
+
+		__proto.apply=function(){
+			this._owner._gearLocked=true;
+			var data=this._storage[this._controller.selectedPageId];
+			if(data!=undefined)
+				this._owner.text=String(data);
+			else
+			this._owner.text=this._default;
+			this._owner._gearLocked=false;
+		}
+
+		__proto.updateState=function(){
+			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
+				return;
+			this._storage[this._controller.selectedPageId]=this._owner.text;
+		}
+
+		return GearText;
+	})(GearBase)
+
+
 	//class fairygui.GLoader extends fairygui.GObject
 	var GLoader=(function(_super){
 		function GLoader(){
-			this._gearAnimation=null;
-			this._gearColor=null;
 			this._url=null;
 			this._align=null;
 			this._valign=null;
@@ -7835,8 +7950,6 @@
 			this._valign="top";
 			this._showErrorSign=true;
 			this._color="#FFFFFF";
-			this._gearAnimation=new GearAnimation(this);
-			this._gearColor=new GearColor(this);
 		}
 
 		__class(GLoader,'fairygui.GLoader',_super);
@@ -8038,14 +8151,6 @@
 			this._contentItem=null;
 		}
 
-		__proto.handleControllerChanged=function(c){
-			_super.prototype.handleControllerChanged.call(this,c);
-			if(this._gearAnimation.controller==c)
-				this._gearAnimation.apply();
-			if(this._gearColor.controller==c)
-				this._gearColor.apply();
-		}
-
 		__proto.handleSizeChanged=function(){
 			_super.prototype.handleSizeChanged.call(this);
 			if(!this._updatingLayout)
@@ -8079,30 +8184,6 @@
 				this.loadContent();
 		}
 
-		__proto.setup_afterAdd=function(xml){
-			_super.prototype.setup_afterAdd.call(this,xml);
-			var col=xml.childNodes;
-			var length1=col.length;
-			for(var i1=0;i1 < length1;i1++){
-				var cxml=col[i1];
-				if(cxml.nodeName=="gearAni"){
-					this._gearAnimation.setup(cxml);
-					break ;
-				}
-				else if(cxml.nodeName=="gearColor"){
-					this._gearColor.setup(cxml);
-					break ;
-				}
-			}
-		}
-
-		//todo:
-		__getset(0,__proto,'showErrorSign',function(){
-			return this._showErrorSign;
-			},function(value){
-			this._showErrorSign=value;
-		});
-
 		__getset(0,__proto,'url',function(){
 			return this._url;
 			},function(value){
@@ -8110,6 +8191,13 @@
 				return;
 			this._url=value;
 			this.loadContent();
+			this.updateGear(7);
+		});
+
+		__getset(0,__proto,'icon',function(){
+			return this._url;
+			},function(value){
+			this.url=value;
 		});
 
 		__getset(0,__proto,'align',function(){
@@ -8128,8 +8216,7 @@
 				this._frame=value;
 				if ((this._content instanceof fairygui.display.MovieClip ))
 					(this._content).currentFrame=value;
-				if (this._gearAnimation.controller !=null)
-					this._gearAnimation.updateState();
+				this.updateGear(5);
 			}
 		});
 
@@ -8140,8 +8227,7 @@
 				this._playing=value;
 				if ((this._content instanceof fairygui.display.MovieClip ))
 					(this._content).playing=value;
-				if (this._gearAnimation.controller !=null)
-					this._gearAnimation.updateState();
+				this.updateGear(5);
 			}
 		});
 
@@ -8159,8 +8245,7 @@
 			},function(value){
 			if(this._color !=value){
 				this._color=value;
-				if(this._gearColor.controller !=null)
-					this._gearColor.updateState();
+				this.updateGear(4);
 				this.applyColor();
 			}
 		});
@@ -8183,16 +8268,15 @@
 			}
 		});
 
+		//todo:
+		__getset(0,__proto,'showErrorSign',function(){
+			return this._showErrorSign;
+			},function(value){
+			this._showErrorSign=value;
+		});
+
 		__getset(0,__proto,'content',function(){
 			return this._content;
-		});
-
-		__getset(0,__proto,'gearAnimation',function(){
-			return this._gearAnimation;
-		});
-
-		__getset(0,__proto,'gearColor',function(){
-			return this._gearColor;
 		});
 
 		__static(GLoader,
@@ -8221,6 +8305,8 @@
 		}
 
 		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
 			var arr=value.split(",");
 			var pt;
 			if (pageId==null)
@@ -8281,7 +8367,7 @@
 		}
 
 		__proto.updateState=function(){
-			if (this._owner._gearLocked)
+			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
 				return;
 			var pt=this._storage[this._controller.selectedPageId];
 			if(!pt){
@@ -8311,12 +8397,8 @@
 	var GMovieClip=(function(_super){
 		function GMovieClip(){
 			this.movieClip=null;
-			this._gearAnimation=null;
-			this._gearColor=null;
 			GMovieClip.__super.call(this);
 			this._sizeImplType=1;
-			this._gearAnimation=new GearAnimation(this);
-			this._gearColor=new GearColor(this);
 		}
 
 		__class(GMovieClip,'fairygui.GMovieClip',_super);
@@ -8335,14 +8417,6 @@
 			(times===void 0)&& (times=0);
 			(endAt===void 0)&& (endAt=-1);
 			this.movieClip.setPlaySettings(start,end,times,endAt,endHandler);
-		}
-
-		__proto.handleControllerChanged=function(c){
-			_super.prototype.handleControllerChanged.call(this,c);
-			if(this._gearAnimation.controller==c)
-				this._gearAnimation.apply();
-			if(this._gearColor.controller==c)
-				this._gearColor.apply();
 		}
 
 		__proto.constructFromResource=function(pkgItem){
@@ -8373,30 +8447,9 @@
 				this.color=str;
 		}
 
-		__proto.setup_afterAdd=function(xml){
-			_super.prototype.setup_afterAdd.call(this,xml);
-			var col=xml.childNodes;
-			var length1=col.length;
-			for (var i1=0;i1 < length1;i1++){
-				var cxml=col[i1];
-				if (cxml.nodeName=="gearAni"){
-					this._gearAnimation.setup(cxml);
-					break ;
-				}
-				else if (cxml.nodeName=="gearColor"){
-					this._gearColor.setup(cxml);
-					break ;
-				}
-			}
-		}
-
 		__getset(0,__proto,'color',function(){
 			return "#FFFFFF";
 			},function(value){
-		});
-
-		__getset(0,__proto,'gearColor',function(){
-			return this._gearColor;
 		});
 
 		__getset(0,__proto,'playing',function(){
@@ -8404,8 +8457,7 @@
 			},function(value){
 			if (this.movieClip.playing !=value){
 				this.movieClip.playing=value;
-				if (this._gearAnimation.controller)
-					this._gearAnimation.updateState();
+				this.updateGear(5);
 			}
 		});
 
@@ -8414,13 +8466,8 @@
 			},function(value){
 			if (this.movieClip.currentFrame !=value){
 				this.movieClip.currentFrame=value;
-				if (this._gearAnimation.controller)
-					this._gearAnimation.updateState();
+				this.updateGear(5);
 			}
-		});
-
-		__getset(0,__proto,'gearAnimation',function(){
-			return this._gearAnimation;
 		});
 
 		return GMovieClip;
@@ -9243,12 +9290,9 @@
 			},function(value){
 			this._icon=value;
 			value=(this._selected && this._selectedIcon)? this._selectedIcon :this._icon;
-			if((this._iconObject instanceof fairygui.GLoader ))
-				(this._iconObject).url=value;
-			else if((this._iconObject instanceof fairygui.GLabel ))
-			(this._iconObject).icon=value;
-			else if((this._iconObject instanceof fairygui.GButton ))
-			(this._iconObject).icon=value;
+			if(this._iconObject!=null)
+				this._iconObject.icon=value;
+			this.updateGear(7);
 		});
 
 		__getset(0,__proto,'sound',function(){
@@ -9268,12 +9312,8 @@
 			},function(value){
 			this._selectedIcon=value;
 			value=(this._selected && this._selectedIcon)? this._selectedIcon :this._icon;
-			if((this._iconObject instanceof fairygui.GLoader ))
-				(this._iconObject).url=value;
-			else if((this._iconObject instanceof fairygui.GLabel ))
-			(this._iconObject).icon=value;
-			else if((this._iconObject instanceof fairygui.GButton ))
-			(this._iconObject).icon=value;
+			if(this._iconObject!=null)
+				this._iconObject.icon=value;
 		});
 
 		__getset(0,__proto,'selected',function(){
@@ -9299,12 +9339,8 @@
 					this._titleObject.text=this._selected ? this._selectedTitle :this._title;
 				if(this._selectedIcon){
 					var str=this._selected ? this._selectedIcon :this._icon;
-					if((this._iconObject instanceof fairygui.GLoader ))
-						(this._iconObject).url=str;
-					else if((this._iconObject instanceof fairygui.GLabel ))
-					(this._iconObject).icon=str;
-					else if((this._iconObject instanceof fairygui.GButton ))
-					(this._iconObject).icon=str;
+					if(this._iconObject!=null)
+						this._iconObject.icon=str;
 				}
 				if(this._relatedController
 					&& this._parent
@@ -9326,6 +9362,7 @@
 			this._title=value;
 			if (this._titleObject)
 				this._titleObject.text=(this._selected && this._selectedTitle)? this._selectedTitle :this._title;
+			this.updateGear(6);
 		});
 
 		__getset(0,__proto,'selectedTitle',function(){
@@ -9600,6 +9637,7 @@
 			},function(value){
 			if (this._titleObject)
 				this._titleObject.text=value;
+			this.updateGear(6);
 		});
 
 		__getset(0,__proto,'titleColor',function(){
@@ -9705,29 +9743,31 @@
 				if (str)
 					this.titleColor=str;
 				if((this._titleObject instanceof fairygui.GTextInput )){
-					str=xml.getAttribute("promptText");
+					str=xml.getAttribute("prompt");
 					if(str)
 						(this._titleObject).promptText=str;
+					str=xml.getAttribute("maxLength");
+					if(str)
+						(this._titleObject).maxLength=parseInt(str);
+					str=xml.getAttribute("restrict");
+					if(str)
+						(this._titleObject).restrict=str;
+					str=xml.getAttribute("password");
+					if(str)
+						(this._titleObject).password=str=="true";
 				}
 			}
 		}
 
 		__getset(0,__proto,'icon',function(){
-			if((this._iconObject instanceof fairygui.GLoader ))
-				return (this._iconObject).url;
-			else if((this._iconObject instanceof fairygui.GLabel ))
-			return (this._iconObject).icon;
-			else if((this._iconObject instanceof fairygui.GButton ))
-			return (this._iconObject).icon;
+			if(this._iconObject!=null)
+				return this._iconObject.icon;
 			else
 			return null;
 			},function(value){
-			if((this._iconObject instanceof fairygui.GLoader ))
-				(this._iconObject).url=value;
-			else if((this._iconObject instanceof fairygui.GLabel ))
-			(this._iconObject).icon=value;
-			else if((this._iconObject instanceof fairygui.GButton ))
-			(this._iconObject).icon=value;
+			if(this._iconObject!=null)
+				this._iconObject.icon=value;
+			this.updateGear(7);
 		});
 
 		__getset(0,__proto,'text',function(){
@@ -9744,6 +9784,7 @@
 			},function(value){
 			if (this._titleObject)
 				this._titleObject.text=value;
+			this.updateGear(6);
 		});
 
 		__getset(0,__proto,'editable',function(){
@@ -10814,14 +10855,12 @@
 				var obj=this.getFromPool(url);
 				if(obj !=null){
 					this.addChild(obj);
-					if ((obj instanceof fairygui.GButton )){
-						(obj).title=cxml.getAttribute("title");
-						(obj).icon=cxml.getAttribute("icon");
-					}
-					else if ((obj instanceof fairygui.GLabel )){
-						(obj).title=cxml.getAttribute("title");
-						(obj).icon=cxml.getAttribute("icon");
-					}
+					str=cxml.getAttribute("title");
+					if(str)
+						obj.text=str;
+					str=cxml.getAttribute("icon");
+					if(str)
+						obj.icon=str;
 					str=cxml.getAttribute("name");
 					if(str)
 						obj.name=str;
@@ -11651,6 +11690,8 @@
 			str=xml.getAttribute("restrict");
 			if(str)
 				this.input.restrict=str;
+			if(xml.getAttribute("password")=="true")
+				this.password=true;
 		}
 
 		__getset(0,__proto,'leading',function(){
@@ -11675,6 +11716,12 @@
 			return this.input.italic;
 			},function(value){
 			this.input.italic=value;
+		});
+
+		__getset(0,__proto,'maxLength',function(){
+			return this.input.maxChars;
+			},function(value){
+			this.input.maxChars=value;
 		});
 
 		__getset(0,__proto,'valign',function(){
@@ -11713,15 +11760,6 @@
 			this.input.bold=value;
 		});
 
-		__getset(0,__proto,'asPassword',function(){
-			return this.input.type=="password";
-			},function(value){
-			if (value)
-				this.input.type="password";
-			else
-			this.input.type="text";
-		});
-
 		__getset(0,__proto,'singleLine',function(){
 			return !this.input.multiline;
 			},function(value){
@@ -11734,22 +11772,31 @@
 			this.input.stroke=value;
 		});
 
+		__getset(0,__proto,'password',function(){
+			return this.input.type=="password";
+			},function(value){
+			if (value)
+				this.input.type="password";
+			else
+			this.input.type="text";
+		});
+
 		__getset(0,__proto,'editable',function(){
 			return this.input.editable;
 			},function(value){
 			this.input.editable=value;
 		});
 
-		__getset(0,__proto,'maxChars',function(){
-			return this.input.maxChars;
-			},function(value){
-			this.input.maxChars=value;
-		});
-
 		__getset(0,__proto,'promptText',function(){
 			return this.input.prompt;
 			},function(value){
 			this.input.prompt=value;
+		});
+
+		__getset(0,__proto,'restrict',function(){
+			return this.input.restrict;
+			},function(value){
+			this.input.restrict=value;
 		});
 
 		__getset(0,__proto,'textWidth',function(){

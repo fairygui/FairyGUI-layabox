@@ -9,24 +9,17 @@ package fairygui {
             super();
         }
 
-        public function get icon(): String {
-            if(this._iconObject is GLoader)
-                return GLoader(this._iconObject).url;
-            else if(this._iconObject is GLabel)
-                return GLabel(this._iconObject).icon;
-            else if(this._iconObject is GButton)
-                return GButton(this._iconObject).icon;
+        override public function get icon(): String {
+            if(this._iconObject!=null)
+                return this._iconObject.icon;
 			else
 				return null;
         }
 
-        public function set icon(value: String):void {
-            if(this._iconObject is GLoader)
-               	GLoader(this._iconObject).url = value;
-            else if(this._iconObject is GLabel)
-            	GLabel(this._iconObject).icon = value;
-            else if(this._iconObject is GButton)
-                GButton(this._iconObject).icon = value;
+        override public function set icon(value: String):void {
+            if(this._iconObject!=null)
+                this._iconObject.icon = value;
+			this.updateGear(7);
         }
 
         public function get title(): String {
@@ -39,6 +32,7 @@ package fairygui {
         public function set title(value: String):void {
             if (this._titleObject)
                 this._titleObject.text = value;
+			this.updateGear(6);
         }
 
         override public function get text(): String {
@@ -106,9 +100,18 @@ package fairygui {
                     
                 if(this._titleObject is GTextInput)
                 {
-                    str = xml.getAttribute("promptText");
+                    str = xml.getAttribute("prompt");
                     if(str)
-                        GTextInput(this._titleObject).promptText = str;
+                        GTextInput(this._titleObject).promptText = str;					
+					str = xml.getAttribute("maxLength");
+					if(str)
+						GTextInput(_titleObject).maxLength = parseInt(str);
+					str = xml.getAttribute("restrict");
+					if(str)
+						GTextInput(_titleObject).restrict = str;
+					str = xml.getAttribute("password");
+					if(str)
+						GTextInput(_titleObject).password = str=="true";
                 }
             }
         }

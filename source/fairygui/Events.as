@@ -14,7 +14,9 @@ package fairygui {
         public static const DRAG_START:String = "fui_drag_start";
         public static const DRAG_MOVE:String = "fui_drag_move";
         public static const DRAG_END:String = "fui_drag_end";
-        
+		public static const PULL_DOWN_RELEASE:String = "fui_pull_down_release";
+		public static const PULL_UP_RELEASE:String = "fui_pull_up_release";
+		
         public static var $event:Event = new Event();
         
         public static function createEvent(type:String, target:Sprite, source:Event=null):Event {
