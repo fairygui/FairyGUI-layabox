@@ -138,7 +138,7 @@ package fairygui.display {
 
                         //play end
                         if (this._endHandler != null) {
-                            Laya.timer.callLater(this, this._endHandler.run);
+                            this._endHandler.run();
                         }
                     }
                     else {
