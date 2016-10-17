@@ -8,8 +8,8 @@
 	var Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound,SoundChannel=laya.media.SoundChannel;
 	var Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text,Texture=laya.resource.Texture;
 	var Tween=laya.utils.Tween,Utils=laya.utils.Utils;
-	Laya.interface('fairygui.IAnimationGear');
 	Laya.interface('fairygui.IUISource');
+	Laya.interface('fairygui.IAnimationGear');
 	Laya.interface('fairygui.IColorGear');
 	//class fairygui.AssetProxy
 	var AssetProxy=(function(){
@@ -978,121 +978,6 @@
 			this._name=value;
 		});
 
-		__getset(0,__proto,'parent',function(){
-			return this._parent;
-			},function(val){
-			this._parent=val;
-		});
-
-		__getset(0,__proto,'asButton',function(){
-			return this;
-		});
-
-		__getset(0,__proto,'x',function(){
-			return this._x;
-			},function(value){
-			this.setXY(value,this._y);
-		});
-
-		__getset(0,__proto,'asLabel',function(){
-			return this;
-		});
-
-		__getset(0,__proto,'asTextField',function(){
-			return this;
-		});
-
-		__getset(0,__proto,'gearLook',function(){
-			return (this.getGear(3));
-		});
-
-		__getset(0,__proto,'initHeight',function(){
-			return this._initHeight;
-		});
-
-		__getset(0,__proto,'y',function(){
-			return this._y;
-			},function(value){
-			this.setXY(this._x,value);
-		});
-
-		__getset(0,__proto,'displayObject',function(){
-			return this._displayObject;
-		});
-
-		__getset(0,__proto,'pixelSnapping',function(){
-			return this._pixelSnapping;
-			},function(value){
-			if(this._pixelSnapping!=value){
-				this._pixelSnapping=value;
-				this.handleXYChanged();
-			}
-		});
-
-		__getset(0,__proto,'asComboBox',function(){
-			return this;
-		});
-
-		__getset(0,__proto,'scaleX',function(){
-			return this._scaleX;
-			},function(value){
-			this.setScale(value,this._scaleY);
-		});
-
-		__getset(0,__proto,'sourceWidth',function(){
-			return this._sourceWidth;
-		});
-
-		__getset(0,__proto,'tooltips',function(){
-			return this._tooltips;
-			},function(value){
-			this._tooltips=value;
-		});
-
-		__getset(0,__proto,'gearSize',function(){
-			return (this.getGear(2));
-		});
-
-		__getset(0,__proto,'skewX',function(){
-			return this._skewX;
-			},function(value){
-			this.setScale(value,this._skewY);
-		});
-
-		__getset(0,__proto,'width',function(){
-			this.ensureSizeCorrect();
-			if(this._relations.sizeDirty)
-				this._relations.ensureRelationsSizeCorrect();
-			return this._width;
-			},function(value){
-			this.setSize(value,this._rawHeight);
-		});
-
-		__getset(0,__proto,'height',function(){
-			this.ensureSizeCorrect();
-			if(this._relations.sizeDirty)
-				this._relations.ensureRelationsSizeCorrect();
-			return this._height;
-			},function(value){
-			this.setSize(this._rawWidth,value);
-		});
-
-		__getset(0,__proto,'sourceHeight',function(){
-			return this._sourceHeight;
-		});
-
-		__getset(0,__proto,'initWidth',function(){
-			return this._initWidth;
-		});
-
-		__getset(0,__proto,'actualWidth',function(){
-			return this.width *this._scaleX;
-		});
-
-		__getset(0,__proto,'actualHeight',function(){
-			return this.height *this._scaleY;
-		});
-
 		__getset(0,__proto,'rotation',function(){
 			return this._rotation;
 			},function(value){
@@ -1106,10 +991,98 @@
 			}
 		});
 
+		__getset(0,__proto,'width',function(){
+			this.ensureSizeCorrect();
+			if(this._relations.sizeDirty)
+				this._relations.ensureRelationsSizeCorrect();
+			return this._width;
+			},function(value){
+			this.setSize(value,this._rawHeight);
+		});
+
+		__getset(0,__proto,'x',function(){
+			return this._x;
+			},function(value){
+			this.setXY(value,this._y);
+		});
+
+		__getset(0,__proto,'draggable',function(){
+			return this._draggable;
+			},function(value){
+			if (this._draggable !=value){
+				this._draggable=value;
+				this.initDrag();
+			}
+		});
+
+		__getset(0,__proto,'y',function(){
+			return this._y;
+			},function(value){
+			this.setXY(this._x,value);
+		});
+
+		__getset(0,__proto,'sourceWidth',function(){
+			return this._sourceWidth;
+		});
+
+		__getset(0,__proto,'sourceHeight',function(){
+			return this._sourceHeight;
+		});
+
+		__getset(0,__proto,'pixelSnapping',function(){
+			return this._pixelSnapping;
+			},function(value){
+			if(this._pixelSnapping!=value){
+				this._pixelSnapping=value;
+				this.handleXYChanged();
+			}
+		});
+
+		__getset(0,__proto,'height',function(){
+			this.ensureSizeCorrect();
+			if(this._relations.sizeDirty)
+				this._relations.ensureRelationsSizeCorrect();
+			return this._height;
+			},function(value){
+			this.setSize(this._rawWidth,value);
+		});
+
+		__getset(0,__proto,'initHeight',function(){
+			return this._initHeight;
+		});
+
+		__getset(0,__proto,'initWidth',function(){
+			return this._initWidth;
+		});
+
+		__getset(0,__proto,'asButton',function(){
+			return this;
+		});
+
+		__getset(0,__proto,'actualWidth',function(){
+			return this.width *this._scaleX;
+		});
+
+		__getset(0,__proto,'actualHeight',function(){
+			return this.height *this._scaleY;
+		});
+
+		__getset(0,__proto,'scaleX',function(){
+			return this._scaleX;
+			},function(value){
+			this.setScale(value,this._scaleY);
+		});
+
 		__getset(0,__proto,'scaleY',function(){
 			return this._scaleY;
 			},function(value){
 			this.setScale(this._scaleX,value);
+		});
+
+		__getset(0,__proto,'skewX',function(){
+			return this._skewX;
+			},function(value){
+			this.setScale(value,this._skewY);
 		});
 
 		__getset(0,__proto,'skewY',function(){
@@ -1122,6 +1095,18 @@
 			return this._pivotX;
 			},function(value){
 			this.setPivot(value,this._pivotY);
+		});
+
+		__getset(0,__proto,'asLoader',function(){
+			return this;
+		});
+
+		__getset(0,__proto,'asTextInput',function(){
+			return this;
+		});
+
+		__getset(0,__proto,'displayObject',function(){
+			return this._displayObject;
 		});
 
 		__getset(0,__proto,'normalizeRotation',function(){
@@ -1150,6 +1135,15 @@
 				this._displayObject.mouseEnabled=this._touchable;
 		});
 
+		__getset(0,__proto,'alpha',function(){
+			return this._alpha;
+			},function(value){
+			if(this._alpha!=value){
+				this._alpha=value;
+				this.updateAlpha();
+			}
+		});
+
 		__getset(0,__proto,'grayed',function(){
 			return this._grayed;
 			},function(value){
@@ -1160,6 +1154,16 @@
 			}
 		});
 
+		__getset(0,__proto,'dragBounds',function(){
+			return this._dragBounds;
+			},function(value){
+			this._dragBounds=value;
+		});
+
+		__getset(0,__proto,'asProgress',function(){
+			return this;
+		});
+
 		__getset(0,__proto,'enabled',function(){
 			return !this._grayed && this._touchable;
 			},function(value){
@@ -1167,12 +1171,16 @@
 			this.touchable=value;
 		});
 
-		__getset(0,__proto,'alpha',function(){
-			return this._alpha;
+		__getset(0,__proto,'sortingOrder',function(){
+			return this._sortingOrder;
 			},function(value){
-			if(this._alpha!=value){
-				this._alpha=value;
-				this.updateAlpha();
+			if (value < 0)
+				value=0;
+			if (this._sortingOrder !=value){
+				var old=this._sortingOrder;
+				this._sortingOrder=value;
+				if (this._parent !=null)
+					this._parent.childSortingOrderChanged(this,old,this._sortingOrder);
 			}
 		});
 
@@ -1186,10 +1194,6 @@
 				if (this._parent)
 					this._parent.childStateChanged(this);
 			}
-		});
-
-		__getset(0,__proto,'asTextInput',function(){
-			return this;
 		});
 
 		__getset(0,__proto,'internalVisible',function(){
@@ -1210,29 +1214,12 @@
 			return this._visible && this._internalVisible>0 && (!this._group || this._group.finalVisible);
 		});
 
-		__getset(0,__proto,'text',function(){
-			return null;
-			},function(value){
+		__getset(0,__proto,'asGraph',function(){
+			return this;
 		});
 
-		__getset(0,__proto,'resourceURL',function(){
-			if (this._packageItem !=null)
-				return "ui://"+this._packageItem.owner.id+this._packageItem.id;
-			else
-			return null;
-		});
-
-		__getset(0,__proto,'sortingOrder',function(){
-			return this._sortingOrder;
-			},function(value){
-			if (value < 0)
-				value=0;
-			if (this._sortingOrder !=value){
-				var old=this._sortingOrder;
-				this._sortingOrder=value;
-				if (this._parent !=null)
-					this._parent.childSortingOrderChanged(this,old,this._sortingOrder);
-			}
+		__getset(0,__proto,'gearSize',function(){
+			return (this.getGear(2));
 		});
 
 		__getset(0,__proto,'focusable',function(){
@@ -1245,36 +1232,35 @@
 			return this.root.focus==this;
 		});
 
-		__getset(0,__proto,'dragBounds',function(){
-			return this._dragBounds;
+		__getset(0,__proto,'tooltips',function(){
+			return this._tooltips;
 			},function(value){
-			this._dragBounds=value;
+			this._tooltips=value;
 		});
 
 		__getset(0,__proto,'inContainer',function(){
 			return this._displayObject !=null && this._displayObject.parent !=null;
 		});
 
+		__getset(0,__proto,'resourceURL',function(){
+			if (this._packageItem !=null)
+				return "ui://"+this._packageItem.owner.id+this._packageItem.id;
+			else
+			return null;
+		});
+
 		__getset(0,__proto,'onStage',function(){
 			return this._displayObject !=null && this._displayObject.stage !=null;
+		});
+
+		__getset(0,__proto,'dragging',function(){
+			return fairygui.GObject.sDragging==this;
 		});
 
 		__getset(0,__proto,'group',function(){
 			return this._group;
 			},function(value){
 			this._group=value;
-		});
-
-		__getset(0,__proto,'asGroup',function(){
-			return this;
-		});
-
-		__getset(0,__proto,'asRichTextField',function(){
-			return this;
-		});
-
-		__getset(0,__proto,'dragging',function(){
-			return fairygui.GObject.sDragging==this;
 		});
 
 		__getset(0,__proto,'gearXY',function(){
@@ -1293,23 +1279,37 @@
 			return GRoot.inst;
 		});
 
-		__getset(0,__proto,'relations',function(){
-			return this._relations;
+		__getset(0,__proto,'gearLook',function(){
+			return (this.getGear(3));
 		});
 
 		__getset(0,__proto,'asCom',function(){
 			return this;
 		});
 
-		__getset(0,__proto,'asLoader',function(){
+		__getset(0,__proto,'relations',function(){
+			return this._relations;
+		});
+
+		__getset(0,__proto,'parent',function(){
+			return this._parent;
+			},function(val){
+			this._parent=val;
+		});
+
+		__getset(0,__proto,'asLabel',function(){
 			return this;
 		});
 
-		__getset(0,__proto,'asProgress',function(){
+		__getset(0,__proto,'asTextField',function(){
 			return this;
 		});
 
-		__getset(0,__proto,'asSlider',function(){
+		__getset(0,__proto,'asGroup',function(){
+			return this;
+		});
+
+		__getset(0,__proto,'asRichTextField',function(){
 			return this;
 		});
 
@@ -1317,7 +1317,11 @@
 			return this;
 		});
 
-		__getset(0,__proto,'asGraph',function(){
+		__getset(0,__proto,'asSlider',function(){
+			return this;
+		});
+
+		__getset(0,__proto,'asComboBox',function(){
 			return this;
 		});
 
@@ -1325,18 +1329,14 @@
 			return this;
 		});
 
-		__getset(0,__proto,'icon',function(){
+		__getset(0,__proto,'text',function(){
 			return null;
 			},function(value){
 		});
 
-		__getset(0,__proto,'draggable',function(){
-			return this._draggable;
+		__getset(0,__proto,'icon',function(){
+			return null;
 			},function(value){
-			if (this._draggable !=value){
-				this._draggable=value;
-				this.initDrag();
-			}
 		});
 
 		GObject.cast=function(sprite){
@@ -1755,12 +1755,6 @@
 			this._id=this._controller.getPageId(pageIndex);
 		});
 
-		__getset(0,__proto,'id',function(){
-			return this._id;
-			},function(id){
-			this._id=id;
-		});
-
 		__getset(0,__proto,'name',function(){
 			if (this._id)
 				return this._controller.getPageNameById(this._id);
@@ -1768,6 +1762,12 @@
 			return null;
 			},function(pageName){
 			this._id=this._controller.getPageIdByName(pageName);
+		});
+
+		__getset(0,__proto,'id',function(){
+			return this._id;
+			},function(id){
+			this._id=id;
 		});
 
 		return PageOption;
@@ -2402,10 +2402,6 @@
 			this._owner.relations.sizeDirty=true;
 		}
 
-		__getset(0,__proto,'isEmpty',function(){
-			return this._defs.length==0;
-		});
-
 		__getset(0,__proto,'owner',function(){
 			return this._owner;
 		});
@@ -2420,6 +2416,10 @@
 				if (this._target)
 					this.addRefTarget(this._target);
 			}
+		});
+
+		__getset(0,__proto,'isEmpty',function(){
+			return this._defs.length==0;
 		});
 
 		RelationItem.__init$=function(){
@@ -3691,14 +3691,23 @@
 			Events.dispatch("fui_scroll",this._container);
 		}
 
+		__getset(0,__proto,'viewWidth',function(){
+			return this._maskWidth;
+			},function(value){
+			value=value+this._owner.margin.left+this._owner.margin.right;
+			if (this._vtScrollBar !=null)
+				value+=this._vtScrollBar.width;
+			this._owner.width=value;
+		});
+
 		__getset(0,__proto,'owner',function(){
 			return this._owner;
 		});
 
-		__getset(0,__proto,'bouncebackEffect',function(){
-			return this._bouncebackEffect;
+		__getset(0,__proto,'percY',function(){
+			return this._yPerc;
 			},function(sc){
-			this._bouncebackEffect=sc;
+			this.setPercY(sc,false);
 		});
 
 		__getset(0,__proto,'scrollSpeed',function(){
@@ -3710,10 +3719,20 @@
 			this._mouseWheelSpeed=this._scrollSpeed *2;
 		});
 
-		__getset(0,__proto,'snapToItem',function(){
-			return this._snapToItem;
-			},function(value){
-			this._snapToItem=value;
+		__getset(0,__proto,'percX',function(){
+			return this._xPerc;
+			},function(sc){
+			this.setPercX(sc,false);
+		});
+
+		__getset(0,__proto,'bouncebackEffect',function(){
+			return this._bouncebackEffect;
+			},function(sc){
+			this._bouncebackEffect=sc;
+		});
+
+		__getset(0,__proto,'isBottomMost',function(){
+			return this._yPerc==1 || this._contentHeight <=this._maskHeight;
 		});
 
 		__getset(0,__proto,'touchEffect',function(){
@@ -3722,16 +3741,19 @@
 			this._touchEffect=sc;
 		});
 
-		__getset(0,__proto,'percX',function(){
-			return this._xPerc;
-			},function(sc){
-			this.setPercX(sc,false);
+		__getset(0,__proto,'viewHeight',function(){
+			return this._maskHeight;
+			},function(value){
+			value=value+this._owner.margin.top+this._owner.margin.bottom;
+			if (this._hzScrollBar !=null)
+				value+=this._hzScrollBar.height;
+			this._owner.height=value;
 		});
 
-		__getset(0,__proto,'percY',function(){
-			return this._yPerc;
-			},function(sc){
-			this.setPercY(sc,false);
+		__getset(0,__proto,'snapToItem',function(){
+			return this._snapToItem;
+			},function(value){
+			this._snapToItem=value;
 		});
 
 		__getset(0,__proto,'posX',function(){
@@ -3744,10 +3766,6 @@
 			return this._yPerc *Math.max(0,this._contentHeight-this._maskHeight);
 			},function(val){
 			this.setPosY(val,false);
-		});
-
-		__getset(0,__proto,'isBottomMost',function(){
-			return this._yPerc==1 || this._contentHeight <=this._maskHeight;
 		});
 
 		__getset(0,__proto,'isRightMost',function(){
@@ -3774,24 +3792,6 @@
 
 		__getset(0,__proto,'contentHeight',function(){
 			return this._contentHeight;
-		});
-
-		__getset(0,__proto,'viewWidth',function(){
-			return this._maskWidth;
-			},function(value){
-			value=value+this._owner.margin.left+this._owner.margin.right;
-			if (this._vtScrollBar !=null)
-				value+=this._vtScrollBar.width;
-			this._owner.width=value;
-		});
-
-		__getset(0,__proto,'viewHeight',function(){
-			return this._maskHeight;
-			},function(value){
-			value=value+this._owner.margin.top+this._owner.margin.bottom;
-			if (this._hzScrollBar !=null)
-				value+=this._hzScrollBar.height;
-			this._owner.height=value;
 		});
 
 		ScrollPane._easeTypeFunc=null
@@ -5351,6 +5351,14 @@
 			item.bitmapFont=font;
 		}
 
+		__getset(0,__proto,'id',function(){
+			return this._id;
+		});
+
+		__getset(0,__proto,'name',function(){
+			return this._name;
+		});
+
 		__getset(0,__proto,'customId',function(){
 			return this._customId;
 			},function(value){
@@ -5359,14 +5367,6 @@
 			this._customId=value;
 			if (this._customId !=null)
 				fairygui.UIPackage._packageInstById[this._customId]=this;
-		});
-
-		__getset(0,__proto,'id',function(){
-			return this._id;
-		});
-
-		__getset(0,__proto,'name',function(){
-			return this._name;
 		});
 
 		UIPackage.getById=function(id){
@@ -6006,24 +6006,26 @@
 			this._selectedIndex=-1;
 		}
 
+		__getset(0,__proto,'oppositePageId',null,function(val){
+			var i=this._pageIds.indexOf(val);
+			if(i > 0)
+				this.selectedIndex=0;
+			else if(this._pageIds.length > 1)
+			this.selectedIndex=1;
+		});
+
 		__getset(0,__proto,'name',function(){
 			return this._name;
 			},function(value){
 			this._name=value;
 		});
 
-		__getset(0,__proto,'parent',function(){
-			return this._parent;
+		__getset(0,__proto,'pageCount',function(){
+			return this._pageIds.length;
 		});
 
-		__getset(0,__proto,'selectedPageId',function(){
-			if (this._selectedIndex==-1)
-				return null;
-			else
-			return this._pageIds[this._selectedIndex];
-			},function(val){
-			var i=this._pageIds.indexOf(val);
-			this.selectedIndex=i;
+		__getset(0,__proto,'parent',function(){
+			return this._parent;
 		});
 
 		__getset(0,__proto,'selectedIndex',function(){
@@ -6078,16 +6080,14 @@
 			return this._pageNames[this._previousIndex];
 		});
 
-		__getset(0,__proto,'pageCount',function(){
-			return this._pageIds.length;
-		});
-
-		__getset(0,__proto,'oppositePageId',null,function(val){
+		__getset(0,__proto,'selectedPageId',function(){
+			if (this._selectedIndex==-1)
+				return null;
+			else
+			return this._pageIds[this._selectedIndex];
+			},function(val){
 			var i=this._pageIds.indexOf(val);
-			if(i > 0)
-				this.selectedIndex=0;
-			else if(this._pageIds.length > 1)
-			this.selectedIndex=1;
+			this.selectedIndex=i;
 		});
 
 		__getset(0,__proto,'previousPageId',function(){
@@ -6181,43 +6181,13 @@
 				this.text=str;
 		}
 
-		__getset(0,__proto,'font',function(){
-			return null;
-			},function(value){
-		});
-
-		__getset(0,__proto,'italic',function(){
-			return false;
-			},function(value){
-		});
-
-		__getset(0,__proto,'valign',function(){
-			return null;
-			},function(value){
-		});
-
-		__getset(0,__proto,'fontSize',function(){
-			return 0;
-			},function(value){
-		});
-
 		__getset(0,__proto,'color',function(){
 			return null;
 			},function(value){
 		});
 
-		__getset(0,__proto,'strokeColor',function(){
+		__getset(0,__proto,'font',function(){
 			return null;
-			},function(value){
-		});
-
-		__getset(0,__proto,'align',function(){
-			return null;
-			},function(value){
-		});
-
-		__getset(0,__proto,'bold',function(){
-			return false;
 			},function(value){
 		});
 
@@ -6226,8 +6196,33 @@
 			},function(value){
 		});
 
+		__getset(0,__proto,'fontSize',function(){
+			return 0;
+			},function(value){
+		});
+
+		__getset(0,__proto,'bold',function(){
+			return false;
+			},function(value){
+		});
+
 		__getset(0,__proto,'letterSpacing',function(){
 			return 0;
+			},function(value){
+		});
+
+		__getset(0,__proto,'align',function(){
+			return null;
+			},function(value){
+		});
+
+		__getset(0,__proto,'valign',function(){
+			return null;
+			},function(value){
+		});
+
+		__getset(0,__proto,'italic',function(){
+			return false;
 			},function(value){
 		});
 
@@ -6243,6 +6238,11 @@
 
 		__getset(0,__proto,'stroke',function(){
 			return 0;
+			},function(value){
+		});
+
+		__getset(0,__proto,'strokeColor',function(){
+			return null;
 			},function(value){
 		});
 
@@ -7031,14 +7031,6 @@
 			}
 		}
 
-		__getset(0,__proto,'displayListContainer',function(){
-			return this._container;
-		});
-
-		__getset(0,__proto,'numChildren',function(){
-			return this._children.length;
-		});
-
 		__getset(0,__proto,'viewWidth',function(){
 			if (this._scrollPane !=null)
 				return this._scrollPane.viewWidth;
@@ -7051,12 +7043,12 @@
 			this.width=value+this._margin.left+this._margin.right;
 		});
 
-		__getset(0,__proto,'controllers',function(){
-			return this._controllers;
+		__getset(0,__proto,'numChildren',function(){
+			return this._children.length;
 		});
 
-		__getset(0,__proto,'scrollPane',function(){
-			return this._scrollPane;
+		__getset(0,__proto,'displayListContainer',function(){
+			return this._container;
 		});
 
 		__getset(0,__proto,'opaque',function(){
@@ -7075,14 +7067,12 @@
 			}
 		});
 
-		__getset(0,__proto,'margin',function(){
-			return this._margin;
-			},function(value){
-			this._margin.copy(value);
-			if(this._displayObject.scrollRect!=null){
-				this._container.pos(this._margin.left,this._margin.top);
-			}
-			this.handleSizeChanged();
+		__getset(0,__proto,'controllers',function(){
+			return this._controllers;
+		});
+
+		__getset(0,__proto,'scrollPane',function(){
+			return this._scrollPane;
 		});
 
 		__getset(0,__proto,'viewHeight',function(){
@@ -7095,6 +7085,16 @@
 				this._scrollPane.viewHeight=value;
 			else
 			this.height=value+this._margin.top+this._margin.bottom;
+		});
+
+		__getset(0,__proto,'margin',function(){
+			return this._margin;
+			},function(value){
+			this._margin.copy(value);
+			if(this._displayObject.scrollRect!=null){
+				this._container.pos(this._margin.left,this._margin.top);
+			}
+			this.handleSizeChanged();
 		});
 
 		return GComponent;
@@ -7647,6 +7647,94 @@
 	})(GObject)
 
 
+	//class fairygui.GImage extends fairygui.GObject
+	var GImage=(function(_super){
+		function GImage(){
+			this.image=null;
+			this._color=null;
+			this._flip=0;
+			GImage.__super.call(this);
+			this._color="#FFFFFF";
+		}
+
+		__class(GImage,'fairygui.GImage',_super);
+		var __proto=GImage.prototype;
+		Laya.imps(__proto,{"fairygui.IColorGear":true})
+		__proto.applyColor=function(){}
+		__proto.createDisplayObject=function(){
+			this._displayObject=this.image=new Image1();
+			this.image.mouseEnabled=false;
+			this._displayObject["$owner"]=this;
+		}
+
+		__proto.constructFromResource=function(pkgItem){
+			this._packageItem=pkgItem;
+			pkgItem.load();
+			this._sourceWidth=this._packageItem.width;
+			this._sourceHeight=this._packageItem.height;
+			this._initWidth=this._sourceWidth;
+			this._initHeight=this._sourceHeight;
+			this.image.scale9Grid=pkgItem.scale9Grid;
+			this.image.scaleByTile=pkgItem.scaleByTile;
+			this.image.texture=pkgItem.texture;
+			this.setSize(this._sourceWidth,this._sourceHeight);
+		}
+
+		__proto.handleXYChanged=function(){
+			_super.prototype.handleXYChanged.call(this);
+			if(this.scaleX==-1)
+				this.image.x+=this.width;
+			if(this.scaleY==-1)
+				this.image.y+=this.height;
+		}
+
+		__proto.handleSizeChanged=function(){
+			if(this.image.texture!=null){
+				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
+			}
+		}
+
+		__proto.setup_beforeAdd=function(xml){
+			_super.prototype.setup_beforeAdd.call(this,xml);
+			var str;
+			str=xml.getAttribute("color");
+			if(str)
+				this.color=str;
+			str=xml.getAttribute("flip");
+			if(str)
+				this.flip=FlipType.parse(str);
+		}
+
+		__getset(0,__proto,'color',function(){
+			return this._color;
+			},function(value){
+			if(this._color !=value){
+				this._color=value;
+				this.updateGear(4);
+				this.applyColor();
+			}
+		});
+
+		//not supported yet
+		__getset(0,__proto,'flip',function(){
+			return this._flip;
+			},function(value){
+			if(this._flip!=value){
+				this._flip=value;
+				var sx=1,sy=1;
+				if(this._flip==1 || this._flip==3)
+					sx=-1;
+				if(this._flip==2 || this._flip==3)
+					sy=-1;
+				this.setScale(sx,sy);
+				this.handleXYChanged();
+			}
+		});
+
+		return GImage;
+	})(GObject)
+
+
 	//class fairygui.GearSize extends fairygui.GearBase
 	var GearSize=(function(_super){
 		var GearSizeValue;
@@ -7791,94 +7879,6 @@
 
 		return GearSize;
 	})(GearBase)
-
-
-	//class fairygui.GImage extends fairygui.GObject
-	var GImage=(function(_super){
-		function GImage(){
-			this.image=null;
-			this._color=null;
-			this._flip=0;
-			GImage.__super.call(this);
-			this._color="#FFFFFF";
-		}
-
-		__class(GImage,'fairygui.GImage',_super);
-		var __proto=GImage.prototype;
-		Laya.imps(__proto,{"fairygui.IColorGear":true})
-		__proto.applyColor=function(){}
-		__proto.createDisplayObject=function(){
-			this._displayObject=this.image=new Image1();
-			this.image.mouseEnabled=false;
-			this._displayObject["$owner"]=this;
-		}
-
-		__proto.constructFromResource=function(pkgItem){
-			this._packageItem=pkgItem;
-			pkgItem.load();
-			this._sourceWidth=this._packageItem.width;
-			this._sourceHeight=this._packageItem.height;
-			this._initWidth=this._sourceWidth;
-			this._initHeight=this._sourceHeight;
-			this.image.scale9Grid=pkgItem.scale9Grid;
-			this.image.scaleByTile=pkgItem.scaleByTile;
-			this.image.texture=pkgItem.texture;
-			this.setSize(this._sourceWidth,this._sourceHeight);
-		}
-
-		__proto.handleXYChanged=function(){
-			_super.prototype.handleXYChanged.call(this);
-			if(this.scaleX==-1)
-				this.image.x+=this.width;
-			if(this.scaleY==-1)
-				this.image.y+=this.height;
-		}
-
-		__proto.handleSizeChanged=function(){
-			if(this.image.texture!=null){
-				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
-			}
-		}
-
-		__proto.setup_beforeAdd=function(xml){
-			_super.prototype.setup_beforeAdd.call(this,xml);
-			var str;
-			str=xml.getAttribute("color");
-			if(str)
-				this.color=str;
-			str=xml.getAttribute("flip");
-			if(str)
-				this.flip=FlipType.parse(str);
-		}
-
-		__getset(0,__proto,'color',function(){
-			return this._color;
-			},function(value){
-			if(this._color !=value){
-				this._color=value;
-				this.updateGear(4);
-				this.applyColor();
-			}
-		});
-
-		//not supported yet
-		__getset(0,__proto,'flip',function(){
-			return this._flip;
-			},function(value){
-			if(this._flip!=value){
-				this._flip=value;
-				var sx=1,sy=1;
-				if(this._flip==1 || this._flip==3)
-					sx=-1;
-				if(this._flip==2 || this._flip==3)
-					sy=-1;
-				this.setScale(sx,sy);
-				this.handleXYChanged();
-			}
-		});
-
-		return GImage;
-	})(GObject)
 
 
 	//class fairygui.GearText extends fairygui.GearBase
@@ -8120,14 +8120,10 @@
 						this._contentHeight=this._contentSourceHeight *sy;
 					}
 				}
-				if ((this._content instanceof fairygui.display.Image )){
-					this._content.width=this._contentWidth;
-					this._content.height=this._contentHeight;
-				}
-				else {
-					this._content.scaleX=sx;
-					this._content.scaleY=sy;
-				}
+				if ((this._content instanceof fairygui.display.Image ))
+					(this._content).scaleTexture(sx,sy);
+				else
+				this._content.scale(sx,sy);
 				if (this._align=="center")
 					this._content.x=Math.floor((this.width-this._contentWidth)/ 2);
 				else if (this._align=="right")
@@ -8184,31 +8180,6 @@
 				this.loadContent();
 		}
 
-		__getset(0,__proto,'url',function(){
-			return this._url;
-			},function(value){
-			if (this._url==value)
-				return;
-			this._url=value;
-			this.loadContent();
-			this.updateGear(7);
-		});
-
-		__getset(0,__proto,'icon',function(){
-			return this._url;
-			},function(value){
-			this.url=value;
-		});
-
-		__getset(0,__proto,'align',function(){
-			return this._align;
-			},function(value){
-			if (this._align !=value){
-				this._align=value;
-				this.updateLayout();
-			}
-		});
-
 		__getset(0,__proto,'frame',function(){
 			return this._frame;
 			},function(value){
@@ -8220,22 +8191,21 @@
 			}
 		});
 
-		__getset(0,__proto,'playing',function(){
-			return this._playing;
+		__getset(0,__proto,'url',function(){
+			return this._url;
 			},function(value){
-			if (this._playing !=value){
-				this._playing=value;
-				if ((this._content instanceof fairygui.display.MovieClip ))
-					(this._content).playing=value;
-				this.updateGear(5);
-			}
+			if (this._url==value)
+				return;
+			this._url=value;
+			this.loadContent();
+			this.updateGear(7);
 		});
 
-		__getset(0,__proto,'verticalAlign',function(){
-			return this._valign;
+		__getset(0,__proto,'align',function(){
+			return this._align;
 			},function(value){
-			if (this._valign !=value){
-				this._valign=value;
+			if (this._align !=value){
+				this._align=value;
 				this.updateLayout();
 			}
 		});
@@ -8259,6 +8229,28 @@
 			}
 		});
 
+		__getset(0,__proto,'verticalAlign',function(){
+			return this._valign;
+			},function(value){
+			if (this._valign !=value){
+				this._valign=value;
+				this.updateLayout();
+			}
+		});
+
+		__getset(0,__proto,'icon',function(){
+			return this._url;
+			},function(value){
+			this.url=value;
+		});
+
+		//todo:
+		__getset(0,__proto,'showErrorSign',function(){
+			return this._showErrorSign;
+			},function(value){
+			this._showErrorSign=value;
+		});
+
 		__getset(0,__proto,'autoSize',function(){
 			return this._autoSize;
 			},function(value){
@@ -8268,11 +8260,15 @@
 			}
 		});
 
-		//todo:
-		__getset(0,__proto,'showErrorSign',function(){
-			return this._showErrorSign;
+		__getset(0,__proto,'playing',function(){
+			return this._playing;
 			},function(value){
-			this._showErrorSign=value;
+			if (this._playing !=value){
+				this._playing=value;
+				if ((this._content instanceof fairygui.display.MovieClip ))
+					(this._content).playing=value;
+				this.updateGear(5);
+			}
 		});
 
 		__getset(0,__proto,'content',function(){
@@ -8831,10 +8827,22 @@
 				this.setAutoSize(AutoSizeType.parse(str));
 		}
 
-		__getset(0,__proto,'leading',function(){
-			return this.textField.leading;
+		__getset(0,__proto,'bold',function(){
+			return this.textField.bold;
 			},function(value){
-			this.textField.leading=value;
+			this.textField.bold=value;
+		});
+
+		__getset(0,__proto,'letterSpacing',function(){
+			return this._letterSpacing;
+			},function(value){
+			this._letterSpacing=value;
+		});
+
+		__getset(0,__proto,'align',function(){
+			return this.textField.align;
+			},function(value){
+			this.textField.align=value;
 		});
 
 		__getset(0,__proto,'text',function(){
@@ -8859,6 +8867,20 @@
 				this.textField.typeset();
 		});
 
+		__getset(0,__proto,'color',function(){
+			return this._color;
+			},function(value){
+			if (this._color !=value){
+				this._color=value;
+				if (this._gearColor.controller)
+					this._gearColor.updateState();
+				if(this.grayed)
+					this.textField.color="#AAAAAA";
+				else
+				this.textField.color=this._color;
+			}
+		});
+
 		__getset(0,__proto,'font',function(){
 			return this.textField.font;
 			},function(value){
@@ -8876,10 +8898,10 @@
 			}
 		});
 
-		__getset(0,__proto,'valign',function(){
-			return this.textField.valign;
+		__getset(0,__proto,'leading',function(){
+			return this.textField.leading;
 			},function(value){
-			this.textField.valign=value;
+			this.textField.leading=value;
 		});
 
 		__getset(0,__proto,'fontSize',function(){
@@ -8888,42 +8910,10 @@
 			this.textField.fontSize=value;
 		});
 
-		__getset(0,__proto,'color',function(){
-			return this._color;
+		__getset(0,__proto,'valign',function(){
+			return this.textField.valign;
 			},function(value){
-			if (this._color !=value){
-				this._color=value;
-				if (this._gearColor.controller)
-					this._gearColor.updateState();
-				if(this.grayed)
-					this.textField.color="#AAAAAA";
-				else
-				this.textField.color=this._color;
-			}
-		});
-
-		__getset(0,__proto,'strokeColor',function(){
-			return this.textField.strokeColor;
-			},function(value){
-			this.textField.strokeColor=value;
-		});
-
-		__getset(0,__proto,'align',function(){
-			return this.textField.align;
-			},function(value){
-			this.textField.align=value;
-		});
-
-		__getset(0,__proto,'bold',function(){
-			return this.textField.bold;
-			},function(value){
-			this.textField.bold=value;
-		});
-
-		__getset(0,__proto,'letterSpacing',function(){
-			return this._letterSpacing;
-			},function(value){
-			this._letterSpacing=value;
+			this.textField.valign=value;
 		});
 
 		__getset(0,__proto,'italic',function(){
@@ -8948,6 +8938,12 @@
 			return this.textField.stroke;
 			},function(value){
 			this.textField.stroke=value;
+		});
+
+		__getset(0,__proto,'strokeColor',function(){
+			return this.textField.strokeColor;
+			},function(value){
+			this.textField.strokeColor=value;
 		});
 
 		__getset(0,__proto,'ubbEnabled',function(){
@@ -9285,6 +9281,16 @@
 			}
 		}
 
+		__getset(0,__proto,'relatedController',function(){
+			return this._relatedController;
+			},function(val){
+			if (val !=this._relatedController){
+				this._relatedController=val;
+				this._pageOption.controller=val;
+				this._pageOption.clear();
+			}
+		});
+
 		__getset(0,__proto,'icon',function(){
 			return this._icon;
 			},function(value){
@@ -9295,10 +9301,22 @@
 			this.updateGear(7);
 		});
 
-		__getset(0,__proto,'sound',function(){
-			return this._sound;
-			},function(val){
-			this._sound=val;
+		__getset(0,__proto,'selectedIcon',function(){
+			return this._selectedIcon;
+			},function(value){
+			this._selectedIcon=value;
+			value=(this._selected && this._selectedIcon)? this._selectedIcon :this._icon;
+			if(this._iconObject!=null)
+				this._iconObject.icon=value;
+		});
+
+		__getset(0,__proto,'title',function(){
+			return this._title;
+			},function(value){
+			this._title=value;
+			if (this._titleObject)
+				this._titleObject.text=(this._selected && this._selectedTitle)? this._selectedTitle :this._title;
+			this.updateGear(6);
 		});
 
 		__getset(0,__proto,'text',function(){
@@ -9307,13 +9325,12 @@
 			this.title=value;
 		});
 
-		__getset(0,__proto,'selectedIcon',function(){
-			return this._selectedIcon;
+		__getset(0,__proto,'selectedTitle',function(){
+			return this._selectedTitle;
 			},function(value){
-			this._selectedIcon=value;
-			value=(this._selected && this._selectedIcon)? this._selectedIcon :this._icon;
-			if(this._iconObject!=null)
-				this._iconObject.icon=value;
+			this._selectedTitle=value;
+			if (this._titleObject)
+				this._titleObject.text=(this._selected && this._selectedTitle)? this._selectedTitle :this._title;
 		});
 
 		__getset(0,__proto,'selected',function(){
@@ -9356,27 +9373,16 @@
 			}
 		});
 
-		__getset(0,__proto,'title',function(){
-			return this._title;
-			},function(value){
-			this._title=value;
-			if (this._titleObject)
-				this._titleObject.text=(this._selected && this._selectedTitle)? this._selectedTitle :this._title;
-			this.updateGear(6);
-		});
-
-		__getset(0,__proto,'selectedTitle',function(){
-			return this._selectedTitle;
-			},function(value){
-			this._selectedTitle=value;
-			if (this._titleObject)
-				this._titleObject.text=(this._selected && this._selectedTitle)? this._selectedTitle :this._title;
-		});
-
 		__getset(0,__proto,'soundVolumeScale',function(){
 			return this._soundVolumeScale;
 			},function(value){
 			this._soundVolumeScale=value;
+		});
+
+		__getset(0,__proto,'sound',function(){
+			return this._sound;
+			},function(val){
+			this._sound=val;
 		});
 
 		__getset(0,__proto,'titleColor',function(){
@@ -9404,16 +9410,6 @@
 				if (value==0)
 					this.selected=false;
 				this._mode=value;
-			}
-		});
-
-		__getset(0,__proto,'relatedController',function(){
-			return this._relatedController;
-			},function(val){
-			if (val !=this._relatedController){
-				this._relatedController=val;
-				this._pageOption.controller=val;
-				this._pageOption.clear();
 			}
 		});
 
@@ -9650,28 +9646,19 @@
 				this._titleObject.color=value;
 		});
 
-		__getset(0,__proto,'value',function(){
-			return this._values[this._selectedIndex];
-			},function(val){
-			this.selectedIndex=this._values.indexOf(val);
-		});
-
-		__getset(0,__proto,'selectedIndex',function(){
-			return this._selectedIndex;
-			},function(val){
-			if (this._selectedIndex==val)
-				return;
-			this._selectedIndex=val;
-			if (this.selectedIndex >=0 && this.selectedIndex < this._items.length)
-				this.text=this._items[this._selectedIndex];
-			else
-			this.text="";
-		});
-
 		__getset(0,__proto,'visibleItemCount',function(){
 			return this._visibleItemCount;
 			},function(value){
 			this._visibleItemCount=value;
+		});
+
+		__getset(0,__proto,'values',function(){
+			return this._values;
+			},function(value){
+			if (!value)
+				this._values.length=0;
+			else
+			this._values=value.concat();
 		});
 
 		__getset(0,__proto,'popupDownward',function(){
@@ -9699,13 +9686,22 @@
 			this._itemsUpdated=true;
 		});
 
-		__getset(0,__proto,'values',function(){
-			return this._values;
-			},function(value){
-			if (!value)
-				this._values.length=0;
+		__getset(0,__proto,'selectedIndex',function(){
+			return this._selectedIndex;
+			},function(val){
+			if (this._selectedIndex==val)
+				return;
+			this._selectedIndex=val;
+			if (this.selectedIndex >=0 && this.selectedIndex < this._items.length)
+				this.text=this._items[this._selectedIndex];
 			else
-			this._values=value.concat();
+			this.text="";
+		});
+
+		__getset(0,__proto,'value',function(){
+			return this._values[this._selectedIndex];
+			},function(val){
+			this.selectedIndex=this._values.indexOf(val);
 		});
 
 		return GComboBox;
@@ -9755,6 +9751,11 @@
 					str=xml.getAttribute("password");
 					if(str)
 						(this._titleObject).password=str=="true";
+					str=xml.getAttribute("keyboardType");
+					if(str=="4")
+						(this._titleObject).keyboardType="number";
+					else if(str=="3")
+					(this._titleObject).keyboardType="url";
 				}
 			}
 		}
@@ -9770,10 +9771,14 @@
 			this.updateGear(7);
 		});
 
-		__getset(0,__proto,'text',function(){
-			return this.title;
-			},function(value){
-			this.title=value;
+		__getset(0,__proto,'editable',function(){
+			if (this._titleObject && ((this._titleObject instanceof fairygui.GTextInput )))
+				return this._titleObject.asTextInput.editable;
+			else
+			return false;
+			},function(val){
+			if (this._titleObject)
+				this._titleObject.asTextInput.editable=val;
 		});
 
 		__getset(0,__proto,'title',function(){
@@ -9787,14 +9792,10 @@
 			this.updateGear(6);
 		});
 
-		__getset(0,__proto,'editable',function(){
-			if (this._titleObject && ((this._titleObject instanceof fairygui.GTextInput )))
-				return this._titleObject.asTextInput.editable;
-			else
-			return false;
-			},function(val){
-			if (this._titleObject)
-				this._titleObject.asTextInput.editable=val;
+		__getset(0,__proto,'text',function(){
+			return this.title;
+			},function(value){
+			this.title=value;
 		});
 
 		__getset(0,__proto,'titleColor',function(){
@@ -10868,6 +10869,17 @@
 			}
 		}
 
+		__getset(0,__proto,'lineItemCount',function(){
+			return this._lineItemCount;
+			},function(value){
+			if(this._lineItemCount !=value){
+				this._lineItemCount=value;
+				this.setBoundsChangedFlag();
+				if(this._virtual)
+					this.setVirtualListChangedFlag(true);
+			}
+		});
+
 		__getset(0,__proto,'layout',function(){
 			return this._layout;
 			},function(value){
@@ -10877,6 +10889,12 @@
 				if(this._virtual)
 					this.setVirtualListChangedFlag(true);
 			}
+		});
+
+		__getset(0,__proto,'autoResizeItem',function(){
+			return this._autoResizeItem;
+			},function(value){
+			this._autoResizeItem=value;
 		});
 
 		__getset(0,__proto,'lineGap',function(){
@@ -10890,23 +10908,6 @@
 			}
 		});
 
-		__getset(0,__proto,'lineItemCount',function(){
-			return this._lineItemCount;
-			},function(value){
-			if(this._lineItemCount !=value){
-				this._lineItemCount=value;
-				this.setBoundsChangedFlag();
-				if(this._virtual)
-					this.setVirtualListChangedFlag(true);
-			}
-		});
-
-		__getset(0,__proto,'selectionMode',function(){
-			return this._selectionMode;
-			},function(value){
-			this._selectionMode=value;
-		});
-
 		__getset(0,__proto,'columnGap',function(){
 			return this._columnGap;
 			},function(value){
@@ -10918,10 +10919,10 @@
 			}
 		});
 
-		__getset(0,__proto,'defaultItem',function(){
-			return this._defaultItem;
-			},function(val){
-			this._defaultItem=val;
+		__getset(0,__proto,'selectionMode',function(){
+			return this._selectionMode;
+			},function(value){
+			this._selectionMode=value;
 		});
 
 		__getset(0,__proto,'virtualItemSize',function(){
@@ -10935,10 +10936,10 @@
 			}
 		});
 
-		__getset(0,__proto,'autoResizeItem',function(){
-			return this._autoResizeItem;
-			},function(value){
-			this._autoResizeItem=value;
+		__getset(0,__proto,'defaultItem',function(){
+			return this._defaultItem;
+			},function(val){
+			this._defaultItem=val;
 		});
 
 		__getset(0,__proto,'selectedIndex',function(){
@@ -11014,10 +11015,16 @@
 			this.div.size(this.width,this.height);
 		}
 
-		__getset(0,__proto,'leading',function(){
-			return this.div.style.leading;
+		__getset(0,__proto,'bold',function(){
+			return this.div.style.bold;
 			},function(value){
-			this.div.style.leading=value;
+			this.div.style.bold=value;
+		});
+
+		__getset(0,__proto,'align',function(){
+			return this.div.style.align;
+			},function(value){
+			this.div.style.align=value;
 		});
 
 		__getset(0,__proto,'text',function(){
@@ -11028,30 +11035,6 @@
 				this.div.innerHTML=ToolSet.parseUBB(ToolSet.encodeHTML(this._text));
 			else
 			this.div.innerHTML=this._text;
-		});
-
-		__getset(0,__proto,'font',function(){
-			return this.div.style.font;
-			},function(value){
-			this.div.style.font=value;
-		});
-
-		__getset(0,__proto,'italic',function(){
-			return this.div.style.italic;
-			},function(value){
-			this.div.style.italic=value;
-		});
-
-		__getset(0,__proto,'valign',function(){
-			return this.div.style.valign;
-			},function(value){
-			this.div.style.valign=value;
-		});
-
-		__getset(0,__proto,'fontSize',function(){
-			return this.div.style.fontSize;
-			},function(value){
-			this.div.style.fontSize=value;
 		});
 
 		__getset(0,__proto,'color',function(){
@@ -11065,28 +11048,46 @@
 			}
 		});
 
-		__getset(0,__proto,'strokeColor',function(){
-			return this.div.style.strokeColor;
+		__getset(0,__proto,'font',function(){
+			return this.div.style.font;
 			},function(value){
-			this.div.style.strokeColor=value;
+			this.div.style.font=value;
 		});
 
-		__getset(0,__proto,'align',function(){
-			return this.div.style.align;
+		__getset(0,__proto,'leading',function(){
+			return this.div.style.leading;
 			},function(value){
-			this.div.style.align=value;
+			this.div.style.leading=value;
 		});
 
-		__getset(0,__proto,'bold',function(){
-			return this.div.style.bold;
+		__getset(0,__proto,'fontSize',function(){
+			return this.div.style.fontSize;
 			},function(value){
-			this.div.style.bold=value;
+			this.div.style.fontSize=value;
+		});
+
+		__getset(0,__proto,'valign',function(){
+			return this.div.style.valign;
+			},function(value){
+			this.div.style.valign=value;
+		});
+
+		__getset(0,__proto,'italic',function(){
+			return this.div.style.italic;
+			},function(value){
+			this.div.style.italic=value;
 		});
 
 		__getset(0,__proto,'stroke',function(){
 			return this.div.style.stroke;
 			},function(value){
 			this.div.style.stroke=value;
+		});
+
+		__getset(0,__proto,'strokeColor',function(){
+			return this.div.style.strokeColor;
+			},function(value){
+			this.div.style.strokeColor=value;
 		});
 
 		__getset(0,__proto,'ubbEnabled',function(){
@@ -11234,20 +11235,20 @@
 			_super.prototype.dispose.call(this);
 		}
 
-		__getset(0,__proto,'titleType',function(){
-			return this._titleType;
-			},function(value){
-			if(this._titleType !=value){
-				this._titleType=value;
-				this.update(this._value);
-			}
-		});
-
 		__getset(0,__proto,'max',function(){
 			return this._max;
 			},function(value){
 			if(this._max !=value){
 				this._max=value;
+				this.update(this._value);
+			}
+		});
+
+		__getset(0,__proto,'titleType',function(){
+			return this._titleType;
+			},function(value){
+			if(this._titleType !=value){
+				this._titleType=value;
 				this.update(this._value);
 			}
 		});
@@ -11628,10 +11629,6 @@
 			return this._modalWaitPane && this._modalWaitPane.inContainer;
 		});
 
-		__getset(0,__proto,'hasAnyPopup',function(){
-			return this._popupStack.length !=0;
-		});
-
 		__getset(0,__proto,'focus',function(){
 			if (this._focusedObject && !this._focusedObject.onStage)
 				this._focusedObject=null;
@@ -11640,6 +11637,10 @@
 			if (value && (!value.focusable || !value.onStage))
 				throw "invalid focus target";
 			this.setFocus(value);
+		});
+
+		__getset(0,__proto,'hasAnyPopup',function(){
+			return this._popupStack.length !=0;
 		});
 
 		__getset(0,__proto,'volumeScale',function(){
@@ -11692,60 +11693,19 @@
 				this.input.restrict=str;
 			if(xml.getAttribute("password")=="true")
 				this.password=true;
+			else{
+				str=xml.getAttribute("keyboardType");
+				if(str=="4")
+					this.keyboardType="number";
+				else if(str=="3")
+				this.keyboardType="url";
+			}
 		}
 
-		__getset(0,__proto,'leading',function(){
-			return this.input.leading;
+		__getset(0,__proto,'bold',function(){
+			return this.input.bold;
 			},function(value){
-			this.input.leading=value;
-		});
-
-		__getset(0,__proto,'text',function(){
-			return this.input.text;
-			},function(value){
-			this.input.text=value;
-		});
-
-		__getset(0,__proto,'font',function(){
-			return this.input.font;
-			},function(value){
-			this.input.font=value;
-		});
-
-		__getset(0,__proto,'italic',function(){
-			return this.input.italic;
-			},function(value){
-			this.input.italic=value;
-		});
-
-		__getset(0,__proto,'maxLength',function(){
-			return this.input.maxChars;
-			},function(value){
-			this.input.maxChars=value;
-		});
-
-		__getset(0,__proto,'valign',function(){
-			return this.input.valign;
-			},function(value){
-			this.input.valign=value;
-		});
-
-		__getset(0,__proto,'fontSize',function(){
-			return this.input.fontSize;
-			},function(value){
-			this.input.fontSize=value;
-		});
-
-		__getset(0,__proto,'color',function(){
-			return this.input.color;
-			},function(value){
-			this.input.color=value;
-		});
-
-		__getset(0,__proto,'strokeColor',function(){
-			return this.input.strokeColor;
-			},function(value){
-			this.input.strokeColor=value;
+			this.input.bold=value;
 		});
 
 		__getset(0,__proto,'align',function(){
@@ -11754,10 +11714,61 @@
 			this.input.align=value;
 		});
 
-		__getset(0,__proto,'bold',function(){
-			return this.input.bold;
+		__getset(0,__proto,'text',function(){
+			return this.input.text;
 			},function(value){
-			this.input.bold=value;
+			this.input.text=value;
+		});
+
+		__getset(0,__proto,'password',function(){
+			return this.input.type=="password";
+			},function(value){
+			if (value)
+				this.input.type="password";
+			else
+			this.input.type="text";
+		});
+
+		__getset(0,__proto,'color',function(){
+			return this.input.color;
+			},function(value){
+			this.input.color=value;
+		});
+
+		__getset(0,__proto,'font',function(){
+			return this.input.font;
+			},function(value){
+			this.input.font=value;
+		});
+
+		__getset(0,__proto,'leading',function(){
+			return this.input.leading;
+			},function(value){
+			this.input.leading=value;
+		});
+
+		__getset(0,__proto,'maxLength',function(){
+			return this.input.maxChars;
+			},function(value){
+			this.input.maxChars=value;
+		});
+
+		__getset(0,__proto,'fontSize',function(){
+			return this.input.fontSize;
+			},function(value){
+			this.input.fontSize=value;
+		});
+
+		__getset(0,__proto,'valign',function(){
+			return this.input.valign;
+			},function(value){
+			this.input.valign=value;
+		});
+
+		__getset(0,__proto,'italic',function(){
+			return this.input.italic;
+			},function(value){
+			this.input.italic=value;
 		});
 
 		__getset(0,__proto,'singleLine',function(){
@@ -11772,13 +11783,16 @@
 			this.input.stroke=value;
 		});
 
-		__getset(0,__proto,'password',function(){
-			return this.input.type=="password";
+		__getset(0,__proto,'strokeColor',function(){
+			return this.input.strokeColor;
 			},function(value){
-			if (value)
-				this.input.type="password";
-			else
-			this.input.type="text";
+			this.input.strokeColor=value;
+		});
+
+		__getset(0,__proto,'keyboardType',function(){
+			return this.input.type;
+			},function(value){
+			this.input.type=value;
 		});
 
 		__getset(0,__proto,'editable',function(){
@@ -12090,12 +12104,6 @@
 			Laya.stage.off("mouseup",this,this.__gripMouseUp);
 		}
 
-		__getset(0,__proto,'titleType',function(){
-			return this._titleType;
-			},function(value){
-			this._titleType=value;
-		});
-
 		__getset(0,__proto,'max',function(){
 			return this._max;
 			},function(value){
@@ -12103,6 +12111,12 @@
 				this._max=value;
 				this.update();
 			}
+		});
+
+		__getset(0,__proto,'titleType',function(){
+			return this._titleType;
+			},function(value){
+			this._titleType=value;
 		});
 
 		__getset(0,__proto,'value',function(){
@@ -12307,12 +12321,6 @@
 			this.startDrag();
 		}
 
-		__getset(0,__proto,'contentArea',function(){
-			return this._contentArea;
-			},function(value){
-			this._contentArea=value;
-		});
-
 		__getset(0,__proto,'contentPane',function(){
 			return this._contentPane;
 			},function(val){
@@ -12334,18 +12342,18 @@
 			}
 		});
 
-		__getset(0,__proto,'frame',function(){
-			return this._frame;
+		__getset(0,__proto,'isShowing',function(){
+			return this.parent !=null;
 		});
 
-		__getset(0,__proto,'closeButton',function(){
-			return this._closeButton;
-			},function(value){
-			if(this._closeButton !=null)
-				this._closeButton.offClick(this,this.closeEventHandler);
-			this._closeButton=value;
-			if(this._closeButton !=null)
-				this._closeButton.onClick(this,this.closeEventHandler);
+		__getset(0,__proto,'isTop',function(){
+			return this.parent !=null && this.parent.getChildIndex(this)==this.parent.numChildren-1;
+		});
+
+		__getset(0,__proto,'modal',function(){
+			return this._modal;
+			},function(val){
+			this._modal=val;
 		});
 
 		__getset(0,__proto,'dragArea',function(){
@@ -12366,18 +12374,24 @@
 			}
 		});
 
-		__getset(0,__proto,'modal',function(){
-			return this._modal;
-			},function(val){
-			this._modal=val;
+		__getset(0,__proto,'frame',function(){
+			return this._frame;
 		});
 
-		__getset(0,__proto,'isShowing',function(){
-			return this.parent !=null;
+		__getset(0,__proto,'closeButton',function(){
+			return this._closeButton;
+			},function(value){
+			if(this._closeButton !=null)
+				this._closeButton.offClick(this,this.closeEventHandler);
+			this._closeButton=value;
+			if(this._closeButton !=null)
+				this._closeButton.onClick(this,this.closeEventHandler);
 		});
 
-		__getset(0,__proto,'isTop',function(){
-			return this.parent !=null && this.parent.getChildIndex(this)==this.parent.numChildren-1;
+		__getset(0,__proto,'contentArea',function(){
+			return this._contentArea;
+			},function(value){
+			this._contentArea=value;
 		});
 
 		__getset(0,__proto,'modalWaiting',function(){
@@ -12485,6 +12499,15 @@
 			this.repaint();
 		}
 
+		__getset(0,__proto,'scaleByTile',function(){
+			return this._scaleByTile;
+			},function(value){
+			if(this._scaleByTile!=value){
+				this._scaleByTile=value;
+				this.markChanged();
+			}
+		});
+
 		__getset(0,__proto,'texture',function(){
 			return this._texture;
 			},function(value){
@@ -12503,15 +12526,6 @@
 			},function(value){
 			this._scale9Grid=value;
 			this.markChanged();
-		});
-
-		__getset(0,__proto,'scaleByTile',function(){
-			return this._scaleByTile;
-			},function(value){
-			if(this._scaleByTile!=value){
-				this._scaleByTile=value;
-				this.markChanged();
-			}
 		});
 
 		Image.getTexture=function(source,x,y,width,height){
@@ -12633,10 +12647,6 @@
 				Laya.timer.clear(this,this.update);
 		}
 
-		__getset(0,__proto,'frameCount',function(){
-			return this._frameCount;
-		});
-
 		__getset(0,__proto,'frames',function(){
 			return this._frames;
 			},function(value){
@@ -12658,6 +12668,21 @@
 			this._playState.rewind();
 		});
 
+		__getset(0,__proto,'playing',function(){
+			return this._playing;
+			},function(value){
+			this._playing=value;
+			if(value && this.stage!=null){
+				Laya.timer.frameLoop(1,this,this.update);
+				}else {
+				Laya.timer.clear(this,this.update);
+			}
+		});
+
+		__getset(0,__proto,'frameCount',function(){
+			return this._frameCount;
+		});
+
 		__getset(0,__proto,'boundsRect',function(){
 			return this._boundsRect;
 			},function(value){
@@ -12674,20 +12699,9 @@
 			}
 		});
 
-		__getset(0,__proto,'playing',function(){
-			return this._playing;
-			},function(value){
-			this._playing=value;
-			if(value && this.stage!=null){
-				Laya.timer.frameLoop(1,this,this.update);
-				}else {
-				Laya.timer.clear(this,this.update);
-			}
-		});
-
 		return MovieClip;
 	})(Sprite)
 
 
-	Laya.__init([UIPackage,GBasicTextField,Transition,Controller,GearAnimation,GearLook,GearSize,RelationItem,ScrollPane]);
+	Laya.__init([Transition,UIPackage,ScrollPane,GBasicTextField,Controller,GearAnimation,GearLook,GearSize,RelationItem]);
 })(window,document,Laya);

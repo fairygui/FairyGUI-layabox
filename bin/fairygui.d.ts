@@ -834,6 +834,7 @@ declare module fairygui {
         restrict: string;
         promptText: string;
         textWidth: number;
+        keyboardType: string;
         protected handleSizeChanged(): void;
     }
 }

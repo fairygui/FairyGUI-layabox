@@ -341,14 +341,10 @@ package fairygui {
                     }
                 }
 
-                if (this._content is Image) {
-                    this._content.width = this._contentWidth;
-                    this._content.height = this._contentHeight;
-                }
-                else {
-                    this._content.scaleX = sx;
-                    this._content.scaleY = sy;
-                }
+                if (this._content is Image)
+					Image(this._content).scaleTexture(sx, sy);
+                else
+                    this._content.scale(sx, sy);
 
                 if (this._align == "center")
                     this._content.x = Math.floor((this.width - this._contentWidth) / 2);
