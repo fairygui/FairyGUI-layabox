@@ -7845,6 +7845,8 @@
 		}
 
 		__proto.updateFromRelations=function(dx,dy){
+			if(this._controller==null || this._storage==null)
+				return;
 			for(var key in this._storage){
 				var gv=this._storage[key];
 				gv.width+=dx;
@@ -8375,6 +8377,8 @@
 		}
 
 		__proto.updateFromRelations=function(dx,dy){
+			if(this._controller==null || this._storage==null)
+				return;
 			for (var key in this._storage){
 				var pt=this._storage[key];
 				pt.x+=dx;

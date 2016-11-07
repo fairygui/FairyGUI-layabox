@@ -101,6 +101,9 @@ package fairygui {
         }
 
         override public function updateFromRelations(dx: Number, dy: Number): void {
+			if(this._controller==null || this._storage==null)
+				return;
+			
             for (var key:String in this._storage) {
                 var pt: Point = this._storage[key];
                 pt.x += dx;
