@@ -117,6 +117,9 @@ package fairygui {
         }
         
         override public function updateFromRelations(dx: Number,dy: Number): void {
+			if(this._controller==null || this._storage==null)
+				return;
+				
             for(var key:String in this._storage) {
                 var gv: GearSizeValue = this._storage[key];
                 gv.width += dx;

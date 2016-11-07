@@ -1,5 +1,7 @@
 package fairygui {
 	import fairygui.utils.ToolSet;
+	
+	import laya.display.Input;
 
     public class GLabel extends GComponent {
         protected var _titleObject: GObject;
@@ -112,6 +114,11 @@ package fairygui {
 					str = xml.getAttribute("password");
 					if(str)
 						GTextInput(_titleObject).password = str=="true";
+					str = xml.getAttribute("keyboardType");
+					if(str=="4")
+						GTextInput(_titleObject).keyboardType = Input.TYPE_NUMBER;
+					else if(str=="3")
+						GTextInput(_titleObject).keyboardType = Input.TYPE_URL;
                 }
             }
         }

@@ -111,7 +111,7 @@ package fairygui {
         }
 
 		public function get password(): Boolean {
-			return input.type=="password";
+			return this.input.type=="password";
         }
 
 		public function set password(value: Boolean):void {
@@ -120,6 +120,14 @@ package fairygui {
 			else
 				this.input.type = "text";
         }
+		
+		public function get keyboardType(): String {
+			return this.input.type;
+		}
+		
+		public function set keyboardType(value: String):void {
+			this.input.type = value;
+		}
         
         public function set editable(value:Boolean):void {
             this.input.editable = value;
@@ -176,6 +184,14 @@ package fairygui {
 				this.input.restrict = str;
 			if(xml.getAttribute("password")=="true")
 				this.password = true;
+			else
+			{
+				str = xml.getAttribute("keyboardType");
+				if(str=="4")
+					this.keyboardType = Input.TYPE_NUMBER;
+				else if(str=="3")
+					this.keyboardType = Input.TYPE_URL;
+			}
 		}
     }
 }
