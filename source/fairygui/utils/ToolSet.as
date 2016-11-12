@@ -6,8 +6,6 @@ package fairygui.utils {
 	import laya.utils.Ease;
 
     public class ToolSet {
-        public static var GRAY_FILTERS_MATRIX:Array = [0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0,0,0,1,0];
-        
         public function ToolSet() {
         }
 
@@ -196,6 +194,24 @@ package fairygui.utils {
 			if (!ret)
 				ret = Ease.quartOut;
 			return ret;
+		}
+		
+		public static function clamp(value:Number, min:Number, max:Number):Number
+		{
+			if(value<min)
+				value = min;
+			else if(value>max)
+				value = max;
+			return value;
+		}
+		
+		public static function clamp01(value:Number):Number
+		{
+			if(value>1)
+				value = 1;
+			else if(value<0)
+				value = 0;
+			return value;
 		}
     }
 }

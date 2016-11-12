@@ -273,7 +273,7 @@ package fairygui {
                 this.selected = this._pageOption.id == c.selectedPageId;
         }
         
-		override protected function handleGrayChanged(): void {
+		override protected function handleGrayedChanged(): void {
             if(this._buttonController && this._buttonController.hasPage(GButton.DISABLED)) {
                 if(this.grayed) {
                     if(this._selected && this._buttonController.hasPage(GButton.SELECTED_DISABLED))
@@ -287,7 +287,7 @@ package fairygui {
                     this.setState(GButton.UP);
             }
             else
-                super.handleGrayChanged();
+                super.handleGrayedChanged();
         }
 
 		override protected function constructFromXML(xml: Object): void {
@@ -317,7 +317,11 @@ package fairygui {
             this._buttonController = this.getController("button");
             this._titleObject = this.getChild("title");
             this._iconObject = this.getChild("icon");
-
+			if (this._titleObject != null)
+				this._title = this._titleObject.text;
+			if (this._iconObject != null)
+				this._icon = this._iconObject.icon;
+			
             if (this._mode == ButtonMode.Common)
                 this.setState(GButton.UP);
                 

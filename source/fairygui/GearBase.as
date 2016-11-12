@@ -94,10 +94,7 @@ package fairygui {
 				if(str)
 				{
 					var arr:Array = str.split(",");
-					for each(str in arr)
-					{
-						GearDisplay(this).pages.push(str);
-					}
+					GearDisplay(this).pages = arr;
 				}
 			}
 			else

@@ -325,26 +325,17 @@ package fairygui {
 
         private function adjustModalLayer(): void {
             var cnt: Number = this.numChildren;
-            var modalLayerIsTop: Boolean = false;
 
             if (this._modalWaitPane != null && this._modalWaitPane.parent != null)
                 this.setChildIndex(this._modalWaitPane, cnt - 1);
 
             for(var i: Number = cnt - 1;i >= 0;i--) {
                 var g: GObject = this.getChildAt(i);
-                if(g == this._modalLayer)
-                    modalLayerIsTop = true;
-                else if((g is Window) && Window(g).modal) {
+                if((g is Window) && Window(g).modal) {
                     if(this._modalLayer.parent == null)
                         this.addChildAt(this._modalLayer,i);
-                    else if(i > 0) {
-                        if(modalLayerIsTop)
-                            this.setChildIndex(this._modalLayer,i);
-                        else
-                            this.setChildIndex(this._modalLayer,i - 1);
-                    }
                     else
-                        this.addChildAt(this._modalLayer,0);
+						this.setChildIndexBefore(this._modalLayer, i);
                     return;
                 }
             }

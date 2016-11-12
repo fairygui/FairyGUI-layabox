@@ -19,6 +19,7 @@ package fairygui {
             this._agent.draggable = true;
             this._agent.touchable = false;//important
             this._agent.setSize(100,100);
+			this._agent.setPivot(0.5, 0.5, true);
             this._agent.sortingOrder = 1000000;
             this._agent.on(Events.DRAG_END, this, this.__dragEnd);
         }
@@ -38,7 +39,7 @@ package fairygui {
             this._sourceData = sourceData;
             this._agent.url = icon;
             GRoot.inst.addChild(this._agent);
-            var pt: Point = source.localToGlobal();
+            var pt: Point = GRoot.inst.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY);
             this._agent.setXY(pt.x,pt.y);
             this._agent.startDrag(touchPointID);
         }

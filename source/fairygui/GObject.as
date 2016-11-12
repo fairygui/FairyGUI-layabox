@@ -1,5 +1,5 @@
 package fairygui {
-	import fairygui.utils.ToolSet;
+	import fairygui.utils.ColorMatrix;
 	
 	import laya.display.Sprite;
 	import laya.events.Event;
@@ -9,7 +9,9 @@ package fairygui {
 
     public class GObject {
         public var data: Object;
-
+		public var packageItem: PackageItem;
+		public static var draggingObject:GObject;
+		
         private var _x: Number = 0;
         private var _y: Number = 0;
         private var _width: Number = 0;
@@ -54,9 +56,7 @@ package fairygui {
         public var _initHeight: Number = 0;
         public var _id: String;
         public var _name: String;
-        public var _packageItem: PackageItem;
         public var _underConstruct: Boolean;
-        public var _constructingData: Object;
         public var _gearLocked: Boolean;
 
         public static var _gInstanceCounter: Number = 0;
@@ -118,6 +118,9 @@ package fairygui {
                     this._parent.setBoundsChangedFlag();
                     this.displayObject.event(Events.XY_CHANGED);
                 }
+				
+				if (draggingObject == this && !sUpdateInDragging)
+					this.localToGlobalRect(0,0,this.width,this.height,sGlobalRect);
             }
         }
 		
@@ -227,11 +230,11 @@ package fairygui {
         }
 
         public function get actualWidth(): Number {
-            return this.width * this._scaleX;
+            return this.width * Math.abs(this._scaleX);
         }
         
         public function get actualHeight(): Number {
-            return this.height * this._scaleY;
+            return this.height *  Math.abs(this._scaleY);
         }
 
         public function get scaleX(): Number {
@@ -377,7 +380,7 @@ package fairygui {
         public function set grayed(value: Boolean):void {
             if(this._grayed != value) {
                 this._grayed = value;
-                this.handleGrayChanged();
+                this.handleGrayedChanged();
 				this.updateGear(3);
             }
         }
@@ -443,7 +446,10 @@ package fairygui {
                 if (this._displayObject)
                     this._displayObject.visible = this._visible;
                 if (this._parent)
+				{
                     this._parent.childStateChanged(this);
+					this._parent.setBoundsChangedFlag();
+				}
             }
         }
 
@@ -509,6 +515,26 @@ package fairygui {
         public function set tooltips(value: String):void {
             this._tooltips = value;
         }
+		
+		public function get blendMode():String
+		{
+			return _displayObject.blendMode;
+		}
+		
+		public function set blendMode(value:String):void
+		{
+			_displayObject.blendMode = value;
+		}
+		
+		public function get filters():Array
+		{
+			return _displayObject.filters;
+		}
+		
+		public function set filters(value:Array):void
+		{
+			_displayObject.filters = value;
+		}
 
         public function get inContainer(): Boolean {
             return this._displayObject != null && this._displayObject.parent != null;
@@ -519,8 +545,8 @@ package fairygui {
         }
 
         public function get resourceURL(): String {
-            if (this._packageItem != null)
-                return "ui://" + this._packageItem.owner.id + this._packageItem.id;
+            if (this.packageItem != null)
+                return "ui://" + this.packageItem.owner.id + this.packageItem.id;
             else
                 return null;
         }
@@ -703,6 +729,11 @@ package fairygui {
 			return this as GComboBox;
 		}
 		
+		final public function get asImage():GImage
+		{
+			return this as GImage;
+		}
+		
 		final public function get asMovieClip():GMovieClip
 		{
 			return this as GMovieClip;
@@ -778,10 +809,16 @@ package fairygui {
         }
 
         public function get dragging(): Boolean {
-            return GObject.sDragging == this;
+            return GObject.draggingObject == this;
         }
 
         public function localToGlobal(ax:Number=0, ay:Number=0, resultPoint:Point=null): Point {
+			if(_pivotAsAnchor)
+			{
+				ax += _pivotX*_width;
+				ay += _pivotY*_height;
+			}
+			
             if(!resultPoint) {
                 resultPoint = GObject.sHelperPoint;
                 resultPoint.x = ax;
@@ -801,14 +838,22 @@ package fairygui {
                 resultPoint = GObject.sHelperPoint;
                 resultPoint.x = ax;
                 resultPoint.y = ay;
-                return this._displayObject.globalToLocal(resultPoint, true);
+				resultPoint = this._displayObject.globalToLocal(resultPoint, true);
             }
             else
             {
                 resultPoint.x = ax;
                 resultPoint.y = ay;
-                return this._displayObject.globalToLocal(resultPoint, false);
+				this._displayObject.globalToLocal(resultPoint, false);
             }
+			
+			if(_pivotAsAnchor)
+			{
+				resultPoint.x -= _pivotX*_width;
+				resultPoint.y -= _pivotY*_height;
+			}
+			
+			return resultPoint;
         }
         
         public function localToGlobalRect(ax: Number = 0,ay: Number = 0,
@@ -894,17 +939,17 @@ package fairygui {
 			}
 		}
 		
-        protected function handleGrayChanged(): void {
+        protected function handleGrayedChanged(): void {
             if(this._displayObject) {
                 if(this._grayed)
-                    this._displayObject.filters = [new ColorFilter(ToolSet.GRAY_FILTERS_MATRIX)];
+                    this._displayObject.filters = [ColorFilter.GRAY];
                 else
                     this._displayObject.filters = null;
             }
         }
 
-        public function constructFromResource(pkgItem: PackageItem): void {
-            this._packageItem = pkgItem;
+        public function constructFromResource(): void {
+
         }
 
         public function setup_beforeAdd(xml: Object): void {
@@ -962,6 +1007,29 @@ package fairygui {
             if(xml.getAttribute("grayed") == "true")
                 this.grayed = true;
             this.tooltips = xml.getAttribute("tooltips");
+			
+			str = xml.getAttribute("blend");
+			if (str)
+				this.blendMode = str;
+			
+			str = xml.@filter;
+			if (str)
+			{
+				switch (str)
+				{
+					case "color":
+						str = xml.@filterData;
+						arr = str.split(",");
+						var cm:ColorMatrix = new ColorMatrix();
+						cm.adjustBrightness(parseFloat(arr[0]));
+						cm.adjustContrast(parseFloat(arr[1]));
+						cm.adjustSaturation(parseFloat(arr[2]));
+						cm.adjustHue(parseFloat(arr[3]));
+						var cf:ColorFilter = new ColorFilter(cm);						
+						this.filters = [cf];
+						break;
+				}
+			}
         }
 
 		private static var GearXMLKeys:Object = {
@@ -995,12 +1063,12 @@ package fairygui {
 
         //drag support
         //-------------------------------------------------------------------
-        private static var sDragging: GObject;
         private static var sGlobalDragStart: Point = new Point();
         private static var sGlobalRect: Rectangle = new Rectangle();
         private static var sHelperPoint: Point = new Point();
         private static var sDragHelperRect: Rectangle = new Rectangle();
         private static var sDraggingQuery:Boolean;
+		private static var sUpdateInDragging:Boolean;
         
         private var _touchDownPoint: Point;
         
@@ -1012,24 +1080,24 @@ package fairygui {
         }
 
         private function dragBegin(): void {
-            if (GObject.sDragging != null)
-                GObject.sDragging.stopDrag();
+            if (GObject.draggingObject != null)
+                GObject.draggingObject.stopDrag();
 
             GObject.sGlobalDragStart.x = Laya.stage.mouseX;
             GObject.sGlobalDragStart.y = Laya.stage.mouseY;
 
             this.localToGlobalRect(0,0,this.width,this.height,GObject.sGlobalRect);
-            GObject.sDragging = this;
+            GObject.draggingObject = this;
 
             Laya.stage.on(Event.MOUSE_MOVE, this, this.__moving2);
             Laya.stage.on(Event.MOUSE_UP, this, this.__end2);
         }
 
         private function dragEnd(): void {
-            if (GObject.sDragging == this) {
+            if (GObject.draggingObject == this) {
                 Laya.stage.off(Event.MOUSE_MOVE, this, this.__moving2);
                 Laya.stage.off(Event.MOUSE_UP, this, this.__end2);
-                GObject.sDragging = null;
+                GObject.draggingObject = null;
             }
              GObject.sDraggingQuery = false;
         }
@@ -1092,14 +1160,16 @@ package fairygui {
                 }
             }
 
-            var pt: Point = this.parent.globalToLocal(xx,yy,GObject.sHelperPoint);
+			sUpdateInDragging = true;
+			var pt: Point = this.parent.globalToLocal(xx,yy,GObject.sHelperPoint);
             this.setXY(Math.round(pt.x),Math.round(pt.y));
-            
-             Events.dispatch(Events.DRAG_MOVE, this._displayObject, evt);
+			sUpdateInDragging = false;
+			
+            Events.dispatch(Events.DRAG_MOVE, this._displayObject, evt);
         }
 
         private function __end2(evt:Event): void {
-            if (GObject.sDragging == this) {
+            if (GObject.draggingObject == this) {
                 this.stopDrag();
                 Events.dispatch(Events.DRAG_END, this._displayObject, evt);
             }

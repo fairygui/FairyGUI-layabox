@@ -46,8 +46,10 @@ package fairygui {
                 return;
 
             var arr: Array = this._pool[url];
-            if (!arr)
-                return;
+			if (arr == null) {
+				arr = [];
+				this._pool[url] = arr;
+			}
 
             this._count++;
             arr.push(obj);

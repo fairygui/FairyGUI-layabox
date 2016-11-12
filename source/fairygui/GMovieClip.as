@@ -54,22 +54,20 @@ package fairygui {
             this.movieClip.setPlaySettings(start, end, times, endAt, endHandler);
         }
 
-		override public function constructFromResource(pkgItem: PackageItem): void {
-            this._packageItem = pkgItem;
-
-            this._sourceWidth = this._packageItem.width;
-            this._sourceHeight = this._packageItem.height;
+		override public function constructFromResource(): void {
+            this._sourceWidth = this.packageItem.width;
+            this._sourceHeight = this.packageItem.height;
             this._initWidth = this._sourceWidth;
             this._initHeight = this._sourceHeight;
 
             this.setSize(this._sourceWidth, this._sourceHeight);
 
-            pkgItem.load();
+			this.packageItem.load();
 
-            this.movieClip.interval = this._packageItem.interval;
-			this.movieClip.swing = this._packageItem.swing;
-			this.movieClip.repeatDelay = this._packageItem.repeatDelay;
-            this.movieClip.frames = this._packageItem.frames;
+            this.movieClip.interval = this.packageItem.interval;
+			this.movieClip.swing = this.packageItem.swing;
+			this.movieClip.repeatDelay = this.packageItem.repeatDelay;
+            this.movieClip.frames = this.packageItem.frames;
             this.movieClip.boundsRect = new Rectangle(0, 0, this.sourceWidth, this.sourceHeight);
         }
 

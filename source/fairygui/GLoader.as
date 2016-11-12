@@ -210,7 +210,8 @@ package fairygui {
                             this._displayObject.addChild(this._content);
                         Image(this._content).texture = this._contentItem.texture;
                         Image(this._content).scale9Grid = this._contentItem.scale9Grid;
-                        Image(this._content).scaleByTile = this._contentItem.scaleByTile
+                        Image(this._content).scaleByTile = this._contentItem.scaleByTile;
+						Image(this._content).tileGridIndice =  this._contentItem.tileGridIndice;
                         this._contentSourceWidth = this._contentItem.width;
                         this._contentSourceHeight = this._contentItem.height;
                         this.updateLayout();
@@ -325,21 +326,28 @@ package fairygui {
             }
             else {
                 var sx: Number = 1, sy: Number = 1;
-                if (this._fill == FillType.Scale || this._fill == FillType.ScaleFree) {
-                    sx = this.width / this._contentSourceWidth;
-                    sy = this.height / this._contentSourceHeight;
-
-                    if (sx != 1 || sy != 1) {
-                        if (this._fill == FillType.Scale) {
-                            if (sx > sy)
-                                sx = sy;
-                            else
-                                sy = sx;
-                        }
-                        this._contentWidth = this._contentSourceWidth * sx;
-                        this._contentHeight = this._contentSourceHeight * sy;
-                    }
-                }
+				if(_fill!=LoaderFillType.None)
+				{
+					sx = this.width/_contentSourceWidth;
+					sy = this.height/_contentSourceHeight;
+					
+					if(sx!=1 || sy!=1)
+					{
+						if (_fill == LoaderFillType.ScaleMatchHeight)
+							sx = sy;
+						else if (_fill == LoaderFillType.ScaleMatchWidth)
+							sy = sx;
+						else if (_fill == LoaderFillType.Scale)
+						{
+							if (sx > sy)
+								sx = sy;
+							else
+								sy = sx;
+						}
+						_contentWidth = _contentSourceWidth * sx;
+						_contentHeight = _contentSourceHeight * sy;
+					}
+				}
 
                 if (this._content is Image)
 					Image(this._content).scaleTexture(sx, sy);
@@ -397,7 +405,7 @@ package fairygui {
 
             str = xml.getAttribute("fill");
             if (str)
-                this._fill = FillType.parse(str);
+                this._fill = LoaderFillType.parse(str);
 
             this._autoSize = xml.getAttribute("autoSize") == "true";
 

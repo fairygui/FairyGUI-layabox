@@ -1,25 +1,29 @@
 package fairygui {
 	import fairygui.utils.ToolSet;
 	
+	import laya.display.Input;
 	import laya.events.Event;
 	import laya.utils.Log;
 
     public class GComboBox extends GComponent {
-		public var dropdown: GComponent;
+		public var dropdown:GComponent;
 		
-        protected var _titleObject: GTextField;
-        protected var _list: GList;
-
-        private var _visibleItemCount: Number = 0;
-        private var _items:Array;
-        private var _values:Array;
-        private var _itemsUpdated: Boolean;
-        private var _selectedIndex: Number = 0;
-        private var _buttonController: Controller;
-		private var _popupDownward:* = true;
+		protected var _titleObject:GObject;
+		protected var _iconObject:GObject;
+		protected var _list:GList;
 		
-        private var _over: Boolean;
-        private var _down: Boolean;
+		protected var _items:Array;
+		protected var _icons:Array;
+		protected var _values:Array;
+		protected var _popupDownward:Object;
+		
+		private var _visibleItemCount:int;
+		private var _itemsUpdated:Boolean;
+		private var _selectedIndex:int;
+		private var _buttonController:Controller;
+		
+		private var _down:Boolean;
+		private var _over:Boolean;
 
         public function GComboBox() {
             super();
@@ -43,18 +47,43 @@ package fairygui {
 			this.updateGear(6);
         }
 
-        public function get titleColor(): String {
-            if (this._titleObject)
-                return this._titleObject.color;
-            else
-                return "#000000";
-        }
-
-        public function set titleColor(value: String):void {
-            if (this._titleObject)
-                this._titleObject.color = value;
-        }
-
+		final public function get titleColor():String
+		{
+			if(_titleObject is GTextField)
+				return GTextField(_titleObject).color;
+			else if(_titleObject is GLabel)
+				return GLabel(_titleObject).titleColor;
+			else if(_titleObject is GButton)
+				return GButton(_titleObject).titleColor;
+			else
+				return "#000000";
+		}
+		
+		public function set titleColor(value:String):void
+		{
+			if(_titleObject is GTextField)
+				GTextField(_titleObject).color = value;
+			else if(_titleObject is GLabel)
+				GLabel(_titleObject).titleColor = value;
+			else if(_titleObject is GButton)
+				GButton(_titleObject).titleColor = value;
+		}
+		
+		final override public function get icon():String
+		{
+			if(_iconObject)
+				return _iconObject.icon;
+			else
+				return null;
+		}
+		
+		override public function set icon(value:String):void
+		{
+			if(_iconObject)
+				_iconObject.icon = value;
+			updateGear(7);
+		}
+		
         public function get visibleItemCount(): Number {
             return this._visibleItemCount;
         }
@@ -77,24 +106,45 @@ package fairygui {
             return this._items;
         }
 
-        public function set items(value: Array):void {
-            if (!value)
-                this._items.length = 0;
-            else
-                this._items = value.concat();
-            if(this._items.length > 0) {
-                if(this._selectedIndex >= this._items.length)
-                    this._selectedIndex = this._items.length - 1;
-                else if(this._selectedIndex == -1)
-                    this._selectedIndex = 0;
-
-                this.text = this._items[this._selectedIndex];
-            }
-            else
-                this.text = "";
-            this._itemsUpdated = true;
-        }
-
+		public function set items(value:Array):void
+		{
+			if(!value)
+				_items.length = 0;
+			else
+				_items = value.concat();
+			if(_items.length>0)
+			{
+				if(_selectedIndex>=_items.length)
+					_selectedIndex = _items.length-1;
+				else if(_selectedIndex==-1)
+					_selectedIndex = 0;
+				
+				this.text = _items[_selectedIndex];
+				if (_icons != null && _selectedIndex < _icons.length)
+					this.icon = _icons[_selectedIndex];
+			}
+			else
+			{
+				this.text = "";
+				if (_icons != null)
+					this.icon = null;
+				_selectedIndex = -1;
+			}
+			_itemsUpdated = true;
+		}
+		
+		final public function get icons():Array
+		{
+			return _icons;
+		}
+		
+		public function set icons(value:Array):void
+		{
+			_icons = value;
+			if (_icons != null && _selectedIndex != -1 && _selectedIndex < _icons.length)
+				this.icon = _icons[_selectedIndex];
+		}
+		
         public function get values(): Array {
             return this._values;
         }
@@ -106,20 +156,29 @@ package fairygui {
                 this._values = value.concat();
         }
 
-        public function get selectedIndex(): Number {
+        public function get selectedIndex(): int {
             return this._selectedIndex;
         }
 
-        public function set selectedIndex(val: Number):void {
-            if (this._selectedIndex == val)
-                return;
-
-            this._selectedIndex = val;
-            if (this.selectedIndex >= 0 && this.selectedIndex < this._items.length)
-                this.text = this._items[this._selectedIndex];
-            else
-                this.text = "";
-        }
+		public function set selectedIndex(val:int):void
+		{
+			if(_selectedIndex==val)
+				return;
+			
+			_selectedIndex = val;
+			if(_selectedIndex>=0 && _selectedIndex<_items.length)
+			{
+				this.text = _items[_selectedIndex];
+				if (_icons != null && _selectedIndex < _icons.length)
+					this.icon = _icons[_selectedIndex];
+			}
+			else
+			{
+				this.text = "";
+				if (_icons != null)
+					this.icon = null;
+			}
+		}
 
         public function get value(): String {
             return this._values[this._selectedIndex];
@@ -202,6 +261,13 @@ package fairygui {
                     if(cxml.nodeName=="item") {
                         this._items.push(cxml.getAttribute("title"));
                         this._values.push(cxml.getAttribute("value"));
+						str = cxml.getAttribute("icon");
+						if (str)
+						{
+							if(!_icons)
+								_icons = new Array(length);
+							_icons[i] = str;
+						}
                     }
                 }
 
@@ -218,6 +284,10 @@ package fairygui {
                 }
                 else
                     this._selectedIndex = -1;
+				
+				str = xml.getAttribute("icon");
+				if(str)
+					this.icon = str;
 				
 				str = xml.getAttribute("direction");
 				if(str)
@@ -240,6 +310,7 @@ package fairygui {
                     var item: GObject = this._list.addItemFromPool();
                     item.name = i < this._values.length ? this._values[i] : "";
                     item.text = this._items[i];
+					item.icon = (_icons != null && i < _icons.length) ? _icons[i] : null;
                 }
                 this._list.resizeToFit(this._visibleItemCount);
             }
@@ -266,11 +337,8 @@ package fairygui {
             if (this.dropdown.parent is GRoot)
                 GRoot(this.dropdown.parent).hidePopup();
 
-            this._selectedIndex = index;
-            if (this._selectedIndex >= 0)
-                this.text = this._items[this._selectedIndex];
-            else
-                this.text = "";
+            this._selectedIndex = -1;
+            this.selectedIndex = index;
             Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
         }
 
@@ -291,6 +359,9 @@ package fairygui {
         }
 
         private function __mousedown(evt:Event): void {
+			if(evt.target is Input)
+				return;
+			
             this._down = true;
             GRoot.inst.checkPopups(evt.target);
             

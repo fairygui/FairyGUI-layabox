@@ -548,8 +548,8 @@ package fairygui {
             }
         }
 
-		override protected function handleGrayChanged(): void {
-            super.handleGrayChanged();
+		override protected function handleGrayedChanged(): void {
+            super.handleGrayedChanged();
             
             if(this.grayed)
                 this.textField.color = "#AAAAAA";
@@ -644,7 +644,7 @@ class TextExt extends Text
 		super.typeset();
 		this._owner.typeset();
 		if(this._isChanged) {
-			Laya.timer.clear(super, super.typeset);
+			Laya.timer.clear(this, this.typeset);
 			this._isChanged = false;
 		}
 	}
