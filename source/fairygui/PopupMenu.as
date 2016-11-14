@@ -168,14 +168,13 @@ package fairygui {
         }
                     
         private function __clickItem2(itemObject:GObject): void {
-            var item: GButton = itemObject.asButton;
-            if(item == null)
+            if(!(itemObject is GButton))
                 return;
-            if(item.grayed) {
+            if(itemObject.grayed) {
                 this._list.selectedIndex = -1;
                 return;
             }
-            var c: Controller = item.getController("checked");
+            var c: Controller = itemObject.asCom.getController("checked");
             if(c != null && c.selectedIndex != 0) {
                 if(c.selectedIndex == 1)
                     c.selectedIndex = 2;
@@ -184,8 +183,8 @@ package fairygui {
             }
             var r: GRoot = GRoot(this._contentPane.parent);
             r.hidePopup(this.contentPane);
-            if(item.data != null) {
-                Handler(item.data).run();
+            if(itemObject.data != null) {
+                Handler(itemObject.data).run();
             }
         }
 

@@ -60,7 +60,6 @@ package fairygui {
         private var _x2: Number;
         private var _xOffset: Number;
 
-        public var _isMouseMoved: Boolean;
         private var _holdAreaPoint: Point;
         private var _isHoldAreaDone: Boolean;
         private var _aniFlag: int;
@@ -69,6 +68,7 @@ package fairygui {
         private var _hzScrollBar: GScrollBar;
         private var _vtScrollBar: GScrollBar;
 		
+		public var isDragged: Boolean;
 		public static var draggingPane:ScrollPane;
 		private static var _gestureFlag:int = 0;
         
@@ -479,7 +479,8 @@ package fairygui {
 				draggingPane = null;
 			
 			_gestureFlag = 0;
-			_isMouseMoved = false;
+			isDragged = false;
+			this._maskContainer.mouseEnabled = true;
 		}
 		
 		internal function onOwnerSizeChanged():void
@@ -561,7 +562,7 @@ package fairygui {
 			_contentWidth += deltaWidth;
 			_contentHeight += deltaHeight;
 			
-			if (_isMouseMoved)
+			if (isDragged)
 			{
 				if (deltaPosX != 0)
 					_container.x -= deltaPosX;
@@ -825,7 +826,7 @@ package fairygui {
             var contentXLoc:Number = Math.floor(_xPos);
             var contentYLoc:Number = Math.floor(_yPos);
 
-            if(this._aniFlag && !this._isMouseMoved) {
+            if(this._aniFlag==1 && !this.isDragged) {
                 var toX: Number = this._container.x;
                 var toY: Number = this._container.y;
                 if(_yOverlap>0)
@@ -859,7 +860,7 @@ package fairygui {
                 	this.killTween();
 
                 //如果在拖动的过程中Refresh，这里要进行处理，保证拖动继续正常进行
-                if(this._isMouseMoved) {
+                if(this.isDragged) {
                     this._xOffset += this._container.x - (-contentXLoc);
                     this._yOffset += this._container.y - (-contentYLoc);
                 }
@@ -867,7 +868,7 @@ package fairygui {
                 this._container.pos(-contentXLoc,-contentYLoc); 
 				
                 //如果在拖动的过程中Refresh，这里要进行处理，保证手指离开是滚动正常进行
-                if(this._isMouseMoved) {
+                if(this.isDragged) {
                     this._y1 = this._y2 = this._container.y;
                     this._x1 = this._x2 = this._container.x;
                 }
@@ -946,7 +947,7 @@ package fairygui {
             this._holdAreaPoint.x = ScrollPane.sHelperPoint.x;
             this._holdAreaPoint.y = ScrollPane.sHelperPoint.y;
             this._isHoldAreaDone = false;
-            this._isMouseMoved = false;
+            this.isDragged = false;
 
             this._owner.displayObject.stage.on(Event.MOUSE_MOVE, this, this.__mouseMove);
             this._owner.displayObject.stage.on(Event.MOUSE_UP, this, this.__mouseUp);
@@ -1081,10 +1082,10 @@ package fairygui {
                 }
             }
 
-			draggingPane = this;	
+			draggingPane = this;
             this._maskContainer.mouseEnabled = false;
             this._isHoldAreaDone = true;
-            this._isMouseMoved = true;
+            this.isDragged = true;
 			syncPos();
 			syncScrollBar();
             Events.dispatch(Events.SCROLL, this._owner.displayObject);
@@ -1096,7 +1097,7 @@ package fairygui {
             this._owner.displayObject.stage.off(Event.CLICK, this, this.__click);
             
             if (!this._touchEffect) {
-                this._isMouseMoved = false;
+                this.isDragged = false;
                 return;
             }
 
@@ -1105,13 +1106,13 @@ package fairygui {
 			
 			_gestureFlag = 0;
 			
-			if (!_isMouseMoved || !_touchEffect || _inertiaDisabled)
+			if (!isDragged || !_touchEffect || _inertiaDisabled)
 			{
-				_isMouseMoved = false;
+				isDragged = false;
 				return;
 			}
 			
-			_isMouseMoved = false;
+			isDragged = false;
 
             var time: Number = (Laya.timer.currTimer - this._time2) / 1000;
             if (time == 0)
@@ -1263,7 +1264,7 @@ package fairygui {
         }
         
         private function __click(): void {
-            this._isMouseMoved = false;
+            this.isDragged = false;
         }
         
         private function __mouseWheel(evt:Event):void {

@@ -37,6 +37,7 @@ package fairygui {
             super();
             this._playing = true;
             this._url = "";
+			this._fill = LoaderFillType.None;
             this._align = "left";
             this._valign = "top";
             this._showErrorSign = true;
@@ -51,7 +52,7 @@ package fairygui {
 
 		override public function dispose(): void {
             if(this._contentItem == null && (this._content is Image)) {
-                var texture: Texture = Image(this._content).texture;
+                var texture: Texture = Image(this._content).tex;
                 if(texture != null)
                     this.freeExternal(texture);
             }
@@ -208,7 +209,7 @@ package fairygui {
                         }
                         else
                             this._displayObject.addChild(this._content);
-                        Image(this._content).texture = this._contentItem.texture;
+                        Image(this._content).tex = this._contentItem.texture;
                         Image(this._content).scale9Grid = this._contentItem.scale9Grid;
                         Image(this._content).scaleByTile = this._contentItem.scaleByTile;
 						Image(this._content).tileGridIndice =  this._contentItem.tileGridIndice;
@@ -254,7 +255,7 @@ package fairygui {
             }
             else
                 this._displayObject.addChild(this._content);
-            Image(this._content).texture = texture;
+            Image(this._content).tex = texture;
            	Image(this._content).scale9Grid = null;
            	Image(this._content).scaleByTile = false;
             this._contentSourceWidth = texture.width;
@@ -372,7 +373,7 @@ package fairygui {
                 this._displayObject.removeChild(this._content);
                 
             if(this._contentItem == null && (this._content is Image)) {
-                var texture: Texture = Image(this._content).texture;
+                var texture: Texture = Image(this._content).tex;
                 if(texture != null)
                     this.freeExternal(texture);
             }

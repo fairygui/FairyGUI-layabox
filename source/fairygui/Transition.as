@@ -133,7 +133,7 @@ package fairygui {
 			if ((_options & OPTION_IGNORE_DISPLAY_CONTROLLER) != 0 && item.target != _owner)
 				item.target.internalVisible--;
 			
-			if (item.type == TransitionActionType.ColorFilter)
+			if (item.type == TransitionActionType.ColorFilter && item.filterCreated)
 				item.target.filters = null;
 			
             if(item.completed)
@@ -398,7 +398,7 @@ package fairygui {
         private function prepareValue(item: TransitionItem,toProps:Object,reversed: Boolean = false):void {
 			var startValue:TransitionValue;
 			var endValue:TransitionValue;
-			if(_reversed)
+			if(reversed)
 			{
 				startValue = item.endValue;
 				endValue = item.startValue;
@@ -438,8 +438,6 @@ package fairygui {
 					}
 					item.value.f1 = startValue.f1;
 					item.value.f2 = startValue.f2;
-					item.value.b1 = startValue.b1;
-					item.value.b2 = startValue.b2;
 					
 					if(!endValue.b1)
 						endValue.f1 = item.value.f1;
@@ -711,14 +709,15 @@ package fairygui {
                     break;				
 				case TransitionActionType.ColorFilter:
 					var arr:Array = item.target.filters;
-					if(!arr)
-						arr = [];
+					if(!arr || !(arr[0] is ColorFilter))
+						item.filterCreated = true;
+					
 					var cm:ColorMatrix = new ColorMatrix();
 					cm.adjustBrightness(value.f1);
 					cm.adjustContrast(value.f2);
 					cm.adjustSaturation(value.f3);
 					cm.adjustHue(value.f4);
-					arr[0] = new ColorFilter(cm);
+					arr = [new ColorFilter(cm)];
 					item.target.filters = arr;
 					break;
             }
@@ -757,8 +756,8 @@ package fairygui {
                 this._options = parseInt(str);
             str = xml.getAttribute("autoPlay");
             if(str)
-                this.autoPlay = str=="true";
-            if(this.autoPlay) {
+                this._autoPlay = str=="true";
+            if(this._autoPlay) {
                 str = xml.getAttribute("autoPlayRepeat");
                 if(str)
                     this.autoPlayRepeat = parseInt(str);

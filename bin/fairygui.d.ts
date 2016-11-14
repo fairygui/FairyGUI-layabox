@@ -98,7 +98,7 @@ declare module fairygui.display {
     class Image extends laya.display.Sprite {
         private static _textureCache;
         constructor();
-        texture: laya.resource.Texture;
+        tex: laya.resource.Texture;
         scaleTexture(x: number, y: number): void;
         scale9Grid: laya.maths.Rectangle;
         scaleByTile: boolean;
@@ -1118,6 +1118,7 @@ declare module fairygui {
         contentHeight: number;
         viewWidth: number;
         viewHeight: number;
+	isDragged: boolean;
         scrollTop(ani?: boolean): void;
         scrollBottom(ani?: boolean): void;
         scrollUp(speed?: number, ani?: boolean): void;
