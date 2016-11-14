@@ -62,7 +62,7 @@ package fairygui {
             this.image.scale9Grid = this.packageItem.scale9Grid;
             this.image.scaleByTile = this.packageItem.scaleByTile;
 			this.image.tileGridIndice = this.packageItem.tileGridIndice;
-            this.image.texture = this.packageItem.texture;
+            this.image.tex = this.packageItem.texture;
             this.setSize(this._sourceWidth, this._sourceHeight);
         }
         
@@ -75,7 +75,7 @@ package fairygui {
         }
 
 		override protected function handleSizeChanged(): void {
-            if(this.image.texture!=null) {
+            if(this.image.tex!=null) {
                 this.image.scaleTexture(this.width/this._sourceWidth, this.height/this._sourceHeight);
             }
         }

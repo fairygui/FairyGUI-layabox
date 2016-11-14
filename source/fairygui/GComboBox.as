@@ -211,7 +211,9 @@ package fairygui {
             var str: String;
 
             this._buttonController = this.getController("button");
-            this._titleObject = GTextField(this.getChild("title"));
+            this._titleObject = this.getChild("title");
+			this._iconObject = this.getChild("icon");
+			
             str = xml.getAttribute("dropdown");
             if (str) {
                 this.dropdown = GComponent(UIPackage.createObjectFromURL(str));

@@ -10,12 +10,12 @@ package fairygui.display {
         public var interval: Number = 0;
         public var swing: Boolean;
         public var repeatDelay: Number = 0;
-
+		private var playState: PlayState;
+		
         private var _texture: Texture;
         private var _needRebuild: Boolean;
 
         private var _playing: Boolean;
-        private var _playState: PlayState;
         private var _frameCount: Number = 0;
         private var _frames: Array;
         private var _currentFrame: Number = 0;
@@ -30,7 +30,7 @@ package fairygui.display {
         public function MovieClip() {
             super();
             
-            this._playState = new PlayState();
+            this.playState = new PlayState();
             this._playing = true;
             this.mouseEnabled = false;
             
@@ -63,7 +63,7 @@ package fairygui.display {
                 this.setFrame(this._frames[this._currentFrame]);
             else
                 this.setFrame(null);  
-			this._playState.rewind();
+			this.playState.rewind();
         }
 
         public function get frameCount(): Number {
@@ -85,7 +85,7 @@ package fairygui.display {
         public function set currentFrame(value: Number):void {
             if (this._currentFrame != value) {
                 this._currentFrame = value;
-                this._playState.currentFrame = value;
+                this.playState.currentFrame = value;
                 this.setFrame(this._currentFrame < this._frameCount ? this._frames[this._currentFrame] : null);
             }
         }
@@ -124,16 +124,16 @@ package fairygui.display {
 
         private function update(): void {
             if (this._playing && this._frameCount != 0 && this._status != 3) {
-                this._playState.update(this);
-                if (this._currentFrame != this._playState.currentFrame) {
+                this.playState.update(this);
+                if (this._currentFrame != this.playState.currentFrame) {
                     if (this._status == 1) {
                         this._currentFrame = this._start;
-                        this._playState.currentFrame = this._currentFrame;
+                        this.playState.currentFrame = this._currentFrame;
                         this._status = 0;
                     }
                     else if (this._status == 2) {
                         this._currentFrame = this._endAt;
-                        this._playState.currentFrame = this._currentFrame;
+                        this.playState.currentFrame = this._currentFrame;
                         this._status = 3;
 
                         //play end
@@ -142,7 +142,7 @@ package fairygui.display {
                         }
                     }
                     else {
-                        this._currentFrame = this._playState.currentFrame;
+                        this._currentFrame = this.playState.currentFrame;
                         if (this._currentFrame == this._end) {
                             if (this._times > 0) {
                                 this._times--;

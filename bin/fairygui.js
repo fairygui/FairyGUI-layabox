@@ -2125,14 +2125,13 @@
 		}
 
 		__proto.__clickItem2=function(itemObject){
-			var item=itemObject.asButton;
-			if(item==null)
+			if(!((itemObject instanceof fairygui.GButton )))
 				return;
-			if(item.grayed){
+			if(itemObject.grayed){
 				this._list.selectedIndex=-1;
 				return;
 			};
-			var c=item.getController("checked");
+			var c=itemObject.asCom.getController("checked");
 			if(c !=null && c.selectedIndex !=0){
 				if(c.selectedIndex==1)
 					c.selectedIndex=2;
@@ -2141,8 +2140,8 @@
 			};
 			var r=(this._contentPane.parent);
 			r.hidePopup(this.contentPane);
-			if(item.data !=null){
-				(item.data).run();
+			if(itemObject.data !=null){
+				(itemObject.data).run();
 			}
 		}
 
@@ -2977,13 +2976,13 @@
 			this._x1=NaN;
 			this._x2=NaN;
 			this._xOffset=NaN;
-			this._isMouseMoved=false;
 			this._holdAreaPoint=null;
 			this._isHoldAreaDone=false;
 			this._aniFlag=0;
 			this._scrollBarVisible=false;
 			this._hzScrollBar=null;
 			this._vtScrollBar=null;
+			this.isDragged=false;
 			;
 			if(fairygui.ScrollPane._easeTypeFunc==null)
 				fairygui.ScrollPane._easeTypeFunc=Ease.cubicOut;
@@ -3235,7 +3234,8 @@
 			if (ScrollPane.draggingPane==this)
 				ScrollPane.draggingPane=null;
 			ScrollPane._gestureFlag=0;
-			this._isMouseMoved=false;
+			this.isDragged=false;
+			this._maskContainer.mouseEnabled=true;
 		}
 
 		__proto.onOwnerSizeChanged=function(){
@@ -3306,7 +3306,7 @@
 		__proto.changeContentSizeOnScrolling=function(deltaWidth,deltaHeight,deltaPosX,deltaPosY){
 			this._contentWidth+=deltaWidth;
 			this._contentHeight+=deltaHeight;
-			if (this._isMouseMoved){
+			if (this.isDragged){
 				if (deltaPosX !=0)
 					this._container.x-=deltaPosX;
 				if (deltaPosY !=0)
@@ -3522,7 +3522,7 @@
 		__proto.refresh2=function(){
 			var contentXLoc=Math.floor(this._xPos);
 			var contentYLoc=Math.floor(this._yPos);
-			if(this._aniFlag && !this._isMouseMoved){
+			if(this._aniFlag==1 && !this.isDragged){
 				var toX=this._container.x;
 				var toY=this._container.y;
 				if(this._yOverlap>0)
@@ -3552,12 +3552,12 @@
 			else {
 				if(this._tweener!=null)
 					this.killTween();
-				if(this._isMouseMoved){
+				if(this.isDragged){
 					this._xOffset+=this._container.x-(-contentXLoc);
 					this._yOffset+=this._container.y-(-contentYLoc);
 				}
 				this._container.pos(-contentXLoc,-contentYLoc);
-				if(this._isMouseMoved){
+				if(this.isDragged){
 					this._y1=this._y2=this._container.y;
 					this._x1=this._x2=this._container.x;
 				}
@@ -3620,7 +3620,7 @@
 			this._holdAreaPoint.x=fairygui.ScrollPane.sHelperPoint.x;
 			this._holdAreaPoint.y=fairygui.ScrollPane.sHelperPoint.y;
 			this._isHoldAreaDone=false;
-			this._isMouseMoved=false;
+			this.isDragged=false;
 			this._owner.displayObject.stage.on("mousemove",this,this.__mouseMove);
 			this._owner.displayObject.stage.on("mouseup",this,this.__mouseUp);
 			this._owner.displayObject.stage.on("click",this,this.__click);
@@ -3728,7 +3728,7 @@
 			ScrollPane.draggingPane=this;
 			this._maskContainer.mouseEnabled=false;
 			this._isHoldAreaDone=true;
-			this._isMouseMoved=true;
+			this.isDragged=true;
 			this.syncPos();
 			this.syncScrollBar();
 			Events.dispatch("fui_scroll",this._owner.displayObject);
@@ -3739,17 +3739,17 @@
 			this._owner.displayObject.stage.off("mouseup",this,this.__mouseUp);
 			this._owner.displayObject.stage.off("click",this,this.__click);
 			if (!this._touchEffect){
-				this._isMouseMoved=false;
+				this.isDragged=false;
 				return;
 			}
 			if (ScrollPane.draggingPane==this)
 				ScrollPane.draggingPane=null;
 			ScrollPane._gestureFlag=0;
-			if (!this._isMouseMoved || !this._touchEffect || this._inertiaDisabled){
-				this._isMouseMoved=false;
+			if (!this.isDragged || !this._touchEffect || this._inertiaDisabled){
+				this.isDragged=false;
 				return;
 			}
-			this._isMouseMoved=false;
+			this.isDragged=false;
 			var time=(Laya.timer.currTimer-this._time2)/ 1000;
 			if (time==0)
 				time=0.001;
@@ -3869,7 +3869,7 @@
 		}
 
 		__proto.__click=function(){
-			this._isMouseMoved=false;
+			this.isDragged=false;
 		}
 
 		__proto.__mouseWheel=function(evt){
@@ -4225,7 +4225,7 @@
 		__proto.stopItem=function(item,setToComplete){
 			if ((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER)!=0 && item.target !=this._owner)
 				item.target.internalVisible--;
-			if (item.type==12)
+			if (item.type==12 && item.filterCreated)
 				item.target.filters=null;
 			if(item.completed)
 				return;
@@ -4468,7 +4468,7 @@
 			(reversed===void 0)&& (reversed=false);
 			var startValue;
 			var endValue;
-			if(this._reversed){
+			if(reversed){
 				startValue=item.endValue;
 				endValue=item.startValue;
 			}
@@ -4501,8 +4501,6 @@
 					}
 					item.value.f1=startValue.f1;
 					item.value.f2=startValue.f2;
-					item.value.b1=startValue.b1;
-					item.value.b2=startValue.b2;
 					if(!endValue.b1)
 						endValue.f1=item.value.f1;
 					if(!endValue.b2)
@@ -4750,14 +4748,14 @@
 					break ;
 				case 12:;
 					var arr=item.target.filters;
-					if(!arr)
-						arr=[];
+					if(!arr || !(((arr[0])instanceof laya.filters.ColorFilter )))
+						item.filterCreated=true;
 					var cm=new ColorMatrix();
 					cm.adjustBrightness(value.f1);
 					cm.adjustContrast(value.f2);
 					cm.adjustSaturation(value.f3);
 					cm.adjustHue(value.f4);
-					arr[0]=new ColorFilter(cm);
+					arr=[new ColorFilter(cm)];
 					item.target.filters=arr;
 					break ;
 				}
@@ -4796,8 +4794,8 @@
 				this._options=parseInt(str);
 			str=xml.getAttribute("autoPlay");
 			if(str)
-				this.autoPlay=str=="true";
-			if(this.autoPlay){
+				this._autoPlay=str=="true";
+			if(this._autoPlay){
 				str=xml.getAttribute("autoPlayRepeat");
 				if(str)
 					this.autoPlayRepeat=parseInt(str);
@@ -8241,7 +8239,7 @@
 			this.image.scale9Grid=this.packageItem.scale9Grid;
 			this.image.scaleByTile=this.packageItem.scaleByTile;
 			this.image.tileGridIndice=this.packageItem.tileGridIndice;
-			this.image.texture=this.packageItem.texture;
+			this.image.tex=this.packageItem.texture;
 			this.setSize(this._sourceWidth,this._sourceHeight);
 		}
 
@@ -8254,7 +8252,7 @@
 		}
 
 		__proto.handleSizeChanged=function(){
-			if(this.image.texture!=null){
+			if(this.image.tex!=null){
 				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
 			}
 		}
@@ -8622,6 +8620,7 @@
 			GLoader.__super.call(this);
 			this._playing=true;
 			this._url="";
+			this._fill=0;
 			this._align="left";
 			this._valign="top";
 			this._showErrorSign=true;
@@ -8638,7 +8637,7 @@
 
 		__proto.dispose=function(){
 			if(this._contentItem==null && ((this._content instanceof fairygui.display.Image ))){
-				var texture=(this._content).texture;
+				var texture=(this._content).tex;
 				if(texture !=null)
 					this.freeExternal(texture);
 			}
@@ -8671,7 +8670,7 @@
 						}
 						else
 						this._displayObject.addChild(this._content);
-						(this._content).texture=this._contentItem.texture;
+						(this._content).tex=this._contentItem.texture;
 						(this._content).scale9Grid=this._contentItem.scale9Grid;
 						(this._content).scaleByTile=this._contentItem.scaleByTile;
 						(this._content).tileGridIndice=this._contentItem.tileGridIndice;
@@ -8715,7 +8714,7 @@
 			}
 			else
 			this._displayObject.addChild(this._content);
-			(this._content).texture=texture;
+			(this._content).tex=texture;
 			(this._content).scale9Grid=null;
 			(this._content).scaleByTile=false;
 			this._contentSourceWidth=texture.width;
@@ -8821,7 +8820,7 @@
 			if (this._content !=null && this._content.parent !=null)
 				this._displayObject.removeChild(this._content);
 			if(this._contentItem==null && ((this._content instanceof fairygui.display.Image ))){
-				var texture=(this._content).texture;
+				var texture=(this._content).tex;
 				if(texture !=null)
 					this.freeExternal(texture);
 			}
@@ -10061,7 +10060,8 @@
 			xml=ToolSet.findChildNode(xml,"ComboBox");
 			var str;
 			this._buttonController=this.getController("button");
-			this._titleObject=(this.getChild("title"));
+			this._titleObject=this.getChild("title");
+			this._iconObject=this.getChild("icon");
 			str=xml.getAttribute("dropdown");
 			if (str){
 				this.dropdown=(UIPackage.createObjectFromURL(str));
@@ -10572,8 +10572,8 @@
 			var ret=[];
 			var cnt=this._children.length;
 			for (var i=0;i < cnt;i++){
-				var obj=this._children[i].asButton;
-				if (obj !=null && obj.selected)
+				var obj=this._children[i];
+				if (((obj instanceof fairygui.GButton ))&& (obj).selected)
 					ret.push(this.childIndexToItemIndex(i));
 			}
 			return ret;
@@ -10591,9 +10591,9 @@
 			index=this.itemIndexToChildIndex(index);
 			if(index<0 || index >=this._children.length)
 				return;
-			var obj=this.getChildAt(index).asButton;
-			if(obj !=null && !obj.selected)
-				obj.selected=true;
+			var obj=this.getChildAt(index);
+			if (((obj instanceof fairygui.GButton ))&& !(obj).selected)
+				(obj).selected=true;
 		}
 
 		__proto.removeSelection=function(index){
@@ -10603,17 +10603,17 @@
 			index=this.itemIndexToChildIndex(index);
 			if(index >=this._children.length)
 				return;
-			var obj=this.getChildAt(index).asButton;
-			if (obj !=null && obj.selected)
-				obj.selected=false;
+			var obj=this.getChildAt(index);
+			if (((obj instanceof fairygui.GButton ))&& (obj).selected)
+				(obj).selected=false;
 		}
 
 		__proto.clearSelection=function(){
 			var cnt=this._children.length;
 			for (var i=0;i < cnt;i++){
-				var obj=this._children[i].asButton;
-				if (obj !=null)
-					obj.selected=false;
+				var obj=this._children[i];
+				if ((obj instanceof fairygui.GButton ))
+					(obj).selected=false;
 			}
 		}
 
@@ -10621,9 +10621,9 @@
 			this.checkVirtualList();
 			var cnt=this._children.length;
 			for (var i=0;i < cnt;i++){
-				var obj=this._children[i].asButton;
-				if (obj !=null)
-					obj.selected=true;
+				var obj=this._children[i];
+				if ((obj instanceof fairygui.GButton ))
+					(obj).selected=true;
 			}
 		}
 
@@ -10631,18 +10631,18 @@
 			this.checkVirtualList();
 			var cnt=this._children.length;
 			for (var i=0;i < cnt;i++){
-				var obj=this._children[i].asButton;
-				if (obj !=null)
-					obj.selected=false;
+				var obj=this._children[i];
+				if ((obj instanceof fairygui.GButton ))
+					(obj).selected=false;
 			}
 		}
 
 		__proto.selectReverse=function(){
 			var cnt=this._children.length;
 			for (var i=0;i < cnt;i++){
-				var obj=this._children[i].asButton;
-				if (obj !=null)
-					obj.selected=!obj.selected;
+				var obj=this._children[i];
+				if ((obj instanceof fairygui.GButton ))
+					(obj).selected=!(obj).selected;
 			}
 		}
 
@@ -10774,12 +10774,12 @@
 		}
 
 		__proto.__clickItem=function(evt){
-			if (this._scrollPane !=null && this._scrollPane._isMouseMoved)
+			if (this._scrollPane !=null && this._scrollPane.isDragged)
 				return;
 			var item=GObject.cast(evt.currentTarget);
 			this.setSelectionOnEvent(item,evt);
-			if(this.scrollPane && this.scrollItemToViewOnClick)
-				this.scrollPane.scrollToView(item,true);
+			if(this._scrollPane && this.scrollItemToViewOnClick)
+				this._scrollPane.scrollToView(item,true);
 			this.displayObject.event("fui_click_item",[item,Events.createEvent("fui_click_item",this.displayObject,evt)]);
 		}
 
@@ -10803,9 +10803,9 @@
 							var max=Math.max(this._lastSelectedIndex,index);
 							max=Math.min(max,this._children.length-1);
 							for (var i=min;i <=max;i++){
-								var obj=this.getChildAt(i).asButton;
-								if (obj !=null && !obj.selected)
-									obj.selected=true;
+								var obj=this.getChildAt(i);
+								if (((obj instanceof fairygui.GButton ))&& !(obj).selected)
+									(obj).selected=true;
 							}
 							dontChangeLastIndex=true;
 						}
@@ -10834,9 +10834,9 @@
 		__proto.clearSelectionExcept=function(obj){
 			var cnt=this._children.length;
 			for (var i=0;i < cnt;i++){
-				var button=this._children[i].asButton;
-				if (button !=null && button !=obj && button.selected)
-					button.selected=false;
+				var button=this._children[i];
+				if (((button instanceof fairygui.GButton ))&& button !=obj && (button).selected)
+					(button).selected=false;
 			}
 		}
 
@@ -11069,12 +11069,12 @@
 		/// </summary>
 		__proto._setVirtual=function(loop){
 			if(!this._virtual){
-				if(this.scrollPane==null)
+				if(this._scrollPane==null)
 					throw new Error("Virtual list must be scrollable!");
 				if(loop){
 					if(this._layout==2 || this._layout==3)
 						throw new Error("Loop list is not supported for FlowHorizontal or FlowVertical layout!");
-					this.scrollPane.bouncebackEffect=false;
+					this._scrollPane.bouncebackEffect=false;
 				}
 				this._virtual=true;
 				this._loop=loop;
@@ -11095,9 +11095,9 @@
 					this.returnToPool(obj);
 				}
 				if(this._layout==0 || this._layout==2)
-					this.scrollPane.scrollSpeed=this._itemSize.y;
+					this._scrollPane.scrollSpeed=this._itemSize.y;
 				else
-				this.scrollPane.scrollSpeed=this._itemSize.x;
+				this._scrollPane.scrollSpeed=this._itemSize.x;
 				this.on("fui_scroll",this,this.__scrolled);
 				this.setVirtualListChangedFlag(true);
 			}
@@ -11338,7 +11338,7 @@
 			else{
 				if (this._loop){
 					pos=this.scrollPane.scrollingPosX;
-					roundSize=(int)(this._numItems / (this._curLineItemCount *this._curLineItemCount2))*this.viewWidth;
+					roundSize=Math.floor(this._numItems / (this._curLineItemCount *this._curLineItemCount2))*this.viewWidth;
 					if (pos==0)
 						this.scrollPane.posX=roundSize;
 					else if (pos==this.scrollPane.contentWidth-this.scrollPane.viewWidth)
@@ -11601,7 +11601,7 @@
 			var pageSize=this._curLineItemCount *this._curLineItemCount2;
 			var startCol=newFirstIndex % this._curLineItemCount;
 			var viewWidth=this.viewWidth;
-			var page=int(newFirstIndex / pageSize);
+			var page=Math.floor(newFirstIndex / pageSize);
 			var startIndex=page *pageSize;
 			var lastIndex=startIndex+pageSize *2;
 			var needRender=false;
@@ -11670,7 +11670,7 @@
 				}
 				if (needRender)
 					this.itemRenderer.runWith([i % this._numItems,ii.obj]);
-				ii.obj.setXY((int)(i / pageSize)*viewWidth+col *(ii.width+this._columnGap),
+				ii.obj.setXY(Math.floor(i / pageSize)*viewWidth+col *(ii.width+this._columnGap),
 				(i / this._curLineItemCount)% this._curLineItemCount2 *(ii.height+this._lineGap));
 			}
 			for (i=reuseIndex;i < virtualItemCount;i++){
@@ -11688,7 +11688,7 @@
 			if (this._layout==0 || this._layout==2 || this._layout==4){
 				if (contentHeight < this.viewHeight){
 					if (this._verticalAlign=="middle")
-						newOffsetY=int((this.viewHeight-contentHeight)/ 2);
+						newOffsetY=Math.floor((this.viewHeight-contentHeight)/ 2);
 					else if (this._verticalAlign=="bottom")
 					newOffsetY=this.viewHeight-contentHeight;
 				}
@@ -11696,7 +11696,7 @@
 			else{
 				if (contentWidth < this.viewWidth){
 					if (this._align=="center")
-						newOffsetX=int((this.viewWidth-contentWidth)/ 2);
+						newOffsetX=Math.floor((this.viewWidth-contentWidth)/ 2);
 					else if (this._align=="right")
 					newOffsetX=this.viewWidth-contentWidth;
 				}
@@ -12060,8 +12060,8 @@
 		__getset(0,__proto,'selectedIndex',function(){
 			var cnt=this._children.length;
 			for (var i=0;i < cnt;i++){
-				var obj=this._children[i].asButton;
-				if (obj !=null && obj.selected)
+				var obj=this._children[i];
+				if (((obj instanceof fairygui.GButton ))&& (obj).selected)
 					return this.childIndexToItemIndex(i);
 			}
 			return-1;
@@ -13650,16 +13650,7 @@
 			this.graphics.fillTexture(tex,x,y,width,height);
 		}
 
-		__getset(0,__proto,'scaleByTile',function(){
-			return this._scaleByTile;
-			},function(value){
-			if(this._scaleByTile!=value){
-				this._scaleByTile=value;
-				this.markChanged();
-			}
-		});
-
-		__getset(0,__proto,'texture',function(){
+		__getset(0,__proto,'tex',function(){
 			return this._texture;
 			},function(value){
 			if(this._texture!=value){
@@ -13677,6 +13668,15 @@
 			},function(value){
 			this._scale9Grid=value;
 			this.markChanged();
+		});
+
+		__getset(0,__proto,'scaleByTile',function(){
+			return this._scaleByTile;
+			},function(value){
+			if(this._scaleByTile!=value){
+				this._scaleByTile=value;
+				this.markChanged();
+			}
 		});
 
 		__getset(0,__proto,'tileGridIndice',function(){
@@ -13713,10 +13713,10 @@
 			this.interval=0;
 			this.swing=false;
 			this.repeatDelay=0;
+			this.playState=null;
 			this._texture=null;
 			this._needRebuild=false;
 			this._playing=false;
-			this._playState=null;
 			this._frameCount=0;
 			this._frames=null;
 			this._currentFrame=0;
@@ -13728,7 +13728,7 @@
 			this._status=0;
 			this._endHandler=null;
 			MovieClip.__super.call(this);
-			this._playState=new PlayState();
+			this.playState=new PlayState();
 			this._playing=true;
 			this.mouseEnabled=false;
 			this.setPlaySettings();
@@ -13759,23 +13759,23 @@
 
 		__proto.update=function(){
 			if (this._playing && this._frameCount !=0 && this._status !=3){
-				this._playState.update(this);
-				if (this._currentFrame !=this._playState.currentFrame){
+				this.playState.update(this);
+				if (this._currentFrame !=this.playState.currentFrame){
 					if (this._status==1){
 						this._currentFrame=this._start;
-						this._playState.currentFrame=this._currentFrame;
+						this.playState.currentFrame=this._currentFrame;
 						this._status=0;
 					}
 					else if (this._status==2){
 						this._currentFrame=this._endAt;
-						this._playState.currentFrame=this._currentFrame;
+						this.playState.currentFrame=this._currentFrame;
 						this._status=3;
 						if (this._endHandler !=null){
 							this._endHandler.run();
 						}
 					}
 					else {
-						this._currentFrame=this._playState.currentFrame;
+						this._currentFrame=this.playState.currentFrame;
 						if (this._currentFrame==this._end){
 							if (this._times > 0){
 								this._times--;
@@ -13825,7 +13825,7 @@
 				this.setFrame(this._frames[this._currentFrame]);
 			else
 			this.setFrame(null);
-			this._playState.rewind();
+			this.playState.rewind();
 		});
 
 		__getset(0,__proto,'playing',function(){
@@ -13854,7 +13854,7 @@
 			},function(value){
 			if (this._currentFrame !=value){
 				this._currentFrame=value;
-				this._playState.currentFrame=value;
+				this.playState.currentFrame=value;
 				this.setFrame(this._currentFrame < this._frameCount ? this._frames[this._currentFrame] :null);
 			}
 		});

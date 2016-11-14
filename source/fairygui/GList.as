@@ -269,8 +269,8 @@ package fairygui {
         public function get selectedIndex(): Number {
             var cnt: Number = this._children.length;
             for (var i: Number = 0; i < cnt; i++) {
-                var obj: GButton = this._children[i].asButton;
-                if (obj != null && obj.selected)
+                var obj: GObject = this._children[i];
+                if ((obj is GButton) && GButton(obj).selected)
 					return childIndexToItemIndex(i);
             }
             return -1;
@@ -286,8 +286,8 @@ package fairygui {
             var ret: Vector.<Number> = new Vector.<Number>();
             var cnt: Number = this._children.length;
             for (var i: Number = 0; i < cnt; i++) {
-                var obj: GButton = this._children[i].asButton;
-                if (obj != null && obj.selected)
+                var obj: GObject = this._children[i];
+				if ((obj is GButton) && GButton(obj).selected)
 					ret.push(childIndexToItemIndex(i));
             }
             return ret;
@@ -309,9 +309,9 @@ package fairygui {
             if(index<0 || index >= this._children.length)
                 return;
 
-            var obj: GButton = this.getChildAt(index).asButton;
-            if(obj != null && !obj.selected)
-                obj.selected = true;
+            var obj: GObject = this.getChildAt(index);
+			if ((obj is GButton) && !GButton(obj).selected)
+				GButton(obj).selected = true;
         }
 
         public function removeSelection(index: Number = 0): void {
@@ -322,17 +322,17 @@ package fairygui {
             if(index >= this._children.length)
                 return;
 
-            var obj: GButton = this.getChildAt(index).asButton;
-            if (obj != null && obj.selected)
-                obj.selected = false;
+            var obj: GObject = this.getChildAt(index);
+			if ((obj is GButton) && GButton(obj).selected)
+				GButton(obj).selected = false;
         }
 
         public function clearSelection(): void {
             var cnt: Number = this._children.length;
             for (var i: Number = 0; i < cnt; i++) {
-                var obj: GButton = this._children[i].asButton;
-                if (obj != null)
-                    obj.selected = false;
+                var obj: GObject = this._children[i];
+                if (obj is GButton)
+					GButton(obj).selected = false;
             }
         }
 
@@ -341,9 +341,9 @@ package fairygui {
 			
             var cnt: Number = this._children.length;
             for (var i: Number = 0; i < cnt; i++) {
-                var obj: GButton = this._children[i].asButton;
-                if (obj != null)
-                    obj.selected = true;
+                var obj: GObject = this._children[i];
+				if (obj is GButton)
+					GButton(obj).selected = true;
             }
         }
 
@@ -352,18 +352,18 @@ package fairygui {
 			
             var cnt: Number = this._children.length;
             for (var i: Number = 0; i < cnt; i++) {
-                var obj: GButton = this._children[i].asButton;
-                if (obj != null)
-                    obj.selected = false;
+                var obj: GObject = this._children[i];
+				if (obj is GButton)
+					GButton(obj).selected = false;
             }
         }
 
         public function selectReverse(): void {
             var cnt: Number = this._children.length;
-            for (var i: Number = 0; i < cnt; i++) {
-                var obj: GButton = this._children[i].asButton;
-                if (obj != null)
-                    obj.selected = !obj.selected;
+            for (var i: Number = 0; i < cnt; i++) { 
+                var obj: GObject = this._children[i];
+				if (obj is GButton)
+					GButton(obj).selected = !GButton(obj).selected;
             }
         }
 
@@ -498,14 +498,14 @@ package fairygui {
         }
 
         private function __clickItem(evt:Event): void {
-            if (this._scrollPane != null && this._scrollPane._isMouseMoved)
+            if (this._scrollPane != null && this._scrollPane.isDragged)
                 return;
 
             var item: GObject = GObject.cast(evt.currentTarget);
            	this.setSelectionOnEvent(item, evt);
 
-            if(this.scrollPane && scrollItemToViewOnClick)
-                this.scrollPane.scrollToView(item,true);
+            if(this._scrollPane && scrollItemToViewOnClick)
+                this._scrollPane.scrollToView(item,true);
 
             this.displayObject.event(Events.CLICK_ITEM, [item, Events.createEvent(Events.CLICK_ITEM, this.displayObject,evt)]);
         }
@@ -532,9 +532,9 @@ package fairygui {
                             var max: Number = Math.max(this._lastSelectedIndex, index);
                             max = Math.min(max,this._children.length - 1);
                             for (var i: Number = min; i <= max; i++) {
-                                var obj: GButton = this.getChildAt(i).asButton;
-                                if (obj != null && !obj.selected)
-                                    obj.selected = true;
+                                var obj: GObject = this.getChildAt(i);
+                                if ((obj is GButton) && !GButton(obj).selected)
+									GButton(obj).selected = true;
                             }
 
                             dontChangeLastIndex = true;
@@ -566,9 +566,9 @@ package fairygui {
         private function clearSelectionExcept(obj: GObject): void {
             var cnt: Number = this._children.length;
             for (var i: Number = 0; i < cnt; i++) {
-                var button: GButton = this._children[i].asButton;
-                if (button != null && button != obj && button.selected)
-                    button.selected = false;
+                var button: GObject = this._children[i];
+                if ((button is GButton) && button != obj && GButton(button).selected)
+					GButton(button).selected = false;
             }
         }
 
@@ -836,14 +836,14 @@ package fairygui {
         /// </summary>
         private function _setVirtual(loop: Boolean): void {
             if(!this._virtual) {
-                if(this.scrollPane == null)
+                if(this._scrollPane == null)
                     throw new Error("Virtual list must be scrollable!");
                     
                 if(loop) {        
                     if(this._layout == ListLayoutType.FlowHorizontal || this._layout == ListLayoutType.FlowVertical)
                         throw new Error("Loop list is not supported for FlowHorizontal or FlowVertical layout!");
         
-                    this.scrollPane.bouncebackEffect = false;
+                    this._scrollPane.bouncebackEffect = false;
                 }
         
                 this._virtual = true;
@@ -869,9 +869,9 @@ package fairygui {
                 }
         
                 if(this._layout == ListLayoutType.SingleColumn || this._layout == ListLayoutType.FlowHorizontal)
-                    this.scrollPane.scrollSpeed = this._itemSize.y;
+                    this._scrollPane.scrollSpeed = this._itemSize.y;
                 else
-                    this.scrollPane.scrollSpeed = this._itemSize.x;
+                    this._scrollPane.scrollSpeed = this._itemSize.x;
         
                 this.on(Events.SCROLL, this, this.__scrolled);
                 this.setVirtualListChangedFlag(true);
@@ -1259,7 +1259,7 @@ package fairygui {
 				{
 					pos = scrollPane.scrollingPosX;
 					//循环列表的核心实现，滚动到头尾时重新定位
-					roundSize = (int)(_numItems / (_curLineItemCount * _curLineItemCount2)) * viewWidth;
+					roundSize = Math.floor(_numItems / (_curLineItemCount * _curLineItemCount2)) * viewWidth;
 					if (pos == 0)
 						scrollPane.posX = roundSize;
 					else if (pos == scrollPane.contentWidth - scrollPane.viewWidth)
@@ -1618,7 +1618,7 @@ package fairygui {
 			var pageSize:int = _curLineItemCount * _curLineItemCount2;
 			var startCol:int = newFirstIndex % _curLineItemCount;
 			var viewWidth:Number = this.viewWidth;
-			var page:int = int(newFirstIndex / pageSize);
+			var page:int = Math.floor(newFirstIndex / pageSize);
 			var startIndex:int = page * pageSize;
 			var lastIndex:int = startIndex + pageSize * 2; //测试两页
 			var needRender:Boolean;
@@ -1714,7 +1714,7 @@ package fairygui {
 				if (needRender)
 					itemRenderer.runWith([i % _numItems, ii.obj]);
 				
-				ii.obj.setXY((int)(i / pageSize) * viewWidth + col * (ii.width + _columnGap),
+				ii.obj.setXY(Math.floor(i / pageSize) * viewWidth + col * (ii.width + _columnGap),
 					(i / _curLineItemCount) % _curLineItemCount2 * (ii.height + _lineGap));
 			}
 			
@@ -1739,7 +1739,7 @@ package fairygui {
 				if (contentHeight < viewHeight)
 				{
 					if (_verticalAlign == "middle")
-						newOffsetY = int((viewHeight - contentHeight) / 2);
+						newOffsetY = Math.floor((viewHeight - contentHeight) / 2);
 					else if (_verticalAlign == "bottom")
 						newOffsetY = viewHeight - contentHeight;
 				}
@@ -1749,7 +1749,7 @@ package fairygui {
 				if (contentWidth < this.viewWidth)
 				{
 					if (_align == "center")
-						newOffsetX = int((viewWidth - contentWidth) / 2);
+						newOffsetX = Math.floor((viewWidth - contentWidth) / 2);
 					else if (_align == "right")
 						newOffsetX = viewWidth - contentWidth;
 				}

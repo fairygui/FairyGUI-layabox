@@ -25,11 +25,11 @@ package fairygui.display {
             this._textureScaleY = 1;
         }
     
-        public function get texture(): Texture {
+        public function get tex(): Texture {
             return this._texture;
         }
 
-        public function set texture(value:Texture):void {
+        public function set tex(value:Texture):void {
             if(this._texture!=value) {
                 this._texture = value;
                 if(this._texture)
