@@ -6,6 +6,7 @@ package fairygui
 		public static const SingleRow:int = 1;
 		public static const FlowHorizontal:int = 2;
 		public static const FlowVertical:int = 3;
+		public static const Pagination:int = 4;
 		
 		public function ListLayoutType()
 		{
@@ -23,6 +24,8 @@ package fairygui
 					return FlowHorizontal;
 				case "flow_vt":
 					return FlowVertical;
+				case "pagination":
+					return Pagination;
 				default:
 					return SingleColumn;
 			}

@@ -55,5 +55,7 @@ package fairygui {
         
         // When click the window, brings to front automatically.
         public static var bringWindowToFrontOnClick:Boolean = true;
-    }
+		
+		public static var frameTimeForAsyncUIConstruction:int = 2;
+	}
 }

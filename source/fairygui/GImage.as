@@ -52,17 +52,17 @@ package fairygui {
             this._displayObject["$owner"] = this;
         }
 
-		override public function constructFromResource(pkgItem: PackageItem): void {
-            this._packageItem = pkgItem;
-            pkgItem.load();
+		override public function constructFromResource(): void {
+			this.packageItem.load();
             
-            this._sourceWidth = this._packageItem.width;
-            this._sourceHeight = this._packageItem.height;
+            this._sourceWidth = this.packageItem.width;
+            this._sourceHeight = this.packageItem.height;
             this._initWidth = this._sourceWidth;
             this._initHeight = this._sourceHeight;
-            this.image.scale9Grid = pkgItem.scale9Grid;
-            this.image.scaleByTile = pkgItem.scaleByTile;
-            this.image.texture = pkgItem.texture;
+            this.image.scale9Grid = this.packageItem.scale9Grid;
+            this.image.scaleByTile = this.packageItem.scaleByTile;
+			this.image.tileGridIndice = this.packageItem.tileGridIndice;
+            this.image.texture = this.packageItem.texture;
             this.setSize(this._sourceWidth, this._sourceHeight);
         }
         

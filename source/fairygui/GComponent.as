@@ -1,4 +1,5 @@
 package fairygui {
+
 	import laya.display.Sprite;
 	import laya.events.Event;
 	import laya.maths.Point;
@@ -18,13 +19,15 @@ package fairygui {
         public var _transitions: Vector.<Transition>;
         public var _container: Sprite;
         public var _scrollPane: ScrollPane;
-
+		public var _alignOffset:Point;
+		
         public function GComponent() {
             super();
             this._children = new Vector.<GObject>();
             this._controllers = new Vector.<Controller>();
             this._transitions = new Vector.<Transition>();
             this._margin = new Margin();
+			this._alignOffset = new Point();
         }
 
         override protected function createDisplayObject(): void {
@@ -35,13 +38,23 @@ package fairygui {
         }
 
 		override public function dispose(): void {
+			var i:int;
+			
+			var transCnt:int = this._transitions.length;
+			for (i = 0; i < transCnt; ++i)
+			{
+				var trans:Transition = _transitions[i];
+				trans.dispose();
+			}
+			
             var numChildren: Number = this._children.length;
-            for(var i: Number = numChildren - 1;i >= 0;--i) {
+            for(i = numChildren - 1;i >= 0;--i) {
                 var obj:GObject = this._children[i];
                 obj.parent = null;//avoid removeFromParent call
                 obj.dispose();
             }
 
+			this._boundsChanged = false;
             super.dispose();
         }
 
@@ -217,32 +230,57 @@ package fairygui {
 
             this._setChildIndex(child,oldIndex,index);
         }
-
-        private function _setChildIndex(child: GObject,oldIndex: Number,index: Number = 0): void {
-            var cnt: Number = this._children.length;
-            if(index > cnt)
-                index = cnt;
-
-            if(oldIndex == index)
-                return;
-
-            this._children.splice(oldIndex,1);
-            this._children.splice(index,0,child);
-
-            if(child.inContainer) {
-                var displayIndex: Number = 0;
-                for(var i: Number = 0;i < index;i++) {
-                    var g: GObject = this._children[i];
-                    if(g.inContainer)
-                        displayIndex++;
-                }
-                if(displayIndex == this._container.numChildren)
-                    displayIndex--;
-                this._container.setChildIndex(child.displayObject,displayIndex);
-
-                this.setBoundsChangedFlag();
-            }
-        }
+		
+		public function setChildIndexBefore(child:GObject, index:int):int
+		{
+			var oldIndex:int = _children.indexOf(child);
+			if (oldIndex == -1) 
+				throw "Not a child of this container";
+			
+			if(child.sortingOrder!=0) //no effect
+				return oldIndex;
+			
+			var cnt:int = _children.length;
+			if(_sortingChildCount>0)
+			{
+				if (index > (cnt - _sortingChildCount - 1))
+					index = cnt - _sortingChildCount - 1;
+			}
+			
+			if (oldIndex < index)
+				return _setChildIndex(child, oldIndex, index - 1);
+			else
+				return _setChildIndex(child, oldIndex, index);
+		}
+		
+		private function _setChildIndex(child:GObject, oldIndex:int, index:int):int
+		{
+			var cnt: Number = this._children.length;
+			if(index > cnt)
+				index = cnt;
+			
+			if(oldIndex == index)
+				return oldIndex;
+			
+			this._children.splice(oldIndex,1);
+			this._children.splice(index,0,child);
+			
+			if(child.inContainer) {
+				var displayIndex: Number = 0;
+				for(var i: Number = 0;i < index;i++) {
+					var g: GObject = this._children[i];
+					if(g.inContainer)
+						displayIndex++;
+				}
+				if(displayIndex == this._container.numChildren)
+					displayIndex--;
+				this._container.setChildIndex(child.displayObject,displayIndex);
+				
+				this.setBoundsChangedFlag();
+			}
+			
+			return index;
+		}
 
         public function swapChildren(child1: GObject,child2: GObject): void {
             var index1: Number = this._children.indexOf(child1);
@@ -263,6 +301,22 @@ package fairygui {
         public function get numChildren(): Number {
             return this._children.length;
         }
+		
+		public function isAncestorOf(child:GObject):Boolean
+		{
+			if (child == null)
+				return false;
+			
+			var p:GComponent = child.parent;
+			while(p)
+			{
+				if(p == this)
+					return true;
+				
+				p = p.parent;
+			}
+			return false;
+		}
 
         public function addController(controller: Controller): void {
             this._controllers.push(controller);
@@ -321,7 +375,7 @@ package fairygui {
             if(!child.displayObject)
                 return;
 
-            if(child.finalVisible) {
+            if(child.finalVisible && child.displayObject!=_displayObject.mask) {
                 if(!child.displayObject.parent) {
                     var index: Number = 0;
                     var length1: Number = this._children.length;
@@ -405,9 +459,9 @@ package fairygui {
                 return true;
         }
         
-        public function getFirstChildInView(): Number {
-            var cnt: Number = this._children.length;
-            for(var i: Number = 0;i < cnt;++i) {
+        public function getFirstChildInView(): int {
+            var cnt: int = this._children.length;
+            for(var i: int = 0;i < cnt;++i) {
                 var child: GObject = this._children[i];
                 if(this.isChildInView(child))
                     return i;
@@ -446,10 +500,20 @@ package fairygui {
         public function set margin(value: Margin):void {
             this._margin.copy(value);
             if(this._displayObject.scrollRect!=null) {
-                this._container.pos(this._margin.left, this._margin.top);
+                this._container.pos(this._margin.left + _alignOffset.x, this._margin.top + _alignOffset.y);
             }
             this.handleSizeChanged();
         }
+		
+		public function get mask():Sprite
+		{
+			return _displayObject.mask;
+		}
+		
+		public function set mask(value:Sprite):void
+		{
+			_displayObject.mask = value;
+		}
         
         protected function updateOpaque():void {
             if(!this._displayObject.hitArea)
@@ -476,34 +540,39 @@ package fairygui {
             flags: Number,
             vtScrollBarRes: String,
             hzScrollBarRes: String): void {
-            this._container = new Sprite();
-            this._displayObject.addChild(this._container);
+			if (this._displayObject == this._container)
+			{
+            	this._container = new Sprite();
+            	this._displayObject.addChild(this._container);
+			}
             this._scrollPane = new ScrollPane(this,scroll,scrollBarMargin,scrollBarDisplay,flags,vtScrollBarRes,hzScrollBarRes);
-
-            this.setBoundsChangedFlag();
         }
         
         protected function setupOverflow(overflow: int): void {
             if(overflow == OverflowType.Hidden) {
-                this._container = new Sprite();
-                this._displayObject.addChild(this._container);
+				if (this._displayObject == this._container)
+				{
+                	this._container = new Sprite();
+                	this._displayObject.addChild(this._container);
+				}
                 this.updateMask();
                 this._container.pos(this._margin.left, this._margin.top);
             }
             else if(this._margin.left != 0 || this._margin.top != 0) {
-                this._container = new Sprite();
-                this._displayObject.addChild(this._container);
+				if (this._displayObject == this._container)
+				{
+                	this._container = new Sprite();
+                	this._displayObject.addChild(this._container);
+				}
                 this._container.pos(this._margin.left, this._margin.top);
             }
-
-            this.setBoundsChangedFlag();
         }
 
         override protected function handleSizeChanged(): void {
 			super.handleSizeChanged();
 			
             if(this._scrollPane)
-                this._scrollPane.setSize(this.width,this.height);
+                this._scrollPane.onOwnerSizeChanged();
             else if(this._displayObject.scrollRect != null)
                 this.updateMask();
 			
@@ -511,7 +580,7 @@ package fairygui {
                 this.updateOpaque();
         }
 
-        override protected function handleGrayChanged(): void {
+        override protected function handleGrayedChanged(): void {
             var c: Controller = this.getController("grayed");
             if(c != null) {
                 c.selectedIndex = this.grayed ? 1 : 0;
@@ -547,21 +616,21 @@ package fairygui {
         }
 
         protected function updateBounds(): void {
-            var ax: Number,ay: Number,aw: Number,ah: Number = 0;
-            if(this._children.length > 0) {
+            var ax: Number=0,ay: Number=0,aw: Number=0,ah: Number = 0;
+			var len: Number = this._children.length;
+            if(len > 0) {
                 ax = Number.POSITIVE_INFINITY,ay = Number.POSITIVE_INFINITY;
                 var ar: Number = Number.NEGATIVE_INFINITY,ab: Number = Number.NEGATIVE_INFINITY;
                 var tmp: Number = 0;
 
-                var i: Number = 0;
-                var length1: Number = this._children.length;
+                var i1: int = 0;               
                 
-                for(i1 = 0;i1 < length1;i1++) {
+                for(i1 = 0;i1 < len;i1++) {
                     child = this._children[i1];
                     child.ensureSizeCorrect();
                 }
                 
-                for(var i1: Number = 0;i1 < length1;i1++) {
+                for(i1 = 0;i1 < len;i1++) {
                     var child: GObject = this._children[i1];
                     tmp = child.x;
                     if(tmp < ax)
@@ -579,17 +648,10 @@ package fairygui {
                 aw = ar - ax;
                 ah = ab - ay;
             }
-            else {
-                ax = 0;
-                ay = 0;
-                aw = 0;
-                ah = 0;
-            }
-
             this.setBounds(ax,ay,aw,ah);
         }
 
-        public function setBounds(ax: Number, ay: Number, aw: Number, ah: Number = 0): void {
+        public function setBounds(ax: Number, ay: Number, aw: Number, ah: Number): void {
             this._boundsChanged = false;
 
             if (this._scrollPane)
@@ -710,13 +772,16 @@ package fairygui {
                     this._setChildIndex(child, oldIndex, index);
             }
         }
+		
+		override public function constructFromResource():void
+		{
+			constructFromResource2(null, 0);
+		}
+		
+		internal function constructFromResource2(objectPool:Vector.<GObject>, poolIndex:int):void
+		{
+			var xml:Object = this.packageItem.owner.getItemAsset(this.packageItem);
 
-        override public function constructFromResource(pkgItem: PackageItem): void {
-            this._packageItem = pkgItem;
-            this.constructFromXML(this._packageItem.owner.getItemAsset(this._packageItem));
-        }
-
-        protected function constructFromXML(xml: Object): void {
             this._underConstruct = true;
             
             var str: String;
@@ -796,72 +861,78 @@ package fairygui {
             this._buildingDisplayList = true;
 
             var col: Array = xml.childNodes;
-            if(col) {
-                var displayList: Array;
-                var controller: Controller;
-                var length1: Number = col.length;
-                for(var i1: Number = 0;i1 < length1;i1++) {
-                    var cxml: Object = col[i1];
-                    if(cxml.nodeName == "displayList") {
-                        displayList = cxml.childNodes;
-                        continue;
-                    }
-                    else if(cxml.nodeName == "controller") {
-                        controller = new Controller();
-                        this._controllers.push(controller);
-                        controller._parent = this;
-                        controller.setup(cxml);
-                    }
+			var length1: Number = 0;
+            if(col)
+				length1 = col.length;
+			
+			var i:int;
+            var controller: Controller;
+            for(i = 0;i < length1;i++) {
+                var cxml: Object = col[i];
+                if(cxml.nodeName == "controller") {
+                    controller = new Controller();
+                    this._controllers.push(controller);
+                    controller._parent = this;
+                    controller.setup(cxml);
                 }
+            }
 
-                if(displayList!=null && displayList.length>0) {
-                    var u: GObject;
-                    var length2: Number = displayList.length;
-                    for(var i2: Number = 0;i2 < length2;i2++) {
-                        cxml = displayList[i2];
-                        if(cxml.nodeType!=1)
-                            continue;
-                        u = this.constructChild(cxml);
-                        if(!u)
-                            continue;
+			var child:GObject;			
+			var displayList:Vector.<DisplayListItem> = packageItem.displayList;
+			var childCount:int = displayList.length;
+			for (i = 0; i < childCount; i++)
+			{
+				var di:DisplayListItem = displayList[i];
+				
+				if (objectPool != null)
+				{
+					child = objectPool[poolIndex + i];
+				}
+				else if (di.packageItem)
+				{
+					child = UIObjectFactory.newObject(di.packageItem);
+					child.packageItem = di.packageItem;
+					child.constructFromResource();
+				}
+				else
+					child = UIObjectFactory.newObject2(di.type);
+				
+				child._underConstruct = true;
+				child.setup_beforeAdd(di.desc);
+				child.parent = this;
+				_children.push(child);
+			}
 
-                        u._underConstruct = true;
-                        u._constructingData = cxml;
-                        u.setup_beforeAdd(cxml);
-                        this.addChild(u);
-                    }
-                }
+            this.relations.setup(xml);
 
-                this.relations.setup(xml);
+			for (i = 0; i < childCount; i++)
+				_children[i].relations.setup(displayList[i].desc);
+			
+			for (i = 0; i < childCount; i++)
+			{
+				child = _children[i];
+				child.setup_afterAdd(displayList[i].desc);
+				child._underConstruct = false;
+			}
+			
+			str = xml.getAttribute("mask");
+			if(str)
+				this.mask = getChildById(str).displayObject;
 
-                length2 = this._children.length;
-                for(i2 = 0;i2 < length2;i2++) {
-                    u = this._children[i2];
-                    u.relations.setup(u._constructingData);
+            var trans: Transition;
+            for(i = 0;i < length1;i++) {
+                cxml = col[i];
+                if(cxml.nodeName == "transition") {
+                    trans = new Transition(this);
+                    this._transitions.push(trans);
+                    trans.setup(cxml);
                 }
-                
-                for(i2 = 0;i2 < length2;i2++) {
-                    u = this._children[i2];
-                    u.setup_afterAdd(u._constructingData);
-                    u._underConstruct = false;
-                    u._constructingData = null;
-                }
-
-                var trans: Transition;
-                for(i1 = 0;i1 < length1;i1++) {
-                    cxml = col[i1];
-                    if(cxml.nodeName == "transition") {
-                        trans = new Transition(this);
-                        this._transitions.push(trans);
-                        trans.setup(cxml);
-                    }
-                }
-                
-                if(this._transitions.length>0)
-                {
-                    this.displayObject.on(Event.DISPLAY, this, this.___added);
-                    this.displayObject.on(Event.UNDISPLAY, this, this.___removed);
-                }
+            }
+            
+            if(this._transitions.length>0)
+            {
+                this.displayObject.on(Event.DISPLAY, this, this.___added);
+                this.displayObject.on(Event.UNDISPLAY, this, this.___removed);
             }
 
             this.applyAllControllers();
@@ -870,12 +941,21 @@ package fairygui {
             this._underConstruct = false;
             
             length1 = this._children.length;
-            for (i1 = 0; i1 < length1; i1++) {
-                var child: GObject = this._children[i1];
-                if (child.displayObject != null && child.finalVisible)
+			var mm:Sprite = _displayObject.mask;
+            for (i = 0; i < length1; i++) {
+                child = this._children[i];
+                if (child.displayObject != null && child.displayObject!=mm && child.finalVisible)
                     this._container.addChild(child.displayObject);
             }
+			
+			setBoundsChangedFlag();
+			
+			constructFromXML(xml);
         }
+		
+		protected function constructFromXML(xml:Object):void
+		{
+		}
         
         private function ___added():void {
             var cnt: Number = this._transitions.length;
@@ -890,38 +970,7 @@ package fairygui {
             var cnt: Number = this._transitions.length;
             for(var i: Number = 0;i < cnt;++i) {
                 var trans: Transition = this._transitions[i];
-                trans.stop(false, true);
-            }
-        }
-
-        private function constructChild(xml: Object): GObject {
-            var pkgId: String = xml.getAttribute("pkg");
-            var thisPkg: UIPackage = this._packageItem.owner;
-            var pkg: UIPackage;
-            if (pkgId && pkgId != thisPkg.id) {
-                pkg = UIPackage.getById(pkgId);
-                if (!pkg)
-                    return null;
-            }
-            else
-                pkg = thisPkg;
-
-            var src: String = xml.getAttribute("src");
-            if (src) {
-                var pi: PackageItem = pkg.getItem(src);
-                if (!pi)
-                    return null;
-
-                var g: GObject = pkg.createObject2(pi);
-                return g;
-            }
-            else {
-                var str: String = xml.nodeName;
-                if (str == "text" && xml.getAttribute("input") == "true")
-                    g = new GTextInput();
-                else
-                    g = UIObjectFactory.newObject2(str);
-                return g;
+                trans.stop(false, false);
             }
         }
     }

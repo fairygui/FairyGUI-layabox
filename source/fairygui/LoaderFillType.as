@@ -1,12 +1,14 @@
 package fairygui
 {
-	public class FillType
+	public class LoaderFillType
 	{
 		public static const None:int = 0;
-		public static const Scale:int = 3;
+		public static const Scale:int = 1;
+		public static const ScaleMatchHeight:int = 2;
+		public static const ScaleMatchWidth:int = 3;
 		public static const ScaleFree:int = 4;
 		
-		public function FillType()
+		public function LoaderFillType()
 		{
 		}
 		
@@ -18,6 +20,10 @@ package fairygui
 					return None;
 				case "scale":
 					return Scale;
+				case "scaleMatchHeight":
+					return ScaleMatchHeight;
+				case "scaleMatchWidth":
+					return ScaleMatchWidth;
 				case "scaleFree":
 					return ScaleFree;
 				default:

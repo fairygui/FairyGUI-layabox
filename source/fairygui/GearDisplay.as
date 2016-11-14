@@ -1,7 +1,7 @@
 package fairygui {
 
     public class GearDisplay extends GearBase {
-		public var pages:Vector.<String>;
+		public var pages:Array;
 		
         public function GearDisplay(owner: GObject) {
             super(owner);
@@ -9,10 +9,7 @@ package fairygui {
 
 		override protected function init():void
 		{
-			if(this.pages==null)
-				this.pages = new Vector.<String>();
-			else
-				this.pages.length = 0;
+			this.pages = null;
 		}
 
 		override public function apply(): void {

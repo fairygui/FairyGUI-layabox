@@ -9,7 +9,7 @@ package fairygui {
 	import laya.resource.Texture;
 	import laya.utils.Byte;
 	import laya.utils.Utils;
-
+	
     public class UIPackage {
         private var _id: String;
         private var _name: String;
@@ -77,7 +77,7 @@ package fairygui {
         public static function createObjectFromURL(url: String,userClass:Object = null): GObject {
             var pi: PackageItem = UIPackage.getItemByURL(url);
             if(pi)
-                return pi.owner.createObject2(pi,userClass);
+                return pi.owner.internalCreateObject(pi,userClass);
             else
                 return null;
         }
@@ -100,7 +100,7 @@ package fairygui {
                 var srcId: String = url.substr(13);
                 var pkg: UIPackage = UIPackage.getById(pkgId);
                 if(pkg)
-                    return pkg.getItem(srcId);
+                    return pkg.getItemById(srcId);
             }
             return null;
         }
@@ -223,6 +223,10 @@ package fairygui {
                                 pi.scale9Grid.y = parseInt(arr[1]);
                                 pi.scale9Grid.width = parseInt(arr[2]);
                                 pi.scale9Grid.height = parseInt(arr[3]);
+								
+								str = cxml.getAttribute("gridTile");
+								if(str)
+									pi.tileGridIndice = parseInt(str);
                             }
                         }
                         else if(str == "tile") {
@@ -319,34 +323,39 @@ package fairygui {
         public function createObject(resName: String, userClass: Object = null): GObject {
             var pi: PackageItem = this._itemsByName[resName];
             if (pi)
-                return this.createObject2(pi, userClass);
+                return this.internalCreateObject(pi, userClass);
             else
                 return null;
         }
 
-        public function createObject2(pi: PackageItem, userClass: Object = null): GObject {
+        public function internalCreateObject(item: PackageItem, userClass: Object = null): GObject {
             var g: GObject;
-            if (pi.type == PackageItemType.Component) {
+            if (item.type == PackageItemType.Component) {
                 if (userClass != null)
                     g = new userClass();
                 else
-                    g = UIObjectFactory.newObject(pi);
+                    g = UIObjectFactory.newObject(item);
             }
             else
-                g = UIObjectFactory.newObject(pi);
+                g = UIObjectFactory.newObject(item);
 
             if (g == null)
                 return null;
 
             UIPackage._constructing++;
-            g.constructFromResource(pi);
+			g.packageItem = item;
+            g.constructFromResource();
             UIPackage._constructing--;
             return g;
         }
 
-        public function getItem(itemId: String): PackageItem {
+        public function getItemById(itemId: String): PackageItem {
             return this._itemsById[itemId];
         }
+		
+		public function getItemByName(resName: String): PackageItem {
+			return this._itemsByName[resName];
+		}
 
         public function getItemAssetByName(resName: String): Object {
             var pi: PackageItem = this._itemsByName[resName];
@@ -407,7 +416,10 @@ package fairygui {
 							if(col!=null)
 								this.translateComponent(xml, col);
 						}
+						
                         item.componentData = xml.firstChild;
+						
+						loadComponentChildren(item);
                     }
                     return item.componentData;
 
@@ -420,8 +432,57 @@ package fairygui {
             return this._resData[fn];
         }
 		
+		private function loadComponentChildren(item:PackageItem):void
+		{
+			var listNode:Object = ToolSet.findChildNode(item.componentData, "displayList");
+			if (listNode != null)
+			{
+				var col:Object = listNode.childNodes;
+				var dcnt:int = col.length;
+				item.displayList = new Vector.<DisplayListItem>(dcnt);
+				var di:DisplayListItem;
+				for (var i:int = 0; i < dcnt; i++)
+				{
+					var cxml:Object = col[i];
+					var tagName:String = cxml.nodeName;
+					
+					var src:String = cxml.getAttribute("src");
+					if (src)
+					{
+						var pkgId:String = cxml.getAttribute("pkg");
+						var pkg:UIPackage;
+						if (pkgId && pkgId != item.owner.id)
+							pkg = UIPackage.getById(pkgId);
+						else
+							pkg = item.owner;
+						
+						var pi:PackageItem = pkg != null ? pkg.getItemById(src) : null;
+						if (pi != null)
+							di = new DisplayListItem(pi, null);
+						else
+							di = new DisplayListItem(null, tagName);
+					}
+					else
+					{
+						if (tagName == "text" && cxml.getAttribute("input")=="true")
+							di = new DisplayListItem(null, "inputtext");
+						else
+							di = new DisplayListItem(null, tagName);
+					}
+					
+					di.desc = cxml;
+					item.displayList[i] = di;
+				}
+			}
+			else
+				item.displayList =new Vector.<DisplayListItem>(0);
+		}
+		
 		private function translateComponent(xml:Object, strings:Object):void {
 			var displayList:Object = ToolSet.findChildNode(xml.firstChild, "displayList");
+			if(displayList==null)
+				return;
+			
 			var nodes: Array = displayList.childNodes;
 			var length1: Number = nodes.length;
 			var length2: Number;
@@ -563,7 +624,16 @@ package fairygui {
                     frame.addDelay = parseInt(str);
                 item.frames[i] = frame;
                 
-                var sprite: AtlasSprite = this._sprites[item.id + "_" + i];
+				if (frame.rect.width == 0)
+					continue;
+				
+				str = frameNode.getAttribute("sprite");
+				if (str)
+					str = item.id + "_" + str;
+				else				
+					str = item.id + "_" + i;
+				
+                var sprite: AtlasSprite = this._sprites[str];
                 if(sprite != null)
                     frame.texture = this.createSpriteTexture(sprite);
                 
@@ -587,7 +657,8 @@ package fairygui {
             var atlasOffsetX: Number = 0, atlasOffsetY: Number = 0;
             var charImg: PackageItem;
             var mainTexture: Texture;
-
+			var lineHeight:int = 0;
+			
             for (i = 0; i < lineCount; i++) {
                 str = lines[i];
                 if (str.length == 0)
@@ -638,7 +709,7 @@ package fairygui {
                     }
 
                     if (ttf)
-                        bg.lineHeight = size;
+                        bg.lineHeight = lineHeight;
                     else {
                         if(bg.advance == 0) {
                             if(xadvance == 0)
@@ -648,7 +719,7 @@ package fairygui {
                         }
 
                         bg.lineHeight = bg.offsetY < 0 ? bg.height : (bg.offsetY + bg.height);
-                        if (bg.lineHeight < size)
+						if(size>0 && bg.lineHeight<size)
                             bg.lineHeight = size;
                     }
                     font.glyphs[String.fromCharCode(kv.id)] = bg;
@@ -670,8 +741,12 @@ package fairygui {
                     }
                 }
                 else if (str == "common") {
-                    if(size==0 && !isNaN(kv.lineHeight))
-                        size = parseInt(kv.lineHeight);
+					if(!isNaN(kv.lineHeight))
+						lineHeight = parseInt(kv.lineHeight);
+					if(size==0)
+						size = lineHeight;
+					else if(lineHeight==0)
+						lineHeight = size;
                     if(!isNaN(kv.xadvance))
                         xadvance = parseInt(kv.xadvance);
                 }

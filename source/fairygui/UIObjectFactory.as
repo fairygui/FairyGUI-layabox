@@ -80,6 +80,9 @@ package fairygui {
                 case "richtext":
                     return new GRichTextField();
 
+				case "inputtext":
+					return new GTextInput();
+					
                 case "group":
                     return new GGroup();
 

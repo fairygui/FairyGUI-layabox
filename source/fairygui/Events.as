@@ -9,6 +9,7 @@ package fairygui {
         public static const SIZE_DELAY_CHANGE: String = "fui_size_delay_change";
         public static const CLICK_ITEM:String = "fui_click_item";
         public static const SCROLL:String = "fui_scroll";
+		public static const SCROLL_END:String = "fui_scroll_end";
         public static const DROP:String = "fui_drop";
         public static const FOCUS_CHANGED:String = "fui_focus_changed";
         public static const DRAG_START:String = "fui_drag_start";

@@ -10,6 +10,7 @@ package fairygui.display {
         private var _texture:Texture;
         private var _scaleByTile:Boolean;
         private var _scale9Grid:Rectangle;
+		private var _tileGridIndice:int = 0;
         private var _textureScaleX:Number = 0;
         private var _textureScaleY:Number = 0;
         private var _needRebuild:Boolean;
@@ -67,6 +68,17 @@ package fairygui.display {
 			    this._scaleByTile = value;
 			    this.markChanged();
             }
+		}
+		
+		public function get tileGridIndice(): int {
+			return this._tileGridIndice;
+		}
+		
+		public function set tileGridIndice(value:int):void {
+			if(this._tileGridIndice!=value) {
+				this._tileGridIndice = value;
+				this.markChanged();
+			}
 		}
         
         private function markChanged():void {
@@ -143,13 +155,13 @@ package fairygui.display {
 				left && bottom && g.drawTexture(Image.getTexture(this._texture, 0, sh - bottom, left, bottom), 0, height - bottom, left, bottom);
 				right && bottom && g.drawTexture(Image.getTexture(this._texture, sw - right, sh - bottom, right, bottom), width - right, height - bottom, right, bottom);
 				//绘制上下两个边
-				centerWidth && top && g.drawTexture(Image.getTexture(this._texture, left, 0, sw - left - right, top), left, 0, centerWidth, top);				
-				centerWidth && bottom && g.drawTexture(Image.getTexture(this._texture, left, sh - bottom, sw - left - right, bottom), left, height - bottom, centerWidth, bottom);
+				centerWidth && top && drawTexture(0,Image.getTexture(this._texture, left, 0, sw - left - right, top), left, 0, centerWidth, top);				
+				centerWidth && bottom && drawTexture(1,Image.getTexture(this._texture, left, sh - bottom, sw - left - right, bottom), left, height - bottom, centerWidth, bottom);
 				//绘制左右两边
-				centerHeight && left && g.drawTexture(Image.getTexture(this._texture, 0, top, left, sh - top - bottom), 0, top, left, centerHeight);
-				centerHeight && right && g.drawTexture(Image.getTexture(this._texture, sw - right, top, right, sh - top - bottom), width - right, top, right, centerHeight);
+				centerHeight && left && drawTexture(2,Image.getTexture(this._texture, 0, top, left, sh - top - bottom), 0, top, left, centerHeight);
+				centerHeight && right && drawTexture(3,Image.getTexture(this._texture, sw - right, top, right, sh - top - bottom), width - right, top, right, centerHeight);
 				//绘制中间
-				centerWidth && centerHeight && g.drawTexture(Image.getTexture(this._texture, left, top, sw - left - right, sh - top - bottom), left, top, centerWidth, centerHeight);
+				centerWidth && centerHeight && drawTexture(4,Image.getTexture(this._texture, left, top, sw - left - right, sh - top - bottom), left, top, centerWidth, centerHeight);
             }
             else {
                 g.drawTexture(this._texture, 0, 0, width, height);
@@ -157,6 +169,14 @@ package fairygui.display {
             
             this.repaint();
         }
+		
+		private function drawTexture(part:int, tex:Texture, x:Number, y:Number, width:Number = 0, height:Number = 0):void {
+			if(part==-1 || (_tileGridIndice & (1<<part))==0)
+				this.graphics.drawTexture(tex, x, y, width, height);		
+			else
+				this.graphics.fillTexture(tex, x, y, width, height);
+					
+		}
         
         private static function getTexture(source:Object,x:Number,y:Number,width:Number,height:Number):Texture {            
 			source.$GID || (source.$GID=Utils.getGID());
