@@ -3314,8 +3314,12 @@
 				this.validateHolderPos();
 				this._xOffset+=deltaPosX;
 				this._yOffset+=deltaPosY;
-				this._y1=this._y2=this._container.y;
-				this._x1=this._x2=this._container.x;
+				var tmp=this._y2-this._y1;
+				this._y1=this._container.y;
+				this._y2=this._y1+tmp;
+				tmp=this._x2-this._x1;
+				this._x1=this._container.x;
+				this._x2=this._x1+tmp;
 				this._yPos=-this._container.y;
 				this._xPos=-this._container.x;
 			}
@@ -3753,8 +3757,8 @@
 			var time=(Laya.timer.currTimer-this._time2)/ 1000;
 			if (time==0)
 				time=0.001;
-			var yVelocity=(this._container.y-this._y2)/ time;
-			var xVelocity=(this._container.x-this._x2)/ time;
+			var yVelocity=(this._container.y-this._y2)/ time *2 *UIConfig1.defaultTouchScrollSpeedRatio;;
+			var xVelocity=(this._container.x-this._x2)/ time *2 *UIConfig1.defaultTouchScrollSpeedRatio;;
 			var duration=0.3;
 			this._tweenHelper.start.x=this._container.x;
 			this._tweenHelper.start.y=this._container.y;
@@ -5093,6 +5097,7 @@
 		UIConfig.horizontalScrollBar=null
 		UIConfig.verticalScrollBar=null
 		UIConfig.defaultScrollSpeed=25;
+		UIConfig.defaultTouchScrollSpeedRatio=1;
 		UIConfig.defaultScrollBarDisplay=1;
 		UIConfig.defaultScrollTouchEffect=true;
 		UIConfig.defaultScrollBounceEffect=true;
@@ -11387,7 +11392,7 @@
 							url=this.defaultItem;
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
-						this.removeChild(ii.obj);
+						this.removeChildToPool(ii.obj);
 						ii.obj=null;
 					}
 				}
@@ -11457,7 +11462,7 @@
 			for (i=0;i < oldCount;i++){
 				ii=this._virtualItems[oldFirstIndex+i];
 				if (ii.updateFlag !=GList.itemInfoVer && ii.obj !=null){
-					this.removeChild(ii.obj);
+					this.removeChildToPool(ii.obj);
 					ii.obj=null;
 				}
 			}
@@ -11506,7 +11511,7 @@
 							url=this.defaultItem;
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
-						this.removeChild(ii.obj);
+						this.removeChildToPool(ii.obj);
 						ii.obj=null;
 					}
 				}
@@ -11576,7 +11581,7 @@
 			for (i=0;i < oldCount;i++){
 				ii=this._virtualItems[oldFirstIndex+i];
 				if (ii.updateFlag !=GList.itemInfoVer && ii.obj !=null){
-					this.removeChild(ii.obj);
+					this.removeChildToPool(ii.obj);
 					ii.obj=null;
 				}
 			}
@@ -11676,7 +11681,7 @@
 			for (i=reuseIndex;i < virtualItemCount;i++){
 				ii=this._virtualItems[i];
 				if (ii.updateFlag !=GList.itemInfoVer && ii.obj !=null){
-					this.removeChild(ii.obj);
+					this.removeChildToPool(ii.obj);
 					ii.obj=null;
 				}
 			}
@@ -13546,7 +13551,7 @@
 	//class fairygui.display.Image extends laya.display.Sprite
 	var Image1=(function(_super){
 		function Image(){
-			this._texture=null;
+			this._tex=null;
 			this._scaleByTile=false;
 			this._scale9Grid=null;
 			this._tileGridIndice=0;
@@ -13565,8 +13570,8 @@
 			if(this._textureScaleX!=sx || this._textureScaleY!=sy){
 				this._textureScaleX=sx;
 				this._textureScaleY=sy;
-				if(this._texture)
-					this.size(this._texture.width*sx,this._texture.height*sy);
+				if(this._tex)
+					this.size(this._tex.width*sx,this._tex.height*sy);
 				this.markChanged();
 			}
 		}
@@ -13582,20 +13587,20 @@
 			this._needRebuild=false;
 			var g=this.graphics;
 			g.clear();
-			if(this._texture==null){
+			if(this._tex==null){
 				this.repaint();
 				return;
 			};
 			var width=this.width;
 			var height=this.height;
-			var sw=this._texture.width;
-			var sh=this._texture.height;
+			var sw=this._tex.width;
+			var sh=this._tex.height;
 			if(width==0 || height==0){
 				this.repaint();
 				return;
 			}
 			if(this._scaleByTile){
-				g.fillTexture(this._texture,0,0,width,height);
+				g.fillTexture(this._tex,0,0,width,height);
 			}
 			else if(this._scale9Grid!=null){
 				var left=this._scale9Grid.x;
@@ -13625,18 +13630,18 @@
 				};
 				var centerWidth=Math.max(width-left-right,0);
 				var centerHeight=Math.max(height-top-bottom,0);
-				left && top && g.drawTexture(fairygui.display.Image.getTexture(this._texture,0,0,left,top),0,0,left,top);
-				right && top && g.drawTexture(fairygui.display.Image.getTexture(this._texture,sw-right,0,right,top),width-right,0,right,top);
-				left && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._texture,0,sh-bottom,left,bottom),0,height-bottom,left,bottom);
-				right && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._texture,sw-right,sh-bottom,right,bottom),width-right,height-bottom,right,bottom);
-				centerWidth && top && this.drawTexture(0,fairygui.display.Image.getTexture(this._texture,left,0,sw-left-right,top),left,0,centerWidth,top);
-				centerWidth && bottom && this.drawTexture(1,fairygui.display.Image.getTexture(this._texture,left,sh-bottom,sw-left-right,bottom),left,height-bottom,centerWidth,bottom);
-				centerHeight && left && this.drawTexture(2,fairygui.display.Image.getTexture(this._texture,0,top,left,sh-top-bottom),0,top,left,centerHeight);
-				centerHeight && right && this.drawTexture(3,fairygui.display.Image.getTexture(this._texture,sw-right,top,right,sh-top-bottom),width-right,top,right,centerHeight);
-				centerWidth && centerHeight && this.drawTexture(4,fairygui.display.Image.getTexture(this._texture,left,top,sw-left-right,sh-top-bottom),left,top,centerWidth,centerHeight);
+				left && top && g.drawTexture(fairygui.display.Image.getTexture(this._tex,0,0,left,top),0,0,left,top);
+				right && top && g.drawTexture(fairygui.display.Image.getTexture(this._tex,sw-right,0,right,top),width-right,0,right,top);
+				left && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._tex,0,sh-bottom,left,bottom),0,height-bottom,left,bottom);
+				right && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._tex,sw-right,sh-bottom,right,bottom),width-right,height-bottom,right,bottom);
+				centerWidth && top && this.drawTexture(0,fairygui.display.Image.getTexture(this._tex,left,0,sw-left-right,top),left,0,centerWidth,top);
+				centerWidth && bottom && this.drawTexture(1,fairygui.display.Image.getTexture(this._tex,left,sh-bottom,sw-left-right,bottom),left,height-bottom,centerWidth,bottom);
+				centerHeight && left && this.drawTexture(2,fairygui.display.Image.getTexture(this._tex,0,top,left,sh-top-bottom),0,top,left,centerHeight);
+				centerHeight && right && this.drawTexture(3,fairygui.display.Image.getTexture(this._tex,sw-right,top,right,sh-top-bottom),width-right,top,right,centerHeight);
+				centerWidth && centerHeight && this.drawTexture(4,fairygui.display.Image.getTexture(this._tex,left,top,sw-left-right,sh-top-bottom),left,top,centerWidth,centerHeight);
 			}
 			else {
-				g.drawTexture(this._texture,0,0,width,height);
+				g.drawTexture(this._tex,0,0,width,height);
 			}
 			this.repaint();
 		}
@@ -13651,12 +13656,12 @@
 		}
 
 		__getset(0,__proto,'tex',function(){
-			return this._texture;
+			return this._tex;
 			},function(value){
-			if(this._texture!=value){
-				this._texture=value;
-				if(this._texture)
-					this.size(this._texture.width*this._textureScaleX,this._texture.height*this._textureScaleY);
+			if(this._tex!=value){
+				this._tex=value;
+				if(this._tex)
+					this.size(this._tex.width*this._textureScaleX,this._tex.height*this._textureScaleY);
 				else
 				this.size(0,0);
 				this.markChanged();
