@@ -3314,8 +3314,12 @@
 				this.validateHolderPos();
 				this._xOffset+=deltaPosX;
 				this._yOffset+=deltaPosY;
-				this._y1=this._y2=this._container.y;
-				this._x1=this._x2=this._container.x;
+				var tmp=this._y2-this._y1;
+				this._y1=this._container.y;
+				this._y2=this._y1+tmp;
+				tmp=this._x2-this._x1;
+				this._x1=this._container.x;
+				this._x2=this._x1+tmp;
 				this._yPos=-this._container.y;
 				this._xPos=-this._container.x;
 			}
@@ -3753,8 +3757,8 @@
 			var time=(Laya.timer.currTimer-this._time2)/ 1000;
 			if (time==0)
 				time=0.001;
-			var yVelocity=(this._container.y-this._y2)/ time;
-			var xVelocity=(this._container.x-this._x2)/ time;
+			var yVelocity=(this._container.y-this._y2)/ time *2 *UIConfig1.defaultTouchScrollSpeedRatio;;
+			var xVelocity=(this._container.x-this._x2)/ time *2 *UIConfig1.defaultTouchScrollSpeedRatio;;
 			var duration=0.3;
 			this._tweenHelper.start.x=this._container.x;
 			this._tweenHelper.start.y=this._container.y;
@@ -5093,6 +5097,7 @@
 		UIConfig.horizontalScrollBar=null
 		UIConfig.verticalScrollBar=null
 		UIConfig.defaultScrollSpeed=25;
+		UIConfig.defaultTouchScrollSpeedRatio=1;
 		UIConfig.defaultScrollBarDisplay=1;
 		UIConfig.defaultScrollTouchEffect=true;
 		UIConfig.defaultScrollBounceEffect=true;
@@ -11387,7 +11392,7 @@
 							url=this.defaultItem;
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
-						this.removeChild(ii.obj);
+						this.removeChildToPool(ii.obj);
 						ii.obj=null;
 					}
 				}
@@ -11457,7 +11462,7 @@
 			for (i=0;i < oldCount;i++){
 				ii=this._virtualItems[oldFirstIndex+i];
 				if (ii.updateFlag !=GList.itemInfoVer && ii.obj !=null){
-					this.removeChild(ii.obj);
+					this.removeChildToPool(ii.obj);
 					ii.obj=null;
 				}
 			}
@@ -11506,7 +11511,7 @@
 							url=this.defaultItem;
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
-						this.removeChild(ii.obj);
+						this.removeChildToPool(ii.obj);
 						ii.obj=null;
 					}
 				}
@@ -11576,7 +11581,7 @@
 			for (i=0;i < oldCount;i++){
 				ii=this._virtualItems[oldFirstIndex+i];
 				if (ii.updateFlag !=GList.itemInfoVer && ii.obj !=null){
-					this.removeChild(ii.obj);
+					this.removeChildToPool(ii.obj);
 					ii.obj=null;
 				}
 			}
@@ -11676,7 +11681,7 @@
 			for (i=reuseIndex;i < virtualItemCount;i++){
 				ii=this._virtualItems[i];
 				if (ii.updateFlag !=GList.itemInfoVer && ii.obj !=null){
-					this.removeChild(ii.obj);
+					this.removeChildToPool(ii.obj);
 					ii.obj=null;
 				}
 			}
