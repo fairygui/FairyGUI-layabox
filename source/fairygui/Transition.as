@@ -806,7 +806,6 @@ package fairygui {
                     case "Visible":
                         item.type = TransitionActionType.Visible;
                         break;
-                        break;
                     case "Sound":
                         item.type = TransitionActionType.Sound;
                         break;

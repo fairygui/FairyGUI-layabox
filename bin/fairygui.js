@@ -4846,7 +4846,6 @@
 					case "Visible":
 						item.type=8;
 						break ;
-						break ;
 					case "Sound":
 						item.type=9;
 						break ;
@@ -11090,8 +11089,6 @@
 					var obj=this.getFromPool(null);
 					if (obj==null){
 						throw new Error("Virtual List must have a default list item resource.");
-						this._itemSize.x=100;
-						this._itemSize.y=100;
 					}
 					else{
 						this._itemSize.x=obj.width;

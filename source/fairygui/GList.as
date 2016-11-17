@@ -857,8 +857,6 @@ package fairygui {
 					if (obj == null)
 					{
 						throw new Error("Virtual List must have a default list item resource.");
-						this._itemSize.x = 100;
-						this._itemSize.y = 100;
 					}
 					else
 					{
