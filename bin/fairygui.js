@@ -3480,7 +3480,7 @@
 					else
 					this._yPerc=this._yPos / this._yOverlap;
 				}
-				if(this._xOverlap && this._xPerc!=1 && this._xPerc!=0){
+				if(this._xOverlap>0 && this._xPerc!=1 && this._xPerc!=0){
 					page=Math.floor(this._xPos / this._pageSizeH);
 					delta=this._xPos-page*this._pageSizeH;
 					if(delta>this._pageSizeH/2)
@@ -4509,6 +4509,8 @@
 						endValue.f1=item.value.f1;
 					if(!endValue.b2)
 						endValue.f2=item.value.f2;
+					item.value.b1=startValue.b1 || endValue.b1;
+					item.value.b2=startValue.b2 || endValue.b2;
 					toProps.f1=endValue.f1;
 					toProps.f2=endValue.f2;
 					break ;

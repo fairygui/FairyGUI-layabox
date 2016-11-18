@@ -444,6 +444,9 @@ package fairygui {
 					if(!endValue.b2)
 						endValue.f2 = item.value.f2;
 					
+					item.value.b1 = startValue.b1 || endValue.b1;
+					item.value.b2 = startValue.b2 || endValue.b2;
+					
 					toProps.f1 = endValue.f1;
 					toProps.f2 = endValue.f2;
 					break;

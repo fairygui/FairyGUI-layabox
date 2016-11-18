@@ -773,7 +773,7 @@ package fairygui {
 						_yPerc = _yPos / _yOverlap;
 				}
 				
-				if(_xOverlap && _xPerc!=1 && _xPerc!=0)
+				if(_xOverlap>0 && _xPerc!=1 && _xPerc!=0)
 				{
 					page = Math.floor(_xPos / _pageSizeH);
 					delta = _xPos - page*_pageSizeH;
