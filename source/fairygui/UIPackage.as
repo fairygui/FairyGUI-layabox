@@ -411,15 +411,10 @@ package fairygui {
                         item.decoded = true;
                         var str: String = this.getDesc(item.id + ".xml");
 						var xml: Object = Utils.parseXMLFromString(str);
-						if(UIPackage._stringsSource!=null) {
-							var col:Object = UIPackage._stringsSource[this.id + item.id];
-							if(col!=null)
-								this.translateComponent(xml, col);
-						}
-						
                         item.componentData = xml.firstChild;
 						
 						loadComponentChildren(item);
+						translateComponent(item);
                     }
                     return item.componentData;
 
@@ -478,13 +473,15 @@ package fairygui {
 				item.displayList =new Vector.<DisplayListItem>(0);
 		}
 		
-		private function translateComponent(xml:Object, strings:Object):void {
-			var displayList:Object = ToolSet.findChildNode(xml.firstChild, "displayList");
-			if(displayList==null)
+		private function translateComponent(item:PackageItem):void {
+			if(UIPackage._stringsSource==null)
 				return;
 			
-			var nodes: Array = displayList.childNodes;
-			var length1: Number = nodes.length;
+			var strings:Object = UIPackage._stringsSource[this.id + item.id];
+			if(strings==null)
+				return;
+
+			var length1: Number = item.displayList.length;
 			var length2: Number;
 			var value:*;
 			var cxml:Object, dxml:Object, exml:Object;
@@ -495,7 +492,7 @@ package fairygui {
 			var str:String;
 			
 			for (i1 = 0; i1 < length1; i1++) {
-				cxml = nodes[i1];
+				cxml = item.displayList[i1].desc;
 				ename = cxml.nodeName;
 				elementId = cxml.getAttribute("id");
 				
@@ -504,6 +501,17 @@ package fairygui {
 					value = strings[elementId+"-tips"];
 					if(value!=undefined)
 						cxml.setAttribute("tooltips", value);
+				}
+				
+				dxml = ToolSet.findChildNode(cxml, "gearText");
+				if(dxml) {
+					value = strings[elementId+"-texts"];
+					if(value!=undefined)
+						dxml.setAttribute("values", value);
+					
+					value = strings[elementId+"-texts_def"];
+					if(value!=undefined)
+						dxml.setAttribute("default", value);
 				}
 				
 				if(ename=="text" || ename=="richtext")	{
@@ -537,35 +545,36 @@ package fairygui {
 						value = strings[elementId+"-0"];
 						if(value!=undefined)
 							dxml.setAttribute("selectedTitle", value);
+						continue;
 					}
-					else {						
-						dxml = ToolSet.findChildNode(cxml, "Label");
-						if(dxml) {
-							value = strings[elementId];
+				
+					dxml = ToolSet.findChildNode(cxml, "Label");
+					if(dxml) {
+						value = strings[elementId];
+						if(value!=undefined)
+							dxml.setAttribute("title", value);
+						continue;
+					}
+
+					dxml = ToolSet.findChildNode(cxml, "ComboBox");
+					if(dxml) {
+						value = strings[elementId];
+						if(value!=undefined)
+							dxml.setAttribute("title", value);
+						
+						items = dxml.childNodes;
+						length2 = items.length;
+						j = 0;
+						for (i2 = 0; i2 < length2; i2++) {
+							exml = items[i2];
+							if(exml.nodeName!="item")
+								continue;
+							value = strings[elementId+"-"+j];
 							if(value!=undefined)
-								dxml.setAttribute("title", value);
+								exml.setAttribute("title", value);
+							j++;
 						}
-						else {
-							dxml = ToolSet.findChildNode(cxml, "ComboBox");
-							if(dxml) {
-								value = strings[elementId];
-								if(value!=undefined)
-									dxml.setAttribute("title", value);
-								
-								items = dxml.childNodes;
-								length2 = items.length;
-								j = 0;
-								for (i2 = 0; i2 < length2; i2++) {
-									exml = items[i2];
-									if(exml.nodeName!="item")
-										continue;
-									value = strings[elementId+"-"+j];
-									if(value!=undefined)
-										exml.setAttribute("title", value);
-									j++;
-								}
-							}
-						}
+						continue;
 					}
 				}
 			}

@@ -5439,13 +5439,9 @@
 						item.decoded=true;
 						var str=this.getDesc(item.id+".xml");
 						var xml=Utils.parseXMLFromString(str);
-						if(fairygui.UIPackage._stringsSource!=null){
-							var col=fairygui.UIPackage._stringsSource[this.id+item.id];
-							if(col!=null)
-								this.translateComponent(xml,col);
-						}
 						item.componentData=xml.firstChild;
 						this.loadComponentChildren(item);
+						this.translateComponent(item);
 					}
 					return item.componentData;
 				default :
@@ -5495,12 +5491,13 @@
 			item.displayList=__newvec(0,null);
 		}
 
-		__proto.translateComponent=function(xml,strings){
-			var displayList=ToolSet.findChildNode(xml.firstChild,"displayList");
-			if(displayList==null)
+		__proto.translateComponent=function(item){
+			if(fairygui.UIPackage._stringsSource==null)
 				return;
-			var nodes=displayList.childNodes;
-			var length1=nodes.length;
+			var strings=fairygui.UIPackage._stringsSource[this.id+item.id];
+			if(strings==null)
+				return;
+			var length1=item.displayList.length;
 			var length2=NaN;
 			var value;
 			var cxml,dxml,exml;
@@ -5510,7 +5507,7 @@
 			var i1=NaN,i2=NaN,j=NaN;
 			var str;
 			for (i1=0;i1 < length1;i1++){
-				cxml=nodes[i1];
+				cxml=item.displayList[i1].desc;
 				ename=cxml.nodeName;
 				elementId=cxml.getAttribute("id");
 				str=cxml.getAttribute("tooltips");
@@ -5518,6 +5515,15 @@
 					value=strings[elementId+"-tips"];
 					if(value!=undefined)
 						cxml.setAttribute("tooltips",value);
+				}
+				dxml=ToolSet.findChildNode(cxml,"gearText");
+				if(dxml){
+					value=strings[elementId+"-texts"];
+					if(value!=undefined)
+						dxml.setAttribute("values",value);
+					value=strings[elementId+"-texts_def"];
+					if(value!=undefined)
+						dxml.setAttribute("default",value);
 				}
 				if(ename=="text" || ename=="richtext"){
 					value=strings[elementId];
@@ -5550,34 +5556,33 @@
 						value=strings[elementId+"-0"];
 						if(value!=undefined)
 							dxml.setAttribute("selectedTitle",value);
+						continue ;
 					}
-					else {
-						dxml=ToolSet.findChildNode(cxml,"Label");
-						if(dxml){
-							value=strings[elementId];
+					dxml=ToolSet.findChildNode(cxml,"Label");
+					if(dxml){
+						value=strings[elementId];
+						if(value!=undefined)
+							dxml.setAttribute("title",value);
+						continue ;
+					}
+					dxml=ToolSet.findChildNode(cxml,"ComboBox");
+					if(dxml){
+						value=strings[elementId];
+						if(value!=undefined)
+							dxml.setAttribute("title",value);
+						items=dxml.childNodes;
+						length2=items.length;
+						j=0;
+						for (i2=0;i2 < length2;i2++){
+							exml=items[i2];
+							if(exml.nodeName!="item")
+								continue ;
+							value=strings[elementId+"-"+j];
 							if(value!=undefined)
-								dxml.setAttribute("title",value);
+								exml.setAttribute("title",value);
+							j++;
 						}
-						else {
-							dxml=ToolSet.findChildNode(cxml,"ComboBox");
-							if(dxml){
-								value=strings[elementId];
-								if(value!=undefined)
-									dxml.setAttribute("title",value);
-								items=dxml.childNodes;
-								length2=items.length;
-								j=0;
-								for (i2=0;i2 < length2;i2++){
-									exml=items[i2];
-									if(exml.nodeName!="item")
-										continue ;
-									value=strings[elementId+"-"+j];
-									if(value!=undefined)
-										exml.setAttribute("title",value);
-									j++;
-								}
-							}
-						}
+						continue ;
 					}
 				}
 			}
