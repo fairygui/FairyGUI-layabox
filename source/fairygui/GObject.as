@@ -285,7 +285,7 @@ package fairygui {
 				this._skewX = sx;
 				this._skewY = sy;
 				if(this._displayObject!=null) {
-					this._displayObject.skew(sx, sy);
+					this._displayObject.skew(-sx, sy);
 					this.applyPivot();
 				}
 			}

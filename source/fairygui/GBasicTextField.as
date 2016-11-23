@@ -263,7 +263,11 @@ package fairygui {
             {
                 w = this._textWidth;
                 if(this.textField.width!=w)
-                    this.textField.width = w;
+				{
+					this.textField.width = w;
+					if(this.textField.align!="left")
+						this.textField["baseTypeset"]();
+				}
             }
             else
                 w = this.width;
@@ -639,10 +643,19 @@ class TextExt extends Text
 		this._owner = owner;
 	}
 	
+	private var _lock:Boolean;
+	public function baseTypeset():void
+	{
+		_lock = true;
+		typeset();
+		_lock = false;
+	}
+	
 	override public function typeset():void
 	{
 		super.typeset();
-		this._owner.typeset();
+		if(!_lock)
+			this._owner.typeset();
 		if(this._isChanged) {
 			Laya.timer.clear(this, this.typeset);
 			this._isChanged = false;

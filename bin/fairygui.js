@@ -8,9 +8,9 @@
 	var Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound,SoundChannel=laya.media.SoundChannel;
 	var Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text,Texture=laya.resource.Texture;
 	var Tween=laya.utils.Tween,Utils=laya.utils.Utils;
-	Laya.interface('fairygui.IAnimationGear');
-	Laya.interface('fairygui.IColorGear');
 	Laya.interface('fairygui.IUISource');
+	Laya.interface('fairygui.IColorGear');
+	Laya.interface('fairygui.IAnimationGear');
 	//class fairygui.AssetProxy
 	var AssetProxy=(function(){
 		function AssetProxy(){
@@ -663,7 +663,7 @@
 				this._skewX=sx;
 				this._skewY=sy;
 				if(this._displayObject!=null){
-					this._displayObject.skew(sx,sy);
+					this._displayObject.skew(-sx,sy);
 					this.applyPivot();
 				}
 			}
@@ -3093,8 +3093,10 @@
 
 		__proto.setPosX=function(value,ani){
 			(ani===void 0)&& (ani=false);
+			this._owner.ensureBoundsCorrect();
+			value=ToolSet.clamp(value,0,this._xOverlap);
 			if(value!=this._xPos){
-				this._xPos=ToolSet.clamp(value,0,this._xOverlap);
+				this._xPos=value;
 				this._xPerc=this._xOverlap==0?0:this._xPos/this._xOverlap;
 				this.posChanged(ani);
 			}
@@ -3102,8 +3104,10 @@
 
 		__proto.setPosY=function(value,ani){
 			(ani===void 0)&& (ani=false);
+			this._owner.ensureBoundsCorrect();
+			value=ToolSet.clamp(value,0,this._yOverlap);
 			if(value!=this._yPos){
-				this._yPos=ToolSet.clamp(value,0,this._yOverlap);
+				this._yPos=value;
 				this._yPerc=this._yOverlap==0?0:this._yPos/this._yOverlap;
 				this.posChanged(ani);
 			}
@@ -9119,8 +9123,11 @@
 			var w=NaN,h=0;
 			if(this._widthAutoSize){
 				w=this._textWidth;
-				if(this.textField.width!=w)
+				if(this.textField.width!=w){
 					this.textField.width=w;
+					if(this.textField.align!="left")
+						this.textField["baseTypeset"]();
+				}
 			}
 			else
 			w=this.width;
@@ -9593,14 +9600,21 @@
 			TextExt=(function(_super){
 				function TextExt(owner){
 					this._owner=null;
+					this._lock=false;
 					TextExt.__super.call(this);
 					this._owner=owner;
 				}
 				__class(TextExt,'',_super);
 				var __proto=TextExt.prototype;
+				__proto.baseTypeset=function(){
+					this._lock=true;
+					this.typeset();
+					this._lock=false;
+				}
 				__proto.typeset=function(){
 					_super.prototype.typeset.call(this);
-					this._owner.typeset();
+					if(!this._lock)
+						this._owner.typeset();
 					if(this._isChanged){
 						Laya.timer.clear(this,this.typeset);
 						this._isChanged=false;
@@ -10986,10 +11000,14 @@
 		__proto.scrollToView=function(index,ani,setFirst){
 			(ani===void 0)&& (ani=false);
 			(setFirst===void 0)&& (setFirst=false);
+			if(this._numItems==0)
+				return;
 			if (this._virtual){
 				this.checkVirtualList();
 				if (index >=this._virtualItems.length)
 					throw new Error("Invalid child index: "+index+">"+this._virtualItems.length);
+				if(this._loop)
+					index=Math.floor(this._firstIndex/this._numItems)*this._numItems+index;
 				var rect;
 				var ii=this._virtualItems[index];
 				var pos=0;
@@ -11722,6 +11740,8 @@
 		}
 
 		__proto.updateBounds=function(){
+			if(this._virtual)
+				return;
 			var i=0;
 			var child;
 			var curX=0;
@@ -13723,7 +13743,7 @@
 			this.swing=false;
 			this.repeatDelay=0;
 			this.playState=null;
-			this._texture=null;
+			this._$3__texture=null;
 			this._needRebuild=false;
 			this._playing=false;
 			this._frameCount=0;
@@ -13872,5 +13892,5 @@
 	})(Sprite)
 
 
-	Laya.__init([GBasicTextField,GList,Transition,UIPackage,ScrollPane,Controller,GearAnimation,GearLook,GearSize,RelationItem]);
+	Laya.__init([GList,Transition,UIPackage,ScrollPane,GBasicTextField,Controller,GearAnimation,GearLook,GearSize,RelationItem]);
 })(window,document,Laya);
