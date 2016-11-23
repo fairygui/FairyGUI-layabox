@@ -320,7 +320,7 @@ declare module fairygui {
         opaque: boolean;
         margin: Margin;
         mask: laya.display.Sprite;
-        protected updateOpaque(): void;
+        protected updateHitArea(): void;
         protected updateMask(): void;
         protected setupScroll(scrollBarMargin: Margin, scroll: number, scrollBarDisplay: number, flags: number, vtScrollBarRes: string, hzScrollBarRes: string): void;
         protected setupOverflow(overflow: number): void;
@@ -1286,6 +1286,7 @@ declare module fairygui {
         getItemByName(itemId: string): PackageItem;
         getItemAssetByName(resName: string): Object;
         getItemAsset(item: PackageItem): Object;
+        getPixelHitTestData(itemId: string): fairygui.utils.PixelHitTestData;
     }
     class AtlasSprite {
         AtlasSprite(): any;
@@ -1378,5 +1379,26 @@ declare module fairygui {
         createObject(pkgName: string, resName: string): void;
         createObjectFromURL(url: string): void;
         cancel();
+    }
+}
+
+declare module fairygui.utils {
+    class PixelHitTestData {
+        pixelWidth: number;
+        scale: number;		
+        pixels: Array<number>;
+        constructor();
+        load(ba: laya.utils.Byte);
+    }
+}
+
+declare module fairygui.utils {
+    class PixelHitTest extends laya.utils.HitArea {
+        offsetX: number;
+        offsetY: number;
+        scaleX: number;		
+        scaleY: number;	
+        constructor(data: fairygui.utils.PixelHitTestData, offsetX: number, offsetY: number);
+        isHit(x: number, y: number):boolean;
     }
 }

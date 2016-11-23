@@ -1,5 +1,8 @@
 package fairygui {
 
+	import fairygui.utils.PixelHitTest;
+	import fairygui.utils.PixelHitTestData;
+	
 	import laya.display.Sprite;
 	import laya.events.Event;
 	import laya.maths.Point;
@@ -472,26 +475,25 @@ package fairygui {
         public function get scrollPane(): ScrollPane {
             return this._scrollPane;
         }
-
-        public function get opaque(): Boolean {
-            return this._opaque;
-        }
-
-        public function set opaque(value: Boolean):void {
-            if(this._opaque != value) {
-                this._opaque = value;
-                if(this._opaque)
-				{
-                    this.updateOpaque();
-					this._displayObject.mouseThrough = false;
-				}
-                else
-				{
-                    this._displayObject.hitArea = null;
-					this._displayObject.mouseThrough = true;
-				}
-            }
-        }
+		
+		public function get opaque():Boolean
+		{
+			return this._displayObject.hitArea!=null;
+		}
+		
+		public function set opaque(value:Boolean):void
+		{
+			if (value)
+			{
+				updateHitArea();
+				this._displayObject.mouseThrough = false;
+			}
+			else
+			{
+				this._displayObject.hitArea = null;
+				this._displayObject.mouseThrough = true;
+			}
+		}
         
         public function get margin(): Margin {
             return this._margin;
@@ -515,11 +517,24 @@ package fairygui {
 			_displayObject.mask = value;
 		}
         
-        protected function updateOpaque():void {
-            if(!this._displayObject.hitArea)
-                this._displayObject.hitArea = new Rectangle();
-            this._displayObject.hitArea.setTo(0, 0, this.width, this.height);
-        }
+		protected function updateHitArea():void
+		{
+			if(this._displayObject.hitArea is PixelHitTest)
+			{
+				var hitTest:PixelHitTest = PixelHitTest(this._displayObject.hitArea);
+				if(this.sourceWidth!=0)
+					hitTest.scaleX = this.width/this.sourceWidth;
+				if(this.sourceHeight!=0)
+					hitTest.scaleY = this.height/this.sourceHeight;
+			}
+			else
+			{
+				if(this._displayObject.hitArea==null)
+					this._displayObject.hitArea = new Rectangle();
+				
+				this._displayObject.hitArea.setTo(0, 0, this.width, this.height);
+			}
+		}
         
         protected function updateMask():void {
 			var rect:Rectangle = this._displayObject.scrollRect;
@@ -576,8 +591,8 @@ package fairygui {
             else if(this._displayObject.scrollRect != null)
                 this.updateMask();
 			
-            if(this._opaque)
-                this.updateOpaque();
+			if(this._displayObject.hitArea!=null)
+                this.updateHitArea();
         }
 
         override protected function handleGrayedChanged(): void {
@@ -805,6 +820,19 @@ package fairygui {
 
             str = xml.getAttribute("opaque");
             this.opaque = str != "false";
+			
+			str = xml.getAttribute("hitTest");
+			if(str)
+			{
+				arr = str.split(",");
+				var hitTestData:PixelHitTestData = packageItem.owner.getPixelHitTestData(arr[0]);
+				if (hitTestData != null)
+				{
+					this._displayObject.hitArea = new PixelHitTest(hitTestData, parseInt(arr[1]), parseInt(arr[2]));
+					this._displayObject.mouseThrough = false;
+					this._displayObject.hitTestPrior = true;
+				}
+			}
             
             var overflow: int;
             str = xml.getAttribute("overflow");

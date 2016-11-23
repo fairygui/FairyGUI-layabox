@@ -3,6 +3,7 @@ package fairygui {
 	import fairygui.display.BMGlyph;
 	import fairygui.display.BitmapFont;
 	import fairygui.display.Frame;
+	import fairygui.utils.PixelHitTestData;
 	import fairygui.utils.ToolSet;
 	
 	import laya.maths.Rectangle;
@@ -21,7 +22,8 @@ package fairygui {
         private var _resData: Object;
         private var _customId: String;
         private var _sprites: Object;
-        
+		private var _hitTestDatas:Object;
+		
         //internal
         public static var _constructing: Number = 0;
 
@@ -38,6 +40,7 @@ package fairygui {
         public function UIPackage() {
             this._items = new Vector.<PackageItem>();
             this._sprites = {};
+			this._hitTestDatas = {};
         }
 
         public static function getById(id: String): UIPackage {
@@ -179,6 +182,19 @@ package fairygui {
                 sprite.rotated = arr2[6] == "1";
                 this._sprites[itemId] = sprite;
             }
+			
+			str = this.getDesc("hittest.bytes");
+			if(str!=null)
+			{
+				var ba:Byte = new Byte(ToolSet.bs2a(str));
+				ba.endian = Byte.BIG_ENDIAN;
+				while(ba.bytesAvailable)
+				{
+					var hitTestData:PixelHitTestData = new PixelHitTestData();
+					_hitTestDatas[ba.readUTFString()] = hitTestData;
+					hitTestData.load(ba);
+				}
+			}
 
             str = this.getDesc("package.xml");
             var xml:Object = Utils.parseXMLFromString(str);
@@ -426,6 +442,11 @@ package fairygui {
         private function getDesc(fn:String):String {
             return this._resData[fn];
         }
+		
+		public function getPixelHitTestData(itemId:String):PixelHitTestData
+		{
+			return _hitTestDatas[itemId];
+		}
 		
 		private function loadComponentChildren(item:PackageItem):void
 		{

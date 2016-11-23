@@ -756,6 +756,7 @@ package fairygui {
         public function dispose(): void {
             this.removeFromParent();
             this._relations.dispose();
+			this._displayObject.destroy();
         }
 
         public function onClick(thisObj: *, listener: Function, args:Array=null): void {
