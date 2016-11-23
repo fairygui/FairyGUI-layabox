@@ -11000,9 +11000,9 @@
 		__proto.scrollToView=function(index,ani,setFirst){
 			(ani===void 0)&& (ani=false);
 			(setFirst===void 0)&& (setFirst=false);
-			if(this._numItems==0)
-				return;
 			if (this._virtual){
+				if(this._numItems==0)
+					return;
 				this.checkVirtualList();
 				if (index >=this._virtualItems.length)
 					throw new Error("Invalid child index: "+index+">"+this._virtualItems.length);

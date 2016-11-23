@@ -715,11 +715,11 @@ package fairygui {
         
 		public function scrollToView(index:int, ani:Boolean=false, setFirst:Boolean=false):void
 		{
-			if(_numItems==0)
-				return;
-			
 			if (_virtual)
 			{
+				if(_numItems==0)
+					return;
+				
 				checkVirtualList();
 				
 				if (index >= _virtualItems.length)
