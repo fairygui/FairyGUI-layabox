@@ -3,7 +3,6 @@ package fairygui {
 	import fairygui.utils.ToolSet;
 	
 	import laya.filters.ColorFilter;
-	import laya.media.Sound;
 	import laya.utils.Handler;
 	import laya.utils.Tween;
 
@@ -695,11 +694,8 @@ package fairygui {
                     break;
                 case TransitionActionType.Sound:
                     var pi: PackageItem = UIPackage.getItemByURL(value.s);
-                    if(pi) {
-                        var sound: Sound = Sound(pi.owner.getItemAsset(pi));
-                        if(sound)
-                            GRoot.inst.playOneShotSound(sound,value.f1);
-                    }
+                    if(pi)
+                    	GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
                     break;
                 case TransitionActionType.Shake:
                     item.startValue.f1 = 0;//offsetX

@@ -2,7 +2,6 @@ package fairygui {
 	import fairygui.utils.ToolSet;
 	
 	import laya.events.Event;
-	import laya.media.Sound;
 	import laya.utils.Utils;
 
     public class GButton extends GComponent {
@@ -434,11 +433,8 @@ package fairygui {
         private function  __click(evt:Event): void {
             if(this._sound) {
                 var pi: PackageItem = UIPackage.getItemByURL(this._sound);
-                if (pi) {
-                    var sound: Sound = Sound(pi.owner.getItemAsset(pi));
-                    if(sound)
-                        GRoot.inst.playOneShotSound(sound,this._soundVolumeScale);
-                }
+                if (pi)
+                	GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
             }
 
             if (!this._changeStateOnClick)

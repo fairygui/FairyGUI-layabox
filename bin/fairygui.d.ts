@@ -1286,6 +1286,7 @@ declare module fairygui {
         getItemByName(itemId: string): PackageItem;
         getItemAssetByName(resName: string): Object;
         getItemAsset(item: PackageItem): Object;
+        getItemAssetURL(item: PackageItem): string;
         getPixelHitTestData(itemId: string): fairygui.utils.PixelHitTestData;
     }
     class AtlasSprite {

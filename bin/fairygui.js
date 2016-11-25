@@ -6,7 +6,7 @@
 	var Event=laya.events.Event,EventDispatcher=laya.events.EventDispatcher,Graphics=laya.display.Graphics,HTMLDivElement=laya.html.dom.HTMLDivElement;
 	var Handler=laya.utils.Handler,HitArea=laya.utils.HitArea,Input=laya.display.Input,Log=laya.utils.Log,Node=laya.display.Node;
 	var Point=laya.maths.Point,Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound;
-	var SoundChannel=laya.media.SoundChannel,Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text;
+	var SoundManager=laya.media.SoundManager,Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text;
 	var Texture=laya.resource.Texture,Tween=laya.utils.Tween,Utils=laya.utils.Utils;
 	Laya.interface('fairygui.IUISource');
 	Laya.interface('fairygui.IColorGear');
@@ -400,6 +400,8 @@
 			this._agent.touchable=false;
 			this._agent.setSize(100,100);
 			this._agent.setPivot(0.5,0.5,true);
+			this._agent.align="center";
+			this._agent.verticalAlign="middle";
 			this._agent.sortingOrder=1000000;
 			this._agent.on("fui_drag_end",this,this.__dragEnd);
 		}
@@ -4742,11 +4744,8 @@
 					break ;
 				case 9:;
 					var pi=UIPackage.getItemByURL(value.s);
-					if(pi){
-						var sound=(pi.owner.getItemAsset(pi));
-						if(sound)
-							GRoot.inst.playOneShotSound(sound,value.f1);
-					}
+					if(pi)
+						GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
 					break ;
 				case 11:
 					item.startValue.f1=0;
@@ -5416,6 +5415,10 @@
 			return this.getItemAsset(pi);
 		}
 
+		__proto.getItemAssetURL=function(item){
+			return this._resKey+"@"+item.file;;
+		}
+
 		__proto.getItemAsset=function(item){
 			switch (item.type){
 				case 0:
@@ -5436,7 +5439,7 @@
 				case 3:
 					if (!item.decoded){
 						item.decoded=true;
-						item.sound=AssetProxy.inst.getRes(this._resKey+"@"+item.id);
+						item.sound=AssetProxy.inst.getRes(this._resKey+"@"+item.file);
 					}
 					return item.sound;
 				case 6:
@@ -9970,11 +9973,8 @@
 		__proto.__click=function(evt){
 			if(this._sound){
 				var pi=UIPackage.getItemByURL(this._sound);
-				if (pi){
-					var sound=(pi.owner.getItemAsset(pi));
-					if(sound)
-						GRoot.inst.playOneShotSound(sound,this._soundVolumeScale);
-				}
+				if (pi)
+					GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
 			}
 			if (!this._changeStateOnClick)
 				return;
@@ -12731,13 +12731,11 @@
 			this._focusedObject=null;
 			this._tooltipWin=null;
 			this._defaultTooltipWin=null;
-			this._volumeScale=0;
 			this._checkPopups=false;
 			GRoot.__super.call(this);
 			if(fairygui.GRoot._inst==null)
 				fairygui.GRoot._inst=this;
 			this.opaque=false;
-			this._volumeScale=1;
 			this._popupStack=[];
 			this._justClosedPopups=[];
 			this.displayObject.once("display",this,this.__addedToStage);
@@ -12968,11 +12966,9 @@
 			}
 		}
 
-		__proto.playOneShotSound=function(sound,volumeScale){
+		__proto.playOneShotSound=function(url,volumeScale){
 			(volumeScale===void 0)&& (volumeScale=1);
-			var vs=this._volumeScale *volumeScale;
-			var channel=sound.play(0,1);
-			channel.volume=vs;
+			SoundManager.playSound(url);
 		}
 
 		__proto.adjustModalLayer=function(){
@@ -13083,9 +13079,9 @@
 		});
 
 		__getset(0,__proto,'volumeScale',function(){
-			return this._volumeScale;
+			return SoundManager.soundVolume;
 			},function(value){
-			this._volumeScale=value;
+			SoundManager.soundVolume=value;
 		});
 
 		__getset(1,GRoot,'inst',function(){
