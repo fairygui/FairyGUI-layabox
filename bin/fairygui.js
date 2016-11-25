@@ -8519,10 +8519,12 @@
 
 		__proto.handleXYChanged=function(){
 			_super.prototype.handleXYChanged.call(this);
-			if(this.scaleX==-1)
-				this.image.x+=this.width;
-			if(this.scaleY==-1)
-				this.image.y+=this.height;
+			if(this._flip !=0){
+				if(this.scaleX==-1)
+					this.image.x+=this.width;
+				if(this.scaleY==-1)
+					this.image.y+=this.height;
+			}
 		}
 
 		__proto.handleSizeChanged=function(){
