@@ -3,6 +3,7 @@ package fairygui.utils {
 	
 	import laya.display.Node;
 	import laya.display.Stage;
+	import laya.utils.Browser;
 	import laya.utils.Ease;
 
     public class ToolSet {
@@ -212,6 +213,16 @@ package fairygui.utils {
 			else if(value<0)
 				value = 0;
 			return value;
+		}
+		
+		//from jc
+		public static function bs2a(bstr):Uint8Array {
+			var ba:String = Browser.window.atob(bstr);
+			var n:int = ba.length;
+			var u8arr:Uint8Array = new Uint8Array(n);
+			while (n--)
+				u8arr[n] = ba.charCodeAt(n);
+			return u8arr;
 		}
     }
 }

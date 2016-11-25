@@ -285,7 +285,7 @@ package fairygui {
 				this._skewX = sx;
 				this._skewY = sy;
 				if(this._displayObject!=null) {
-					this._displayObject.skew(sx, sy);
+					this._displayObject.skew(-sx, sy);
 					this.applyPivot();
 				}
 			}
@@ -756,6 +756,7 @@ package fairygui {
         public function dispose(): void {
             this.removeFromParent();
             this._relations.dispose();
+			this._displayObject.destroy();
         }
 
         public function onClick(thisObj: *, listener: Function, args:Array=null): void {

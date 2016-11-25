@@ -264,9 +264,12 @@ package fairygui {
         }
 
         public function setPosX(value: Number, ani: Boolean= false): void {
+			_owner.ensureBoundsCorrect();
+			
+			value = ToolSet.clamp(value, 0, _xOverlap);
 			if(value!=_xPos)
 			{
-				_xPos = ToolSet.clamp(value, 0, _xOverlap);
+				_xPos = value;
 				_xPerc = _xOverlap==0?0:_xPos/_xOverlap;
 				
 				posChanged(ani);
@@ -282,9 +285,12 @@ package fairygui {
         }
 
         public function setPosY(value: Number, ani: Boolean= false): void {
+			_owner.ensureBoundsCorrect();
+			
+			value = ToolSet.clamp(value, 0, _yOverlap);
 			if(value!=_yPos)
 			{
-				_yPos = ToolSet.clamp(value, 0, _yOverlap);
+				_yPos = value;
 				_yPerc = _yOverlap==0?0:_yPos/_yOverlap;
 				
 				posChanged(ani);
@@ -773,7 +779,7 @@ package fairygui {
 						_yPerc = _yPos / _yOverlap;
 				}
 				
-				if(_xOverlap && _xPerc!=1 && _xPerc!=0)
+				if(_xOverlap>0 && _xPerc!=1 && _xPerc!=0)
 				{
 					page = Math.floor(_xPos / _pageSizeH);
 					delta = _xPos - page*_pageSizeH;

@@ -717,10 +717,16 @@ package fairygui {
 		{
 			if (_virtual)
 			{
+				if(_numItems==0)
+					return;
+				
 				checkVirtualList();
 				
 				if (index >= _virtualItems.length)
 					throw new Error("Invalid child index: " + index + ">" + _virtualItems.length);
+				
+				if(_loop)
+					index = Math.floor(_firstIndex/_numItems)*_numItems+index;
 				
 				var rect:Rectangle;
 				var ii:ItemInfo = _virtualItems[index];
@@ -857,8 +863,6 @@ package fairygui {
 					if (obj == null)
 					{
 						throw new Error("Virtual List must have a default list item resource.");
-						this._itemSize.x = 100;
-						this._itemSize.y = 100;
 					}
 					else
 					{
@@ -1769,6 +1773,9 @@ package fairygui {
 		}
 		
 		override protected function updateBounds(): void {
+			if(_virtual)
+				return;
+			
             var i: Number = 0;
             var child: GObject;
             var curX: Number = 0;
