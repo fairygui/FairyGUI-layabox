@@ -355,6 +355,15 @@ package fairygui {
                 str = xml.getAttribute("titleColor");
                 if (str)
                     this.titleColor = str;
+				
+				str = xml.getAttribute("sound");
+				if (str!=null)
+					this._sound = str;
+
+				str = xml.getAttribute("volume");
+				if(str)
+					this._soundVolumeScale = parseInt(str)/100;
+				
                 str = xml.getAttribute("controller");
                 if (str)
                     this._relatedController = this._parent.getController(str);
