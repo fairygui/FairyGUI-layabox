@@ -494,6 +494,7 @@
 		Events.DRAG_END="fui_drag_end";
 		Events.PULL_DOWN_RELEASE="fui_pull_down_release";
 		Events.PULL_UP_RELEASE="fui_pull_up_release";
+		Events.GEAR_STOP="fui_gear_stop";
 		__static(Events,
 		['$event',function(){return this.$event=new Event();}
 		]);
@@ -4746,6 +4747,8 @@
 					var pi=UIPackage.getItemByURL(value.s);
 					if(pi)
 						GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+					else
+					GRoot.inst.playOneShotSound(value.s);
 					break ;
 				case 11:
 					item.startValue.f1=0;
@@ -8069,6 +8072,7 @@
 		__proto.__tweenComplete=function(){
 			this._owner.internalVisible--;
 			this.tweener=null;
+			this._owner.displayObject.event("fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
@@ -8429,6 +8433,7 @@
 		__proto.__tweenComplete=function(){
 			this._owner.internalVisible--;
 			this.tweener=null;
+			this._owner.displayObject.event("fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
@@ -8694,6 +8699,7 @@
 		__proto.__tweenComplete=function(){
 			this._owner.internalVisible--;
 			this.tweener=null;
+			this._owner.displayObject.event("fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
@@ -9983,6 +9989,8 @@
 				var pi=UIPackage.getItemByURL(this._sound);
 				if (pi)
 					GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+				else
+				GRoot.inst.playOneShotSound(this._sound);
 			}
 			if (!this._changeStateOnClick)
 				return;
@@ -11814,7 +11822,7 @@
 				if (needRender)
 					this.itemRenderer.runWith([i % this._numItems,ii.obj]);
 				ii.obj.setXY(Math.floor(i / pageSize)*viewWidth+col *(ii.width+this._columnGap),
-				(i / this._curLineItemCount)% this._curLineItemCount2 *(ii.height+this._lineGap));
+				Math.floor(i / this._curLineItemCount)% this._curLineItemCount2 *(ii.height+this._lineGap));
 			}
 			for (i=reuseIndex;i < virtualItemCount;i++){
 				ii=this._virtualItems[i];

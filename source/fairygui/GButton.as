@@ -444,6 +444,8 @@ package fairygui {
                 var pi: PackageItem = UIPackage.getItemByURL(this._sound);
                 if (pi)
                 	GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+				else
+					GRoot.inst.playOneShotSound(this._sound);
             }
 
             if (!this._changeStateOnClick)

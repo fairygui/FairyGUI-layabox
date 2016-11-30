@@ -696,6 +696,8 @@ package fairygui {
                     var pi: PackageItem = UIPackage.getItemByURL(value.s);
                     if(pi)
                     	GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+					else
+						GRoot.inst.playOneShotSound(value.s);
                     break;
                 case TransitionActionType.Shake:
                     item.startValue.f1 = 0;//offsetX

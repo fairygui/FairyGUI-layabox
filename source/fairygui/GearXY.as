@@ -84,6 +84,7 @@ package fairygui {
         private function __tweenComplete():void {
             this._owner.internalVisible--;
             this.tweener = null;
+			this._owner.displayObject.event(Events.GEAR_STOP);
         }
         
 		override public function updateState(): void {
