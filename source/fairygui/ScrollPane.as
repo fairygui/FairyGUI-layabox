@@ -628,13 +628,13 @@ package fairygui {
                     if(this._contentWidth <= this._viewWidth) {
                         if(!this._hScrollNone) {
                             this._hScrollNone = true;
-                            this._viewHeight += this._vtScrollBar.height;
+                            this._viewHeight += this._hzScrollBar.height;
                         }
                     }
                     else {
                         if(this._hScrollNone) {
                             this._hScrollNone = false;
-                            this._viewHeight -= this._vtScrollBar.height;
+                            this._viewHeight -= this._hzScrollBar.height;
                         }
                     }
                 }
