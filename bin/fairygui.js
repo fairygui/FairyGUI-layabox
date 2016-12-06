@@ -4447,13 +4447,13 @@
 					continue ;
 				if(item.tween){
 					if(this._reversed)
-						startTime=delay+(this._maxTime-item.time-item.duration)*1000;
+						startTime=delay+this._maxTime-item.time-item.duration;
 					else
-					startTime=delay+item.time *1000;
+					startTime=delay+item.time;
 					if(startTime>0){
 						this._totalTasks++;
 						item.completed=false;
-						item.tweener=Tween.to(item.value,{},startTime,null,Handler.create(this,this.__delayCall,[item]));
+						item.tweener=Tween.to(item.value,{},startTime*1000,null,Handler.create(this,this.__delayCall,[item]));
 						item.tweener.update=null;
 					}
 					else
@@ -4461,15 +4461,15 @@
 				}
 				else {
 					if(this._reversed)
-						startTime=delay+(this._maxTime-item.time)*1000;
+						startTime=delay+this._maxTime-item.time;
 					else
-					startTime=delay+item.time *1000;
+					startTime=delay+item.time;
 					if(startTime==0)
 						this.applyValue(item,item.value);
 					else {
 						item.completed=false;
 						this._totalTasks++;
-						item.tweener=Tween.to(item.value,{},startTime,null,Handler.create(this,this.__delayCall2,[item]));
+						item.tweener=Tween.to(item.value,{},startTime*1000,null,Handler.create(this,this.__delayCall2,[item]));
 						item.tweener.update=null;
 					}
 				}
