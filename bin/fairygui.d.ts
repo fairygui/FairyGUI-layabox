@@ -161,6 +161,7 @@ declare module fairygui {
         static DRAG_END: string;
         static PULL_DOWN_RELEASE: string;
         static PULL_UP_RELEASE: string;
+        static GEAR_STOP: string;
         static $event: laya.events.Event;
         static createEvent(type: string, target: laya.display.Sprite, source?: laya.events.Event): laya.events.Event;
         static dispatch(type: string, target: laya.display.Sprite, source?: laya.events.Event): void;
@@ -1286,6 +1287,7 @@ declare module fairygui {
         getItemByName(itemId: string): PackageItem;
         getItemAssetByName(resName: string): Object;
         getItemAsset(item: PackageItem): Object;
+        getItemAssetURL(item: PackageItem): string;
         getPixelHitTestData(itemId: string): fairygui.utils.PixelHitTestData;
     }
     class AtlasSprite {

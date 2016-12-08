@@ -3,7 +3,6 @@ package fairygui {
 	import fairygui.utils.ToolSet;
 	
 	import laya.filters.ColorFilter;
-	import laya.media.Sound;
 	import laya.utils.Handler;
 	import laya.utils.Tween;
 
@@ -365,14 +364,14 @@ package fairygui {
                 
                 if(item.tween) {
                     if(this._reversed)
-                        startTime = delay + (this._maxTime - item.time - item.duration)*1000;
+                        startTime = delay + this._maxTime - item.time - item.duration;
                     else
-                        startTime = delay + item.time * 1000;
+                        startTime = delay + item.time;
 					if(startTime>0)
 					{
 						_totalTasks++;
 						item.completed = false;
-						item.tweener = Tween.to(item.value, {}, startTime, null, Handler.create(this, this.__delayCall,[item]));
+						item.tweener = Tween.to(item.value, {}, startTime*1000, null, Handler.create(this, this.__delayCall,[item]));
 						item.tweener.update = null;
 					}
 					else
@@ -380,15 +379,15 @@ package fairygui {
                 }
                 else {
                     if(this._reversed)
-                        startTime = delay + (this._maxTime - item.time) * 1000;
+                        startTime = delay + this._maxTime - item.time;
                     else
-                        startTime = delay + item.time * 1000;
+                        startTime = delay + item.time;
                     if(startTime == 0)
                         this.applyValue(item,item.value);
                     else {
                         item.completed = false;
                         this._totalTasks++;
-                        item.tweener = Tween.to(item.value, {}, startTime, null, Handler.create(this, this.__delayCall2,[item]));
+                        item.tweener = Tween.to(item.value, {}, startTime*1000, null, Handler.create(this, this.__delayCall2,[item]));
                         item.tweener.update = null;
                     }
                 }
@@ -695,11 +694,10 @@ package fairygui {
                     break;
                 case TransitionActionType.Sound:
                     var pi: PackageItem = UIPackage.getItemByURL(value.s);
-                    if(pi) {
-                        var sound: Sound = Sound(pi.owner.getItemAsset(pi));
-                        if(sound)
-                            GRoot.inst.playOneShotSound(sound,value.f1);
-                    }
+                    if(pi)
+                    	GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+					else
+						GRoot.inst.playOneShotSound(value.s);
                     break;
                 case TransitionActionType.Shake:
                     item.startValue.f1 = 0;//offsetX

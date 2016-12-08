@@ -1,7 +1,5 @@
 package fairygui.utils
 {
-	import fairygui.utils.PixelHitTestData;
-	
 	import laya.utils.HitArea;
 
 	public class PixelHitTest extends HitArea

@@ -3,8 +3,7 @@ package fairygui {
 	import laya.display.Sprite;
 	import laya.events.Event;
 	import laya.maths.Point;
-	import laya.media.Sound;
-	import laya.media.SoundChannel;
+	import laya.media.SoundManager;
 	import laya.utils.Log;
 
     public class GRoot extends GComponent {
@@ -15,7 +14,6 @@ package fairygui {
         private var _focusedObject: GObject;
         private var _tooltipWin: GObject;
         private var _defaultTooltipWin: GObject;
-        private var _volumeScale: Number = 0;
         private var _checkPopups:Boolean;
 
         private static var  _inst: GRoot;
@@ -32,7 +30,6 @@ package fairygui {
                 GRoot._inst = this;
 
             this.opaque = false;
-            this._volumeScale = 1;
             this._popupStack = new Vector.<GObject>();
             this._justClosedPopups = new Vector.<GObject>();
             this.displayObject.once(Event.DISPLAY, this, this.__addedToStage);
@@ -309,18 +306,16 @@ package fairygui {
         
         public function get volumeScale():Number
         {
-            return this._volumeScale;
+            return SoundManager.soundVolume;
         }
         
         public function set volumeScale(value:Number):void
         {
-            this._volumeScale = value;
+			SoundManager.soundVolume = value;
         }
         
-        public function playOneShotSound(sound: Sound,volumeScale: Number = 1):void {
-            var vs: Number = this._volumeScale * volumeScale;
-            var channel:laya.media.SoundChannel = sound.play(0,1);
-            channel.volume = vs;
+        public function playOneShotSound(url:String, volumeScale: Number = 1):void {
+			SoundManager.playSound(url);
         }
 
         private function adjustModalLayer(): void {

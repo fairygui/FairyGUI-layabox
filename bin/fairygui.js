@@ -6,7 +6,7 @@
 	var Event=laya.events.Event,EventDispatcher=laya.events.EventDispatcher,Graphics=laya.display.Graphics,HTMLDivElement=laya.html.dom.HTMLDivElement;
 	var Handler=laya.utils.Handler,HitArea=laya.utils.HitArea,Input=laya.display.Input,Log=laya.utils.Log,Node=laya.display.Node;
 	var Point=laya.maths.Point,Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound;
-	var SoundChannel=laya.media.SoundChannel,Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text;
+	var SoundManager=laya.media.SoundManager,Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text;
 	var Texture=laya.resource.Texture,Tween=laya.utils.Tween,Utils=laya.utils.Utils;
 	Laya.interface('fairygui.IUISource');
 	Laya.interface('fairygui.IColorGear');
@@ -400,6 +400,8 @@
 			this._agent.touchable=false;
 			this._agent.setSize(100,100);
 			this._agent.setPivot(0.5,0.5,true);
+			this._agent.align="center";
+			this._agent.verticalAlign="middle";
 			this._agent.sortingOrder=1000000;
 			this._agent.on("fui_drag_end",this,this.__dragEnd);
 		}
@@ -492,6 +494,7 @@
 		Events.DRAG_END="fui_drag_end";
 		Events.PULL_DOWN_RELEASE="fui_pull_down_release";
 		Events.PULL_UP_RELEASE="fui_pull_up_release";
+		Events.GEAR_STOP="fui_gear_stop";
 		__static(Events,
 		['$event',function(){return this.$event=new Event();}
 		]);
@@ -3362,13 +3365,13 @@
 					if(this._contentWidth <=this._viewWidth){
 						if(!this._hScrollNone){
 							this._hScrollNone=true;
-							this._viewHeight+=this._vtScrollBar.height;
+							this._viewHeight+=this._hzScrollBar.height;
 						}
 					}
 					else {
 						if(this._hScrollNone){
 							this._hScrollNone=false;
-							this._viewHeight-=this._vtScrollBar.height;
+							this._viewHeight-=this._hzScrollBar.height;
 						}
 					}
 				}
@@ -4444,13 +4447,13 @@
 					continue ;
 				if(item.tween){
 					if(this._reversed)
-						startTime=delay+(this._maxTime-item.time-item.duration)*1000;
+						startTime=delay+this._maxTime-item.time-item.duration;
 					else
-					startTime=delay+item.time *1000;
+					startTime=delay+item.time;
 					if(startTime>0){
 						this._totalTasks++;
 						item.completed=false;
-						item.tweener=Tween.to(item.value,{},startTime,null,Handler.create(this,this.__delayCall,[item]));
+						item.tweener=Tween.to(item.value,{},startTime*1000,null,Handler.create(this,this.__delayCall,[item]));
 						item.tweener.update=null;
 					}
 					else
@@ -4458,15 +4461,15 @@
 				}
 				else {
 					if(this._reversed)
-						startTime=delay+(this._maxTime-item.time)*1000;
+						startTime=delay+this._maxTime-item.time;
 					else
-					startTime=delay+item.time *1000;
+					startTime=delay+item.time;
 					if(startTime==0)
 						this.applyValue(item,item.value);
 					else {
 						item.completed=false;
 						this._totalTasks++;
-						item.tweener=Tween.to(item.value,{},startTime,null,Handler.create(this,this.__delayCall2,[item]));
+						item.tweener=Tween.to(item.value,{},startTime*1000,null,Handler.create(this,this.__delayCall2,[item]));
 						item.tweener.update=null;
 					}
 				}
@@ -4742,11 +4745,10 @@
 					break ;
 				case 9:;
 					var pi=UIPackage.getItemByURL(value.s);
-					if(pi){
-						var sound=(pi.owner.getItemAsset(pi));
-						if(sound)
-							GRoot.inst.playOneShotSound(sound,value.f1);
-					}
+					if(pi)
+						GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+					else
+					GRoot.inst.playOneShotSound(value.s);
 					break ;
 				case 11:
 					item.startValue.f1=0;
@@ -5416,6 +5418,10 @@
 			return this.getItemAsset(pi);
 		}
 
+		__proto.getItemAssetURL=function(item){
+			return this._resKey+"@"+item.file;;
+		}
+
 		__proto.getItemAsset=function(item){
 			switch (item.type){
 				case 0:
@@ -5436,7 +5442,7 @@
 				case 3:
 					if (!item.decoded){
 						item.decoded=true;
-						item.sound=AssetProxy.inst.getRes(this._resKey+"@"+item.id);
+						item.sound=AssetProxy.inst.getRes(this._resKey+"@"+item.file);
 					}
 					return item.sound;
 				case 6:
@@ -8066,6 +8072,7 @@
 		__proto.__tweenComplete=function(){
 			this._owner.internalVisible--;
 			this.tweener=null;
+			this._owner.displayObject.event("fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
@@ -8426,6 +8433,7 @@
 		__proto.__tweenComplete=function(){
 			this._owner.internalVisible--;
 			this.tweener=null;
+			this._owner.displayObject.event("fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
@@ -8516,10 +8524,12 @@
 
 		__proto.handleXYChanged=function(){
 			_super.prototype.handleXYChanged.call(this);
-			if(this.scaleX==-1)
-				this.image.x+=this.width;
-			if(this.scaleY==-1)
-				this.image.y+=this.height;
+			if(this._flip !=0){
+				if(this.scaleX==-1)
+					this.image.x+=this.width;
+				if(this.scaleY==-1)
+					this.image.y+=this.height;
+			}
 		}
 
 		__proto.handleSizeChanged=function(){
@@ -8689,6 +8699,7 @@
 		__proto.__tweenComplete=function(){
 			this._owner.internalVisible--;
 			this.tweener=null;
+			this._owner.displayObject.event("fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
@@ -9902,6 +9913,12 @@
 				str=xml.getAttribute("titleColor");
 				if (str)
 					this.titleColor=str;
+				str=xml.getAttribute("sound");
+				if (str!=null)
+					this._sound=str;
+				str=xml.getAttribute("volume");
+				if(str)
+					this._soundVolumeScale=parseInt(str)/100;
 				str=xml.getAttribute("controller");
 				if (str)
 					this._relatedController=this._parent.getController(str);
@@ -9970,11 +9987,10 @@
 		__proto.__click=function(evt){
 			if(this._sound){
 				var pi=UIPackage.getItemByURL(this._sound);
-				if (pi){
-					var sound=(pi.owner.getItemAsset(pi));
-					if(sound)
-						GRoot.inst.playOneShotSound(sound,this._soundVolumeScale);
-				}
+				if (pi)
+					GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+				else
+				GRoot.inst.playOneShotSound(this._sound);
 			}
 			if (!this._changeStateOnClick)
 				return;
@@ -11806,7 +11822,7 @@
 				if (needRender)
 					this.itemRenderer.runWith([i % this._numItems,ii.obj]);
 				ii.obj.setXY(Math.floor(i / pageSize)*viewWidth+col *(ii.width+this._columnGap),
-				(i / this._curLineItemCount)% this._curLineItemCount2 *(ii.height+this._lineGap));
+				Math.floor(i / this._curLineItemCount)% this._curLineItemCount2 *(ii.height+this._lineGap));
 			}
 			for (i=reuseIndex;i < virtualItemCount;i++){
 				ii=this._virtualItems[i];
@@ -12731,13 +12747,11 @@
 			this._focusedObject=null;
 			this._tooltipWin=null;
 			this._defaultTooltipWin=null;
-			this._volumeScale=0;
 			this._checkPopups=false;
 			GRoot.__super.call(this);
 			if(fairygui.GRoot._inst==null)
 				fairygui.GRoot._inst=this;
 			this.opaque=false;
-			this._volumeScale=1;
 			this._popupStack=[];
 			this._justClosedPopups=[];
 			this.displayObject.once("display",this,this.__addedToStage);
@@ -12968,11 +12982,9 @@
 			}
 		}
 
-		__proto.playOneShotSound=function(sound,volumeScale){
+		__proto.playOneShotSound=function(url,volumeScale){
 			(volumeScale===void 0)&& (volumeScale=1);
-			var vs=this._volumeScale *volumeScale;
-			var channel=sound.play(0,1);
-			channel.volume=vs;
+			SoundManager.playSound(url);
 		}
 
 		__proto.adjustModalLayer=function(){
@@ -13083,9 +13095,9 @@
 		});
 
 		__getset(0,__proto,'volumeScale',function(){
-			return this._volumeScale;
+			return SoundManager.soundVolume;
 			},function(value){
-			this._volumeScale=value;
+			SoundManager.soundVolume=value;
 		});
 
 		__getset(1,GRoot,'inst',function(){

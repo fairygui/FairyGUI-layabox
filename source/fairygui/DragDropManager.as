@@ -20,6 +20,8 @@ package fairygui {
             this._agent.touchable = false;//important
             this._agent.setSize(100,100);
 			this._agent.setPivot(0.5, 0.5, true);
+			this._agent.align = "center";
+			this._agent.verticalAlign = "middle";
             this._agent.sortingOrder = 1000000;
             this._agent.on(Events.DRAG_END, this, this.__dragEnd);
         }

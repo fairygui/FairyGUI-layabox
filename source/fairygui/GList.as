@@ -1719,7 +1719,7 @@ package fairygui {
 					itemRenderer.runWith([i % _numItems, ii.obj]);
 				
 				ii.obj.setXY(Math.floor(i / pageSize) * viewWidth + col * (ii.width + _columnGap),
-					(i / _curLineItemCount) % _curLineItemCount2 * (ii.height + _lineGap));
+					Math.floor(i / _curLineItemCount) % _curLineItemCount2 * (ii.height + _lineGap));
 			}
 			
 			//释放未使用的

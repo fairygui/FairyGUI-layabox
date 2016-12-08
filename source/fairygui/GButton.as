@@ -2,7 +2,6 @@ package fairygui {
 	import fairygui.utils.ToolSet;
 	
 	import laya.events.Event;
-	import laya.media.Sound;
 	import laya.utils.Utils;
 
     public class GButton extends GComponent {
@@ -356,6 +355,15 @@ package fairygui {
                 str = xml.getAttribute("titleColor");
                 if (str)
                     this.titleColor = str;
+				
+				str = xml.getAttribute("sound");
+				if (str!=null)
+					this._sound = str;
+
+				str = xml.getAttribute("volume");
+				if(str)
+					this._soundVolumeScale = parseInt(str)/100;
+				
                 str = xml.getAttribute("controller");
                 if (str)
                     this._relatedController = this._parent.getController(str);
@@ -434,11 +442,10 @@ package fairygui {
         private function  __click(evt:Event): void {
             if(this._sound) {
                 var pi: PackageItem = UIPackage.getItemByURL(this._sound);
-                if (pi) {
-                    var sound: Sound = Sound(pi.owner.getItemAsset(pi));
-                    if(sound)
-                        GRoot.inst.playOneShotSound(sound,this._soundVolumeScale);
-                }
+                if (pi)
+                	GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+				else
+					GRoot.inst.playOneShotSound(this._sound);
             }
 
             if (!this._changeStateOnClick)

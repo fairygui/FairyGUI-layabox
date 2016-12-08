@@ -68,10 +68,14 @@ package fairygui {
         
 		override protected function handleXYChanged(): void {
             super.handleXYChanged();
-            if(this.scaleX==-1)
-                this.image.x += this.width;
-            if(this.scaleY==-1)
-                this.image.y += this.height;
+			
+			if(this._flip != FlipType.None)
+			{
+	            if(this.scaleX==-1)
+	                this.image.x += this.width;
+	            if(this.scaleY==-1)
+	                this.image.y += this.height;
+			}
         }
 
 		override protected function handleSizeChanged(): void {

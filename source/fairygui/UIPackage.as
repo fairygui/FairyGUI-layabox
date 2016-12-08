@@ -381,6 +381,10 @@ package fairygui {
 
             return this.getItemAsset(pi);
         }
+		
+		public function getItemAssetURL(item: PackageItem):String {
+			return this._resKey + "@" + item.file;;
+		}
 
         public function getItemAsset(item: PackageItem): Object {
             switch (item.type) {
@@ -404,7 +408,7 @@ package fairygui {
                 case PackageItemType.Sound:
                     if (!item.decoded) {
                         item.decoded = true;
-                        item.sound = AssetProxy.inst.getRes(this._resKey + "@" + item.id);
+                        item.sound = AssetProxy.inst.getRes(this._resKey + "@" + item.file);
                     }
                     return item.sound;
 
