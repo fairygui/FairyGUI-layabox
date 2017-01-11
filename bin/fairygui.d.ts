@@ -439,6 +439,7 @@ declare module fairygui {
 declare module fairygui {
     class GGraph extends GObject {
         constructor();
+        color: string;
         drawRect(lineSize: number, lineColor: string, fillColor: string): void;
         drawEllipse(lineSize: number, lineColor: string, fillColor: string): void;
         replaceMe(target: GObject): void;

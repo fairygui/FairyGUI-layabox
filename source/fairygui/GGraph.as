@@ -6,7 +6,7 @@ package fairygui {
 	import laya.renders.Render;
 	import laya.utils.Utils;
 
-    public class GGraph extends GObject {
+    public class GGraph extends GObject implements IColorGear {
         private var _type: Number;
         private var _lineSize: Number;
         private var _lineColor: String;
@@ -36,6 +36,18 @@ package fairygui {
             this._fillColor = fillColor;
             this.drawCommon();
         }
+		
+		public function get color():String
+		{
+			return this._fillColor;
+		}
+		
+		public function set color(value:String):void 
+		{
+			this._fillColor = value;
+			if(this._type!=0)
+				this.drawCommon();
+		}
 
         private function drawCommon(): void {
             this._displayObject.mouseEnabled = this.touchable;

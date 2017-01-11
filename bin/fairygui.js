@@ -470,8 +470,13 @@
 		__class(Events,'fairygui.Events');
 		Events.createEvent=function(type,target,source){
 			fairygui.Events.$event.setTo(type,target,source?source.target:target);
-			if(source)
+			if(source){
 				fairygui.Events.$event.touchId=source.touchId;
+				fairygui.Events.$event.nativeEvent=source.nativeEvent;
+			}
+			else{
+				fairygui.Events.$event.nativeEvent=null;
+			}
 			fairygui.Events.$event._stoped=false;
 			return fairygui.Events.$event;
 		}
@@ -8127,6 +8132,7 @@
 
 		__class(GGraph,'fairygui.GGraph',_super);
 		var __proto=GGraph.prototype;
+		Laya.imps(__proto,{"fairygui.IColorGear":true})
 		__proto.drawRect=function(lineSize,lineColor,fillColor){
 			this._type=1;
 			this._lineSize=lineSize;
@@ -8253,6 +8259,14 @@
 				this.drawCommon();
 			}
 		}
+
+		__getset(0,__proto,'color',function(){
+			return this._fillColor;
+			},function(value){
+			this._fillColor=value;
+			if(this._type!=0)
+				this.drawCommon();
+		});
 
 		return GGraph;
 	})(GObject)

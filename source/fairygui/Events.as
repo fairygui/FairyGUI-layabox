@@ -24,7 +24,14 @@ package fairygui {
         public static function createEvent(type:String, target:Sprite, source:Event=null):Event {
             Events.$event.setTo(type, target, source?source.target:target);
             if(source)
-                Events.$event.touchId = source.touchId;
+	    {
+	    	Events.$event.touchId = source.touchId;
+		Events.$event.nativeEvent=source.nativeEvent;
+	    }
+            else
+	    {
+	    	Events.$event.nativeEvent=null;
+	    }
             Events.$event._stoped = false;
             return Events.$event;
         }
