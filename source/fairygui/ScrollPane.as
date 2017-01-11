@@ -195,6 +195,14 @@ package fairygui {
         public function set touchEffect(sc: Boolean):void {
             this._touchEffect = sc;
         }
+		
+        public function get mouseWheelEnabled(): Boolean {
+            return this._mouseWheelEnabled;
+        }
+
+        public function set mouseWheelEnabled(val: Boolean):void {
+            this._mouseWheelEnabled = val;
+        }
 
         public function set scrollSpeed(val: Number):void {
             this._scrollSpeed = this.scrollSpeed;
