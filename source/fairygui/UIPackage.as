@@ -98,14 +98,36 @@ package fairygui {
         }
 
         public static function getItemByURL(url: String): PackageItem {
-            if(ToolSet.startsWith(url,"ui://")) {
-                var pkgId: String = url.substr(5,8);
-                var srcId: String = url.substr(13);
-                var pkg: UIPackage = UIPackage.getById(pkgId);
-                if(pkg)
-                    return pkg.getItemById(srcId);
-            }
-            return null;
+			var pos1:int = url.indexOf("//");
+			if (pos1 == -1)
+				return null;
+			
+			var pos2:int = url.indexOf("/", pos1 + 2);
+			if (pos2 == -1)
+			{
+				if (url.length > 13)
+				{
+					var pkgId:String = url.substr(5, 8);
+					var pkg:UIPackage = getById(pkgId);
+					if (pkg != null)
+					{
+						var srcId:String = url.substr(13);
+						return pkg.getItemById(srcId);
+					}
+				}
+			}
+			else
+			{
+				var pkgName:String = url.substr(pos1 + 2, pos2 - pos1 - 2);
+				pkg = getByName(pkgName);
+				if (pkg != null)
+				{
+					var srcName:String = url.substr(pos2 + 1);
+					return pkg.getItemByName(srcName);
+				}
+			}
+			
+			return null;
         }
 
         public static function getBitmapFontByURL(url: String): BitmapFont {
@@ -217,6 +239,7 @@ package fairygui {
                     continue;
 
                 pi = new PackageItem();
+				pi.owner = this;
                 pi.type = PackageItemType.parse(cxml.nodeName);
                 pi.id = cxml.getAttribute("id");
                 pi.name = cxml.getAttribute("name");
@@ -252,9 +275,12 @@ package fairygui {
                         pi.smoothing = str != "false";
                         break;
                     }
+						
+					case PackageItemType.Component:
+						UIObjectFactory.resolvePackageItemExtension(pi);
+						break;
                 }
 
-                pi.owner = this;
                 this._items.push(pi);
                 this._itemsById[pi.id] = pi;
                 if(pi.name != null)

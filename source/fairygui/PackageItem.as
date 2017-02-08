@@ -32,6 +32,7 @@ package fairygui {
         //componenet
         public var componentData: Object;
 		public var displayList:Vector.<DisplayListItem>;
+		public var extensionType: Object;
 		
         //sound
         public var sound: Sound;
