@@ -3,7 +3,7 @@ package fairygui {
 	
 	import laya.display.Input;
 
-    public class GLabel extends GComponent {
+    public class GLabel extends GComponent implements IColorGear {
         protected var _titleObject: GObject;
         protected var _iconObject: GObject;
 
@@ -63,8 +63,17 @@ package fairygui {
                 GLabel(this._titleObject).titleColor = value;
             else if(this._titleObject is GButton)
                 GButton(this._titleObject).titleColor = value;
+			this.updateGear(4);
         }
 
+		public function get color(): String {
+			return this.titleColor;
+		}
+		
+		public function set color(value: String):void {
+			this.titleColor = value;
+		}
+		
         public function set editable(val: Boolean):void {
             if (this._titleObject)
                 this._titleObject.asTextInput.editable = val;
