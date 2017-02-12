@@ -197,6 +197,7 @@ package fairygui {
 
 		override public function set strokeColor(value: String):void {
             this.textField.strokeColor = value;
+			updateGear(4);
         }
 
 		override public function set ubbEnabled(value: Boolean):void {
