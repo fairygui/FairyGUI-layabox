@@ -1014,8 +1014,7 @@ package fairygui {
         private function ___removed(): void {
             var cnt: Number = this._transitions.length;
             for(var i: Number = 0;i < cnt;++i) {
-                var trans: Transition = this._transitions[i];
-                trans.stop(false, false);
+                this._transitions[i].OnOwnerRemovedFromStage();
             }
         }
     }
