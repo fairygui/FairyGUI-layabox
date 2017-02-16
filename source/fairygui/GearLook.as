@@ -60,7 +60,8 @@ package fairygui {
                 var a: Boolean = gv.alpha != this._owner.alpha;
                 var b: Boolean = gv.rotation != this._owner.rotation;
                 if(a || b) {
-                    this._owner.internalVisible++;
+					if(_owner.checkGearController(0, _controller))
+						_displayLockToken = _owner.addDisplayLock();
 					this._tweenTarget = gv;
 					
                     if(this._tweenValue == null)
@@ -95,15 +96,16 @@ package fairygui {
         }
         
         private function __tweenComplete():void {
-            this._owner.internalVisible--;
+			if(_displayLockToken!=0)
+			{
+				_owner.releaseDisplayLock(_displayLockToken);
+				_displayLockToken = 0;
+			}
             this.tweener = null;
 			this._owner.displayObject.event(Events.GEAR_STOP);
         }
 
         override public function updateState(): void {
-			if (this._controller == null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
-
             var gv: GearLookValue = this._storage[this._controller.selectedPageId];
             if(!gv) {
                 gv = new GearLookValue();

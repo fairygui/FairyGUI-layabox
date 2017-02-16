@@ -78,13 +78,12 @@ package fairygui {
             this._playing = this._totalTasks > 0;
             if(this._playing) {
                 this._onComplete = onComplete;
-                this._owner.internalVisible++;
                 if((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER) != 0) {
                     var cnt: Number = this._items.length;
                     for(var i: Number = 0;i < cnt;i++) {
                         var item: TransitionItem = this._items[i];
                         if(item.target != null && item.target != this._owner)
-                            item.target.internalVisible++;
+							item.displayLockToken = item.target.addDisplayLock();
                     }
                 }
             }
@@ -100,8 +99,6 @@ package fairygui {
                 this._totalTimes = 0;
                 var handler: Handler = this._onComplete;
                 this._onComplete = null;
-
-                this._owner.internalVisible--;
 
                 var cnt: Number = this._items.length;
                 var i:Number;
@@ -132,8 +129,11 @@ package fairygui {
         }
         
         private function stopItem(item:TransitionItem, setToComplete:Boolean):void {
-			if ((_options & OPTION_IGNORE_DISPLAY_CONTROLLER) != 0 && item.target != _owner)
-				item.target.internalVisible--;
+			if (item.displayLockToken!=0)
+			{
+				item.target.releaseDisplayLock(item.displayLockToken);
+				item.displayLockToken = 0;
+			}
 			
 			if (item.type == TransitionActionType.ColorFilter && item.filterCreated)
 				item.target.filters = null;
@@ -597,22 +597,24 @@ package fairygui {
                         Laya.timer.callLater(this, this.internalPlay);
                     else {
                         this._playing = false;
-                        this._owner.internalVisible--;
-						
+
                         var cnt: Number = this._items.length;
 						for (var i:int = 0; i < cnt; i++)
 						{
 							var item:TransitionItem = _items[i];
 							if (item.target != null)
 							{
-								if((_options & OPTION_IGNORE_DISPLAY_CONTROLLER) != 0 && item.target!=_owner)
-									item.target.internalVisible--;
-							}
+								if (item.displayLockToken!=0)
+								{
+									item.target.releaseDisplayLock(item.displayLockToken);
+									item.displayLockToken = 0;
+								}
 							
-							if (item.filterCreated)
-							{
-								item.filterCreated = false;
-								item.target.filters = null;
+								if (item.filterCreated)
+								{
+									item.filterCreated = false;
+									item.target.filters = null;
+								}
 							}
 						}
 						
@@ -1004,6 +1006,7 @@ class TransitionItem {
 	public var completed: Boolean = false;
 	public var target: GObject;
 	public var filterCreated:Boolean;
+	public var displayLockToken:int = 0;
 	
 	public function TransitionItem() {
 		this.easeType = Ease.quadOut;

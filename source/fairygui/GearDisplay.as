@@ -1,23 +1,51 @@
-package fairygui {
-
-    public class GearDisplay extends GearBase {
+package fairygui
+{
+	
+	public class GearDisplay extends GearBase
+	{
 		public var pages:Array;
 		
-        public function GearDisplay(owner: GObject) {
-            super(owner);
-        }
-
+		private var _visible:int = 0;
+		
+		public function GearDisplay(owner:GObject)
+		{
+			super(owner);
+			_displayLockToken = 1;
+		}
+		
 		override protected function init():void
 		{
-			this.pages = null;
+			pages = null;
 		}
-
-		override public function apply(): void {
-			if(!this._controller || this.pages==null || this.pages.length==0 
-				|| this.pages.indexOf(this._controller.selectedPageId)!=-1)
-                this._owner.internalVisible++;
-            else
-                this._owner.internalVisible = 0;
-        }
-    }
+		
+		public function addLock():uint
+		{
+			_visible++;
+			return _displayLockToken;
+		}
+		
+		public function releaseLock(token:uint):void
+		{
+			if(token==_displayLockToken)
+				_visible--;
+		}
+		
+		public function get connected():Boolean
+		{
+			return _controller==null || _visible>0;
+		}
+		
+		override public function apply():void
+		{
+			_displayLockToken++;
+			if(_displayLockToken<=0)
+				_displayLockToken = 1;
+			
+			if(pages==null || pages.length==0 
+				|| pages.indexOf(_controller.selectedPageId)!=-1)
+				_visible = 1;
+			else
+				_visible = 0;
+		}
+	}
 }

@@ -60,7 +60,8 @@ package fairygui {
                 var a: Boolean = gv.width != this._owner.width || gv.height != this._owner.height;
                 var b: Boolean = gv.scaleX != this._owner.scaleX || gv.scaleY != this._owner.scaleY;
                 if(a || b) {
-                    this._owner.internalVisible++;
+					if(_owner.checkGearController(0, _controller))
+						_displayLockToken = _owner.addDisplayLock();
 					this._tweenTarget = gv;
 					
                     if(this._tweenValue == null)
@@ -80,7 +81,7 @@ package fairygui {
             }
             else {
                 this._owner._gearLocked = true;
-                this._owner.setSize(gv.width,gv.height,this._owner.gearXY.controller == this._controller);
+                this._owner.setSize(gv.width,gv.height,_owner.checkGearController(1, _controller));
                 this._owner.setScale(gv.scaleX,gv.scaleY);
                 this._owner._gearLocked = false;
             }
@@ -89,22 +90,23 @@ package fairygui {
         private function __tweenUpdate(a:Boolean, b:Boolean):void {
             this._owner._gearLocked = true;
             if(a)
-                this._owner.setSize(this._tweenValue.width,this._tweenValue.height,this._owner.gearXY.controller == this._controller);
+                this._owner.setSize(this._tweenValue.width,this._tweenValue.height,_owner.checkGearController(1, _controller));
             if(b)
                 this._owner.setScale(this._tweenValue.scaleX,this._tweenValue.scaleY);
             this._owner._gearLocked = false;
         }
         
         private function __tweenComplete():void {
-            this._owner.internalVisible--;
+			if(_displayLockToken!=0)
+			{
+				_owner.releaseDisplayLock(_displayLockToken);
+				_displayLockToken = 0;
+			}
             this.tweener = null;
 			this._owner.displayObject.event(Events.GEAR_STOP);
         }
 
 		override public function updateState(): void {
-			if (this._controller == null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
-			
             var gv: GearSizeValue = this._storage[this._controller.selectedPageId];
             if(!gv) {
                 gv = new GearSizeValue();

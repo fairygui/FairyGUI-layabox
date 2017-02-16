@@ -325,17 +325,13 @@ package fairygui {
             var cnt:Number=this._items.length;
             for(var i: Number = 0;i < cnt;i++) {
                 var pi: PackageItem = this._items[i];
-                var texture: Texture = pi.texture;
-                /*if(texture != null)
-                    texture.dispose();
-                else if(pi.frames != null) {
-                    var frameCount: Number = pi.frames.length;
-                    for(var j: Number = 0;j < frameCount;j++) {
-                        texture = pi.frames[j].texture;
-                        if(texture != null)
-                            texture.dispose();
-                    }
-                }*/
+				/*if(pi.type==PackageItemType.Atlas)
+				{
+	                var texture: Texture = pi.texture;
+	                if(texture != null)
+	                    texture.destroy();
+				}*/
+                
                 if(pi.bitmapFont != null) {
                     delete UIPackage._bitmapFonts[pi.bitmapFont.id];
                 }

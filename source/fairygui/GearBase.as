@@ -10,7 +10,8 @@ package fairygui {
         protected var _easeType: Function;
         protected var _tweenTime: Number = 0.3;
         protected var _delay: Number = 0;
-
+		protected var _displayLockToken:Number = 0;
+		
         protected var _owner: GObject;
         protected var _controller: Controller;
 
