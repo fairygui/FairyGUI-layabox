@@ -52,7 +52,8 @@ package fairygui {
 				}
 				
                 if(this._owner.x != pt.x || this._owner.y != pt.y) {
-                    this._owner.internalVisible++;
+					if(_owner.checkGearController(0, _controller))
+						_displayLockToken = _owner.addDisplayLock();
 					this._tweenTarget = pt;
 					
                     if(this._tweenValue == null)
@@ -82,15 +83,16 @@ package fairygui {
         }
         
         private function __tweenComplete():void {
-            this._owner.internalVisible--;
+			if(_displayLockToken!=0)
+			{
+				_owner.releaseDisplayLock(_displayLockToken);
+				_displayLockToken = 0;
+			}
             this.tweener = null;
 			this._owner.displayObject.event(Events.GEAR_STOP);
         }
         
 		override public function updateState(): void {
-			if (this._controller == null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
-
             var pt:Point = this._storage[this._controller.selectedPageId];
             if(!pt) {
                 pt = new Point();

@@ -223,6 +223,13 @@ package fairygui {
 
             switch (info.type) {
                 case RelationType.Left_Left:
+					if(info.percent && _target==_owner.parent)
+					{
+						v = _owner.x - targetX;
+						if (info.percent)
+							v = v / _targetWidth * _target._rawWidth;
+						_owner.x = targetX + v;
+					}
                     break;
                 case RelationType.Left_Center:
                     v = this._owner.x - (targetX + this._targetWidth / 2);
@@ -262,6 +269,13 @@ package fairygui {
                     break;
 
                 case RelationType.Top_Top:
+					if(info.percent && _target==_owner.parent)
+					{
+						v = _owner.y - targetY;
+						if (info.percent)
+							v = v / _targetHeight * _target._rawHeight;
+						_owner.y = targetY + v;
+					}
                     break;
                 case RelationType.Top_Middle:
                     v = this._owner.y - (targetY + this._targetHeight / 2);

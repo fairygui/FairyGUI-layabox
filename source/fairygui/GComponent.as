@@ -984,6 +984,23 @@ package fairygui {
 		protected function constructFromXML(xml:Object):void
 		{
 		}
+		
+		override public function setup_afterAdd(xml:Object):void
+		{
+			super.setup_afterAdd(xml);
+			
+			var str:String = xml.getAttribute("controller");
+			if(str)
+			{
+				var arr:Array = str.split(",");
+				for(var i:int=0;i<arr.length;i+=2)
+				{
+					var cc:Controller = getController(arr[i]);
+					if(cc)
+						cc.selectedPageId = arr[i+1];
+				}
+			}
+		}
         
         private function ___added():void {
             var cnt: Number = this._transitions.length;
@@ -997,8 +1014,7 @@ package fairygui {
         private function ___removed(): void {
             var cnt: Number = this._transitions.length;
             for(var i: Number = 0;i < cnt;++i) {
-                var trans: Transition = this._transitions[i];
-                trans.stop(false, false);
+                this._transitions[i].OnOwnerRemovedFromStage();
             }
         }
     }

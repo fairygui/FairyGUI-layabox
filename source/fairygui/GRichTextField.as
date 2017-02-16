@@ -3,7 +3,7 @@ package fairygui {
 	
 	import laya.html.dom.HTMLDivElement;
 
-    public class GRichTextField extends GTextField implements IColorGear {
+    public class GRichTextField extends GTextField {
         public var div:laya.html.dom.HTMLDivElement;
         
         private var _text:String;
@@ -116,6 +116,7 @@ package fairygui {
 
 		override public function set strokeColor(value: String):void {
             this.div.style.strokeColor = value;
+			updateGear(4);
         }
 
 		override public function set ubbEnabled(value: Boolean):void {

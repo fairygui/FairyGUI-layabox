@@ -1,7 +1,7 @@
 package fairygui {
 	import laya.display.Input;
 
-    public class GTextInput extends GTextField implements IColorGear {
+    public class GTextInput extends GTextField {
         public var input: Input;
         
         public function GTextInput() {
@@ -108,6 +108,7 @@ package fairygui {
 
 		override public function set strokeColor(value: String):void {
             this.input.strokeColor = value;
+			updateGear(4);
         }
 
 		public function get password(): Boolean {
