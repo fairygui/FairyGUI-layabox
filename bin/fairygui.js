@@ -557,7 +557,8 @@
 			this._pivotOffsetX=0;
 			this._pivotOffsetY=0;
 			this._sortingOrder=0;
-			this._internalVisible=1;
+			this._internalVisible=true;
+			this._handlingController=false;
 			this._focusable=false;
 			this._tooltips=null;
 			this._pixelSnapping=false;
@@ -777,13 +778,50 @@
 		}
 
 		__proto.updateGear=function(index){
-			if (this._gears[index] !=null)
-				this._gears[index].updateState();
+			if(this._underConstruct || this._gearLocked)
+				return;
+			var gear=this._gears[index];
+			if (gear!=null && gear.controller!=null)
+				gear.updateState();
+		}
+
+		__proto.checkGearController=function(index,c){
+			return this._gears[index] !=null && this._gears[index].controller==c;
 		}
 
 		__proto.updateGearFromRelations=function(index,dx,dy){
 			if (this._gears[index] !=null)
 				this._gears[index].updateFromRelations(dx,dy);
+		}
+
+		__proto.addDisplayLock=function(){
+			var gearDisplay=(this._gears[0]);
+			if(gearDisplay && gearDisplay.controller){
+				var ret=gearDisplay.addLock();
+				this.checkGearDisplay();
+				return ret;
+			}
+			else
+			return 0;
+		}
+
+		__proto.releaseDisplayLock=function(token){
+			var gearDisplay=(this._gears[0]);
+			if(gearDisplay && gearDisplay.controller){
+				gearDisplay.releaseLock(token);
+				this.checkGearDisplay();
+			}
+		}
+
+		__proto.checkGearDisplay=function(){
+			if(this._handlingController)
+				return;
+			var connected=this._gears[0]==null || (this._gears[0]).connected;
+			if(connected!=this._internalVisible){
+				this._internalVisible=connected;
+				if(this._parent)
+					this._parent.childStateChanged(this);
+			}
 		}
 
 		__proto.addRelation=function(target,relationType,usePercent){
@@ -912,11 +950,14 @@
 		}
 
 		__proto.handleControllerChanged=function(c){
+			this._handlingController=true;
 			for (var i=0;i < 8;i++){
 				var gear=this._gears[i];
 				if (gear !=null && gear.controller==c)
 					gear.apply();
 			}
+			this._handlingController=false;
+			this.checkGearDisplay();
 		}
 
 		__proto.createDisplayObject=function(){
@@ -1279,18 +1320,12 @@
 			this.setPivot(value,this._pivotY);
 		});
 
-		__getset(0,__proto,'asTextInput',function(){
-			return this;
-		});
-
 		__getset(0,__proto,'asLoader',function(){
 			return this;
 		});
 
-		__getset(0,__proto,'pivotY',function(){
-			return this._pivotY;
-			},function(value){
-			this.setPivot(this._pivotX,value);
+		__getset(0,__proto,'asTextInput',function(){
+			return this;
 		});
 
 		__getset(0,__proto,'displayObject',function(){
@@ -1304,6 +1339,12 @@
 			else if(rot <-180)
 			rot=360+rot;
 			return rot;
+		});
+
+		__getset(0,__proto,'pivotY',function(){
+			return this._pivotY;
+			},function(value){
+			this.setPivot(this._pivotX,value);
 		});
 
 		__getset(0,__proto,'touchable',function(){
@@ -1380,22 +1421,8 @@
 			}
 		});
 
-		__getset(0,__proto,'internalVisible',function(){
-			return this._internalVisible;
-			},function(value){
-			if(value < 0)
-				value=0;
-			var oldValue=this._internalVisible > 0;
-			var newValue=value > 0;
-			this._internalVisible=value;
-			if(oldValue !=newValue){
-				if(this._parent)
-					this._parent.childStateChanged(this);
-			}
-		});
-
 		__getset(0,__proto,'finalVisible',function(){
-			return this._visible && this._internalVisible>0 && (!this._group || this._group.finalVisible);
+			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible);
 		});
 
 		__getset(0,__proto,'asGraph',function(){
@@ -1491,11 +1518,11 @@
 			return this;
 		});
 
-		__getset(0,__proto,'asTextField',function(){
+		__getset(0,__proto,'asImage',function(){
 			return this;
 		});
 
-		__getset(0,__proto,'asImage',function(){
+		__getset(0,__proto,'asTextField',function(){
 			return this;
 		});
 
@@ -1565,6 +1592,7 @@
 			this._easeType=null;
 			this._tweenTime=0.3;
 			this._delay=0;
+			this._displayLockToken=0;
 			this._owner=null;
 			this._controller=null;
 			this._owner=owner;
@@ -1903,6 +1931,7 @@
 			this.frames=null;
 			this.componentData=null;
 			this.displayList=null;
+			this.extensionType=null;
 			this.sound=null;
 			this.bitmapFont=null;
 		}
@@ -2384,6 +2413,12 @@
 			var v=NaN,tmp=NaN;
 			switch (info.type){
 				case 0:
+					if(info.percent && this._target==this._owner.parent){
+						v=this._owner.x-targetX;
+						if (info.percent)
+							v=v / this._targetWidth *this._target._rawWidth;
+						this._owner.x=targetX+v;
+					}
 					break ;
 				case 1:
 					v=this._owner.x-(targetX+this._targetWidth / 2);
@@ -2422,6 +2457,12 @@
 					this._owner.x=targetX+this._target._rawWidth+v-this._owner._rawWidth;
 					break ;
 				case 7:
+					if(info.percent && this._target==this._owner.parent){
+						v=this._owner.y-targetY;
+						if (info.percent)
+							v=v / this._targetHeight *this._target._rawHeight;
+						this._owner.y=targetY+v;
+					}
 					break ;
 				case 8:
 					v=this._owner.y-(targetY+this._targetHeight / 2);
@@ -4016,6 +4057,12 @@
 			this._touchEffect=sc;
 		});
 
+		__getset(0,__proto,'mouseWheelEnabled',function(){
+			return this._mouseWheelEnabled;
+			},function(val){
+			this._mouseWheelEnabled=val;
+		});
+
 		__getset(0,__proto,'viewHeight',function(){
 			return this._viewHeight;
 			},function(value){
@@ -4155,6 +4202,8 @@
 			this._maxTime=0;
 			this._autoPlay=false;
 			this.OPTION_IGNORE_DISPLAY_CONTROLLER=1;
+			this.OPTION_AUTO_STOP_DISABLED=2;
+			this.OPTION_AUTO_STOP_AT_END=4;
 			this.FRAME_RATE=24;
 			this._owner=owner;
 			this._items=[];
@@ -4189,13 +4238,12 @@
 			this._playing=this._totalTasks > 0;
 			if(this._playing){
 				this._onComplete=onComplete;
-				this._owner.internalVisible++;
 				if((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER)!=0){
 					var cnt=this._items.length;
 					for(var i=0;i < cnt;i++){
 						var item=this._items[i];
 						if(item.target !=null && item.target !=this._owner)
-							item.target.internalVisible++;
+							item.displayLockToken=item.target.addDisplayLock();
 					}
 				}
 			}
@@ -4213,7 +4261,6 @@
 				this._totalTimes=0;
 				var handler=this._onComplete;
 				this._onComplete=null;
-				this._owner.internalVisible--;
 				var cnt=this._items.length;
 				var i=NaN;
 				var item;
@@ -4240,8 +4287,10 @@
 		}
 
 		__proto.stopItem=function(item,setToComplete){
-			if ((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER)!=0 && item.target !=this._owner)
-				item.target.internalVisible--;
+			if (item.displayLockToken!=0){
+				item.target.releaseDisplayLock(item.displayLockToken);
+				item.displayLockToken=0;
+			}
 			if (item.type==12 && item.filterCreated)
 				item.target.filters=null;
 			if(item.completed)
@@ -4432,6 +4481,11 @@
 					}
 				}
 			}
+		}
+
+		__proto.OnOwnerRemovedFromStage=function(){
+			if ((this._options & this.OPTION_AUTO_STOP_DISABLED)==0)
+				this.stop((this._options & this.OPTION_AUTO_STOP_AT_END)!=0 ? true :false,false);
 		}
 
 		__proto.internalPlay=function(delay){
@@ -4650,17 +4704,18 @@
 						Laya.timer.callLater(this,this.internalPlay);
 					else {
 						this._playing=false;
-						this._owner.internalVisible--;
 						var cnt=this._items.length;
 						for (var i=0;i < cnt;i++){
 							var item=this._items[i];
 							if (item.target !=null){
-								if((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER)!=0 && item.target!=this._owner)
-									item.target.internalVisible--;
-							}
-							if (item.filterCreated){
-								item.filterCreated=false;
-								item.target.filters=null;
+								if (item.displayLockToken!=0){
+									item.target.releaseDisplayLock(item.displayLockToken);
+									item.displayLockToken=0;
+								}
+								if (item.filterCreated){
+									item.filterCreated=false;
+									item.target.filters=null;
+								}
 							}
 						}
 						if(this._onComplete !=null){
@@ -5063,6 +5118,7 @@
 					this.completed=false;
 					this.target=null;
 					this.filterCreated=false;
+					this.displayLockToken=0;
 					this.easeType=Ease.quadOut;
 					this.value=new TransitionValue();
 					this.startValue=new TransitionValue();
@@ -5133,11 +5189,22 @@
 		function UIObjectFactory(){}
 		__class(UIObjectFactory,'fairygui.UIObjectFactory');
 		UIObjectFactory.setPackageItemExtension=function(url,type){
-			fairygui.UIObjectFactory.packageItemExtensions[url.substring(5)]=type;
+			if (url==null)
+				throw new Error("Invaild url: "+url);
+			var pi=UIPackage.getItemByURL(url);
+			if (pi !=null)
+				pi.extensionType=type;
+			UIObjectFactory.packageItemExtensions[url]=type;
 		}
 
 		UIObjectFactory.setLoaderExtension=function(type){
-			fairygui.UIObjectFactory.loaderExtension=type;
+			fairygui.UIObjectFactory.loaderType=type;
+		}
+
+		UIObjectFactory.resolvePackageItemExtension=function(pi){
+			pi.extensionType=UIObjectFactory.packageItemExtensions["ui://"+pi.owner.id+pi.id];
+			if(!pi.extensionType)
+				pi.extensionType=UIObjectFactory.packageItemExtensions["ui://"+pi.owner.name+"/"+pi.name];
 		}
 
 		UIObjectFactory.newObject=function(pi){
@@ -5147,8 +5214,8 @@
 				case 2:
 					return new GMovieClip();
 				case 4:{
-						var cls=fairygui.UIObjectFactory.packageItemExtensions[pi.owner.id+pi.id];
-						if(cls)
+						var cls=pi.extensionType;
+						if (cls)
 							return new cls();
 						var xml=pi.owner.getItemAsset(pi);
 						var extention=xml.getAttribute("extention");
@@ -5198,8 +5265,8 @@
 				case "graph":
 					return new GGraph();
 				case "loader":
-					if (fairygui.UIObjectFactory.loaderExtension !=null)
-						return new fairygui.UIObjectFactory.loaderExtension();
+					if (fairygui.UIObjectFactory.loaderType !=null)
+						return new fairygui.UIObjectFactory.loaderType();
 					else
 					return new GLoader();
 				}
@@ -5207,7 +5274,7 @@
 		}
 
 		UIObjectFactory.packageItemExtensions={};
-		UIObjectFactory.loaderExtension=null
+		UIObjectFactory.loaderType=null
 		return UIObjectFactory;
 	})()
 
@@ -5296,6 +5363,7 @@
 				if(cxml.nodeType!=1)
 					continue ;
 				pi=new PackageItem();
+				pi.owner=this;
 				pi.type=PackageItemType.parse(cxml.nodeName);
 				pi.id=cxml.getAttribute("id");
 				pi.name=cxml.getAttribute("name");
@@ -5330,8 +5398,10 @@
 							pi.smoothing=str !="false";
 							break ;
 						}
+					case 4:
+						UIObjectFactory.resolvePackageItemExtension(pi);
+						break ;
 					}
-				pi.owner=this;
 				this._items.push(pi);
 				this._itemsById[pi.id]=pi;
 				if(pi.name !=null)
@@ -5373,7 +5443,6 @@
 			var cnt=this._items.length;
 			for(var i=0;i < cnt;i++){
 				var pi=this._items[i];
-				var texture=pi.texture;
 				if(pi.bitmapFont !=null){
 					delete fairygui.UIPackage._bitmapFonts[pi.bitmapFont.id];
 				}
@@ -5865,12 +5934,27 @@
 		}
 
 		UIPackage.getItemByURL=function(url){
-			if(ToolSet.startsWith(url,"ui://")){
-				var pkgId=url.substr(5,8);
-				var srcId=url.substr(13);
-				var pkg=fairygui.UIPackage.getById(pkgId);
-				if(pkg)
-					return pkg.getItemById(srcId);
+			var pos1=url.indexOf("//");
+			if (pos1==-1)
+				return null;
+			var pos2=url.indexOf("/",pos1+2);
+			if (pos2==-1){
+				if (url.length > 13){
+					var pkgId=url.substr(5,8);
+					var pkg=UIPackage.getById(pkgId);
+					if (pkg !=null){
+						var srcId=url.substr(13);
+						return pkg.getItemById(srcId);
+					}
+				}
+			}
+			else{
+				var pkgName=url.substr(pos1+2,pos2-pos1-2);
+				pkg=UIPackage.getByName(pkgName);
+				if (pkg !=null){
+					var srcName=url.substr(pos2+1);
+					return pkg.getItemByName(srcName);
+				}
 			}
 			return null;
 		}
@@ -7711,6 +7795,19 @@
 		}
 
 		__proto.constructFromXML=function(xml){}
+		__proto.setup_afterAdd=function(xml){
+			_super.prototype.setup_afterAdd.call(this,xml);
+			var str=xml.getAttribute("controller");
+			if(str){
+				var arr=str.split(",");
+				for(var i=0;i<arr.length;i+=2){
+					var cc=this.getController(arr[i]);
+					if(cc)
+						cc.selectedPageId=arr[i+1];
+				}
+			}
+		}
+
 		__proto.___added=function(){
 			var cnt=this._transitions.length;
 			for(var i=0;i < cnt;++i){
@@ -7723,8 +7820,7 @@
 		__proto.___removed=function(){
 			var cnt=this._transitions.length;
 			for(var i=0;i < cnt;++i){
-				var trans=this._transitions[i];
-				trans.stop(false,false);
+				this._transitions[i].OnOwnerRemovedFromStage();
 			}
 		}
 
@@ -7844,8 +7940,6 @@
 		}
 
 		__proto.updateState=function(){
-			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
 			var mc=(this._owner);
 			var gv=this._storage[this._controller.selectedPageId];
 			if(!gv){
@@ -7878,6 +7972,7 @@
 
 	//class fairygui.GearColor extends fairygui.GearBase
 	var GearColor=(function(_super){
+		var GearColorValue;
 		function GearColor(owner){
 			this._storage=null;
 			this._default=null;
@@ -7887,33 +7982,69 @@
 		__class(GearColor,'fairygui.GearColor',_super);
 		var __proto=GearColor.prototype;
 		__proto.init=function(){
-			this._default=(this._owner).color;
+			if(this._owner["strokeColor"]!=undefined)
+				this._default=new GearColorValue(this._owner["color"],this._owner["strokeColor"]);
+			else
+			this._default=new GearColorValue(this._owner["color"],null);
 			this._storage={};
 		}
 
 		__proto.addStatus=function(pageId,value){
 			if(value=="-")
 				return;
-			if (pageId==null)
-				this._default=value;
+			var pos=value.indexOf(",");
+			var col1;
+			var col2;
+			if(pos==-1){
+				col1=value;
+				col2=null;
+			}
+			else{
+				col1=value.substr(0,pos);
+				col2=value.substr(pos+1);
+			}
+			if(pageId==null){
+				this._default.color=col1;
+				this._default.strokeColor=col2;
+			}
 			else
-			this._storage[pageId]=value;
+			this._storage[pageId]=new GearColorValue(col1,col2);
 		}
 
 		__proto.apply=function(){
 			this._owner._gearLocked=true;
-			var data=this._storage[this._controller.selectedPageId];
-			if (data !=undefined)
-				(this._owner).color=data;
-			else
-			(this._owner).color=this._default;
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv)
+				gv=this._default;
+			(this._owner).color=gv.color;
+			if(this._owner["strokeColor"]!=undefined && gv.strokeColor!=null)
+				this._owner["strokeColor"]=gv.strokeColor;
 			this._owner._gearLocked=false;
 		}
 
 		__proto.updateState=function(){
-			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
-			this._storage[this._controller.selectedPageId]=(this._owner).color;
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv){
+				gv=new GearColorValue(null,null);
+				this._storage[this._controller.selectedPageId]=gv;
+			}
+			gv.color=(this._owner).color;
+			if(this._owner["strokeColor"]!=undefined)
+				gv.strokeColor=this._owner["strokeColor"];
+		}
+
+		GearColor.__init$=function(){
+			//class GearColorValue
+			GearColorValue=(function(){
+				function GearColorValue(color,strokeColor){
+					this.color=null;
+					this.strokeColor=null;
+					this.color=color;
+					this.strokeColor=strokeColor;
+				}
+				__class(GearColorValue,'');
+				return GearColorValue;
+			})()
 		}
 
 		return GearColor;
@@ -7924,7 +8055,9 @@
 	var GearDisplay=(function(_super){
 		function GearDisplay(owner){
 			this.pages=null;
+			this._visible=0;
 			GearDisplay.__super.call(this,owner);
+			this._displayLockToken=1;
 		}
 
 		__class(GearDisplay,'fairygui.GearDisplay',_super);
@@ -7933,13 +8066,30 @@
 			this.pages=null;
 		}
 
-		__proto.apply=function(){
-			if(!this._controller || this.pages==null || this.pages.length==0
-				|| this.pages.indexOf(this._controller.selectedPageId)!=-1)
-			this._owner.internalVisible++;
-			else
-			this._owner.internalVisible=0;
+		__proto.addLock=function(){
+			this._visible++;
+			return this._displayLockToken;
 		}
+
+		__proto.releaseLock=function(token){
+			if(token==this._displayLockToken)
+				this._visible--;
+		}
+
+		__proto.apply=function(){
+			this._displayLockToken++;
+			if(this._displayLockToken<=0)
+				this._displayLockToken=1;
+			if(this.pages==null || this.pages.length==0
+				|| this.pages.indexOf(this._controller.selectedPageId)!=-1)
+			this._visible=1;
+			else
+			this._visible=0;
+		}
+
+		__getset(0,__proto,'connected',function(){
+			return this._controller==null || this._visible>0;
+		});
 
 		return GearDisplay;
 	})(GearBase)
@@ -7978,8 +8128,6 @@
 		}
 
 		__proto.updateState=function(){
-			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
 			this._storage[this._controller.selectedPageId]=this._owner.icon;
 		}
 
@@ -8041,7 +8189,8 @@
 				var a=gv.alpha !=this._owner.alpha;
 				var b=gv.rotation !=this._owner.rotation;
 				if(a || b){
-					this._owner.internalVisible++;
+					if(this._owner.checkGearController(0,this._controller))
+						this._displayLockToken=this._owner.addDisplayLock();
 					this._tweenTarget=gv;
 					if(this._tweenValue==null)
 						this._tweenValue=new Point();
@@ -8075,14 +8224,15 @@
 		}
 
 		__proto.__tweenComplete=function(){
-			this._owner.internalVisible--;
+			if(this._displayLockToken!=0){
+				this._owner.releaseDisplayLock(this._displayLockToken);
+				this._displayLockToken=0;
+			}
 			this.tweener=null;
 			this._owner.displayObject.event("fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
-			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
 			var gv=this._storage[this._controller.selectedPageId];
 			if(!gv){
 				gv=new GearLookValue();
@@ -8354,155 +8504,6 @@
 	})(GObject)
 
 
-	//class fairygui.GearSize extends fairygui.GearBase
-	var GearSize=(function(_super){
-		var GearSizeValue;
-		function GearSize(owner){
-			this.tweener=null;
-			this._storage=null;
-			this._default=null;
-			this._tweenValue=null;
-			this._tweenTarget=null;
-			GearSize.__super.call(this,owner);
-		}
-
-		__class(GearSize,'fairygui.GearSize',_super);
-		var __proto=GearSize.prototype;
-		__proto.init=function(){
-			this._default=new GearSizeValue(this._owner.width,this._owner.height,
-			this._owner.scaleX,this._owner.scaleY);
-			this._storage={};
-		}
-
-		__proto.addStatus=function(pageId,value){
-			if(value=="-")
-				return;
-			var arr=value.split(",");
-			var gv;
-			if (pageId==null)
-				gv=this._default;
-			else {
-				gv=new GearSizeValue();
-				this._storage[pageId]=gv;
-			}
-			gv.width=parseInt(arr[0]);
-			gv.height=parseInt(arr[1]);
-			if(arr.length>2){
-				gv.scaleX=parseFloat(arr[2]);
-				gv.scaleY=parseFloat(arr[3]);
-			}
-		}
-
-		__proto.apply=function(){
-			var gv=this._storage[this._controller.selectedPageId];
-			if (!gv)
-				gv=this._default;
-			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-				if(this.tweener!=null){
-					if (this._tweenTarget.width !=gv.width || this._tweenTarget.height !=gv.height
-						|| this._tweenTarget.scaleX !=gv.scaleX || this._tweenTarget.scaleY !=gv.scaleY){
-						this.tweener.complete();
-						this.tweener=null;
-					}
-					else
-					return;
-				};
-				var a=gv.width !=this._owner.width || gv.height !=this._owner.height;
-				var b=gv.scaleX !=this._owner.scaleX || gv.scaleY !=this._owner.scaleY;
-				if(a || b){
-					this._owner.internalVisible++;
-					this._tweenTarget=gv;
-					if(this._tweenValue==null)
-						this._tweenValue=new GearSizeValue();
-					this._tweenValue.width=this._owner.width;
-					this._tweenValue.height=this._owner.height;
-					this._tweenValue.scaleX=this._owner.scaleX;
-					this._tweenValue.scaleY=this._owner.scaleY;
-					this.tweener=Tween.to(this._tweenValue,
-					{width:gv.width,height:gv.height,scaleX:gv.scaleX,scaleY:gv.scaleY },
-					this._tweenTime*1000,
-					this._easeType,
-					Handler.create(this,this.__tweenComplete),
-					this._delay*1000);
-					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
-				}
-			}
-			else {
-				this._owner._gearLocked=true;
-				this._owner.setSize(gv.width,gv.height,this._owner.gearXY.controller==this._controller);
-				this._owner.setScale(gv.scaleX,gv.scaleY);
-				this._owner._gearLocked=false;
-			}
-		}
-
-		__proto.__tweenUpdate=function(a,b){
-			this._owner._gearLocked=true;
-			if(a)
-				this._owner.setSize(this._tweenValue.width,this._tweenValue.height,this._owner.gearXY.controller==this._controller);
-			if(b)
-				this._owner.setScale(this._tweenValue.scaleX,this._tweenValue.scaleY);
-			this._owner._gearLocked=false;
-		}
-
-		__proto.__tweenComplete=function(){
-			this._owner.internalVisible--;
-			this.tweener=null;
-			this._owner.displayObject.event("fui_gear_stop");
-		}
-
-		__proto.updateState=function(){
-			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
-			var gv=this._storage[this._controller.selectedPageId];
-			if(!gv){
-				gv=new GearSizeValue();
-				this._storage[this._controller.selectedPageId]=gv;
-			}
-			gv.width=this._owner.width;
-			gv.height=this._owner.height;
-			gv.scaleX=this._owner.scaleX;
-			gv.scaleY=this._owner.scaleY;
-		}
-
-		__proto.updateFromRelations=function(dx,dy){
-			if(this._controller==null || this._storage==null)
-				return;
-			for(var key in this._storage){
-				var gv=this._storage[key];
-				gv.width+=dx;
-				gv.height+=dy;
-			}
-			this._default.width+=dx;
-			this._default.height+=dy;
-			this.updateState();
-		}
-
-		GearSize.__init$=function(){
-			//class GearSizeValue
-			GearSizeValue=(function(){
-				function GearSizeValue(width,height,scaleX,scaleY){
-					this.width=NaN;
-					this.height=NaN;
-					this.scaleX=NaN;
-					this.scaleY=NaN;
-					(width===void 0)&& (width=0);
-					(height===void 0)&& (height=0);
-					(scaleX===void 0)&& (scaleX=0);
-					(scaleY===void 0)&& (scaleY=0);
-					this.width=width;
-					this.height=height;
-					this.scaleX=scaleX;
-					this.scaleY=scaleY;
-				}
-				__class(GearSizeValue,'');
-				return GearSizeValue;
-			})()
-		}
-
-		return GearSize;
-	})(GearBase)
-
-
 	//class fairygui.GImage extends fairygui.GObject
 	var GImage=(function(_super){
 		function GImage(){
@@ -8593,6 +8594,157 @@
 	})(GObject)
 
 
+	//class fairygui.GearSize extends fairygui.GearBase
+	var GearSize=(function(_super){
+		var GearSizeValue;
+		function GearSize(owner){
+			this.tweener=null;
+			this._storage=null;
+			this._default=null;
+			this._tweenValue=null;
+			this._tweenTarget=null;
+			GearSize.__super.call(this,owner);
+		}
+
+		__class(GearSize,'fairygui.GearSize',_super);
+		var __proto=GearSize.prototype;
+		__proto.init=function(){
+			this._default=new GearSizeValue(this._owner.width,this._owner.height,
+			this._owner.scaleX,this._owner.scaleY);
+			this._storage={};
+		}
+
+		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
+			var arr=value.split(",");
+			var gv;
+			if (pageId==null)
+				gv=this._default;
+			else {
+				gv=new GearSizeValue();
+				this._storage[pageId]=gv;
+			}
+			gv.width=parseInt(arr[0]);
+			gv.height=parseInt(arr[1]);
+			if(arr.length>2){
+				gv.scaleX=parseFloat(arr[2]);
+				gv.scaleY=parseFloat(arr[3]);
+			}
+		}
+
+		__proto.apply=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if (!gv)
+				gv=this._default;
+			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+				if(this.tweener!=null){
+					if (this._tweenTarget.width !=gv.width || this._tweenTarget.height !=gv.height
+						|| this._tweenTarget.scaleX !=gv.scaleX || this._tweenTarget.scaleY !=gv.scaleY){
+						this.tweener.complete();
+						this.tweener=null;
+					}
+					else
+					return;
+				};
+				var a=gv.width !=this._owner.width || gv.height !=this._owner.height;
+				var b=gv.scaleX !=this._owner.scaleX || gv.scaleY !=this._owner.scaleY;
+				if(a || b){
+					if(this._owner.checkGearController(0,this._controller))
+						this._displayLockToken=this._owner.addDisplayLock();
+					this._tweenTarget=gv;
+					if(this._tweenValue==null)
+						this._tweenValue=new GearSizeValue();
+					this._tweenValue.width=this._owner.width;
+					this._tweenValue.height=this._owner.height;
+					this._tweenValue.scaleX=this._owner.scaleX;
+					this._tweenValue.scaleY=this._owner.scaleY;
+					this.tweener=Tween.to(this._tweenValue,
+					{width:gv.width,height:gv.height,scaleX:gv.scaleX,scaleY:gv.scaleY },
+					this._tweenTime*1000,
+					this._easeType,
+					Handler.create(this,this.__tweenComplete),
+					this._delay*1000);
+					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
+				}
+			}
+			else {
+				this._owner._gearLocked=true;
+				this._owner.setSize(gv.width,gv.height,this._owner.checkGearController(1,this._controller));
+				this._owner.setScale(gv.scaleX,gv.scaleY);
+				this._owner._gearLocked=false;
+			}
+		}
+
+		__proto.__tweenUpdate=function(a,b){
+			this._owner._gearLocked=true;
+			if(a)
+				this._owner.setSize(this._tweenValue.width,this._tweenValue.height,this._owner.checkGearController(1,this._controller));
+			if(b)
+				this._owner.setScale(this._tweenValue.scaleX,this._tweenValue.scaleY);
+			this._owner._gearLocked=false;
+		}
+
+		__proto.__tweenComplete=function(){
+			if(this._displayLockToken!=0){
+				this._owner.releaseDisplayLock(this._displayLockToken);
+				this._displayLockToken=0;
+			}
+			this.tweener=null;
+			this._owner.displayObject.event("fui_gear_stop");
+		}
+
+		__proto.updateState=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv){
+				gv=new GearSizeValue();
+				this._storage[this._controller.selectedPageId]=gv;
+			}
+			gv.width=this._owner.width;
+			gv.height=this._owner.height;
+			gv.scaleX=this._owner.scaleX;
+			gv.scaleY=this._owner.scaleY;
+		}
+
+		__proto.updateFromRelations=function(dx,dy){
+			if(this._controller==null || this._storage==null)
+				return;
+			for(var key in this._storage){
+				var gv=this._storage[key];
+				gv.width+=dx;
+				gv.height+=dy;
+			}
+			this._default.width+=dx;
+			this._default.height+=dy;
+			this.updateState();
+		}
+
+		GearSize.__init$=function(){
+			//class GearSizeValue
+			GearSizeValue=(function(){
+				function GearSizeValue(width,height,scaleX,scaleY){
+					this.width=NaN;
+					this.height=NaN;
+					this.scaleX=NaN;
+					this.scaleY=NaN;
+					(width===void 0)&& (width=0);
+					(height===void 0)&& (height=0);
+					(scaleX===void 0)&& (scaleX=0);
+					(scaleY===void 0)&& (scaleY=0);
+					this.width=width;
+					this.height=height;
+					this.scaleX=scaleX;
+					this.scaleY=scaleY;
+				}
+				__class(GearSizeValue,'');
+				return GearSizeValue;
+			})()
+		}
+
+		return GearSize;
+	})(GearBase)
+
+
 	//class fairygui.GearText extends fairygui.GearBase
 	var GearText=(function(_super){
 		function GearText(owner){
@@ -8626,8 +8778,6 @@
 		}
 
 		__proto.updateState=function(){
-			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
 			this._storage[this._controller.selectedPageId]=this._owner.text;
 		}
 
@@ -8682,7 +8832,8 @@
 					return;
 				}
 				if(this._owner.x !=pt.x || this._owner.y !=pt.y){
-					this._owner.internalVisible++;
+					if(this._owner.checkGearController(0,this._controller))
+						this._displayLockToken=this._owner.addDisplayLock();
 					this._tweenTarget=pt;
 					if(this._tweenValue==null)
 						this._tweenValue=new Point();
@@ -8711,14 +8862,15 @@
 		}
 
 		__proto.__tweenComplete=function(){
-			this._owner.internalVisible--;
+			if(this._displayLockToken!=0){
+				this._owner.releaseDisplayLock(this._displayLockToken);
+				this._displayLockToken=0;
+			}
 			this.tweener=null;
 			this._owner.displayObject.event("fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
-			if (this._controller==null || this._owner._gearLocked || this._owner._underConstruct)
-				return;
 			var pt=this._storage[this._controller.selectedPageId];
 			if(!pt){
 				pt=new Point();
@@ -9667,6 +9819,7 @@
 			return this.textField.strokeColor;
 			},function(value){
 			this.textField.strokeColor=value;
+			this.updateGear(4);
 		});
 
 		__getset(0,__proto,'ubbEnabled',function(){
@@ -9906,7 +10059,7 @@
 		}
 
 		__proto.setup_afterAdd=function(xml){
-			fairygui.GObject.prototype.setup_afterAdd.call(this,xml);
+			_super.prototype.setup_afterAdd.call(this,xml);
 			if(this._downEffect==2)
 				this.setPivot(0.5,0.5);
 			xml=ToolSet.findChildNode(xml,"Button");
@@ -10251,7 +10404,7 @@
 		}
 
 		__proto.setup_afterAdd=function(xml){
-			fairygui.GObject.prototype.setup_afterAdd.call(this,xml);
+			_super.prototype.setup_afterAdd.call(this,xml);
 			xml=ToolSet.findChildNode(xml,"ComboBox");
 			if (xml){
 				var str;
@@ -10508,6 +10661,7 @@
 
 		__class(GLabel,'fairygui.GLabel',_super);
 		var __proto=GLabel.prototype;
+		Laya.imps(__proto,{"fairygui.IColorGear":true})
 		__proto.constructFromXML=function(xml){
 			_super.prototype.constructFromXML.call(this,xml);
 			this._titleObject=this.getChild("title");
@@ -10515,7 +10669,7 @@
 		}
 
 		__proto.setup_afterAdd=function(xml){
-			fairygui.GObject.prototype.setup_afterAdd.call(this,xml);
+			_super.prototype.setup_afterAdd.call(this,xml);
 			xml=ToolSet.findChildNode(xml,"Label");
 			if (xml){
 				var str;
@@ -10549,6 +10703,12 @@
 				}
 			}
 		}
+
+		__getset(0,__proto,'color',function(){
+			return this.titleColor;
+			},function(value){
+			this.titleColor=value;
+		});
 
 		__getset(0,__proto,'icon',function(){
 			if(this._iconObject!=null)
@@ -10604,6 +10764,7 @@
 			(this._titleObject).titleColor=value;
 			else if((this._titleObject instanceof fairygui.GButton ))
 			(this._titleObject).titleColor=value;
+			this.updateGear(4);
 		});
 
 		return GLabel;
@@ -12321,7 +12482,6 @@
 
 		__class(GRichTextField,'fairygui.GRichTextField',_super);
 		var __proto=GRichTextField.prototype;
-		Laya.imps(__proto,{"fairygui.IColorGear":true})
 		__proto.createDisplayObject=function(){
 			this._displayObject=this.div=new HTMLDivElement();
 			this._displayObject.mouseEnabled=true;
@@ -12405,6 +12565,7 @@
 			return this.div.style.strokeColor;
 			},function(value){
 			this.div.style.strokeColor=value;
+			this.updateGear(4);
 		});
 
 		__getset(0,__proto,'ubbEnabled',function(){
@@ -12537,7 +12698,7 @@
 		}
 
 		__proto.setup_afterAdd=function(xml){
-			fairygui.GObject.prototype.setup_afterAdd.call(this,xml);
+			_super.prototype.setup_afterAdd.call(this,xml);
 			xml=ToolSet.findChildNode(xml,"ProgressBar");
 			if (xml){
 				this._value=parseInt(xml.getAttribute("value"));
@@ -12588,167 +12749,6 @@
 		]);
 		return GProgressBar;
 	})(GComponent)
-
-
-	//class fairygui.GTextInput extends fairygui.GTextField
-	var GTextInput=(function(_super){
-		function GTextInput(){
-			this.input=null;
-			GTextInput.__super.call(this);
-		}
-
-		__class(GTextInput,'fairygui.GTextInput',_super);
-		var __proto=GTextInput.prototype;
-		Laya.imps(__proto,{"fairygui.IColorGear":true})
-		__proto.createDisplayObject=function(){
-			this._displayObject=this.input=new Input();
-			this._displayObject.mouseEnabled=true;
-			this._displayObject["$owner"]=this;
-		}
-
-		__proto.handleSizeChanged=function(){
-			this.input.size(this.width,this.height);
-		}
-
-		__proto.setup_beforeAdd=function(xml){
-			_super.prototype.setup_beforeAdd.call(this,xml);
-			var str=xml.getAttribute("prompt");
-			if(str)
-				this.promptText=str;
-			str=xml.getAttribute("maxLength");
-			if(str)
-				this.input.maxChars=parseInt(str);
-			str=xml.getAttribute("restrict");
-			if(str)
-				this.input.restrict=str;
-			if(xml.getAttribute("password")=="true")
-				this.password=true;
-			else{
-				str=xml.getAttribute("keyboardType");
-				if(str=="4")
-					this.keyboardType="number";
-				else if(str=="3")
-				this.keyboardType="url";
-			}
-		}
-
-		__getset(0,__proto,'bold',function(){
-			return this.input.bold;
-			},function(value){
-			this.input.bold=value;
-		});
-
-		__getset(0,__proto,'align',function(){
-			return this.input.align;
-			},function(value){
-			this.input.align=value;
-		});
-
-		__getset(0,__proto,'text',function(){
-			return this.input.text;
-			},function(value){
-			this.input.text=value;
-		});
-
-		__getset(0,__proto,'password',function(){
-			return this.input.type=="password";
-			},function(value){
-			if (value)
-				this.input.type="password";
-			else
-			this.input.type="text";
-		});
-
-		__getset(0,__proto,'color',function(){
-			return this.input.color;
-			},function(value){
-			this.input.color=value;
-		});
-
-		__getset(0,__proto,'font',function(){
-			return this.input.font;
-			},function(value){
-			this.input.font=value;
-		});
-
-		__getset(0,__proto,'leading',function(){
-			return this.input.leading;
-			},function(value){
-			this.input.leading=value;
-		});
-
-		__getset(0,__proto,'maxLength',function(){
-			return this.input.maxChars;
-			},function(value){
-			this.input.maxChars=value;
-		});
-
-		__getset(0,__proto,'fontSize',function(){
-			return this.input.fontSize;
-			},function(value){
-			this.input.fontSize=value;
-		});
-
-		__getset(0,__proto,'valign',function(){
-			return this.input.valign;
-			},function(value){
-			this.input.valign=value;
-		});
-
-		__getset(0,__proto,'italic',function(){
-			return this.input.italic;
-			},function(value){
-			this.input.italic=value;
-		});
-
-		__getset(0,__proto,'singleLine',function(){
-			return !this.input.multiline;
-			},function(value){
-			this.input.multiline=!value;
-		});
-
-		__getset(0,__proto,'stroke',function(){
-			return this.input.stroke;
-			},function(value){
-			this.input.stroke=value;
-		});
-
-		__getset(0,__proto,'strokeColor',function(){
-			return this.input.strokeColor;
-			},function(value){
-			this.input.strokeColor=value;
-		});
-
-		__getset(0,__proto,'keyboardType',function(){
-			return this.input.type;
-			},function(value){
-			this.input.type=value;
-		});
-
-		__getset(0,__proto,'editable',function(){
-			return this.input.editable;
-			},function(value){
-			this.input.editable=value;
-		});
-
-		__getset(0,__proto,'promptText',function(){
-			return this.input.prompt;
-			},function(value){
-			this.input.prompt=value;
-		});
-
-		__getset(0,__proto,'restrict',function(){
-			return this.input.restrict;
-			},function(value){
-			this.input.restrict=value;
-		});
-
-		__getset(0,__proto,'textWidth',function(){
-			return this.input.textWidth;
-		});
-
-		return GTextInput;
-	})(GTextField)
 
 
 	//class fairygui.GRoot extends fairygui.GComponent
@@ -13125,6 +13125,167 @@
 	})(GComponent)
 
 
+	//class fairygui.GTextInput extends fairygui.GTextField
+	var GTextInput=(function(_super){
+		function GTextInput(){
+			this.input=null;
+			GTextInput.__super.call(this);
+		}
+
+		__class(GTextInput,'fairygui.GTextInput',_super);
+		var __proto=GTextInput.prototype;
+		__proto.createDisplayObject=function(){
+			this._displayObject=this.input=new Input();
+			this._displayObject.mouseEnabled=true;
+			this._displayObject["$owner"]=this;
+		}
+
+		__proto.handleSizeChanged=function(){
+			this.input.size(this.width,this.height);
+		}
+
+		__proto.setup_beforeAdd=function(xml){
+			_super.prototype.setup_beforeAdd.call(this,xml);
+			var str=xml.getAttribute("prompt");
+			if(str)
+				this.promptText=str;
+			str=xml.getAttribute("maxLength");
+			if(str)
+				this.input.maxChars=parseInt(str);
+			str=xml.getAttribute("restrict");
+			if(str)
+				this.input.restrict=str;
+			if(xml.getAttribute("password")=="true")
+				this.password=true;
+			else{
+				str=xml.getAttribute("keyboardType");
+				if(str=="4")
+					this.keyboardType="number";
+				else if(str=="3")
+				this.keyboardType="url";
+			}
+		}
+
+		__getset(0,__proto,'bold',function(){
+			return this.input.bold;
+			},function(value){
+			this.input.bold=value;
+		});
+
+		__getset(0,__proto,'align',function(){
+			return this.input.align;
+			},function(value){
+			this.input.align=value;
+		});
+
+		__getset(0,__proto,'text',function(){
+			return this.input.text;
+			},function(value){
+			this.input.text=value;
+		});
+
+		__getset(0,__proto,'password',function(){
+			return this.input.type=="password";
+			},function(value){
+			if (value)
+				this.input.type="password";
+			else
+			this.input.type="text";
+		});
+
+		__getset(0,__proto,'color',function(){
+			return this.input.color;
+			},function(value){
+			this.input.color=value;
+		});
+
+		__getset(0,__proto,'font',function(){
+			return this.input.font;
+			},function(value){
+			this.input.font=value;
+		});
+
+		__getset(0,__proto,'leading',function(){
+			return this.input.leading;
+			},function(value){
+			this.input.leading=value;
+		});
+
+		__getset(0,__proto,'maxLength',function(){
+			return this.input.maxChars;
+			},function(value){
+			this.input.maxChars=value;
+		});
+
+		__getset(0,__proto,'fontSize',function(){
+			return this.input.fontSize;
+			},function(value){
+			this.input.fontSize=value;
+		});
+
+		__getset(0,__proto,'valign',function(){
+			return this.input.valign;
+			},function(value){
+			this.input.valign=value;
+		});
+
+		__getset(0,__proto,'italic',function(){
+			return this.input.italic;
+			},function(value){
+			this.input.italic=value;
+		});
+
+		__getset(0,__proto,'singleLine',function(){
+			return !this.input.multiline;
+			},function(value){
+			this.input.multiline=!value;
+		});
+
+		__getset(0,__proto,'stroke',function(){
+			return this.input.stroke;
+			},function(value){
+			this.input.stroke=value;
+		});
+
+		__getset(0,__proto,'strokeColor',function(){
+			return this.input.strokeColor;
+			},function(value){
+			this.input.strokeColor=value;
+			this.updateGear(4);
+		});
+
+		__getset(0,__proto,'keyboardType',function(){
+			return this.input.type;
+			},function(value){
+			this.input.type=value;
+		});
+
+		__getset(0,__proto,'editable',function(){
+			return this.input.editable;
+			},function(value){
+			this.input.editable=value;
+		});
+
+		__getset(0,__proto,'promptText',function(){
+			return this.input.prompt;
+			},function(value){
+			this.input.prompt=value;
+		});
+
+		__getset(0,__proto,'restrict',function(){
+			return this.input.restrict;
+			},function(value){
+			this.input.restrict=value;
+		});
+
+		__getset(0,__proto,'textWidth',function(){
+			return this.input.textWidth;
+		});
+
+		return GTextInput;
+	})(GTextField)
+
+
 	//class fairygui.GScrollBar extends fairygui.GComponent
 	var GScrollBar=(function(_super){
 		function GScrollBar(){
@@ -13364,7 +13525,7 @@
 		}
 
 		__proto.setup_afterAdd=function(xml){
-			fairygui.GObject.prototype.setup_afterAdd.call(this,xml);
+			_super.prototype.setup_afterAdd.call(this,xml);
 			xml=ToolSet.findChildNode(xml,"Slider");
 			if (xml){
 				this._value=parseInt(xml.getAttribute("value"));
@@ -14026,5 +14187,5 @@
 	})(Sprite)
 
 
-	Laya.__init([GList,Transition,UIPackage,ScrollPane,GBasicTextField,Controller,GearAnimation,GearLook,GearSize,RelationItem]);
+	Laya.__init([GList,GearColor,GearAnimation,Transition,ScrollPane,UIPackage,GBasicTextField,Controller,GearLook,GearSize,RelationItem]);
 })(window,document,Laya);
