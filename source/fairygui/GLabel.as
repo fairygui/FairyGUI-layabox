@@ -65,6 +65,28 @@ package fairygui {
                 GButton(this._titleObject).titleColor = value;
 			this.updateGear(4);
         }
+		
+		public function get titleFontSize():int
+		{
+			if(_titleObject is GTextField)
+				return GTextField(_titleObject).fontSize;
+			else if(_titleObject is GLabel)
+				return GLabel(_titleObject).titleFontSize;
+			else if(_titleObject is GButton)
+				return GButton(_titleObject).titleFontSize;
+			else
+				return 0;
+		}
+		
+		public function set titleFontSize(value:int):void
+		{
+			if(_titleObject is GTextField)
+				GTextField(_titleObject).fontSize = value;
+			else if(_titleObject is GLabel)
+				GLabel(_titleObject).titleFontSize = value;
+			else if(_titleObject is GButton)
+				GButton(_titleObject).titleFontSize = value;
+		}
 
 		public function get color(): String {
 			return this.titleColor;
@@ -108,12 +130,15 @@ package fairygui {
                 str = xml.getAttribute("titleColor");
                 if (str)
                     this.titleColor = str;
-                    
+				str = xml.getAttribute("titleFontSize");
+				if(str)
+					this.titleFontSize = parseInt(str);
+				
                 if(this._titleObject is GTextInput)
                 {
                     str = xml.getAttribute("prompt");
                     if(str)
-                        GTextInput(this._titleObject).promptText = str;					
+                        GTextInput(this._titleObject).promptText = str;
 					str = xml.getAttribute("maxLength");
 					if(str)
 						GTextInput(_titleObject).maxLength = parseInt(str);
