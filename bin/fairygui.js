@@ -295,6 +295,7 @@
 			this._curFrame=0;
 			this._lastTime=0;
 			this._curFrameDelay=0;
+			this._lastTime=Laya.timer.currTimer;
 		}
 
 		__class(PlayState,'fairygui.display.PlayState');

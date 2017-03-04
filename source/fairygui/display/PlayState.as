@@ -10,6 +10,7 @@ package fairygui.display {
         private var _curFrameDelay: Number = 0;
 
         public function PlayState () {
+			this._lastTime = Laya.timer.currTimer;
         }
 
         public function update(mc: fairygui.display.MovieClip): void {
