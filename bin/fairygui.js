@@ -293,17 +293,20 @@
 			this.reversed=false;
 			this.repeatedCount=0;
 			this._curFrame=0;
-			this._lastTime=0;
 			this._curFrameDelay=0;
-			this._lastTime=Laya.timer.currTimer;
+			this._lastUpdateSeq=0;
 		}
 
 		__class(PlayState,'fairygui.display.PlayState');
 		var __proto=PlayState.prototype;
 		__proto.update=function(mc){
-			var t=Laya.timer.currTimer;
-			var elapsed=t-this._lastTime;
-			this._lastTime=t;
+			var elapsed=NaN;
+			var frameId=Laya.timer.currFrame;
+			if (frameId-this._lastUpdateSeq !=1)
+				elapsed=0;
+			else
+			elapsed=Laya.timer.delta;
+			this._lastUpdateSeq=frameId;
 			this.reachEnding=false;
 			this._curFrameDelay+=elapsed;
 			var interval=mc.interval+mc.frames[this._curFrame].addDelay+((this._curFrame==0 && this.repeatedCount > 0)? mc.repeatDelay :0);
