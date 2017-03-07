@@ -1279,6 +1279,7 @@ declare module fairygui {
         static createObjectFromURL(url: string, userClass?: any): GObject;
         static getItemURL(pkgName: string, resName: string): string;
         static getItemByURL(url: string): PackageItem;
+        static normalizeURL(url: string): string;
         static getBitmapFontByURL(url: string): fairygui.display.BitmapFont;
         static setStringsSource(source: string): void;
         dispose(): void;

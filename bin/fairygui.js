@@ -1716,12 +1716,9 @@
 		}
 
 		__proto.getObject=function(url){
+			url=UIPackage.normalizeURL(url);
 			var arr=this._pool[url];
-			if (arr==null){
-				arr=[];
-				this._pool[url]=arr;
-			}
-			if (arr.length){
+			if (arr !=null && arr.length>0){
 				this._count--;
 				return arr.shift();
 			};
@@ -5963,6 +5960,20 @@
 			return null;
 		}
 
+		UIPackage.normalizeURL=function(url){
+			if(url==null)
+				return null;
+			var pos1=url.indexOf("//");
+			if (pos1==-1)
+				return null;
+			var pos2=url.indexOf("/",pos1+2);
+			if (pos2==-1)
+				return url;
+			var pkgName=url.substr(pos1+2,pos2-pos1-2);
+			var srcName=url.substr(pos2+1);
+			return UIPackage.getItemURL(pkgName,srcName);
+		}
+
 		UIPackage.getBitmapFontByURL=function(url){
 			return fairygui.UIPackage._bitmapFonts[url];
 		}
@@ -8508,6 +8519,96 @@
 	})(GObject)
 
 
+	//class fairygui.GImage extends fairygui.GObject
+	var GImage=(function(_super){
+		function GImage(){
+			this.image=null;
+			this._color=null;
+			this._flip=0;
+			GImage.__super.call(this);
+			this._color="#FFFFFF";
+		}
+
+		__class(GImage,'fairygui.GImage',_super);
+		var __proto=GImage.prototype;
+		Laya.imps(__proto,{"fairygui.IColorGear":true})
+		__proto.applyColor=function(){}
+		__proto.createDisplayObject=function(){
+			this._displayObject=this.image=new Image1();
+			this.image.mouseEnabled=false;
+			this._displayObject["$owner"]=this;
+		}
+
+		__proto.constructFromResource=function(){
+			this.packageItem.load();
+			this._sourceWidth=this.packageItem.width;
+			this._sourceHeight=this.packageItem.height;
+			this._initWidth=this._sourceWidth;
+			this._initHeight=this._sourceHeight;
+			this.image.scale9Grid=this.packageItem.scale9Grid;
+			this.image.scaleByTile=this.packageItem.scaleByTile;
+			this.image.tileGridIndice=this.packageItem.tileGridIndice;
+			this.image.tex=this.packageItem.texture;
+			this.setSize(this._sourceWidth,this._sourceHeight);
+		}
+
+		__proto.handleXYChanged=function(){
+			_super.prototype.handleXYChanged.call(this);
+			if(this._flip !=0){
+				if(this.scaleX==-1)
+					this.image.x+=this.width;
+				if(this.scaleY==-1)
+					this.image.y+=this.height;
+			}
+		}
+
+		__proto.handleSizeChanged=function(){
+			if(this.image.tex!=null){
+				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
+			}
+		}
+
+		__proto.setup_beforeAdd=function(xml){
+			_super.prototype.setup_beforeAdd.call(this,xml);
+			var str;
+			str=xml.getAttribute("color");
+			if(str)
+				this.color=str;
+			str=xml.getAttribute("flip");
+			if(str)
+				this.flip=FlipType.parse(str);
+		}
+
+		__getset(0,__proto,'color',function(){
+			return this._color;
+			},function(value){
+			if(this._color !=value){
+				this._color=value;
+				this.updateGear(4);
+				this.applyColor();
+			}
+		});
+
+		//not supported yet
+		__getset(0,__proto,'flip',function(){
+			return this._flip;
+			},function(value){
+			if(this._flip!=value){
+				this._flip=value;
+				var sx=1,sy=1;
+				if(this._flip==1 || this._flip==3)
+					sx=-1;
+				if(this._flip==2 || this._flip==3)
+					sy=-1;
+				this.setScale(sx,sy);
+				this.handleXYChanged();
+			}
+		});
+
+		return GImage;
+	})(GObject)
+
+
 	//class fairygui.GearSize extends fairygui.GearBase
 	var GearSize=(function(_super){
 		var GearSizeValue;
@@ -8657,96 +8758,6 @@
 
 		return GearSize;
 	})(GearBase)
-
-
-	//class fairygui.GImage extends fairygui.GObject
-	var GImage=(function(_super){
-		function GImage(){
-			this.image=null;
-			this._color=null;
-			this._flip=0;
-			GImage.__super.call(this);
-			this._color="#FFFFFF";
-		}
-
-		__class(GImage,'fairygui.GImage',_super);
-		var __proto=GImage.prototype;
-		Laya.imps(__proto,{"fairygui.IColorGear":true})
-		__proto.applyColor=function(){}
-		__proto.createDisplayObject=function(){
-			this._displayObject=this.image=new Image1();
-			this.image.mouseEnabled=false;
-			this._displayObject["$owner"]=this;
-		}
-
-		__proto.constructFromResource=function(){
-			this.packageItem.load();
-			this._sourceWidth=this.packageItem.width;
-			this._sourceHeight=this.packageItem.height;
-			this._initWidth=this._sourceWidth;
-			this._initHeight=this._sourceHeight;
-			this.image.scale9Grid=this.packageItem.scale9Grid;
-			this.image.scaleByTile=this.packageItem.scaleByTile;
-			this.image.tileGridIndice=this.packageItem.tileGridIndice;
-			this.image.tex=this.packageItem.texture;
-			this.setSize(this._sourceWidth,this._sourceHeight);
-		}
-
-		__proto.handleXYChanged=function(){
-			_super.prototype.handleXYChanged.call(this);
-			if(this._flip !=0){
-				if(this.scaleX==-1)
-					this.image.x+=this.width;
-				if(this.scaleY==-1)
-					this.image.y+=this.height;
-			}
-		}
-
-		__proto.handleSizeChanged=function(){
-			if(this.image.tex!=null){
-				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
-			}
-		}
-
-		__proto.setup_beforeAdd=function(xml){
-			_super.prototype.setup_beforeAdd.call(this,xml);
-			var str;
-			str=xml.getAttribute("color");
-			if(str)
-				this.color=str;
-			str=xml.getAttribute("flip");
-			if(str)
-				this.flip=FlipType.parse(str);
-		}
-
-		__getset(0,__proto,'color',function(){
-			return this._color;
-			},function(value){
-			if(this._color !=value){
-				this._color=value;
-				this.updateGear(4);
-				this.applyColor();
-			}
-		});
-
-		//not supported yet
-		__getset(0,__proto,'flip',function(){
-			return this._flip;
-			},function(value){
-			if(this._flip!=value){
-				this._flip=value;
-				var sx=1,sy=1;
-				if(this._flip==1 || this._flip==3)
-					sx=-1;
-				if(this._flip==2 || this._flip==3)
-					sy=-1;
-				this.setScale(sx,sy);
-				this.handleXYChanged();
-			}
-		});
-
-		return GImage;
-	})(GObject)
 
 
 	//class fairygui.GearText extends fairygui.GearBase
@@ -11756,7 +11767,8 @@
 					if (this.itemProvider !=null){
 						url=this.itemProvider.runWith(curIndex % this._numItems);
 						if (url==null)
-							url=this.defaultItem;
+							url=this._defaultItem;
+						url=UIPackage.normalizeURL(url);
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
 						this.removeChildToPool(ii.obj);
@@ -11875,7 +11887,8 @@
 					if (this.itemProvider !=null){
 						url=this.itemProvider.runWith(curIndex % this._numItems);
 						if (url==null)
-							url=this.defaultItem;
+							url=this._defaultItem;
+						url=UIPackage.normalizeURL(url);
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
 						this.removeChildToPool(ii.obj);
@@ -11980,6 +11993,7 @@
 			var i=0;
 			var ii,ii2;
 			var col=0;
+			var url=this._defaultItem;
 			GList.itemInfoVer++;
 			for (i=startIndex;i < lastIndex;i++){
 				if (i >=this._realNumItems)
@@ -12024,7 +12038,13 @@
 					if (insertIndex==-1)
 						insertIndex=this.getChildIndex(lastObj)+1;
 					if (ii.obj==null){
-						ii.obj=this._pool.getObject(this.defaultItem);
+						if (this.itemProvider !=null){
+							url=this.itemProvider(i % this._numItems);
+							if (url==null)
+								url=this._defaultItem;
+							url=UIPackage.normalizeURL(url);
+						}
+						ii.obj=this._pool.getObject(url);
 						this.addChildAt(ii.obj,insertIndex);
 					}
 					else{
