@@ -1716,12 +1716,9 @@
 		}
 
 		__proto.getObject=function(url){
+			url=UIPackage.normalizeURL(url);
 			var arr=this._pool[url];
-			if (arr==null){
-				arr=[];
-				this._pool[url]=arr;
-			}
-			if (arr.length){
+			if (arr !=null && arr.length>0){
 				this._count--;
 				return arr.shift();
 			};
@@ -5961,6 +5958,20 @@
 				}
 			}
 			return null;
+		}
+
+		UIPackage.normalizeURL=function(url){
+			if(url==null)
+				return null;
+			var pos1=url.indexOf("//");
+			if (pos1==-1)
+				return null;
+			var pos2=url.indexOf("/",pos1+2);
+			if (pos2==-1)
+				return url;
+			var pkgName=url.substr(pos1+2,pos2-pos1-2);
+			var srcName=url.substr(pos2+1);
+			return UIPackage.getItemURL(pkgName,srcName);
 		}
 
 		UIPackage.getBitmapFontByURL=function(url){
@@ -11756,7 +11767,8 @@
 					if (this.itemProvider !=null){
 						url=this.itemProvider.runWith(curIndex % this._numItems);
 						if (url==null)
-							url=this.defaultItem;
+							url=this._defaultItem;
+						url=UIPackage.normalizeURL(url);
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
 						this.removeChildToPool(ii.obj);
@@ -11875,7 +11887,8 @@
 					if (this.itemProvider !=null){
 						url=this.itemProvider.runWith(curIndex % this._numItems);
 						if (url==null)
-							url=this.defaultItem;
+							url=this._defaultItem;
+						url=UIPackage.normalizeURL(url);
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
 						this.removeChildToPool(ii.obj);
@@ -11980,6 +11993,7 @@
 			var i=0;
 			var ii,ii2;
 			var col=0;
+			var url=this._defaultItem;
 			GList.itemInfoVer++;
 			for (i=startIndex;i < lastIndex;i++){
 				if (i >=this._realNumItems)
@@ -12024,7 +12038,13 @@
 					if (insertIndex==-1)
 						insertIndex=this.getChildIndex(lastObj)+1;
 					if (ii.obj==null){
-						ii.obj=this._pool.getObject(this.defaultItem);
+						if (this.itemProvider !=null){
+							url=this.itemProvider(i % this._numItems);
+							if (url==null)
+								url=this._defaultItem;
+							url=UIPackage.normalizeURL(url);
+						}
+						ii.obj=this._pool.getObject(url);
 						this.addChildAt(ii.obj,insertIndex);
 					}
 					else{
@@ -12657,7 +12677,8 @@
 					this._tweener.clear();
 				this._tweenValue=this._value;
 				this._value=value;
-				this._tweener=Tween.to(this,{_tweenValue:value },duration *1000,fairygui.GProgressBar.easeLinear);
+				this._tweener=Tween.to(this,{_tweenValue:value },duration *1000,fairygui.GProgressBar.easeLinear,
+				Handler.create(this,this.onTweenComplete,null,true));
 				this._tweener.update=Handler.create(this,this.onUpdateTween,null,false);
 				return this._tweener;
 			}
@@ -12667,6 +12688,10 @@
 
 		__proto.onUpdateTween=function(){
 			this.update(this._tweenValue);
+		}
+
+		__proto.onTweenComplete=function(){
+			this._tweener=null;
 		}
 
 		__proto.update=function(newValue){

@@ -81,7 +81,8 @@ package fairygui {
     
                 this._tweenValue = this._value;
                 this._value = value;
-                this._tweener = Tween.to(this, { _tweenValue: value }, duration * 1000, GProgressBar.easeLinear); 
+                this._tweener = Tween.to(this, { _tweenValue: value }, duration * 1000, GProgressBar.easeLinear, 
+					Handler.create(this, this.onTweenComplete, null, true)); 
                 this._tweener.update = Handler.create(this, this.onUpdateTween, null, false);
 				return this._tweener;
             }
@@ -92,6 +93,10 @@ package fairygui {
         private function onUpdateTween(): void {
             this.update(this._tweenValue);
         }
+		
+		private function onTweenComplete():void {
+			this._tweener = null;
+		}
 
         public function update(newValue:Number): void {
             var percent: Number = Math.min(newValue / this._max,1);
