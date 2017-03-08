@@ -6,17 +6,23 @@ package fairygui.display {
         public var repeatedCount: Number = 0;
 
         private var _curFrame: Number = 0;
-        private var _lastTime: Number = 0;
         private var _curFrameDelay: Number = 0;
-
+		private var _lastUpdateSeq:Number = 0;
+		
         public function PlayState () {
         }
 
         public function update(mc: fairygui.display.MovieClip): void {
-            var t: Number = Laya.timer.currTimer;
-            var elapsed: Number = t - this._lastTime;
-            this._lastTime = t;
-
+			var elapsed:Number;
+			var frameId:uint = Laya.timer.currFrame;
+			if (frameId - _lastUpdateSeq != 1) 
+				//1、如果>1，表示不是连续帧了，说明刚启动（或者停止过），这里不能用流逝的时间了，不然会跳过很多帧
+				//2、如果==0，表示在本帧已经处理过了，这通常是因为一个PlayState用于多个MovieClip共享，目的是多个MovieClip同步播放
+				elapsed = 0;
+			else
+				elapsed = Laya.timer.delta;
+			_lastUpdateSeq = frameId;
+			
             this.reachEnding = false;
             this._curFrameDelay += elapsed;
             var interval: Number = mc.interval + mc.frames[this._curFrame].addDelay + ((this._curFrame == 0 && this.repeatedCount > 0) ? mc.repeatDelay : 0);

@@ -235,6 +235,7 @@ declare module fairygui {
         text: string;
         selectedTitle: string;
         titleColor: string;
+        titleFontSize: number;
         sound: string;
         soundVolumeScale: number;
         selected: boolean;
@@ -486,6 +487,7 @@ declare module fairygui {
         title: string;
         text: string;
         titleColor: string;
+        titleFontSize: number;
         editable: boolean;
         protected constructFromXML(xml: Object): void;
         setup_afterAdd(xml: Object): void;
@@ -1277,6 +1279,7 @@ declare module fairygui {
         static createObjectFromURL(url: string, userClass?: any): GObject;
         static getItemURL(pkgName: string, resName: string): string;
         static getItemByURL(url: string): PackageItem;
+        static normalizeURL(url: string): string;
         static getBitmapFontByURL(url: string): fairygui.display.BitmapFont;
         static setStringsSource(source: string): void;
         dispose(): void;

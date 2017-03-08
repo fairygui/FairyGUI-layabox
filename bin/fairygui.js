@@ -293,16 +293,20 @@
 			this.reversed=false;
 			this.repeatedCount=0;
 			this._curFrame=0;
-			this._lastTime=0;
 			this._curFrameDelay=0;
+			this._lastUpdateSeq=0;
 		}
 
 		__class(PlayState,'fairygui.display.PlayState');
 		var __proto=PlayState.prototype;
 		__proto.update=function(mc){
-			var t=Laya.timer.currTimer;
-			var elapsed=t-this._lastTime;
-			this._lastTime=t;
+			var elapsed=NaN;
+			var frameId=Laya.timer.currFrame;
+			if (frameId-this._lastUpdateSeq !=1)
+				elapsed=0;
+			else
+			elapsed=Laya.timer.delta;
+			this._lastUpdateSeq=frameId;
 			this.reachEnding=false;
 			this._curFrameDelay+=elapsed;
 			var interval=mc.interval+mc.frames[this._curFrame].addDelay+((this._curFrame==0 && this.repeatedCount > 0)? mc.repeatDelay :0);
@@ -1712,12 +1716,9 @@
 		}
 
 		__proto.getObject=function(url){
+			url=UIPackage.normalizeURL(url);
 			var arr=this._pool[url];
-			if (arr==null){
-				arr=[];
-				this._pool[url]=arr;
-			}
-			if (arr.length){
+			if (arr !=null && arr.length>0){
 				this._count--;
 				return arr.shift();
 			};
@@ -5959,6 +5960,20 @@
 			return null;
 		}
 
+		UIPackage.normalizeURL=function(url){
+			if(url==null)
+				return null;
+			var pos1=url.indexOf("//");
+			if (pos1==-1)
+				return null;
+			var pos2=url.indexOf("/",pos1+2);
+			if (pos2==-1)
+				return url;
+			var pkgName=url.substr(pos1+2,pos2-pos1-2);
+			var srcName=url.substr(pos2+1);
+			return UIPackage.getItemURL(pkgName,srcName);
+		}
+
 		UIPackage.getBitmapFontByURL=function(url){
 			return fairygui.UIPackage._bitmapFonts[url];
 		}
@@ -10080,6 +10095,9 @@
 				str=xml.getAttribute("titleColor");
 				if (str)
 					this.titleColor=str;
+				str=xml.getAttribute("titleFontSize");
+				if(str)
+					this.titleFontSize=parseInt(str);
 				str=xml.getAttribute("sound");
 				if (str!=null)
 					this._sound=str;
@@ -10193,6 +10211,24 @@
 			this.updateGear(7);
 		});
 
+		__getset(0,__proto,'titleFontSize',function(){
+			if((this._titleObject instanceof fairygui.GTextField ))
+				return (this._titleObject).fontSize;
+			else if((this._titleObject instanceof fairygui.GLabel ))
+			return (this._titleObject).titleFontSize;
+			else if((this._titleObject instanceof fairygui.GButton ))
+			return (this._titleObject).titleFontSize;
+			else
+			return 0;
+			},function(value){
+			if((this._titleObject instanceof fairygui.GTextField ))
+				(this._titleObject).fontSize=value;
+			else if((this._titleObject instanceof fairygui.GLabel ))
+			(this._titleObject).titleFontSize=value;
+			else if((this._titleObject instanceof fairygui.GButton ))
+			(this._titleObject).titleFontSize=value;
+		});
+
 		__getset(0,__proto,'selectedIcon',function(){
 			return this._selectedIcon;
 			},function(value){
@@ -10223,6 +10259,36 @@
 			this._selectedTitle=value;
 			if (this._titleObject)
 				this._titleObject.text=(this._selected && this._selectedTitle)? this._selectedTitle :this._title;
+		});
+
+		__getset(0,__proto,'soundVolumeScale',function(){
+			return this._soundVolumeScale;
+			},function(value){
+			this._soundVolumeScale=value;
+		});
+
+		__getset(0,__proto,'sound',function(){
+			return this._sound;
+			},function(val){
+			this._sound=val;
+		});
+
+		__getset(0,__proto,'titleColor',function(){
+			if((this._titleObject instanceof fairygui.GTextField ))
+				return (this._titleObject).color;
+			else if((this._titleObject instanceof fairygui.GLabel ))
+			return (this._titleObject).titleColor;
+			else if((this._titleObject instanceof fairygui.GButton ))
+			return (this._titleObject).titleColor;
+			else
+			return "#000000";
+			},function(value){
+			if((this._titleObject instanceof fairygui.GTextField ))
+				(this._titleObject).color=value;
+			else if((this._titleObject instanceof fairygui.GLabel ))
+			(this._titleObject).titleColor=value;
+			else if((this._titleObject instanceof fairygui.GButton ))
+			(this._titleObject).titleColor=value;
 		});
 
 		__getset(0,__proto,'selected',function(){
@@ -10263,36 +10329,6 @@
 					this._relatedController.oppositePageId=this._pageOption.id;
 				}
 			}
-		});
-
-		__getset(0,__proto,'soundVolumeScale',function(){
-			return this._soundVolumeScale;
-			},function(value){
-			this._soundVolumeScale=value;
-		});
-
-		__getset(0,__proto,'sound',function(){
-			return this._sound;
-			},function(val){
-			this._sound=val;
-		});
-
-		__getset(0,__proto,'titleColor',function(){
-			if((this._titleObject instanceof fairygui.GTextField ))
-				return (this._titleObject).color;
-			else if((this._titleObject instanceof fairygui.GLabel ))
-			return (this._titleObject).titleColor;
-			else if((this._titleObject instanceof fairygui.GButton ))
-			return (this._titleObject).titleColor;
-			else
-			return "#000000";
-			},function(value){
-			if((this._titleObject instanceof fairygui.GTextField ))
-				(this._titleObject).color=value;
-			else if((this._titleObject instanceof fairygui.GLabel ))
-			(this._titleObject).titleColor=value;
-			else if((this._titleObject instanceof fairygui.GButton ))
-			(this._titleObject).titleColor=value;
 		});
 
 		__getset(0,__proto,'mode',function(){
@@ -10682,6 +10718,9 @@
 				str=xml.getAttribute("titleColor");
 				if (str)
 					this.titleColor=str;
+				str=xml.getAttribute("titleFontSize");
+				if(str)
+					this.titleFontSize=parseInt(str);
 				if((this._titleObject instanceof fairygui.GTextInput )){
 					str=xml.getAttribute("prompt");
 					if(str)
@@ -10765,6 +10804,24 @@
 			else if((this._titleObject instanceof fairygui.GButton ))
 			(this._titleObject).titleColor=value;
 			this.updateGear(4);
+		});
+
+		__getset(0,__proto,'titleFontSize',function(){
+			if((this._titleObject instanceof fairygui.GTextField ))
+				return (this._titleObject).fontSize;
+			else if((this._titleObject instanceof fairygui.GLabel ))
+			return (this._titleObject).titleFontSize;
+			else if((this._titleObject instanceof fairygui.GButton ))
+			return (this._titleObject).titleFontSize;
+			else
+			return 0;
+			},function(value){
+			if((this._titleObject instanceof fairygui.GTextField ))
+				(this._titleObject).fontSize=value;
+			else if((this._titleObject instanceof fairygui.GLabel ))
+			(this._titleObject).titleFontSize=value;
+			else if((this._titleObject instanceof fairygui.GButton ))
+			(this._titleObject).titleFontSize=value;
 		});
 
 		return GLabel;
@@ -11710,7 +11767,8 @@
 					if (this.itemProvider !=null){
 						url=this.itemProvider.runWith(curIndex % this._numItems);
 						if (url==null)
-							url=this.defaultItem;
+							url=this._defaultItem;
+						url=UIPackage.normalizeURL(url);
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
 						this.removeChildToPool(ii.obj);
@@ -11829,7 +11887,8 @@
 					if (this.itemProvider !=null){
 						url=this.itemProvider.runWith(curIndex % this._numItems);
 						if (url==null)
-							url=this.defaultItem;
+							url=this._defaultItem;
+						url=UIPackage.normalizeURL(url);
 					}
 					if (ii.obj !=null && ii.obj.resourceURL !=url){
 						this.removeChildToPool(ii.obj);
@@ -11934,6 +11993,7 @@
 			var i=0;
 			var ii,ii2;
 			var col=0;
+			var url=this._defaultItem;
 			GList.itemInfoVer++;
 			for (i=startIndex;i < lastIndex;i++){
 				if (i >=this._realNumItems)
@@ -11978,7 +12038,13 @@
 					if (insertIndex==-1)
 						insertIndex=this.getChildIndex(lastObj)+1;
 					if (ii.obj==null){
-						ii.obj=this._pool.getObject(this.defaultItem);
+						if (this.itemProvider !=null){
+							url=this.itemProvider(i % this._numItems);
+							if (url==null)
+								url=this._defaultItem;
+							url=UIPackage.normalizeURL(url);
+						}
+						ii.obj=this._pool.getObject(url);
 						this.addChildAt(ii.obj,insertIndex);
 					}
 					else{

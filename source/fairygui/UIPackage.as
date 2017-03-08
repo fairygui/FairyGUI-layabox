@@ -129,6 +129,24 @@ package fairygui {
 			
 			return null;
         }
+		
+		public static function normalizeURL(url:String):String
+		{
+			if(url==null)
+				return null;
+			
+			var pos1:int = url.indexOf("//");
+			if (pos1 == -1)
+				return null;
+			
+			var pos2:int = url.indexOf("/", pos1 + 2);
+			if (pos2 == -1)
+				return url;
+			
+			var pkgName:String = url.substr(pos1 + 2, pos2 - pos1 - 2);
+			var srcName:String = url.substr(pos2 + 1);
+			return getItemURL(pkgName, srcName);
+		}
 
         public static function getBitmapFontByURL(url: String): BitmapFont {
             return UIPackage._bitmapFonts[url];
