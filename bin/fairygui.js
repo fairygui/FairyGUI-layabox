@@ -5340,7 +5340,7 @@
 			}
 			str=this.getDesc("hittest.bytes");
 			if(str!=null){
-				var ba=new Byte(ToolSet.bs2a(str));
+				var ba=ToolSet.base64Decode(str);
 				ba.endian="bigEndian";
 				while(ba.bytesAvailable){
 					var hitTestData=new PixelHitTestData();
@@ -6229,15 +6229,28 @@
 			return value;
 		}
 
-		ToolSet.bs2a=function(bstr){
-			var ba=Browser.window.atob(bstr);
-			var n=ba.length;
-			var u8arr=new Uint8Array(n);
-			while (n--)
-			u8arr[n]=ba.charCodeAt(n);
-			return u8arr;
+		ToolSet.base64Decode=function(bstr){
+			var ba=new Byte();
+			var dataBuffer=new Array(4);
+			var outputBuffer=new Array(3);
+			var len=bstr.length;
+			for (var i=0;i < len;i+=4){
+				for (var j=0;j < 4 && i+j < len;j++){
+					dataBuffer[j]=ToolSet.BASE64_CHARS.indexOf(bstr.charAt(i+j));
+				}
+				outputBuffer[0]=(dataBuffer[0] << 2)+((dataBuffer[1] & 0x30)>> 4);
+				outputBuffer[1]=((dataBuffer[1] & 0x0f)<< 4)+((dataBuffer[2] & 0x3c)>> 2);
+				outputBuffer[2]=((dataBuffer[2] & 0x03)<< 6)+dataBuffer[3];
+				for (var k=0;k < 3;k++){
+					if (dataBuffer[k+1]==64)break ;
+					ba.writeByte(outputBuffer[k]);
+				}
+			}
+			ba.pos=0;
+			return ba;
 		}
 
+		ToolSet.BASE64_CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 		__static(ToolSet,
 		['defaultUBBParser',function(){return this.defaultUBBParser=new UBBParser();},'EaseMap',function(){return this.EaseMap={
 				"Linear":Ease.linearNone,
