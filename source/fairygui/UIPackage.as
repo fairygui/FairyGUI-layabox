@@ -226,7 +226,7 @@ package fairygui {
 			str = this.getDesc("hittest.bytes");
 			if(str!=null)
 			{
-				var ba:Byte = new Byte(ToolSet.bs2a(str));
+				var ba:Byte =ToolSet.base64Decode(str);
 				ba.endian = Byte.BIG_ENDIAN;
 				while(ba.bytesAvailable)
 				{

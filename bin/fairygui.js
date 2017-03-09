@@ -5340,7 +5340,7 @@
 			}
 			str=this.getDesc("hittest.bytes");
 			if(str!=null){
-				var ba=new Byte(ToolSet.bs2a(str));
+				var ba=ToolSet.base64Decode(str);
 				ba.endian="bigEndian";
 				while(ba.bytesAvailable){
 					var hitTestData=new PixelHitTestData();
@@ -6229,15 +6229,28 @@
 			return value;
 		}
 
-		ToolSet.bs2a=function(bstr){
-			var ba=Browser.window.atob(bstr);
-			var n=ba.length;
-			var u8arr=new Uint8Array(n);
-			while (n--)
-			u8arr[n]=ba.charCodeAt(n);
-			return u8arr;
+		ToolSet.base64Decode=function(bstr){
+			var ba=new Byte();
+			var dataBuffer=new Array(4);
+			var outputBuffer=new Array(3);
+			var len=bstr.length;
+			for (var i=0;i < len;i+=4){
+				for (var j=0;j < 4 && i+j < len;j++){
+					dataBuffer[j]=ToolSet.BASE64_CHARS.indexOf(bstr.charAt(i+j));
+				}
+				outputBuffer[0]=(dataBuffer[0] << 2)+((dataBuffer[1] & 0x30)>> 4);
+				outputBuffer[1]=((dataBuffer[1] & 0x0f)<< 4)+((dataBuffer[2] & 0x3c)>> 2);
+				outputBuffer[2]=((dataBuffer[2] & 0x03)<< 6)+dataBuffer[3];
+				for (var k=0;k < 3;k++){
+					if (dataBuffer[k+1]==64)break ;
+					ba.writeByte(outputBuffer[k]);
+				}
+			}
+			ba.pos=0;
+			return ba;
 		}
 
+		ToolSet.BASE64_CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 		__static(ToolSet,
 		['defaultUBBParser',function(){return this.defaultUBBParser=new UBBParser();},'EaseMap',function(){return this.EaseMap={
 				"Linear":Ease.linearNone,
@@ -8519,96 +8532,6 @@
 	})(GObject)
 
 
-	//class fairygui.GImage extends fairygui.GObject
-	var GImage=(function(_super){
-		function GImage(){
-			this.image=null;
-			this._color=null;
-			this._flip=0;
-			GImage.__super.call(this);
-			this._color="#FFFFFF";
-		}
-
-		__class(GImage,'fairygui.GImage',_super);
-		var __proto=GImage.prototype;
-		Laya.imps(__proto,{"fairygui.IColorGear":true})
-		__proto.applyColor=function(){}
-		__proto.createDisplayObject=function(){
-			this._displayObject=this.image=new Image1();
-			this.image.mouseEnabled=false;
-			this._displayObject["$owner"]=this;
-		}
-
-		__proto.constructFromResource=function(){
-			this.packageItem.load();
-			this._sourceWidth=this.packageItem.width;
-			this._sourceHeight=this.packageItem.height;
-			this._initWidth=this._sourceWidth;
-			this._initHeight=this._sourceHeight;
-			this.image.scale9Grid=this.packageItem.scale9Grid;
-			this.image.scaleByTile=this.packageItem.scaleByTile;
-			this.image.tileGridIndice=this.packageItem.tileGridIndice;
-			this.image.tex=this.packageItem.texture;
-			this.setSize(this._sourceWidth,this._sourceHeight);
-		}
-
-		__proto.handleXYChanged=function(){
-			_super.prototype.handleXYChanged.call(this);
-			if(this._flip !=0){
-				if(this.scaleX==-1)
-					this.image.x+=this.width;
-				if(this.scaleY==-1)
-					this.image.y+=this.height;
-			}
-		}
-
-		__proto.handleSizeChanged=function(){
-			if(this.image.tex!=null){
-				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
-			}
-		}
-
-		__proto.setup_beforeAdd=function(xml){
-			_super.prototype.setup_beforeAdd.call(this,xml);
-			var str;
-			str=xml.getAttribute("color");
-			if(str)
-				this.color=str;
-			str=xml.getAttribute("flip");
-			if(str)
-				this.flip=FlipType.parse(str);
-		}
-
-		__getset(0,__proto,'color',function(){
-			return this._color;
-			},function(value){
-			if(this._color !=value){
-				this._color=value;
-				this.updateGear(4);
-				this.applyColor();
-			}
-		});
-
-		//not supported yet
-		__getset(0,__proto,'flip',function(){
-			return this._flip;
-			},function(value){
-			if(this._flip!=value){
-				this._flip=value;
-				var sx=1,sy=1;
-				if(this._flip==1 || this._flip==3)
-					sx=-1;
-				if(this._flip==2 || this._flip==3)
-					sy=-1;
-				this.setScale(sx,sy);
-				this.handleXYChanged();
-			}
-		});
-
-		return GImage;
-	})(GObject)
-
-
 	//class fairygui.GearSize extends fairygui.GearBase
 	var GearSize=(function(_super){
 		var GearSizeValue;
@@ -8758,6 +8681,96 @@
 
 		return GearSize;
 	})(GearBase)
+
+
+	//class fairygui.GImage extends fairygui.GObject
+	var GImage=(function(_super){
+		function GImage(){
+			this.image=null;
+			this._color=null;
+			this._flip=0;
+			GImage.__super.call(this);
+			this._color="#FFFFFF";
+		}
+
+		__class(GImage,'fairygui.GImage',_super);
+		var __proto=GImage.prototype;
+		Laya.imps(__proto,{"fairygui.IColorGear":true})
+		__proto.applyColor=function(){}
+		__proto.createDisplayObject=function(){
+			this._displayObject=this.image=new Image1();
+			this.image.mouseEnabled=false;
+			this._displayObject["$owner"]=this;
+		}
+
+		__proto.constructFromResource=function(){
+			this.packageItem.load();
+			this._sourceWidth=this.packageItem.width;
+			this._sourceHeight=this.packageItem.height;
+			this._initWidth=this._sourceWidth;
+			this._initHeight=this._sourceHeight;
+			this.image.scale9Grid=this.packageItem.scale9Grid;
+			this.image.scaleByTile=this.packageItem.scaleByTile;
+			this.image.tileGridIndice=this.packageItem.tileGridIndice;
+			this.image.tex=this.packageItem.texture;
+			this.setSize(this._sourceWidth,this._sourceHeight);
+		}
+
+		__proto.handleXYChanged=function(){
+			_super.prototype.handleXYChanged.call(this);
+			if(this._flip !=0){
+				if(this.scaleX==-1)
+					this.image.x+=this.width;
+				if(this.scaleY==-1)
+					this.image.y+=this.height;
+			}
+		}
+
+		__proto.handleSizeChanged=function(){
+			if(this.image.tex!=null){
+				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
+			}
+		}
+
+		__proto.setup_beforeAdd=function(xml){
+			_super.prototype.setup_beforeAdd.call(this,xml);
+			var str;
+			str=xml.getAttribute("color");
+			if(str)
+				this.color=str;
+			str=xml.getAttribute("flip");
+			if(str)
+				this.flip=FlipType.parse(str);
+		}
+
+		__getset(0,__proto,'color',function(){
+			return this._color;
+			},function(value){
+			if(this._color !=value){
+				this._color=value;
+				this.updateGear(4);
+				this.applyColor();
+			}
+		});
+
+		//not supported yet
+		__getset(0,__proto,'flip',function(){
+			return this._flip;
+			},function(value){
+			if(this._flip!=value){
+				this._flip=value;
+				var sx=1,sy=1;
+				if(this._flip==1 || this._flip==3)
+					sx=-1;
+				if(this._flip==2 || this._flip==3)
+					sy=-1;
+				this.setScale(sx,sy);
+				this.handleXYChanged();
+			}
+		});
+
+		return GImage;
+	})(GObject)
 
 
 	//class fairygui.GearText extends fairygui.GearBase
@@ -12677,7 +12690,8 @@
 					this._tweener.clear();
 				this._tweenValue=this._value;
 				this._value=value;
-				this._tweener=Tween.to(this,{_tweenValue:value },duration *1000,fairygui.GProgressBar.easeLinear);
+				this._tweener=Tween.to(this,{_tweenValue:value },duration *1000,fairygui.GProgressBar.easeLinear,
+				Handler.create(this,this.onTweenComplete,null,true));
 				this._tweener.update=Handler.create(this,this.onUpdateTween,null,false);
 				return this._tweener;
 			}
@@ -12687,6 +12701,10 @@
 
 		__proto.onUpdateTween=function(){
 			this.update(this._tweenValue);
+		}
+
+		__proto.onTweenComplete=function(){
+			this._tweener=null;
 		}
 
 		__proto.update=function(newValue){

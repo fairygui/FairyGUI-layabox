@@ -4,6 +4,7 @@ package fairygui.utils {
 	import laya.display.Node;
 	import laya.display.Stage;
 	import laya.utils.Browser;
+	import laya.utils.Byte;
 	import laya.utils.Ease;
 
     public class ToolSet {
@@ -215,14 +216,31 @@ package fairygui.utils {
 			return value;
 		}
 		
-		//from jc
-		public static function bs2a(bstr):Uint8Array {
-			var ba:String = Browser.window.atob(bstr);
-			var n:int = ba.length;
-			var u8arr:Uint8Array = new Uint8Array(n);
-			while (n--)
-				u8arr[n] = ba.charCodeAt(n);
-			return u8arr;
+		private static const BASE64_CHARS:String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+		public static function base64Decode(bstr:String):Byte {
+			var ba:Byte = new Byte();
+			
+			var dataBuffer:Array = new Array(4);
+			var outputBuffer:Array = new Array(3);
+			
+			var len:int = bstr.length;
+			for (var i:int = 0; i < len; i += 4) {
+				for (var j:int = 0; j < 4 && i + j < len; j++) {
+					dataBuffer[j] = BASE64_CHARS.indexOf(bstr.charAt(i + j));
+				}
+				
+				outputBuffer[0] = (dataBuffer[0] << 2) + ((dataBuffer[1] & 0x30) >> 4);
+				outputBuffer[1] = ((dataBuffer[1] & 0x0f) << 4) + ((dataBuffer[2] & 0x3c) >> 2);
+				outputBuffer[2] = ((dataBuffer[2] & 0x03) << 6) + dataBuffer[3];
+				
+				for (var k:int = 0; k < 3; k++) {
+					if (dataBuffer[k+1] == 64) break;
+					ba.writeByte(outputBuffer[k]);
+				}
+			}
+
+			ba.pos = 0;
+			return ba;
 		}
     }
 }
