@@ -618,6 +618,9 @@ package fairygui {
 						value = strings[elementId];
 						if(value!=undefined)
 							dxml.setAttribute("title", value);
+						value = strings[elementId+"-prompt"];
+						if(value!=undefined)
+							dxml.setAttribute("prompt", value);
 						continue;
 					}
 
