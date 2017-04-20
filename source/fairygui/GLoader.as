@@ -198,6 +198,9 @@ package fairygui {
             if(this._contentItem != null) {
                 this._contentItem.load();
 
+				if(_autoSize)
+					this.setSize(_contentItem.width, _contentItem.height);
+				
                 if(this._contentItem.type == PackageItemType.Image) {
                     if(this._contentItem.texture == null) {
                         this.setErrorState();
@@ -285,8 +288,7 @@ package fairygui {
             }
 
             if (this._errorSign != null) {
-                this._errorSign.width = this.width;
-                this._errorSign.height = this.height;
+                this._errorSign.setSize(this.width, this.height);
                 this._displayObject.addChild(this._errorSign.displayObject);
             }
         }
