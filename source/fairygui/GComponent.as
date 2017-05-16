@@ -24,6 +24,9 @@ package fairygui {
 		public var _scrollPane: ScrollPane;
 		public var _alignOffset:Point;
 		
+		private var _childrenRenderOrder:int;
+		private var _apexIndex:int;
+		
 		public function GComponent() {
 			super();
 			this._children = new Vector.<GObject>();
@@ -141,8 +144,12 @@ package fairygui {
 					this._sortingChildCount--;
 				
 				this._children.splice(index,1);
-				if(child.inContainer)
+				if(child.inContainer) {
 					this._container.removeChild(child.displayObject);
+					
+					if (_childrenRenderOrder == ChildrenRenderOrder.Arch)
+						Laya.timer.callLater(this, this.buildNativeDisplayList);
+				}
 				
 				if(dispose)
 					child.dispose();
@@ -269,15 +276,39 @@ package fairygui {
 			this._children.splice(index,0,child);
 			
 			if(child.inContainer) {
-				var displayIndex: Number = 0;
-				for(var i: Number = 0;i < index;i++) {
-					var g: GObject = this._children[i];
-					if(g.inContainer)
-						displayIndex++;
+				
+				var displayIndex:int = 0;
+				var g:GObject;
+				var i:int;
+				
+				if (_childrenRenderOrder == ChildrenRenderOrder.Ascent)
+				{
+					for(i=0;i<index;i++)
+					{
+						g = _children[i];
+						if(g.inContainer)
+							displayIndex++;
+					}
+					if(displayIndex==_container.numChildren)
+						displayIndex--;
+					_container.setChildIndex(child.displayObject, displayIndex);
 				}
-				if(displayIndex == this._container.numChildren)
-					displayIndex--;
-				this._container.setChildIndex(child.displayObject,displayIndex);
+				else if (_childrenRenderOrder == ChildrenRenderOrder.Descent)
+				{
+					for (i = cnt - 1; i > index; i--)
+					{
+						g = _children[i];
+						if (g.inContainer)
+							displayIndex++;
+					}
+					if(displayIndex==_container.numChildren)
+						displayIndex--;
+					_container.setChildIndex(child.displayObject, displayIndex);
+				}
+				else
+				{
+					Laya.timer.callLater(this, this.buildNativeDisplayList);
+				}
 				
 				this.setBoundsChangedFlag();
 			}
@@ -365,9 +396,9 @@ package fairygui {
 			if(this._buildingDisplayList)
 				return;
 			
+			var cnt:int = _children.length;
 			if(child is GGroup) {
-				var length: Number = this._children.length;
-				for(var i: Number = 0;i < length;i++) {
+				for(var i:int = 0;i < cnt;i++) {
 					var g: GObject = this._children[i];
 					if(g.group == child)
 						this.childStateChanged(g);
@@ -380,22 +411,98 @@ package fairygui {
 			
 			if(child.finalVisible && child.displayObject!=_displayObject.mask) {
 				if(!child.displayObject.parent) {
-					var index: Number = 0;
-					var length1: Number = this._children.length;
-					for(var i1: Number = 0;i1 < length1;i1++) {
-						g = this._children[i1];
-						if(g == child)
-							break;
-						
-						if(g.displayObject && g.displayObject.parent)
-							index++;
+					var index:int = 0
+					if (_childrenRenderOrder == ChildrenRenderOrder.Ascent)
+					{
+						for (i = 0; i < cnt; i++)
+						{
+							g = _children[i];
+							if (g == child)
+								break;
+							
+							if (g.displayObject != null && g.displayObject.parent != null)
+								index++;
+						}
+						_container.addChildAt(child.displayObject, index);
 					}
-					this._container.addChildAt(child.displayObject,index);
+					else if (_childrenRenderOrder == ChildrenRenderOrder.Descent)
+					{
+						for (i = cnt - 1; i >= 0; i--)
+						{
+							g = _children[i];
+							if (g == child)
+								break;
+							
+							if (g.displayObject != null && g.displayObject.parent != null)
+								index++;
+						}
+						_container.addChildAt(child.displayObject, index);
+					}
+					else
+					{
+						_container.addChild(child.displayObject);
+						
+						Laya.timer.callLater(this, this.buildNativeDisplayList);
+					}
 				}
 			}
 			else {
-				if(child.displayObject.parent)
+				if(child.displayObject.parent) {
 					this._container.removeChild(child.displayObject);
+					
+					if (_childrenRenderOrder == ChildrenRenderOrder.Arch)
+						Laya.timer.callLater(this, this.buildNativeDisplayList);
+				}
+			}
+		}
+		
+		private function buildNativeDisplayList():void
+		{
+			var cnt:int = _children.length;
+			if (cnt == 0)
+				return;
+			
+			var i:int;
+			var child:GObject;
+			switch (_childrenRenderOrder)
+			{
+				case ChildrenRenderOrder.Ascent:
+				{
+					for (i = 0; i < cnt; i++)
+					{
+						child = _children[i];
+						if (child.displayObject != null && child.finalVisible)
+							_container.addChild(child.displayObject);
+					}
+				}
+					break;
+				case ChildrenRenderOrder.Descent:
+				{
+					for (i = cnt - 1; i >= 0; i--)
+					{
+						child = _children[i];
+						if (child.displayObject != null && child.finalVisible)
+							_container.addChild(child.displayObject);
+					}
+				}
+					break;
+				
+				case ChildrenRenderOrder.Arch:
+				{
+					for (i = 0; i < _apexIndex; i++)
+					{
+						child = _children[i];
+						if (child.displayObject != null && child.finalVisible)
+							_container.addChild(child.displayObject);
+					}
+					for (i = cnt - 1; i >= _apexIndex; i--)
+					{
+						child = _children[i];
+						if (child.displayObject != null && child.finalVisible)
+							_container.addChild(child.displayObject);
+					}
+				}
+					break;
 			}
 		}
 		
@@ -505,6 +612,36 @@ package fairygui {
 				this._container.pos(this._margin.left + _alignOffset.x, this._margin.top + _alignOffset.y);
 			}
 			this.handleSizeChanged();
+		}
+		
+		public function get childrenRenderOrder():int
+		{
+			return _childrenRenderOrder;
+		}
+		
+		public function set childrenRenderOrder(value:int):void
+		{
+			if (_childrenRenderOrder != value)
+			{
+				_childrenRenderOrder = value;
+				buildNativeDisplayList();
+			}
+		}
+		
+		public function get apexIndex():int
+		{
+			return _apexIndex;
+		}
+		
+		public function set apexIndex(value:int):void
+		{
+			if (_apexIndex != value)
+			{
+				_apexIndex = value;
+				
+				if (_childrenRenderOrder == ChildrenRenderOrder.Arch)
+					buildNativeDisplayList();
+			}
 		}
 		
 		public function get mask():Sprite
@@ -967,15 +1104,7 @@ package fairygui {
 			
 			this._buildingDisplayList = false;
 			this._underConstruct = false;
-			
-			length1 = this._children.length;
-			var mm:Sprite = _displayObject.mask;
-			for (i = 0; i < length1; i++) {
-				child = this._children[i];
-				if (child.displayObject != null && child.displayObject!=mm && child.finalVisible)
-					this._container.addChild(child.displayObject);
-			}
-			
+			buildNativeDisplayList();
 			setBoundsChangedFlag();
 			
 			constructFromXML(xml);
