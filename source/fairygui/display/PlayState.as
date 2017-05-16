@@ -38,9 +38,9 @@ package fairygui.display {
 				if(this.reversed)
 				{
 					this._curFrame--;
-					if(this._curFrame<0)
+					if(this._curFrame<=0)
 					{
-						this._curFrame = Math.min(1, mc.frameCount-1);
+						this._curFrame = 0;
 						this.repeatedCount++;
 						this.reversed = !this.reversed;
 					}
