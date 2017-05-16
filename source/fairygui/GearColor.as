@@ -1,21 +1,21 @@
 package fairygui {
 	
-    public class GearColor extends GearBase {
-        private var _storage: Object;
-        private var _default: GearColorValue;
-
-        public function GearColor(owner: GObject) {
-            super(owner);
-        }
-        
-        override protected function init(): void {
+	public class GearColor extends GearBase {
+		private var _storage: Object;
+		private var _default: GearColorValue;
+		
+		public function GearColor(owner: GObject) {
+			super(owner);
+		}
+		
+		override protected function init(): void {
 			if(_owner["strokeColor"]!=undefined)
 				this._default = new GearColorValue(_owner["color"], _owner["strokeColor"]);
 			else
 				this._default = new GearColorValue(_owner["color"], null);
-            this._storage = {};
-        }
-
+			this._storage = {};
+		}
+		
 		override protected function addStatus(pageId: String, value: String): void {
 			if(value=="-")
 				return;
@@ -40,11 +40,11 @@ package fairygui {
 			}
 			else
 				_storage[pageId] = new GearColorValue(col1, col2);
-        }
-
+		}
+		
 		override public function apply(): void {
-            this._owner._gearLocked = true;
-
+			this._owner._gearLocked = true;
+			
 			var gv:GearColorValue = _storage[_controller.selectedPageId];
 			if(!gv)
 				gv = _default;
@@ -52,10 +52,10 @@ package fairygui {
 			IColorGear(_owner).color = gv.color;
 			if(_owner["strokeColor"]!=undefined && gv.strokeColor!=null)
 				_owner["strokeColor"] = gv.strokeColor;
-
-            this._owner._gearLocked = false;
-        }
-
+			
+			this._owner._gearLocked = false;
+		}
+		
 		override public function updateState(): void {
 			var gv:GearColorValue = _storage[_controller.selectedPageId];
 			if(!gv)
@@ -67,8 +67,8 @@ package fairygui {
 			gv.color = IColorGear(_owner).color;
 			if(_owner["strokeColor"]!=undefined)
 				gv.strokeColor = _owner["strokeColor"];
-        }
-    }
+		}
+	}
 }
 
 class GearColorValue

@@ -1,6 +1,6 @@
 package fairygui
 {
-
+	
 	public class GearIcon extends GearBase
 	{
 		private var _storage:Object;
@@ -28,7 +28,7 @@ package fairygui
 		override public function apply():void
 		{
 			_owner._gearLocked = true;
-
+			
 			var data:* = _storage[_controller.selectedPageId];
 			if(data!=undefined)
 				_owner.icon = String(data);

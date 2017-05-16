@@ -1,7 +1,7 @@
 package fairygui
 {
 	import laya.utils.Handler;
-
+	
 	public final class AssetProxy
 	{
 		

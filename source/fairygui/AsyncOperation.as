@@ -1,9 +1,9 @@
 package fairygui
 {
-
+	
 	import laya.utils.Browser;
 	import laya.utils.Handler;
-
+	
 	public class AsyncOperation
 	{
 		/**
@@ -85,14 +85,14 @@ package fairygui
 				{
 					var defaultItem:String = null;
 					di.listItemCount = 0;
-
+					
 					var col: Array = di.desc.childNodes;
 					var length: int = col.length;
 					for (var j: int = 0; j < length; j++) {
 						var cxml: Object = col[j];
 						if(cxml.nodeName != "item")
 							continue;
-
+						
 						var url:String = cxml.getAttribute("url");
 						if (!url)
 						{
@@ -163,7 +163,7 @@ package fairygui
 						
 						for (k = 0; k < di.listItemCount; k++) //把他们都放到pool里，这样GList在创建时就不需要创建对象了
 							GList(obj).itemPool.returnObject(_objectPool[k + poolStart]);
-					
+						
 						_objectPool.splice(poolStart, di.listItemCount);
 					}
 				}

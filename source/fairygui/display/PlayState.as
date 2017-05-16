@@ -1,18 +1,18 @@
 package fairygui.display {
 	
-    public class PlayState {
-        public var reachEnding: Boolean;
-        public var reversed: Boolean;
-        public var repeatedCount: Number = 0;
-
-        private var _curFrame: Number = 0;
-        private var _curFrameDelay: Number = 0;
+	public class PlayState {
+		public var reachEnding: Boolean;
+		public var reversed: Boolean;
+		public var repeatedCount: Number = 0;
+		
+		private var _curFrame: Number = 0;
+		private var _curFrameDelay: Number = 0;
 		private var _lastUpdateSeq:Number = 0;
 		
-        public function PlayState () {
-        }
-
-        public function update(mc: fairygui.display.MovieClip): void {
+		public function PlayState () {
+		}
+		
+		public function update(mc: fairygui.display.MovieClip): void {
 			var elapsed:Number;
 			var frameId:uint = Laya.timer.currFrame;
 			if (frameId - _lastUpdateSeq != 1) 
@@ -23,12 +23,12 @@ package fairygui.display {
 				elapsed = Laya.timer.delta;
 			_lastUpdateSeq = frameId;
 			
-            this.reachEnding = false;
-            this._curFrameDelay += elapsed;
-            var interval: Number = mc.interval + mc.frames[this._curFrame].addDelay + ((this._curFrame == 0 && this.repeatedCount > 0) ? mc.repeatDelay : 0);
-            if (this._curFrameDelay < interval)
-                return;
-
+			this.reachEnding = false;
+			this._curFrameDelay += elapsed;
+			var interval: Number = mc.interval + mc.frames[this._curFrame].addDelay + ((this._curFrame == 0 && this.repeatedCount > 0) ? mc.repeatDelay : 0);
+			if (this._curFrameDelay < interval)
+				return;
+			
 			this._curFrameDelay -= interval;
 			if(this._curFrameDelay>mc.interval)
 				this._curFrameDelay = mc.interval;
@@ -38,9 +38,9 @@ package fairygui.display {
 				if(this.reversed)
 				{
 					this._curFrame--;
-					if(this._curFrame<=0)
+					if(this._curFrame<0)
 					{
-						this._curFrame = 0;
+						this._curFrame = Math.min(1, mc.frameCount-1);
 						this.repeatedCount++;
 						this.reversed = !this.reversed;
 					}
@@ -67,38 +67,38 @@ package fairygui.display {
 					this.reachEnding = true;
 				}
 			}
-        }
-
-        public function get currentFrame(): Number {
-            return this._curFrame;
-        }
-
-        public function set currentFrame(value: Number):void {
-            this._curFrame = value;
-            this._curFrameDelay = 0;
-        }
-
-        public function rewind(): void {
-            this._curFrame = 0;
-            this._curFrameDelay = 0;
-            this.reversed = false;
-            this.reachEnding = false;
-        }
-
-        public function reset(): void {
-            this._curFrame = 0;
-            this._curFrameDelay = 0;
-            this.repeatedCount = 0;
-            this.reachEnding = false;
-            this.reversed = false;
-        }
-
-        public function copy(src: PlayState): void {
-            this._curFrame = src._curFrame;
-            this._curFrameDelay = src._curFrameDelay;
-            this.repeatedCount = src.repeatedCount;
-            this.reachEnding = src.reachEnding;
-            this.reversed = src.reversed;
-        }
-    }
+		}
+		
+		public function get currentFrame(): Number {
+			return this._curFrame;
+		}
+		
+		public function set currentFrame(value: Number):void {
+			this._curFrame = value;
+			this._curFrameDelay = 0;
+		}
+		
+		public function rewind(): void {
+			this._curFrame = 0;
+			this._curFrameDelay = 0;
+			this.reversed = false;
+			this.reachEnding = false;
+		}
+		
+		public function reset(): void {
+			this._curFrame = 0;
+			this._curFrameDelay = 0;
+			this.repeatedCount = 0;
+			this.reachEnding = false;
+			this.reversed = false;
+		}
+		
+		public function copy(src: PlayState): void {
+			this._curFrame = src._curFrame;
+			this._curFrameDelay = src._curFrameDelay;
+			this.repeatedCount = src.repeatedCount;
+			this.reachEnding = src.reachEnding;
+			this.reversed = src.reversed;
+		}
+	}
 }

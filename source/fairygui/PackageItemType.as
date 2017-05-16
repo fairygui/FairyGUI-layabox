@@ -14,7 +14,7 @@ package fairygui
 		public function PackageItemType()
 		{
 		}
-
+		
 		public static function parse(value:String):int
 		{
 			switch(value)
