@@ -7637,11 +7637,26 @@
 		}
 
 		__proto.__render=function(){
-			if (this._boundsChanged)
+			if (this._boundsChanged){
+				var i1=0;
+				var len=this._children.length;
+				var child
+				for(i1=0;i1 < len;i1++){
+					child=this._children[i1];
+					child.ensureSizeCorrect();
+				}
 				this.updateBounds();
+			}
 		}
 
 		__proto.ensureBoundsCorrect=function(){
+			var i1=0;
+			var len=this._children.length;
+			var child
+			for(i1=0;i1 < len;i1++){
+				child=this._children[i1];
+				child.ensureSizeCorrect();
+			}
 			if (this._boundsChanged)
 				this.updateBounds();
 		}
@@ -7654,10 +7669,6 @@
 				var ar=Number.NEGATIVE_INFINITY,ab=Number.NEGATIVE_INFINITY;
 				var tmp=0;
 				var i1=0;
-				for(i1=0;i1 < len;i1++){
-					child=this._children[i1];
-					child.ensureSizeCorrect();
-				}
 				for(i1=0;i1 < len;i1++){
 					var child=this._children[i1];
 					tmp=child.x;
@@ -12241,10 +12252,6 @@
 			var cnt=this._children.length;
 			var viewWidth=this.viewWidth;
 			var viewHeight=this.viewHeight;
-			for(i=0;i < cnt;i++){
-				child=this.getChildAt(i);
-				child.ensureSizeCorrect();
-			}
 			if (this._layout==0){
 				for (i=0;i < cnt;i++){
 					child=this.getChildAt(i);

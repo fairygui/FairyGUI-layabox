@@ -1799,13 +1799,8 @@ package fairygui {
 			var cnt:int = _children.length;
 			var viewWidth:Number = this.viewWidth;
 			var viewHeight:Number = this.viewHeight;
-			
-			for(i = 0;i < cnt;i++) {
-				child = this.getChildAt(i);
-				child.ensureSizeCorrect();
-			}
-			
-			if (this._layout == ListLayoutType.SingleColumn) {                
+
+			if (this._layout == ListLayoutType.SingleColumn) {
 				for (i = 0; i < cnt; i++) {
 					child = this.getChildAt(i);
 					if (foldInvisibleItems && !child.visible)
@@ -1824,7 +1819,7 @@ package fairygui {
 				cw = curX + maxWidth;
 				ch = curY;
 			}
-			else if (this._layout == ListLayoutType.SingleRow) {                
+			else if (this._layout == ListLayoutType.SingleRow) {
 				for (i = 0; i < cnt; i++) {
 					child = this.getChildAt(i);
 					if (foldInvisibleItems && !child.visible)

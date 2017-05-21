@@ -758,11 +758,27 @@ package fairygui {
 		}
 		
 		private function __render(): void {
-			if (this._boundsChanged)
+			if (this._boundsChanged) {
+				var i1: int = 0;
+				var len: Number = this._children.length;
+				var child: GObject
+				for(i1 = 0;i1 < len;i1++) {
+					child = this._children[i1];
+					child.ensureSizeCorrect();
+				}
 				this.updateBounds();
+			}
 		}
 		
 		public function ensureBoundsCorrect(): void {
+			var i1: int = 0;
+			var len: Number = this._children.length;
+			var child: GObject
+			for(i1 = 0;i1 < len;i1++) {
+				child = this._children[i1];
+				child.ensureSizeCorrect();
+			}
+			
 			if (this._boundsChanged)
 				this.updateBounds();
 		}
@@ -774,14 +790,8 @@ package fairygui {
 				ax = Number.POSITIVE_INFINITY,ay = Number.POSITIVE_INFINITY;
 				var ar: Number = Number.NEGATIVE_INFINITY,ab: Number = Number.NEGATIVE_INFINITY;
 				var tmp: Number = 0;
-				
-				var i1: int = 0;               
-				
-				for(i1 = 0;i1 < len;i1++) {
-					child = this._children[i1];
-					child.ensureSizeCorrect();
-				}
-				
+				var i1: int = 0;
+
 				for(i1 = 0;i1 < len;i1++) {
 					var child: GObject = this._children[i1];
 					tmp = child.x;
