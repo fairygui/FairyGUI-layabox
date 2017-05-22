@@ -338,7 +338,7 @@ declare module fairygui {
         viewHeight: number;
         getSnappingPosition(xValue: number, yValue: number, resultPoint?: laya.maths.Point): laya.maths.Point;
         childSortingOrderChanged(child: GObject, oldValue: number, newValue?: number): void;
-        constructFromResource(pkgItem: PackageItem): void;
+        constructFromResource(): void;
         protected constructFromXML(xml: Object): void;
     }
 }
@@ -473,7 +473,7 @@ declare module fairygui {
         gearColor: GearColor;
         handleControllerChanged(c: Controller): void;
         protected createDisplayObject(): void;
-        constructFromResource(pkgItem: PackageItem): void;
+        constructFromResource(): void;
         protected handleXYChanged(): void;
         protected handleSizeChanged(): void;
         setup_beforeAdd(xml: Object): void;
@@ -595,7 +595,7 @@ declare module fairygui {
         gearAnimation: GearAnimation;
         gearColor: GearColor;
         handleControllerChanged(c: Controller): void;
-        constructFromResource(pkgItem: PackageItem): void;
+        constructFromResource(): void;
         setup_beforeAdd(xml: Object): void;
         setup_afterAdd(xml: Object): void;
     }
@@ -716,7 +716,7 @@ declare module fairygui {
         protected handleSizeChanged(): void;
         protected handleScaleChanged(): void;
         protected handleGrayedChanged(): void;
-        constructFromResource(pkgItem: PackageItem): void;
+        constructFromResource(): void;
         setup_beforeAdd(xml: Object): void;
         setup_afterAdd(xml: Object): void;
         private static sDragging;
