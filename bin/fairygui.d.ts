@@ -511,7 +511,8 @@ declare module fairygui {
 				foldInvisibleItems: boolean;
         layout: number;
         lineGap: number;
-        lineItemCount: number;
+        lineCount: number;
+        columnCount: number;
         columnGap: number;
         align: string;
         valign: string;

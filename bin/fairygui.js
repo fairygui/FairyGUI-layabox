@@ -10983,7 +10983,8 @@
 			this.scrollItemToViewOnClick=false;
 			this.foldInvisibleItems=false;
 			this._layout=0;
-			this._lineItemCount=0;
+			this._lineCount=0;
+			this._columnCount=0;
 			this._lineGap=0;
 			this._columnGap=0;
 			this._defaultItem=null;
@@ -11659,27 +11660,39 @@
 			if (layoutChanged){
 				if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.SingleRow*/1)
 					this._curLineItemCount=1;
-				else if (this._lineItemCount !=0)
-				this._curLineItemCount=this._lineItemCount;
 				else if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
-					this._curLineItemCount=Math.floor((this._scrollPane.viewWidth+this._columnGap)/ (this._itemSize.x+this._columnGap));
-					if (this._curLineItemCount <=0)
-						this._curLineItemCount=1;
+					if (this._columnCount > 0)
+						this._curLineItemCount=this._columnCount;
+					else{
+						this._curLineItemCount=Math.floor((this._scrollPane.viewWidth+this._columnGap)/ (this._itemSize.x+this._columnGap));
+						if (this._curLineItemCount <=0)
+							this._curLineItemCount=1;
+					}
 				}
 				else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
-					this._curLineItemCount=Math.floor((this._scrollPane.viewHeight+this._lineGap)/ (this._itemSize.y+this._lineGap));
-					if (this._curLineItemCount <=0)
-						this._curLineItemCount=1;
+					if (this._lineCount > 0)
+						this._curLineItemCount=this._lineCount;
+					else{
+						this._curLineItemCount=Math.floor((this._scrollPane.viewHeight+this._lineGap)/ (this._itemSize.y+this._lineGap));
+						if (this._curLineItemCount <=0)
+							this._curLineItemCount=1;
+					}
 				}
 				else{
-					this._curLineItemCount=Math.floor((this._scrollPane.viewWidth+this._columnGap)/ (this._itemSize.x+this._columnGap));
-					if (this._curLineItemCount <=0)
-						this._curLineItemCount=1;
-				}
-				if (this._layout==/*fairygui.ListLayoutType.Pagination*/4){
-					this._curLineItemCount2=Math.floor((this._scrollPane.viewHeight+this._lineGap)/ (this._itemSize.y+this._lineGap));
-					if (this._curLineItemCount2 <=0)
-						this._curLineItemCount2=1;
+					if (this._columnCount > 0)
+						this._curLineItemCount=this._columnCount;
+					else{
+						this._curLineItemCount=Math.floor((this._scrollPane.viewWidth+this._columnGap)/ (this._itemSize.x+this._columnGap));
+						if (this._curLineItemCount <=0)
+							this._curLineItemCount=1;
+					}
+					if (this._lineCount > 0)
+						this._curLineItemCount2=this._lineCount;
+					else{
+						this._curLineItemCount2=Math.floor((this._scrollPane.viewHeight+this._lineGap)/ (this._itemSize.y+this._lineGap));
+						if (this._curLineItemCount2 <=0)
+							this._curLineItemCount2=1;
+					}
 				}
 			};
 			var ch=0,cw=0;
@@ -12159,18 +12172,9 @@
 			var lastObj=null;
 			var insertIndex=0;
 			for (i=startIndex;i < lastIndex;i++){
-				if (i >=this._realNumItems)
-					continue ;
-				col=i % this._curLineItemCount;
-				if (i-startIndex < pageSize){
-					if (col < startCol)
-						continue ;
-				}
-				else{
-					if (col > startCol)
-						continue ;
-				}
 				ii=this._virtualItems[i];
+				if (ii.updateFlag !=GList.itemInfoVer)
+					continue ;
 				if (ii.obj==null){
 					while (reuseIndex < virtualItemCount){
 						ii2=this._virtualItems[reuseIndex];
@@ -12206,10 +12210,34 @@
 					insertIndex=-1;
 					lastObj=ii.obj;
 				}
-				if (needRender)
+				if (needRender){
 					this.itemRenderer.runWith([i % this._numItems,ii.obj]);
-				ii.obj.setXY(Math.floor(i / pageSize)*viewWidth+col *(ii.width+this._columnGap),
-				Math.floor(i / this._curLineItemCount)% this._curLineItemCount2 *(ii.height+this._lineGap));
+					ii.width=Math.ceil(ii.obj.width);
+					ii.height=Math.ceil(ii.obj.height);
+				}
+			};
+			var borderX=(startIndex / pageSize)*viewWidth;
+			var xx=borderX;
+			var yy=0;
+			var lineHeight=0;
+			for (i=startIndex;i < lastIndex;i++){
+				ii=this._virtualItems[i];
+				if (ii.updateFlag==GList.itemInfoVer)
+					ii.obj.setXY(xx,yy);
+				if (ii.height > lineHeight)
+					lineHeight=ii.height;
+				if (i % this._curLineItemCount==this._curLineItemCount-1){
+					xx=borderX;
+					yy+=lineHeight+this._lineGap;
+					lineHeight=0;
+					if (i==startIndex+pageSize-1){
+						borderX+=viewWidth;
+						xx=borderX;
+						yy=0;
+					}
+				}
+				else
+				xx+=ii.width+this._columnGap;
 			}
 			for (i=reuseIndex;i < virtualItemCount;i++){
 				ii=this._virtualItems[i];
@@ -12261,7 +12289,9 @@
 			var maxHeight=0;
 			var cw=NaN,ch=0;
 			var sw=0,sh=0;
+			var j=0;
 			var p=0;
+			var k=0;
 			var cnt=this._children.length;
 			var viewWidth=this.viewWidth;
 			var viewHeight=this.viewHeight;
@@ -12300,7 +12330,6 @@
 				ch=curY+maxHeight;
 			}
 			else if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
-				var j=0;
 				for (i=0;i < cnt;i++){
 					child=this.getChildAt(i);
 					if (this.foldInvisibleItems && !child.visible)
@@ -12309,8 +12338,8 @@
 					sh=Math.ceil(child.height);
 					if (curX !=0)
 						curX+=this._columnGap;
-					if(this._lineItemCount !=0 && j >=this._lineItemCount
-						|| this._lineItemCount==0 && curX+sw > viewWidth && maxHeight !=0){
+					if(this._columnCount !=0 && j >=this._columnCount
+						|| this._columnCount==0 && curX+sw > viewWidth && maxHeight !=0){
 						curX-=this._columnGap;
 						if(curX > maxWidth)
 							maxWidth=curX;
@@ -12329,7 +12358,6 @@
 				cw=maxWidth;
 			}
 			else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
-				j=0;
 				for (i=0;i < cnt;i++){
 					child=this.getChildAt(i);
 					if (!child.visible)
@@ -12338,8 +12366,8 @@
 					sh=Math.ceil(child.height);
 					if (curY !=0)
 						curY+=this._lineGap;
-					if(this._lineItemCount !=0 && j >=this._lineItemCount
-						|| this._lineItemCount==0 && curY+sh > viewHeight && maxWidth !=0){
+					if(this._lineCount !=0 && j >=this._lineCount
+						|| this._lineCount==0 && curY+sh > viewHeight && maxWidth !=0){
 						curY-=this._lineGap;
 						if(curY > maxHeight)
 							maxHeight=curY;
@@ -12366,8 +12394,8 @@
 					sh=Math.ceil(child.height);
 					if (curX !=0)
 						curX+=this._columnGap;
-					if (this._lineItemCount !=0 && j >=this._lineItemCount
-						|| this._lineItemCount==0 && curX+sw > viewWidth && maxHeight !=0){
+					if (this._columnCount !=0 && j >=this._columnCount
+						|| this._columnCount==0 && curX+sw > viewWidth && maxHeight !=0){
 						curX-=this._columnGap;
 						if (curX > maxWidth)
 							maxWidth=curX;
@@ -12375,9 +12403,12 @@
 						curY+=maxHeight+this._lineGap;
 						maxHeight=0;
 						j=0;
-						if (curY+sh > viewHeight && maxWidth !=0){
+						k++;
+						if (this._lineCount !=0 && k >=this._lineCount
+							|| this._lineCount==0 && curY+sh > viewHeight && maxWidth !=0){
 							p++;
 							curY=0;
+							k=0;
 						}
 					}
 					child.setXY(p *viewWidth+curX,curY);
@@ -12457,8 +12488,15 @@
 			if (str)
 				this._columnGap=parseInt(str);
 			str=xml.getAttribute("lineItemCount");
+			if(str){
+				if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4)
+					this._columnCount=parseInt(str);
+				else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3)
+				this._lineCount=parseInt(str);
+			}
+			str=xml.getAttribute("lineItemCount2");
 			if(str)
-				this._lineItemCount=parseInt(str);
+				this._lineCount=parseInt(str);
 			str=xml.getAttribute("selectionMode");
 			if (str)
 				this._selectionMode=ListSelectionMode.parse(str);
@@ -12494,17 +12532,6 @@
 			}
 		}
 
-		__getset(0,__proto,'lineItemCount',function(){
-			return this._lineItemCount;
-			},function(value){
-			if(this._lineItemCount !=value){
-				this._lineItemCount=value;
-				this.setBoundsChangedFlag();
-				if(this._virtual)
-					this.setVirtualListChangedFlag(true);
-			}
-		});
-
 		__getset(0,__proto,'layout',function(){
 			return this._layout;
 			},function(value){
@@ -12516,10 +12543,41 @@
 			}
 		});
 
-		__getset(0,__proto,'autoResizeItem',function(){
-			return this._autoResizeItem;
+		__getset(0,__proto,'align',function(){
+			return this._align;
 			},function(value){
-			this._autoResizeItem=value;
+			if(this._align!=value){
+				this._align=value;
+				this.setBoundsChangedFlag();
+				if (this._virtual)
+					this.setVirtualListChangedFlag(true);
+			}
+		});
+
+		__getset(0,__proto,'lineCount',function(){
+			return this._lineCount;
+			},function(value){
+			if (this._lineCount !=value){
+				this._lineCount=value;
+				if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
+					this.setBoundsChangedFlag();
+					if (this._virtual)
+						this.setVirtualListChangedFlag(true);
+				}
+			}
+		});
+
+		__getset(0,__proto,'columnCount',function(){
+			return this._columnCount;
+			},function(value){
+			if (this._columnCount !=value){
+				this._columnCount=value;
+				if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
+					this.setBoundsChangedFlag();
+					if (this._virtual)
+						this.setVirtualListChangedFlag(true);
+				}
+			}
 		});
 
 		__getset(0,__proto,'lineGap',function(){
@@ -12538,17 +12596,6 @@
 			},function(value){
 			if(this._columnGap !=value){
 				this._columnGap=value;
-				this.setBoundsChangedFlag();
-				if (this._virtual)
-					this.setVirtualListChangedFlag(true);
-			}
-		});
-
-		__getset(0,__proto,'align',function(){
-			return this._align;
-			},function(value){
-			if(this._align!=value){
-				this._align=value;
 				this.setBoundsChangedFlag();
 				if (this._virtual)
 					this.setVirtualListChangedFlag(true);
@@ -12581,6 +12628,12 @@
 			return this._defaultItem;
 			},function(val){
 			this._defaultItem=val;
+		});
+
+		__getset(0,__proto,'autoResizeItem',function(){
+			return this._autoResizeItem;
+			},function(value){
+			this._autoResizeItem=value;
 		});
 
 		__getset(0,__proto,'selectionMode',function(){

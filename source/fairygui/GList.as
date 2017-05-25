@@ -19,7 +19,8 @@ package fairygui {
 		public var foldInvisibleItems:Boolean;
 		
 		private var _layout: int;
-		private var _lineItemCount:int = 0;
+		private var _lineCount:int = 0;
+		private var _columnCount:int = 0;
 		private var _lineGap: int = 0;
 		private var _columnGap: int = 0;
 		private var _defaultItem: String;
@@ -80,22 +81,48 @@ package fairygui {
 			}
 		}
 		
+		final public function get lineCount():int
+		{
+			return _lineCount;
+		}
+		
+		final public function set lineCount(value:int):void
+		{
+			if (_lineCount != value)
+			{
+				_lineCount = value;
+				if (_layout == ListLayoutType.FlowVertical || _layout == ListLayoutType.Pagination)
+				{
+					setBoundsChangedFlag();
+					if (_virtual)
+						setVirtualListChangedFlag(true);
+				}
+			}
+		}
+		
+		final public function get columnCount():int
+		{
+			return _columnCount;
+		}
+		
+		final public function set columnCount(value:int):void
+		{
+			if (_columnCount != value)
+			{
+				_columnCount = value;
+				if (_layout == ListLayoutType.FlowHorizontal || _layout == ListLayoutType.Pagination)
+				{
+					setBoundsChangedFlag();
+					if (_virtual)
+						setVirtualListChangedFlag(true);
+				}
+			}
+		}
+		
 		public function get lineGap(): int {
 			return this._lineGap;
 		}
-		
-		public function get lineItemCount(): int {
-			return this._lineItemCount;
-		}
-		
-		public function set lineItemCount(value:int):void {
-			if(this._lineItemCount != value) {
-				this._lineItemCount = value;
-				this.setBoundsChangedFlag();
-				if(this._virtual)
-					this.setVirtualListChangedFlag(true);
-			}
-		}
+
 		
 		public function set lineGap(value: int):void {
 			if (this._lineGap != value) {
@@ -987,32 +1014,47 @@ package fairygui {
 			{
 				if (_layout == ListLayoutType.SingleColumn || _layout == ListLayoutType.SingleRow)
 					_curLineItemCount = 1;
-				else if (_lineItemCount != 0)
-					_curLineItemCount = _lineItemCount;
 				else if (_layout == ListLayoutType.FlowHorizontal)
 				{
-					_curLineItemCount = Math.floor((_scrollPane.viewWidth + _columnGap) / (_itemSize.x + _columnGap));
-					if (_curLineItemCount <= 0)
-						_curLineItemCount = 1;
+					if (_columnCount > 0)
+						_curLineItemCount = _columnCount;
+					else
+					{
+						_curLineItemCount = Math.floor((_scrollPane.viewWidth + _columnGap) / (_itemSize.x + _columnGap));
+						if (_curLineItemCount <= 0)
+							_curLineItemCount = 1;
+					}
 				}
 				else if (_layout == ListLayoutType.FlowVertical)
 				{
-					_curLineItemCount = Math.floor((_scrollPane.viewHeight + _lineGap) / (_itemSize.y + _lineGap));
-					if (_curLineItemCount <= 0)
-						_curLineItemCount = 1;
+					if (_lineCount > 0)
+						_curLineItemCount = _lineCount;
+					else
+					{
+						_curLineItemCount = Math.floor((_scrollPane.viewHeight + _lineGap) / (_itemSize.y + _lineGap));
+						if (_curLineItemCount <= 0)
+							_curLineItemCount = 1;
+					}
 				}
 				else //pagination
 				{
-					_curLineItemCount = Math.floor((_scrollPane.viewWidth + _columnGap) / (_itemSize.x + _columnGap));
-					if (_curLineItemCount <= 0)
-						_curLineItemCount = 1;
-				}
-				
-				if (_layout == ListLayoutType.Pagination)
-				{
-					_curLineItemCount2 = Math.floor((_scrollPane.viewHeight + _lineGap) / (_itemSize.y + _lineGap));
-					if (_curLineItemCount2 <= 0)
-						_curLineItemCount2 = 1;
+					if (_columnCount > 0)
+						_curLineItemCount = _columnCount;
+					else
+					{
+						_curLineItemCount = Math.floor((_scrollPane.viewWidth + _columnGap) / (_itemSize.x + _columnGap));
+						if (_curLineItemCount <= 0)
+							_curLineItemCount = 1;
+					}
+					
+					if (_lineCount > 0)
+						_curLineItemCount2 = _lineCount;
+					else
+					{
+						_curLineItemCount2 = Math.floor((_scrollPane.viewHeight + _lineGap) / (_itemSize.y + _lineGap));
+						if (_curLineItemCount2 <= 0)
+							_curLineItemCount2 = 1;
+					}
 				}
 			}
 			
@@ -1660,23 +1702,11 @@ package fairygui {
 			var lastObj:GObject = null;
 			var insertIndex:int = 0;
 			for (i = startIndex; i < lastIndex; i++)
-			{
-				if (i >= _realNumItems)
+			{				
+				ii = _virtualItems[i];
+				if (ii.updateFlag != itemInfoVer)
 					continue;
 				
-				col = i % _curLineItemCount;
-				if (i - startIndex < pageSize)
-				{
-					if (col < startCol)
-						continue;
-				}
-				else
-				{
-					if (col > startCol)
-						continue;
-				}
-				
-				ii = _virtualItems[i];
 				if (ii.obj == null)
 				{
 					//寻找看有没有可重用的
@@ -1727,10 +1757,41 @@ package fairygui {
 				}
 				
 				if (needRender)
+				{
 					itemRenderer.runWith([i % _numItems, ii.obj]);
+					ii.width = Math.ceil(ii.obj.width);
+					ii.height = Math.ceil(ii.obj.height);
+				}
+			}
+			
+			//排列item
+			var borderX:int = (startIndex / pageSize) * viewWidth;
+			var xx:int = borderX;
+			var yy:int = 0;
+			var lineHeight:int = 0;
+			for (i = startIndex; i < lastIndex; i++)
+			{
+				ii = _virtualItems[i];
+				if (ii.updateFlag == itemInfoVer)
+					ii.obj.setXY(xx, yy);
 				
-				ii.obj.setXY(Math.floor(i / pageSize) * viewWidth + col * (ii.width + _columnGap),
-					Math.floor(i / _curLineItemCount) % _curLineItemCount2 * (ii.height + _lineGap));
+				if (ii.height > lineHeight)
+					lineHeight = ii.height;
+				if (i % _curLineItemCount == _curLineItemCount - 1)
+				{
+					xx = borderX;
+					yy += lineHeight + _lineGap;
+					lineHeight = 0;
+					
+					if (i == startIndex + pageSize - 1)
+					{
+						borderX += viewWidth;
+						xx = borderX;
+						yy = 0;
+					}
+				}
+				else
+					xx += ii.width + _columnGap;
 			}
 			
 			//释放未使用的
@@ -1795,7 +1856,9 @@ package fairygui {
 			var maxHeight: Number = 0;
 			var cw: Number, ch: Number = 0;
 			var sw:int, sh:int;
-			var p:int;
+			var j:int = 0;
+			var p:int = 0;
+			var k:int = 0;
 			var cnt:int = _children.length;
 			var viewWidth:Number = this.viewWidth;
 			var viewHeight:Number = this.viewHeight;
@@ -1839,7 +1902,6 @@ package fairygui {
 				ch = curY + maxHeight;
 			}
 			else if (this._layout == ListLayoutType.FlowHorizontal) {
-				var j: Number = 0;
 				for (i = 0; i < cnt; i++) {
 					child = this.getChildAt(i);
 					if (foldInvisibleItems && !child.visible)
@@ -1851,8 +1913,8 @@ package fairygui {
 					if (curX != 0)
 						curX += this._columnGap;
 					
-					if(this._lineItemCount != 0 && j >= this._lineItemCount
-						|| this._lineItemCount == 0 && curX + sw > viewWidth && maxHeight != 0) {
+					if(this._columnCount != 0 && j >= this._columnCount
+						|| this._columnCount == 0 && curX + sw > viewWidth && maxHeight != 0) {
 						//new line
 						curX -= this._columnGap;
 						if(curX > maxWidth)
@@ -1872,7 +1934,6 @@ package fairygui {
 				cw = maxWidth;
 			}
 			else if (_layout == ListLayoutType.FlowVertical) {
-				j = 0;
 				for (i = 0; i < cnt; i++) {
 					child = this.getChildAt(i);
 					if (!child.visible)
@@ -1884,8 +1945,8 @@ package fairygui {
 					if (curY != 0)
 						curY += this._lineGap;
 					
-					if(this._lineItemCount != 0 && j >= this._lineItemCount
-						|| this._lineItemCount == 0 && curY + sh > viewHeight && maxWidth != 0) {
+					if(this._lineCount != 0 && j >= this._lineCount
+						|| this._lineCount == 0 && curY + sh > viewHeight && maxWidth != 0) {
 						curY -= this._lineGap;
 						if(curY > maxHeight)
 							maxHeight = curY;
@@ -1917,8 +1978,8 @@ package fairygui {
 					if (curX != 0)
 						curX += _columnGap;
 					
-					if (_lineItemCount != 0 && j >= _lineItemCount
-						|| _lineItemCount == 0 && curX + sw > viewWidth && maxHeight != 0)
+					if (_columnCount != 0 && j >= _columnCount
+						|| _columnCount == 0 && curX + sw > viewWidth && maxHeight != 0)
 					{
 						//new line
 						curX -= _columnGap;
@@ -1928,11 +1989,14 @@ package fairygui {
 						curY += maxHeight + _lineGap;
 						maxHeight = 0;
 						j = 0;
+						k++;
 						
-						if (curY + sh > viewHeight && maxWidth != 0)//new page
+						if (_lineCount != 0 && k >= _lineCount
+							|| _lineCount == 0 && curY + sh > viewHeight && maxWidth != 0)//new page
 						{
 							p++;
 							curY = 0;
+							k = 0;
 						}
 					}
 					child.setXY(p * viewWidth + curX, curY);
@@ -2030,7 +2094,16 @@ package fairygui {
 			
 			str = xml.getAttribute("lineItemCount");
 			if(str)
-				this._lineItemCount = parseInt(str);
+			{
+				if (_layout == ListLayoutType.FlowHorizontal || _layout == ListLayoutType.Pagination)
+					_columnCount = parseInt(str);
+				else if (_layout == ListLayoutType.FlowVertical)
+					_lineCount = parseInt(str);
+			}
+			
+			str = xml.getAttribute("lineItemCount2");
+			if(str)
+				_lineCount = parseInt(str);
 			
 			str = xml.getAttribute("selectionMode");
 			if (str)
