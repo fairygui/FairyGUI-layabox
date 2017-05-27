@@ -1702,7 +1702,10 @@ package fairygui {
 			var lastObj:GObject = null;
 			var insertIndex:int = 0;
 			for (i = startIndex; i < lastIndex; i++)
-			{				
+			{			
+				if (i >= _realNumItems)
+					continue;
+				
 				ii = _virtualItems[i];
 				if (ii.updateFlag != itemInfoVer)
 					continue;
@@ -1771,6 +1774,9 @@ package fairygui {
 			var lineHeight:int = 0;
 			for (i = startIndex; i < lastIndex; i++)
 			{
+				if (i >= _realNumItems)
+					continue;
+				
 				ii = _virtualItems[i];
 				if (ii.updateFlag == itemInfoVer)
 					ii.obj.setXY(xx, yy);
