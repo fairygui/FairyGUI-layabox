@@ -1,7 +1,7 @@
 package fairygui.utils
 {
 	import laya.utils.Byte;
-
+	
 	public class PixelHitTestData
 	{
 		public var pixelWidth:int;

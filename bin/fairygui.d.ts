@@ -321,6 +321,8 @@ declare module fairygui {
         scrollPane: ScrollPane;
         opaque: boolean;
         margin: Margin;
+        childrenRenderOrder: number;
+        apexIndex: number;
         mask: laya.display.Sprite;
         protected updateHitArea(): void;
         protected updateMask(): void;
@@ -336,7 +338,7 @@ declare module fairygui {
         viewHeight: number;
         getSnappingPosition(xValue: number, yValue: number, resultPoint?: laya.maths.Point): laya.maths.Point;
         childSortingOrderChanged(child: GObject, oldValue: number, newValue?: number): void;
-        constructFromResource(pkgItem: PackageItem): void;
+        constructFromResource(): void;
         protected constructFromXML(xml: Object): void;
     }
 }
@@ -471,7 +473,7 @@ declare module fairygui {
         gearColor: GearColor;
         handleControllerChanged(c: Controller): void;
         protected createDisplayObject(): void;
-        constructFromResource(pkgItem: PackageItem): void;
+        constructFromResource(): void;
         protected handleXYChanged(): void;
         protected handleSizeChanged(): void;
         setup_beforeAdd(xml: Object): void;
@@ -509,7 +511,8 @@ declare module fairygui {
 				foldInvisibleItems: boolean;
         layout: number;
         lineGap: number;
-        lineItemCount: number;
+        lineCount: number;
+        columnCount: number;
         columnGap: number;
         align: string;
         valign: string;
@@ -593,7 +596,7 @@ declare module fairygui {
         gearAnimation: GearAnimation;
         gearColor: GearColor;
         handleControllerChanged(c: Controller): void;
-        constructFromResource(pkgItem: PackageItem): void;
+        constructFromResource(): void;
         setup_beforeAdd(xml: Object): void;
         setup_afterAdd(xml: Object): void;
     }
@@ -714,7 +717,7 @@ declare module fairygui {
         protected handleSizeChanged(): void;
         protected handleScaleChanged(): void;
         protected handleGrayedChanged(): void;
-        constructFromResource(pkgItem: PackageItem): void;
+        constructFromResource(): void;
         setup_beforeAdd(xml: Object): void;
         setup_afterAdd(xml: Object): void;
         private static sDragging;
@@ -1279,6 +1282,7 @@ declare module fairygui {
         static createObjectFromURL(url: string, userClass?: any): GObject;
         static getItemURL(pkgName: string, resName: string): string;
         static getItemByURL(url: string): PackageItem;
+        static normalizeURL(url: string): string;
         static getBitmapFontByURL(url: string): fairygui.display.BitmapFont;
         static setStringsSource(source: string): void;
         dispose(): void;
