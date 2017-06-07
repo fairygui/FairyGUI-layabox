@@ -455,7 +455,8 @@ package fairygui {
 		}
 		
 		public function get finalVisible(): Boolean {
-			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible);
+			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible)
+				&& !this._displayObject._$P["maskParent"];
 		}
 		
 		public function get sortingOrder(): Number {
@@ -978,10 +979,11 @@ package fairygui {
 			}
 		}
 		
+		private static const grayFilter:ColorFilter = new ColorFilter([0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0, 0, 0, 1, 0]);
 		protected function handleGrayedChanged(): void {
 			if(this._displayObject) {
 				if(this._grayed)
-					this._displayObject.filters = [ColorFilter.GRAY];
+					this._displayObject.filters = [grayFilter];
 				else
 					this._displayObject.filters = null;
 			}

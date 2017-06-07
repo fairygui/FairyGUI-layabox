@@ -1017,7 +1017,7 @@
 		__proto.handleGrayedChanged=function(){
 			if(this._displayObject){
 				if(this._grayed)
-					this._displayObject.filters=[ColorFilter.GRAY];
+					this._displayObject.filters=[GObject.grayFilter];
 				else
 				this._displayObject.filters=null;
 			}
@@ -1437,7 +1437,8 @@
 		});
 
 		__getset(0,__proto,'finalVisible',function(){
-			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible);
+			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible)
+			&& !this._displayObject._$P["maskParent"];
 		});
 
 		__getset(0,__proto,'asGraph',function(){
@@ -1584,7 +1585,7 @@
 		GObject.sDraggingQuery=false;
 		GObject.sUpdateInDragging=false;
 		__static(GObject,
-		['GearXMLKeys',function(){return this.GearXMLKeys={
+		['grayFilter',function(){return this.grayFilter=new ColorFilter([0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0,0,0,1,0]);},'GearXMLKeys',function(){return this.GearXMLKeys={
 				"gearDisplay":0,
 				"gearXY":1,
 				"gearSize":2,
@@ -5178,6 +5179,526 @@
 	})()
 
 
+	//class fairygui.tree.TreeNode
+	var TreeNode=(function(){
+		function TreeNode(hasChild){
+			this._data=null;
+			this._parent=null;
+			this._children=null;
+			this._expanded=false;
+			this._tree=null;
+			this._cell=null;
+			this._level=0;
+			if(hasChild)
+				this._children=[];
+		}
+
+		__class(TreeNode,'fairygui.tree.TreeNode');
+		var __proto=TreeNode.prototype;
+		__proto.setCell=function(value){
+			this._cell=value;
+		}
+
+		__proto.setLevel=function(value){
+			this._level=value;
+		}
+
+		__proto.addChild=function(child){
+			this.addChildAt(child,this._children.length);
+			return child;
+		}
+
+		__proto.addChildAt=function(child,index){
+			if(!child)
+				throw new Error("child is null");
+			var numChildren=this._children.length;
+			if (index >=0 && index <=numChildren){
+				if (child._parent==this){
+					this.setChildIndex(child,index);
+				}
+				else{
+					if(child._parent)
+						child._parent.removeChild(child);
+					var cnt=this._children.length;
+					if (index==cnt)
+						this._children.push(child);
+					else
+					this._children.splice(index,0,child);
+					child._parent=this;
+					child._level=this._level+1;
+					child.setTree(this._tree);
+					if(this._cell!=null && this._cell.parent!=null && this._expanded)
+						this._tree.afterInserted(child);
+				}
+				return child;
+			}
+			else{
+				throw new Error("Invalid child index");
+			}
+		}
+
+		__proto.removeChild=function(child){
+			var childIndex=this._children.indexOf(child);
+			if (childIndex !=-1){
+				this.removeChildAt(childIndex);
+			}
+			return child;
+		}
+
+		__proto.removeChildAt=function(index){
+			if (index >=0 && index < this.numChildren){
+				var child=this._children[index];
+				this._children.splice(index,1);
+				child._parent=null;
+				if(this._tree!=null){
+					child.setTree(null);
+					this._tree.afterRemoved(child);
+				}
+				return child;
+			}
+			else{
+				throw new Error("Invalid child index");
+			}
+		}
+
+		__proto.removeChildren=function(beginIndex,endIndex){
+			(beginIndex===void 0)&& (beginIndex=0);
+			(endIndex===void 0)&& (endIndex=-1);
+			if (endIndex < 0 || endIndex >=this.numChildren)
+				endIndex=this.numChildren-1;
+			for (var i=beginIndex;i<=endIndex;++i)
+			this.removeChildAt(beginIndex);
+		}
+
+		__proto.getChildAt=function(index){
+			if (index >=0 && index < this.numChildren)
+				return this._children[index];
+			else
+			throw new Error("Invalid child index");
+		}
+
+		__proto.getChildIndex=function(child){
+			return this._children.indexOf(child);
+		}
+
+		__proto.getPrevSibling=function(){
+			if(this._parent==null)
+				return null;
+			var i=this._parent._children.indexOf(this);
+			if(i<=0)
+				return null;
+			return this._parent._children[i-1];
+		}
+
+		__proto.getNextSibling=function(){
+			if(this._parent==null)
+				return null;
+			var i=this._parent._children.indexOf(this);
+			if(i<0 || i>=this._parent._children.length-1)
+				return null;
+			return this._parent._children[i+1];
+		}
+
+		__proto.setChildIndex=function(child,index){
+			var oldIndex=this._children.indexOf(child);
+			if (oldIndex==-1)
+				throw new Error("Not a child of this container");
+			var cnt=this._children.length;
+			if(index<0)
+				index=0;
+			else if(index>cnt)
+			index=cnt;
+			if(oldIndex==index)
+				return;
+			this._children.splice(oldIndex,1);
+			this._children.splice(index,0,child);
+			if(this._cell!=null && this._cell.parent!=null && this._expanded)
+				this._tree.afterMoved(child);
+		}
+
+		__proto.swapChildren=function(child1,child2){
+			var index1=this._children.indexOf(child1);
+			var index2=this._children.indexOf(child2);
+			if (index1==-1 || index2==-1)
+				throw new Error("Not a child of this container");
+			this.swapChildrenAt(index1,index2);
+		}
+
+		__proto.swapChildrenAt=function(index1,index2){
+			var child1=this._children[index1];
+			var child2=this._children[index2];
+			this.setChildIndex(child1,index2);
+			this.setChildIndex(child2,index1);
+		}
+
+		__proto.setTree=function(value){
+			this._tree=value;
+			if(this._tree!=null && this._tree.treeNodeWillExpand && this._expanded)
+				this._tree.treeNodeWillExpand.runWith(this);
+			if(this._children!=null){
+				var cnt=this._children.length;
+				for(var i=0;i<cnt;i++){
+					var node=this._children[i];
+					node._level=this._level+1;
+					node.setTree(value);
+				}
+			}
+		}
+
+		__getset(0,__proto,'expanded',function(){
+			return this._expanded;
+			},function(value){
+			if(this._children==null)
+				return;
+			if(this._expanded!=value){
+				this._expanded=value;
+				if(this._tree!=null){
+					if(this._expanded)
+						this._tree.afterExpanded(this);
+					else
+					this._tree.afterCollapsed(this);
+				}
+			}
+		});
+
+		__getset(0,__proto,'tree',function(){
+			return this._tree;
+		});
+
+		__getset(0,__proto,'level',function(){
+			return this._level;
+		});
+
+		__getset(0,__proto,'cell',function(){
+			return this._cell;
+		});
+
+		__getset(0,__proto,'data',function(){
+			return this._data;
+			},function(value){
+			this._data=value;
+		});
+
+		__getset(0,__proto,'parent',function(){
+			return this._parent;
+		});
+
+		__getset(0,__proto,'isFolder',function(){
+			return this._children!=null;
+		});
+
+		__getset(0,__proto,'text',function(){
+			if(this._cell!=null)
+				return this._cell.text;
+			else
+			return null;
+		});
+
+		__getset(0,__proto,'numChildren',function(){
+			return this._children.length;
+		});
+
+		return TreeNode;
+	})()
+
+
+	//class fairygui.tree.TreeView
+	var TreeView=(function(){
+		function TreeView(list){
+			this._list=null;
+			this._root=null;
+			this._indent=0;
+			this.treeNodeCreateCell=null;
+			this.treeNodeRender=null;
+			this.treeNodeWillExpand=null;
+			this.treeNodeClick=null;
+			this._list=list;
+			this._list.removeChildrenToPool();
+			this._list.on(/*fairygui.Events.CLICK_ITEM*/"fui_click_item",this,this.__clickItem);
+			this._root=new TreeNode(true);
+			this._root.setTree(this);
+			this._root.setCell(this._list);
+			this._root.expanded=true;
+			this._indent=15;
+		}
+
+		__class(TreeView,'fairygui.tree.TreeView');
+		var __proto=TreeView.prototype;
+		__proto.getSelectedNode=function(){
+			if(this._list.selectedIndex!=-1)
+				return (this._list.getChildAt(this._list.selectedIndex).data);
+			else
+			return null;
+		}
+
+		__proto.getSelection=function(){
+			var sels=this._list.getSelection();
+			var cnt=sels.length;
+			var ret=[];
+			for(var i=0;i<cnt;i++){
+				var node=(this._list.getChildAt(sels[i]).data);
+				ret.push(node);
+			}
+			return ret;
+		}
+
+		__proto.addSelection=function(node,scrollItToView){
+			(scrollItToView===void 0)&& (scrollItToView=false);
+			var parentNode=node.parent;
+			while(parentNode!=null && parentNode!=this._root){
+				parentNode.expanded=true;
+				parentNode=parentNode.parent;
+			}
+			if(!node.cell)
+				return;
+			this._list.addSelection(this._list.getChildIndex(node.cell),scrollItToView);
+		}
+
+		__proto.removeSelection=function(node){
+			if(!node.cell)
+				return;
+			this._list.removeSelection(this._list.getChildIndex(node.cell));
+		}
+
+		__proto.clearSelection=function(){
+			this._list.clearSelection();
+		}
+
+		__proto.getNodeIndex=function(node){
+			return this._list.getChildIndex(node.cell);
+		}
+
+		__proto.updateNode=function(node){
+			if(node.cell==null)
+				return;
+			if(this.treeNodeRender)
+				this.treeNodeRender.runWith(node);
+		}
+
+		__proto.updateNodes=function(nodes){
+			var cnt=nodes.length;
+			for(var i=0;i<cnt;i++){
+				var node=nodes[i];
+				if(node.cell==null)
+					return;
+				if(this.treeNodeRender)
+					this.treeNodeRender.runWith(node);
+			}
+		}
+
+		__proto.expandAll=function(folderNode){
+			folderNode.expanded=true;
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				var node=folderNode.getChildAt(i);
+				if(node.isFolder)
+					this.expandAll(node);
+			}
+		}
+
+		__proto.collapseAll=function(folderNode){
+			if(folderNode!=this._root)
+				folderNode.expanded=false;
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				var node=folderNode.getChildAt(i);
+				if(node.isFolder)
+					this.collapseAll(node);
+			}
+		}
+
+		__proto.createCell=function(node){
+			if(this.treeNodeCreateCell)
+				node.setCell(this.treeNodeCreateCell.runWith(node));
+			else
+			node.setCell((this._list.itemPool.getObject(this._list.defaultItem)));
+			node.cell.data=node;
+			var indentObj=node.cell.getChild("indent");
+			if(indentObj!=null)
+				indentObj.width=(node.level-1)*this._indent;
+			var expandButton=(node.cell.getChild("expandButton"));
+			if(expandButton){
+				if(node.isFolder){
+					expandButton.visible=true;
+					expandButton.onClick(this,this.__clickExpandButton);
+					expandButton.data=node;
+					expandButton.selected=node.expanded;
+				}
+				else
+				expandButton.visible=false;
+			}
+			if(this.treeNodeRender)
+				this.treeNodeRender.runWith(node);
+		}
+
+		__proto.afterInserted=function(node){
+			this.createCell(node);
+			var index=this.getInsertIndexForNode(node);
+			this._list.addChildAt(node.cell,index);
+			if(this.treeNodeRender)
+				this.treeNodeRender.runWith(node);
+			if(node.isFolder && node.expanded)
+				this.checkChildren(node,index);
+		}
+
+		__proto.getInsertIndexForNode=function(node){
+			var prevNode=node.getPrevSibling();
+			if(prevNode==null)
+				prevNode=node.parent;
+			var insertIndex=this._list.getChildIndex(prevNode.cell)+1;
+			var myLevel=node.level;
+			var cnt=this._list.numChildren;
+			for(var i=insertIndex;i<cnt;i++){
+				var testNode=(this._list.getChildAt(i).data);
+				if(testNode.level<=myLevel)
+					break ;
+				insertIndex++;
+			}
+			return insertIndex;
+		}
+
+		__proto.afterRemoved=function(node){
+			this.removeNode(node);
+		}
+
+		__proto.afterExpanded=function(node){
+			if(node!=this._root && this.treeNodeWillExpand)
+				this.treeNodeWillExpand(node);
+			if(node.cell==null)
+				return;
+			if(node!=this._root){
+				if(this.treeNodeRender)
+					this.treeNodeRender.runWith(node);
+				var expandButton=(node.cell.getChild("expandButton"));
+				if(expandButton)
+					expandButton.selected=true;
+			}
+			if(node.cell.parent!=null)
+				this.checkChildren(node,this._list.getChildIndex(node.cell));
+		}
+
+		__proto.afterCollapsed=function(node){
+			if(node!=this._root && this.treeNodeWillExpand)
+				this.treeNodeWillExpand(node);
+			if(node.cell==null)
+				return;
+			if(node!=this._root){
+				if(this.treeNodeRender)
+					this.treeNodeRender.runWith(node);
+				var expandButton=(node.cell.getChild("expandButton"));
+				if(expandButton)
+					expandButton.selected=false;
+			}
+			if(node.cell.parent!=null)
+				this.hideFolderNode(node);
+		}
+
+		__proto.afterMoved=function(node){
+			if(!node.isFolder)
+				this._list.removeChild(node.cell);
+			else
+			this.hideFolderNode(node);
+			var index=this.getInsertIndexForNode(node);
+			this._list.addChildAt(node.cell,index);
+			if(node.isFolder && node.expanded)
+				this.checkChildren(node,index);
+		}
+
+		__proto.checkChildren=function(folderNode,index){
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				index++;
+				var node=folderNode.getChildAt(i);
+				if(node.cell==null)
+					this.createCell(node);
+				if(!node.cell.parent)
+					this._list.addChildAt(node.cell,index);
+				if(node.isFolder && node.expanded)
+					index=this.checkChildren(node,index);
+			}
+			return index;
+		}
+
+		__proto.hideFolderNode=function(folderNode){
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				var node=folderNode.getChildAt(i);
+				if(node.cell && node.cell.parent!=null)
+					this._list.removeChild(node.cell);
+				if(node.isFolder && node.expanded)
+					this.hideFolderNode(node);
+			}
+		}
+
+		__proto.removeNode=function(node){
+			if(node.cell!=null){
+				if(node.cell.parent!=null)
+					this._list.removeChild(node.cell);
+				this._list.returnToPool(node.cell);
+				node.cell.data=null;
+				node.setCell(null);
+			}
+			if(node.isFolder){
+				var cnt=node.numChildren;
+				for(var i=0;i<cnt;i++){
+					var node2=node.getChildAt(i);
+					this.removeNode(node2);
+				}
+			}
+		}
+
+		__proto.__clickExpandButton=function(evt){
+			evt.stopPropagation();
+			var expandButton=(GObject.cast(evt.currentTarget));
+			var node=(expandButton.parent.data);
+			if(this._list.scrollPane!=null){
+				var posY=this._list.scrollPane.posY;
+				if(expandButton.selected)
+					node.expanded=true;
+				else
+				node.expanded=false;
+				this._list.scrollPane.posY=posY;
+				this._list.scrollPane.scrollToView(node.cell);
+			}
+			else{
+				if(expandButton.selected)
+					node.expanded=true;
+				else
+				node.expanded=false;
+			}
+		}
+
+		__proto.__clickItem=function(item,evt){
+			if(this._list.scrollPane!=null)
+				var posY=this._list.scrollPane.posY;
+			var node=(item.data);
+			if(this.treeNodeClick)
+				this.treeNodeClick.runWith([node,evt]);
+			if(this._list.scrollPane!=null){
+				this._list.scrollPane.posY=posY;
+				if(node.cell)
+					this._list.scrollPane.scrollToView(node.cell);
+			}
+		}
+
+		__getset(0,__proto,'list',function(){
+			return this._list;
+		});
+
+		__getset(0,__proto,'root',function(){
+			return this._root;
+		});
+
+		__getset(0,__proto,'indent',function(){
+			return this._indent;
+			},function(value){
+			this._indent=value;
+		});
+
+		return TreeView;
+	})()
+
+
 	//class fairygui.UIConfig
 	var UIConfig1=(function(){
 		function UIConfig(){}
@@ -8295,137 +8816,6 @@
 	})(GearBase)
 
 
-	//class fairygui.GearLook extends fairygui.GearBase
-	var GearLook=(function(_super){
-		var GearLookValue;
-		function GearLook(owner){
-			this.tweener=null;
-			this._storage=null;
-			this._default=null;
-			this._tweenValue=null;
-			this._tweenTarget=null;
-			GearLook.__super.call(this,owner);
-		}
-
-		__class(GearLook,'fairygui.GearLook',_super);
-		var __proto=GearLook.prototype;
-		__proto.init=function(){
-			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
-			this._storage={};
-		}
-
-		__proto.addStatus=function(pageId,value){
-			if(value=="-")
-				return;
-			var arr=value.split(",");
-			var gv;
-			if(pageId==null)
-				gv=this._default;
-			else {
-				gv=new GearLookValue();
-				this._storage[pageId]=gv;
-			}
-			gv.alpha=parseFloat(arr[0]);
-			gv.rotation=parseInt(arr[1]);
-			gv.grayed=arr[2]=="1" ? true :false;
-		}
-
-		__proto.apply=function(){
-			var gv=this._storage[this._controller.selectedPageId];
-			if(!gv)
-				gv=this._default;
-			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-				this._owner._gearLocked=true;
-				this._owner.grayed=gv.grayed;
-				this._owner._gearLocked=false;
-				if (this.tweener !=null){
-					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
-						this.tweener.complete();
-						this.tweener=null;
-					}
-					else
-					return;
-				};
-				var a=gv.alpha !=this._owner.alpha;
-				var b=gv.rotation !=this._owner.rotation;
-				if(a || b){
-					if(this._owner.checkGearController(0,this._controller))
-						this._displayLockToken=this._owner.addDisplayLock();
-					this._tweenTarget=gv;
-					if(this._tweenValue==null)
-						this._tweenValue=new Point();
-					this._tweenValue.x=this._owner.alpha;
-					this._tweenValue.y=this._owner.rotation;
-					this.tweener=Tween.to(this._tweenValue,
-					{x:gv.alpha,y:gv.rotation },
-					this._tweenTime*1000,
-					this._easeType,
-					Handler.create(this,this.__tweenComplete),
-					this._delay*1000);
-					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
-				}
-			}
-			else {
-				this._owner._gearLocked=true;
-				this._owner.grayed=gv.grayed;
-				this._owner.alpha=gv.alpha;
-				this._owner.rotation=gv.rotation;
-				this._owner._gearLocked=false;
-			}
-		}
-
-		__proto.__tweenUpdate=function(a,b){
-			this._owner._gearLocked=true;
-			if(a)
-				this._owner.alpha=this._tweenValue.x;
-			if(b)
-				this._owner.rotation=this._tweenValue.y;
-			this._owner._gearLocked=false;
-		}
-
-		__proto.__tweenComplete=function(){
-			if(this._displayLockToken!=0){
-				this._owner.releaseDisplayLock(this._displayLockToken);
-				this._displayLockToken=0;
-			}
-			this.tweener=null;
-			this._owner.displayObject.event(/*fairygui.Events.GEAR_STOP*/"fui_gear_stop");
-		}
-
-		__proto.updateState=function(){
-			var gv=this._storage[this._controller.selectedPageId];
-			if(!gv){
-				gv=new GearLookValue();
-				this._storage[this._controller.selectedPageId]=gv;
-			}
-			gv.alpha=this._owner.alpha;
-			gv.rotation=this._owner.rotation;
-			gv.grayed=this._owner.grayed;
-		}
-
-		GearLook.__init$=function(){
-			//class GearLookValue
-			GearLookValue=(function(){
-				function GearLookValue(alpha,rotation,grayed){
-					this.alpha=NaN;
-					this.rotation=NaN;
-					this.grayed=false;
-					(alpha===void 0)&& (alpha=0);
-					(rotation===void 0)&& (rotation=0);
-					(grayed===void 0)&& (grayed=false);
-					this.alpha=alpha;
-					this.rotation=rotation;
-					this.grayed=grayed;
-				}
-				__class(GearLookValue,'');
-				return GearLookValue;
-			})()
-		}
-
-		return GearLook;
-	})(GearBase)
-
-
 	//class fairygui.GGraph extends fairygui.GObject
 	var GGraph=(function(_super){
 		function GGraph(){
@@ -8582,6 +8972,137 @@
 	})(GObject)
 
 
+	//class fairygui.GearLook extends fairygui.GearBase
+	var GearLook=(function(_super){
+		var GearLookValue;
+		function GearLook(owner){
+			this.tweener=null;
+			this._storage=null;
+			this._default=null;
+			this._tweenValue=null;
+			this._tweenTarget=null;
+			GearLook.__super.call(this,owner);
+		}
+
+		__class(GearLook,'fairygui.GearLook',_super);
+		var __proto=GearLook.prototype;
+		__proto.init=function(){
+			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
+			this._storage={};
+		}
+
+		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
+			var arr=value.split(",");
+			var gv;
+			if(pageId==null)
+				gv=this._default;
+			else {
+				gv=new GearLookValue();
+				this._storage[pageId]=gv;
+			}
+			gv.alpha=parseFloat(arr[0]);
+			gv.rotation=parseInt(arr[1]);
+			gv.grayed=arr[2]=="1" ? true :false;
+		}
+
+		__proto.apply=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv)
+				gv=this._default;
+			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+				this._owner._gearLocked=true;
+				this._owner.grayed=gv.grayed;
+				this._owner._gearLocked=false;
+				if (this.tweener !=null){
+					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
+						this.tweener.complete();
+						this.tweener=null;
+					}
+					else
+					return;
+				};
+				var a=gv.alpha !=this._owner.alpha;
+				var b=gv.rotation !=this._owner.rotation;
+				if(a || b){
+					if(this._owner.checkGearController(0,this._controller))
+						this._displayLockToken=this._owner.addDisplayLock();
+					this._tweenTarget=gv;
+					if(this._tweenValue==null)
+						this._tweenValue=new Point();
+					this._tweenValue.x=this._owner.alpha;
+					this._tweenValue.y=this._owner.rotation;
+					this.tweener=Tween.to(this._tweenValue,
+					{x:gv.alpha,y:gv.rotation },
+					this._tweenTime*1000,
+					this._easeType,
+					Handler.create(this,this.__tweenComplete),
+					this._delay*1000);
+					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
+				}
+			}
+			else {
+				this._owner._gearLocked=true;
+				this._owner.grayed=gv.grayed;
+				this._owner.alpha=gv.alpha;
+				this._owner.rotation=gv.rotation;
+				this._owner._gearLocked=false;
+			}
+		}
+
+		__proto.__tweenUpdate=function(a,b){
+			this._owner._gearLocked=true;
+			if(a)
+				this._owner.alpha=this._tweenValue.x;
+			if(b)
+				this._owner.rotation=this._tweenValue.y;
+			this._owner._gearLocked=false;
+		}
+
+		__proto.__tweenComplete=function(){
+			if(this._displayLockToken!=0){
+				this._owner.releaseDisplayLock(this._displayLockToken);
+				this._displayLockToken=0;
+			}
+			this.tweener=null;
+			this._owner.displayObject.event(/*fairygui.Events.GEAR_STOP*/"fui_gear_stop");
+		}
+
+		__proto.updateState=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv){
+				gv=new GearLookValue();
+				this._storage[this._controller.selectedPageId]=gv;
+			}
+			gv.alpha=this._owner.alpha;
+			gv.rotation=this._owner.rotation;
+			gv.grayed=this._owner.grayed;
+		}
+
+		GearLook.__init$=function(){
+			//class GearLookValue
+			GearLookValue=(function(){
+				function GearLookValue(alpha,rotation,grayed){
+					this.alpha=NaN;
+					this.rotation=NaN;
+					this.grayed=false;
+					(alpha===void 0)&& (alpha=0);
+					(rotation===void 0)&& (rotation=0);
+					(grayed===void 0)&& (grayed=false);
+					this.alpha=alpha;
+					this.rotation=rotation;
+					this.grayed=grayed;
+				}
+				__class(GearLookValue,'');
+				return GearLookValue;
+			})()
+		}
+
+		return GearLook;
+	})(GearBase)
+
+
 	//class fairygui.GGroup extends fairygui.GObject
 	var GGroup=(function(_super){
 		function GGroup(){
@@ -8661,96 +9182,6 @@
 		}
 
 		return GGroup;
-	})(GObject)
-
-
-	//class fairygui.GImage extends fairygui.GObject
-	var GImage=(function(_super){
-		function GImage(){
-			this.image=null;
-			this._color=null;
-			this._flip=0;
-			GImage.__super.call(this);
-			this._color="#FFFFFF";
-		}
-
-		__class(GImage,'fairygui.GImage',_super);
-		var __proto=GImage.prototype;
-		Laya.imps(__proto,{"fairygui.IColorGear":true})
-		__proto.applyColor=function(){}
-		__proto.createDisplayObject=function(){
-			this._displayObject=this.image=new Image1();
-			this.image.mouseEnabled=false;
-			this._displayObject["$owner"]=this;
-		}
-
-		__proto.constructFromResource=function(){
-			this.packageItem.load();
-			this._sourceWidth=this.packageItem.width;
-			this._sourceHeight=this.packageItem.height;
-			this._initWidth=this._sourceWidth;
-			this._initHeight=this._sourceHeight;
-			this.image.scale9Grid=this.packageItem.scale9Grid;
-			this.image.scaleByTile=this.packageItem.scaleByTile;
-			this.image.tileGridIndice=this.packageItem.tileGridIndice;
-			this.image.tex=this.packageItem.texture;
-			this.setSize(this._sourceWidth,this._sourceHeight);
-		}
-
-		__proto.handleXYChanged=function(){
-			_super.prototype.handleXYChanged.call(this);
-			if(this._flip !=/*fairygui.FlipType.None*/0){
-				if(this.scaleX==-1)
-					this.image.x+=this.width;
-				if(this.scaleY==-1)
-					this.image.y+=this.height;
-			}
-		}
-
-		__proto.handleSizeChanged=function(){
-			if(this.image.tex!=null){
-				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
-			}
-		}
-
-		__proto.setup_beforeAdd=function(xml){
-			_super.prototype.setup_beforeAdd.call(this,xml);
-			var str;
-			str=xml.getAttribute("color");
-			if(str)
-				this.color=str;
-			str=xml.getAttribute("flip");
-			if(str)
-				this.flip=FlipType.parse(str);
-		}
-
-		__getset(0,__proto,'color',function(){
-			return this._color;
-			},function(value){
-			if(this._color !=value){
-				this._color=value;
-				this.updateGear(4);
-				this.applyColor();
-			}
-		});
-
-		//not supported yet
-		__getset(0,__proto,'flip',function(){
-			return this._flip;
-			},function(value){
-			if(this._flip!=value){
-				this._flip=value;
-				var sx=1,sy=1;
-				if(this._flip==/*fairygui.FlipType.Horizontal*/1 || this._flip==/*fairygui.FlipType.Both*/3)
-					sx=-1;
-				if(this._flip==/*fairygui.FlipType.Vertical*/2 || this._flip==/*fairygui.FlipType.Both*/3)
-					sy=-1;
-				this.setScale(sx,sy);
-				this.handleXYChanged();
-			}
-		});
-
-		return GImage;
 	})(GObject)
 
 
@@ -8903,6 +9334,96 @@
 
 		return GearSize;
 	})(GearBase)
+
+
+	//class fairygui.GImage extends fairygui.GObject
+	var GImage=(function(_super){
+		function GImage(){
+			this.image=null;
+			this._color=null;
+			this._flip=0;
+			GImage.__super.call(this);
+			this._color="#FFFFFF";
+		}
+
+		__class(GImage,'fairygui.GImage',_super);
+		var __proto=GImage.prototype;
+		Laya.imps(__proto,{"fairygui.IColorGear":true})
+		__proto.applyColor=function(){}
+		__proto.createDisplayObject=function(){
+			this._displayObject=this.image=new Image1();
+			this.image.mouseEnabled=false;
+			this._displayObject["$owner"]=this;
+		}
+
+		__proto.constructFromResource=function(){
+			this.packageItem.load();
+			this._sourceWidth=this.packageItem.width;
+			this._sourceHeight=this.packageItem.height;
+			this._initWidth=this._sourceWidth;
+			this._initHeight=this._sourceHeight;
+			this.image.scale9Grid=this.packageItem.scale9Grid;
+			this.image.scaleByTile=this.packageItem.scaleByTile;
+			this.image.tileGridIndice=this.packageItem.tileGridIndice;
+			this.image.tex=this.packageItem.texture;
+			this.setSize(this._sourceWidth,this._sourceHeight);
+		}
+
+		__proto.handleXYChanged=function(){
+			_super.prototype.handleXYChanged.call(this);
+			if(this._flip !=/*fairygui.FlipType.None*/0){
+				if(this.scaleX==-1)
+					this.image.x+=this.width;
+				if(this.scaleY==-1)
+					this.image.y+=this.height;
+			}
+		}
+
+		__proto.handleSizeChanged=function(){
+			if(this.image.tex!=null){
+				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
+			}
+		}
+
+		__proto.setup_beforeAdd=function(xml){
+			_super.prototype.setup_beforeAdd.call(this,xml);
+			var str;
+			str=xml.getAttribute("color");
+			if(str)
+				this.color=str;
+			str=xml.getAttribute("flip");
+			if(str)
+				this.flip=FlipType.parse(str);
+		}
+
+		__getset(0,__proto,'color',function(){
+			return this._color;
+			},function(value){
+			if(this._color !=value){
+				this._color=value;
+				this.updateGear(4);
+				this.applyColor();
+			}
+		});
+
+		//not supported yet
+		__getset(0,__proto,'flip',function(){
+			return this._flip;
+			},function(value){
+			if(this._flip!=value){
+				this._flip=value;
+				var sx=1,sy=1;
+				if(this._flip==/*fairygui.FlipType.Horizontal*/1 || this._flip==/*fairygui.FlipType.Both*/3)
+					sx=-1;
+				if(this._flip==/*fairygui.FlipType.Vertical*/2 || this._flip==/*fairygui.FlipType.Both*/3)
+					sy=-1;
+				this.setScale(sx,sy);
+				this.handleXYChanged();
+			}
+		});
+
+		return GImage;
+	})(GObject)
 
 
 	//class fairygui.GearText extends fairygui.GearBase
@@ -12781,7 +13302,7 @@
 			},function(value){
 			this._text=value;
 			if(this._ubbEnabled)
-				this.div.innerHTML=ToolSet.parseUBB(ToolSet.encodeHTML(this._text));
+				this.div.innerHTML=ToolSet.parseUBB(this._text);
 			else
 			this.div.innerHTML=this._text;
 		});
@@ -14464,5 +14985,5 @@
 	})(Sprite)
 
 
-	Laya.__init([GList,GearColor,GearAnimation,Transition,ScrollPane,UIPackage,GBasicTextField,Controller,GearLook,GearSize,RelationItem]);
+	Laya.__init([GList,GearColor,GearAnimation,Transition,ScrollPane,RelationItem,UIPackage,GBasicTextField,Controller,GearLook,GearSize]);
 })(window,document,Laya);
