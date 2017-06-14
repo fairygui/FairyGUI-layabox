@@ -1648,11 +1648,13 @@
 				str=xml.getAttribute("pages");
 				if(str)
 					pages=str.split(",");
-				str=xml.getAttribute("values");
-				if(str)
-					values=str.split("|");
-				if(pages && values){
-					for(var i=0;i<values.length;i++)
+				if(pages){
+					str=xml.getAttribute("values");
+					if(str!=null)
+						values=str.split("|");
+					else
+					values=[];
+					for(var i=0;i<pages.length;i++)
 					this.addStatus(pages[i],values[i]);
 				}
 				str=xml.getAttribute("default");
@@ -11964,11 +11966,9 @@
 			_super.prototype.handleSizeChanged.call(this);
 			if (this._autoResizeItem)
 				this.adjustItemsSize();
-			if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
-				this.setBoundsChangedFlag();
-				if (this._virtual)
-					this.setVirtualListChangedFlag(true);
-			}
+			this.setBoundsChangedFlag();
+			if (this._virtual)
+				this.setVirtualListChangedFlag(true);
 		}
 
 		__proto.adjustItemsSize=function(){
