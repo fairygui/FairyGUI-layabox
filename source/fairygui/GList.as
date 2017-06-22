@@ -28,6 +28,7 @@ package fairygui {
 		private var _selectionMode: int;
 		private var _align:String;
 		private var _verticalAlign:String;
+		private var _selectionController:Controller;
 		
 		private var _lastSelectedIndex: Number = 0;
 		private var _pool: GObjectPool;
@@ -217,6 +218,16 @@ package fairygui {
 			this._selectionMode = value;
 		}
 		
+		public function get selectionController():Controller
+		{
+			return _selectionController;
+		}
+		
+		public function set selectionController(value:Controller):void
+		{
+			_selectionController = value;
+		}
+		
 		public function get itemPool():GObjectPool
 		{
 			return this._pool;
@@ -338,7 +349,10 @@ package fairygui {
 			
 			var obj: GObject = this.getChildAt(index);
 			if ((obj is GButton) && !GButton(obj).selected)
+			{
 				GButton(obj).selected = true;
+				updateSelectionController(index);
+			}
 		}
 		
 		public function removeSelection(index: Number = 0): void {
@@ -367,11 +381,17 @@ package fairygui {
 			this.checkVirtualList();
 			
 			var cnt: Number = this._children.length;
+			var last:int = -1;
 			for (var i: Number = 0; i < cnt; i++) {
 				var obj: GObject = this._children[i];
 				if (obj is GButton)
+				{
 					GButton(obj).selected = true;
+					last = i;
+				}
 			}
+			if(last!=-1)
+				updateSelectionController(last);
 		}
 		
 		public function selectNone(): void {
@@ -387,11 +407,18 @@ package fairygui {
 		
 		public function selectReverse(): void {
 			var cnt: Number = this._children.length;
+			var last:int = -1;
 			for (var i: Number = 0; i < cnt; i++) { 
 				var obj: GObject = this._children[i];
 				if (obj is GButton)
+				{
 					GButton(obj).selected = !GButton(obj).selected;
+					if(GButton(obj).selected)
+						last = i;
+				}
 			}
+			if(last!=-1)
+				updateSelectionController(last);
 		}
 		
 		public function handleArrowKey(dir: Number = 0): void {
@@ -587,7 +614,8 @@ package fairygui {
 			if (!dontChangeLastIndex)
 				this._lastSelectedIndex = index;
 			
-			return;
+			if(button.selected)
+				updateSelectionController(index);
 		}
 		
 		private function clearSelectionExcept(obj: GObject): void {
@@ -672,6 +700,26 @@ package fairygui {
 			this.setBoundsChangedFlag();
 			if (this._virtual)
 				this.setVirtualListChangedFlag(true);
+		}
+		
+		override public function handleControllerChanged(c:Controller):void
+		{
+			super.handleControllerChanged(c);
+			
+			if (_selectionController == c)
+				this.selectedIndex = c.selectedIndex;
+		}
+		
+		private function updateSelectionController(index:int):void
+		{
+			if (_selectionController != null && !_selectionController.changing
+				&& index < _selectionController.pageCount)
+			{
+				var c:Controller = _selectionController;
+				_selectionController = null;
+				c.selectedIndex = index;
+				_selectionController = c;
+			}
 		}
 		
 		public function adjustItemsSize(): void {
@@ -2120,6 +2168,18 @@ package fairygui {
 			str = xml.getAttribute("autoItemSize");
 			this._autoResizeItem = str != "false";
 			
+			str = xml.getAttribute("renderOrder");
+			if(str)
+			{
+				_childrenRenderOrder = ChildrenRenderOrder.parse(str);
+				if(_childrenRenderOrder==ChildrenRenderOrder.Arch)
+				{
+					str = xml.getAttribute("apex");
+					if(str)
+						_apexIndex = parseInt(str);
+				}
+			}
+			
 			var col: Array = xml.childNodes;
 			var length: int = col.length;
 			for (var i: int = 0; i < length; i++) {
@@ -2147,6 +2207,16 @@ package fairygui {
 						obj.name = str;
 				}
 			}
+		}
+		
+		override public function setup_afterAdd(xml:Object):void
+		{
+			super.setup_afterAdd(xml);
+			
+			var str:String;
+			str = xml.getAttribute("selectionController");
+			if(str)
+				_selectionController = parent.getController(str);
 		}
 	}
 }

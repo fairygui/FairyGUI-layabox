@@ -870,7 +870,7 @@ declare module fairygui {
         singleLine: boolean;
         stroke: number;
         strokeColor: string;
-        asPassword: boolean;
+        password: boolean;
         editable: boolean;
         maxChars: number;
         promptText: string;

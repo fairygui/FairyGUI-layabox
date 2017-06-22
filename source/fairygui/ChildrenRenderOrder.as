@@ -9,5 +9,20 @@ package fairygui
 		public function ChildrenRenderOrder()
 		{
 		}
+		
+		public static function parse(value:String):int
+		{
+			switch (value)
+			{
+				case "ascent":
+					return Ascent;
+				case "descent":
+					return Descent;
+				case "arch":
+					return Arch;
+				default:
+					return Ascent;
+			}
+		}
 	}
 }

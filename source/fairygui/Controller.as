@@ -14,6 +14,8 @@ package fairygui {
 		public var _parent: GComponent;
 		public var _autoRadioGroupDepth: Boolean;
 		
+		public var changing:Boolean = false;
+		
 		private static var _nextPageId:Number = 0;
 		
 		public function Controller() {
@@ -44,11 +46,15 @@ package fairygui {
 			if(this._selectedIndex != value) {
 				if(value > this._pageIds.length - 1)
 					throw "index out of bounds: " + value;
+				
+				this.changing = true; 
 				this._previousIndex = this._selectedIndex;
 				this._selectedIndex = value;
 				this._parent.applyController(this);
 				
 				this.event(Events.STATE_CHANGED);
+				
+				this.changing = false; 
 				
 				if(this._playingTransition) {
 					this._playingTransition.stop();
@@ -77,9 +83,11 @@ package fairygui {
 				if(value > this._pageIds.length - 1)
 					throw "index out of bounds: " + value;
 				
+				this.changing = true; 
 				this._previousIndex = this._selectedIndex;
 				this._selectedIndex = value;
 				this._parent.applyController(this);
+				this.changing = false;
 				
 				if(this._playingTransition) {
 					this._playingTransition.stop();

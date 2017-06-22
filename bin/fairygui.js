@@ -240,6 +240,19 @@
 	var ChildrenRenderOrder=(function(){
 		function ChildrenRenderOrder(){}
 		__class(ChildrenRenderOrder,'fairygui.ChildrenRenderOrder');
+		ChildrenRenderOrder.parse=function(value){
+			switch (value){
+				case "ascent":
+					return 0;
+				case "descent":
+					return 1;
+				case "arch":
+					return 2;
+				default :
+					return 0;
+				}
+		}
+
 		ChildrenRenderOrder.Ascent=0;
 		ChildrenRenderOrder.Descent=1;
 		ChildrenRenderOrder.Arch=2;
@@ -3048,6 +3061,7 @@
 			this._isHoldAreaDone=false;
 			this._aniFlag=0;
 			this._scrollBarVisible=false;
+			this._pageController=null;
 			this._hzScrollBar=null;
 			this._vtScrollBar=null;
 			this.isDragged=false;
@@ -3315,6 +3329,31 @@
 			this.posChanged(false);
 		}
 
+		__proto.handleControllerChanged=function(c){
+			if (this._pageController==c){
+				if (this._scrollType==/*fairygui.ScrollType.Horizontal*/0)
+					this.currentPageX=c.selectedIndex;
+				else
+				this.currentPageY=c.selectedIndex;
+			}
+		}
+
+		__proto.updatePageController=function(){
+			if (this._pageController !=null && !this._pageController.changing){
+				var index=0;
+				if (this._scrollType==/*fairygui.ScrollType.Horizontal*/0)
+					index=this.currentPageX;
+				else
+				index=this.currentPageY;
+				if (index < this._pageController.pageCount){
+					var c=this._pageController;
+					this._pageController=null;
+					c.selectedIndex=index;
+					this._pageController=c;
+				}
+			}
+		}
+
 		__proto.adjustMaskContainer=function(){
 			var mx=NaN,my=NaN;
 			if (this._displayOnLeft && this._vtScrollBar !=null)
@@ -3507,6 +3546,8 @@
 				this._vtScrollBar.scrollPerc=this._yPerc;
 			if (this._hzScrollBar !=null)
 				this._hzScrollBar.scrollPerc=this._xPerc;
+			if(this._pageMode)
+				this.updatePageController();
 		}
 
 		__proto.validateHolderPos=function(){
@@ -3652,6 +3693,8 @@
 				if(this._hzScrollBar)
 					this._hzScrollBar.scrollPerc=this._xPerc;
 			}
+			if(this._pageMode)
+				this.updatePageController();
 		}
 
 		__proto.syncPos=function(){
@@ -3663,6 +3706,8 @@
 				this._yPos=ToolSet.clamp(-this._container.y,0,this._yOverlap);
 				this._yPerc=this._yPos / this._yOverlap;
 			}
+			if(this._pageMode)
+				this.updatePageController();
 		}
 
 		__proto.syncScrollBar=function(end){
@@ -4123,17 +4168,33 @@
 		});
 
 		__getset(0,__proto,'currentPageX',function(){
-			return this._pageMode ? Math.floor(this.posX / this._pageSizeH):0;
+			if (!this._pageMode)
+				return 0;
+			var page=Math.floor(this._xPos / this._pageSizeH);
+			if (this._xPos-page *this._pageSizeH > this._pageSizeH *0.5)
+				page++;
+			return page;
 			},function(value){
 			if(this._pageMode && this._xOverlap>0)
 				this.setPosX(value *this._pageSizeH,false);
 		});
 
 		__getset(0,__proto,'currentPageY',function(){
-			return this._pageMode ? Math.floor(this.posY / this._pageSizeV):0;
+			if (!this._pageMode)
+				return 0;
+			var page=Math.floor(this._yPos / this._pageSizeV);
+			if (this._yPos-page *this._pageSizeV > this._pageSizeV *0.5)
+				page++;
+			return page;
 			},function(value){
 			if(this._pageMode && this._yOverlap>0)
 				this.setPosY(value *this._pageSizeV,false);
+		});
+
+		__getset(0,__proto,'pageController',function(){
+			return this._pageController;
+			},function(value){
+			this._pageController=value;
 		});
 
 		__getset(0,__proto,'scrollingPosX',function(){
@@ -7142,6 +7203,7 @@
 			this._playingTransition=null;
 			this._parent=null;
 			this._autoRadioGroupDepth=false;
+			this.changing=false;
 			Controller.__super.call(this);
 			this._pageIds=[];
 			this._pageNames=[];
@@ -7157,9 +7219,11 @@
 			if (this._selectedIndex !=value){
 				if(value > this._pageIds.length-1)
 					throw "index out of bounds: "+value;
+				this.changing=true;
 				this._previousIndex=this._selectedIndex;
 				this._selectedIndex=value;
 				this._parent.applyController(this);
+				this.changing=false;
 				if(this._playingTransition){
 					this._playingTransition.stop();
 					this._playingTransition=null;
@@ -7329,10 +7393,12 @@
 			if(this._selectedIndex !=value){
 				if(value > this._pageIds.length-1)
 					throw "index out of bounds: "+value;
+				this.changing=true;
 				this._previousIndex=this._selectedIndex;
 				this._selectedIndex=value;
 				this._parent.applyController(this);
 				this.event(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed");
+				this.changing=false;
 				if(this._playingTransition){
 					this._playingTransition.stop();
 					this._playingTransition=null;
@@ -7604,6 +7670,8 @@
 			this._margin=null;
 			this._trackBounds=false;
 			this._boundsChanged=false;
+			this._childrenRenderOrder=0;
+			this._apexIndex=0;
 			this._buildingDisplayList=false;
 			this._children=null;
 			this._controllers=null;
@@ -7611,8 +7679,6 @@
 			this._container=null;
 			this._scrollPane=null;
 			this._alignOffset=null;
-			this._childrenRenderOrder=0;
-			this._apexIndex=0;
 			GComponent.__super.call(this);
 			this._children=[];
 			this._controllers=[];
@@ -8461,7 +8527,13 @@
 		__proto.constructFromXML=function(xml){}
 		__proto.setup_afterAdd=function(xml){
 			_super.prototype.setup_afterAdd.call(this,xml);
-			var str=xml.getAttribute("controller");
+			var str;
+			if(this.scrollPane){
+				str=xml.getAttribute("pageController");
+				if(str)
+					this.scrollPane.pageController=this.parent.getController(str);
+			}
+			str=xml.getAttribute("controller");
 			if(str){
 				var arr=str.split(",");
 				for(var i=0;i<arr.length;i+=2){
@@ -11058,6 +11130,7 @@
 			this._itemsUpdated=false;
 			this._selectedIndex=0;
 			this._buttonController=null;
+			this._selectionController=null;
 			this._down=false;
 			this._over=false;
 			GComboBox.__super.call(this);
@@ -11075,11 +11148,28 @@
 				this._buttonController.selectedPage=val;
 		}
 
+		__proto.handleControllerChanged=function(c){
+			fairygui.GObject.prototype.handleControllerChanged.call(this,c);
+			if (this._selectionController==c)
+				this.selectedIndex=c.selectedIndex;
+		}
+
+		__proto.updateSelectionController=function(){
+			if (this._selectionController !=null && !this._selectionController.changing
+				&& this._selectedIndex < this._selectionController.pageCount){
+				var c=this._selectionController;
+				this._selectionController=null;
+				c.selectedIndex=this._selectedIndex;
+				this._selectionController=c;
+			}
+		}
+
 		__proto.dispose=function(){
 			if(this.dropdown){
 				this.dropdown.dispose();
 				this.dropdown=null;
 			}
+			this._selectionController=null;
 			_super.prototype.dispose.call(this);
 		}
 
@@ -11162,6 +11252,9 @@
 					else if(str=="auto")
 					this._popupDownward=null;
 				}
+				str=xml.getAttribute("selectionController");
+				if (str)
+					this._selectionController=this.parent.getController(str);
 			}
 		}
 
@@ -11286,6 +11379,7 @@
 				if (this._icons !=null)
 					this.icon=null;
 			}
+			this.updateSelectionController();
 		});
 
 		__getset(0,__proto,'icon',function(){
@@ -11305,6 +11399,12 @@
 			this._icons=value;
 			if (this._icons !=null && this._selectedIndex !=-1 && this._selectedIndex < this._icons.length)
 				this.icon=this._icons[this._selectedIndex];
+		});
+
+		__getset(0,__proto,'selectionController',function(){
+			return this._selectionController;
+			},function(value){
+			this._selectionController=value;
 		});
 
 		__getset(0,__proto,'visibleItemCount',function(){
@@ -11522,6 +11622,7 @@
 			this._selectionMode=0;
 			this._align=null;
 			this._verticalAlign=null;
+			this._selectionController=null;
 			this._lastSelectedIndex=0;
 			this._pool=null;
 			this._virtual=false;
@@ -11650,8 +11751,10 @@
 			if(index<0 || index >=this._children.length)
 				return;
 			var obj=this.getChildAt(index);
-			if (((obj instanceof fairygui.GButton ))&& !(obj).selected)
+			if (((obj instanceof fairygui.GButton ))&& !(obj).selected){
 				(obj).selected=true;
+				this.updateSelectionController(index);
+			}
 		}
 
 		__proto.removeSelection=function(index){
@@ -11678,11 +11781,16 @@
 		__proto.selectAll=function(){
 			this.checkVirtualList();
 			var cnt=this._children.length;
+			var last=-1;
 			for (var i=0;i < cnt;i++){
 				var obj=this._children[i];
-				if ((obj instanceof fairygui.GButton ))
+				if ((obj instanceof fairygui.GButton )){
 					(obj).selected=true;
+					last=i;
+				}
 			}
+			if(last!=-1)
+				this.updateSelectionController(last);
 		}
 
 		__proto.selectNone=function(){
@@ -11697,11 +11805,17 @@
 
 		__proto.selectReverse=function(){
 			var cnt=this._children.length;
+			var last=-1;
 			for (var i=0;i < cnt;i++){
 				var obj=this._children[i];
-				if ((obj instanceof fairygui.GButton ))
+				if ((obj instanceof fairygui.GButton )){
 					(obj).selected=!(obj).selected;
+					if((obj).selected)
+						last=i;
+				}
 			}
+			if(last!=-1)
+				this.updateSelectionController(last);
 		}
 
 		__proto.handleArrowKey=function(dir){
@@ -11886,7 +12000,8 @@
 			}
 			if (!dontChangeLastIndex)
 				this._lastSelectedIndex=index;
-			return;
+			if(button.selected)
+				this.updateSelectionController(index);
 		}
 
 		__proto.clearSelectionExcept=function(obj){
@@ -11969,6 +12084,22 @@
 			this.setBoundsChangedFlag();
 			if (this._virtual)
 				this.setVirtualListChangedFlag(true);
+		}
+
+		__proto.handleControllerChanged=function(c){
+			fairygui.GObject.prototype.handleControllerChanged.call(this,c);
+			if (this._selectionController==c)
+				this.selectedIndex=c.selectedIndex;
+		}
+
+		__proto.updateSelectionController=function(index){
+			if (this._selectionController !=null && !this._selectionController.changing
+				&& index < this._selectionController.pageCount){
+				var c=this._selectionController;
+				this._selectionController=null;
+				c.selectedIndex=index;
+				this._selectionController=c;
+			}
 		}
 
 		__proto.adjustItemsSize=function(){
@@ -13037,6 +13168,15 @@
 				this._defaultItem=str;
 			str=xml.getAttribute("autoItemSize");
 			this._autoResizeItem=str !="false";
+			str=xml.getAttribute("renderOrder");
+			if(str){
+				this._childrenRenderOrder=ChildrenRenderOrder.parse(str);
+				if(this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Arch*/2){
+					str=xml.getAttribute("apex");
+					if(str)
+						this._apexIndex=parseInt(str);
+				}
+			};
 			var col=xml.childNodes;
 			var length=col.length;
 			for (var i=0;i < length;i++){
@@ -13062,6 +13202,14 @@
 						obj.name=str;
 				}
 			}
+		}
+
+		__proto.setup_afterAdd=function(xml){
+			_super.prototype.setup_afterAdd.call(this,xml);
+			var str;
+			str=xml.getAttribute("selectionController");
+			if(str)
+				this._selectionController=this.parent.getController(str);
 		}
 
 		__getset(0,__proto,'layout',function(){
@@ -13172,6 +13320,12 @@
 			return this._selectionMode;
 			},function(value){
 			this._selectionMode=value;
+		});
+
+		__getset(0,__proto,'selectionController',function(){
+			return this._selectionController;
+			},function(value){
+			this._selectionController=value;
 		});
 
 		__getset(0,__proto,'itemPool',function(){
