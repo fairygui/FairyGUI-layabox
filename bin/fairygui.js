@@ -83,7 +83,7 @@
 			this._itemList.length=0;
 			if(this._objectPool.length>0){
 				var obj;
-				for(var $each_obj in this._objectPool){
+				/*for each*/for(var $each_obj in this._objectPool){
 					obj=this._objectPool[$each_obj];
 					obj.dispose();
 				}
@@ -105,7 +105,7 @@
 			var cnt=item.displayList.length;
 			for (var i=0;i < cnt;i++){
 				var di=item.displayList[i];
-				if (di.packageItem !=null && di.packageItem.type==4)
+				if (di.packageItem !=null && di.packageItem.type==/*fairygui.PackageItemType.Component*/4)
 					this.collectComponentChildren(di.packageItem);
 				else if (di.type=="list"){
 					var defaultItem=null;
@@ -126,7 +126,7 @@
 						};
 						var pi=UIPackage.getItemByURL(url);
 						if (pi){
-							if (pi.type==4)
+							if (pi.type==/*fairygui.PackageItemType.Component*/4)
 								this.collectComponentChildren(pi);
 							this._itemList.push(new DisplayListItem(pi,null));
 							di.listItemCount++;
@@ -152,7 +152,7 @@
 					obj.packageItem=di.packageItem;
 					this._objectPool.push(obj);
 					UIPackage._constructing++;
-					if (di.packageItem.type==4){
+					if (di.packageItem.type==/*fairygui.PackageItemType.Component*/4){
 						poolStart=this._objectPool.length-di.packageItem.displayList.length-1;
 						(obj).constructFromResource2(this._objectPool,poolStart);
 						this._objectPool.splice(poolStart,di.packageItem.displayList.length);
@@ -240,6 +240,19 @@
 	var ChildrenRenderOrder=(function(){
 		function ChildrenRenderOrder(){}
 		__class(ChildrenRenderOrder,'fairygui.ChildrenRenderOrder');
+		ChildrenRenderOrder.parse=function(value){
+			switch (value){
+				case "ascent":
+					return 0;
+				case "descent":
+					return 1;
+				case "arch":
+					return 2;
+				default :
+					return 0;
+				}
+		}
+
 		ChildrenRenderOrder.Ascent=0;
 		ChildrenRenderOrder.Descent=1;
 		ChildrenRenderOrder.Arch=2;
@@ -418,7 +431,7 @@
 			this._agent.align="center";
 			this._agent.verticalAlign="middle";
 			this._agent.sortingOrder=1000000;
-			this._agent.on("fui_drag_end",this,this.__dragEnd);
+			this._agent.on(/*fairygui.Events.DRAG_END*/"fui_drag_end",this,this.__dragEnd);
 		}
 
 		__class(DragDropManager,'fairygui.DragDropManager');
@@ -451,9 +464,9 @@
 			this._sourceData=null;
 			var obj=GObject.cast(evt.target);
 			while(obj !=null){
-				if(obj.displayObject.hasListener("fui_drop")){
+				if(obj.displayObject.hasListener(/*fairygui.Events.DROP*/"fui_drop")){
 					obj.requestFocus();
-					obj.displayObject.event("fui_drop",[sourceData,Events.createEvent("fui_drop",obj.displayObject,evt)]);
+					obj.displayObject.event(/*fairygui.Events.DROP*/"fui_drop",[sourceData,Events.createEvent(/*fairygui.Events.DROP*/"fui_drop",obj.displayObject,evt)]);
 					return;
 				}
 				obj=obj.parent;
@@ -529,13 +542,13 @@
 		FlipType.parse=function(value){
 			switch (value){
 				case "hz":
-					return 1;
+					return /*CLASS CONST:fairygui.FlipType.Horizontal*/1;
 				case "vt":
-					return 2;
+					return /*CLASS CONST:fairygui.FlipType.Vertical*/2;
 				case "both":
-					return 3;
+					return /*CLASS CONST:fairygui.FlipType.Both*/3;
 				default :
-					return 0;
+					return /*CLASS CONST:fairygui.FlipType.None*/0;
 				}
 		}
 
@@ -618,7 +631,7 @@
 				this.updateGear(1);
 				if(this._parent && !((this._parent instanceof fairygui.GList ))){
 					this._parent.setBoundsChangedFlag();
-					this.displayObject.event("fui_xy_changed");
+					this.displayObject.event(/*fairygui.Events.XY_CHANGED*/"fui_xy_changed");
 				}
 				if (GObject.draggingObject==this && !GObject.sUpdateInDragging)
 					this.localToGlobalRect(0,0,this.width,this.height,GObject.sGlobalRect);
@@ -634,8 +647,8 @@
 			r=this.root;
 			this.setXY((r.width-this.width)/ 2,(r.height-this.height)/ 2);
 			if(restraint){
-				this.addRelation(r,3);
-				this.addRelation(r,10);
+				this.addRelation(r,/*fairygui.RelationType.Center_Center*/3);
+				this.addRelation(r,/*fairygui.RelationType.Middle_Middle*/10);
 			}
 		}
 
@@ -667,7 +680,7 @@
 					this._relations.onOwnerSizeChanged(dWidth,dHeight);
 					this._parent.setBoundsChangedFlag();
 				}
-				this.displayObject.event("fui_size_changed");
+				this.displayObject.event(/*fairygui.Events.SIZE_CHANGED*/"fui_size_changed");
 			}
 		}
 
@@ -861,15 +874,15 @@
 		}
 
 		__proto.onClick=function(thisObj,listener,args){
-			this.on("click",thisObj,listener,args);
+			this.on(/*laya.events.Event.CLICK*/"click",thisObj,listener,args);
 		}
 
 		__proto.offClick=function(thisObj,listener){
-			this.off("click",thisObj,listener);
+			this.off(/*laya.events.Event.CLICK*/"click",thisObj,listener);
 		}
 
 		__proto.hasClickListener=function(){
-			return this._displayObject.hasListener("click");
+			return this._displayObject.hasListener(/*laya.events.Event.CLICK*/"click");
 		}
 
 		__proto.on=function(type,thisObject,listener,args){
@@ -1017,7 +1030,7 @@
 		__proto.handleGrayedChanged=function(){
 			if(this._displayObject){
 				if(this._grayed)
-					this._displayObject.filters=[ColorFilter.GRAY];
+					this._displayObject.filters=[GObject.grayFilter];
 				else
 				this._displayObject.filters=null;
 			}
@@ -1109,9 +1122,9 @@
 
 		__proto.initDrag=function(){
 			if (this._draggable)
-				this.on("mousedown",this,this.__begin);
+				this.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__begin);
 			else
-			this.off("mousedown",this,this.__begin);
+			this.off(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__begin);
 		}
 
 		__proto.dragBegin=function(){
@@ -1121,22 +1134,22 @@
 			fairygui.GObject.sGlobalDragStart.y=Laya.stage.mouseY;
 			this.localToGlobalRect(0,0,this.width,this.height,fairygui.GObject.sGlobalRect);
 			fairygui.GObject.draggingObject=this;
-			Laya.stage.on("mousemove",this,this.__moving2);
-			Laya.stage.on("mouseup",this,this.__end2);
+			Laya.stage.on(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__moving2);
+			Laya.stage.on(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__end2);
 		}
 
 		__proto.dragEnd=function(){
 			if (fairygui.GObject.draggingObject==this){
-				Laya.stage.off("mousemove",this,this.__moving2);
-				Laya.stage.off("mouseup",this,this.__end2);
+				Laya.stage.off(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__moving2);
+				Laya.stage.off(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__end2);
 				fairygui.GObject.draggingObject=null;
 			}
 			fairygui.GObject.sDraggingQuery=false;
 		}
 
 		__proto.reset=function(){
-			Laya.stage.off("mousemove",this,this.__moving);
-			Laya.stage.off("mouseup",this,this.__end);
+			Laya.stage.off(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__moving);
+			Laya.stage.off(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__end);
 		}
 
 		__proto.__begin=function(){
@@ -1144,8 +1157,8 @@
 				this._touchDownPoint=new Point();
 			this._touchDownPoint.x=Laya.stage.mouseX;
 			this._touchDownPoint.y=Laya.stage.mouseY;
-			Laya.stage.on("mousemove",this,this.__moving);
-			Laya.stage.on("mouseup",this,this.__end);
+			Laya.stage.on(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__moving);
+			Laya.stage.on(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__end);
 		}
 
 		__proto.__end=function(){
@@ -1160,7 +1173,7 @@
 			return;
 			this.reset();
 			fairygui.GObject.sDraggingQuery=true;
-			Events.dispatch("fui_drag_start",this._displayObject,evt);
+			Events.dispatch(/*fairygui.Events.DRAG_START*/"fui_drag_start",this._displayObject,evt);
 			if (fairygui.GObject.sDraggingQuery)
 				this.dragBegin();
 		}
@@ -1190,13 +1203,13 @@
 			var pt=this.parent.globalToLocal(xx,yy,fairygui.GObject.sHelperPoint);
 			this.setXY(Math.round(pt.x),Math.round(pt.y));
 			GObject.sUpdateInDragging=false;
-			Events.dispatch("fui_drag_move",this._displayObject,evt);
+			Events.dispatch(/*fairygui.Events.DRAG_MOVE*/"fui_drag_move",this._displayObject,evt);
 		}
 
 		__proto.__end2=function(evt){
 			if (fairygui.GObject.draggingObject==this){
 				this.stopDrag();
-				Events.dispatch("fui_drag_end",this._displayObject,evt);
+				Events.dispatch(/*fairygui.Events.DRAG_END*/"fui_drag_end",this._displayObject,evt);
 			}
 		}
 
@@ -1437,7 +1450,8 @@
 		});
 
 		__getset(0,__proto,'finalVisible',function(){
-			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible);
+			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible)
+			&& !this._displayObject._$P["maskParent"];
 		});
 
 		__getset(0,__proto,'asGraph',function(){
@@ -1584,7 +1598,7 @@
 		GObject.sDraggingQuery=false;
 		GObject.sUpdateInDragging=false;
 		__static(GObject,
-		['GearXMLKeys',function(){return this.GearXMLKeys={
+		['grayFilter',function(){return this.grayFilter=new ColorFilter([0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0,0,0,1,0]);},'GearXMLKeys',function(){return this.GearXMLKeys={
 				"gearDisplay":0,
 				"gearXY":1,
 				"gearSize":2,
@@ -1647,11 +1661,13 @@
 				str=xml.getAttribute("pages");
 				if(str)
 					pages=str.split(",");
-				str=xml.getAttribute("values");
-				if(str)
-					values=str.split("|");
-				if(pages && values){
-					for(var i=0;i<values.length;i++)
+				if(pages){
+					str=xml.getAttribute("values");
+					if(str!=null)
+						values=str.split("|");
+					else
+					values=[];
+					for(var i=0;i<pages.length;i++)
 					this.addStatus(pages[i],values[i]);
 				}
 				str=xml.getAttribute("default");
@@ -2056,13 +2072,13 @@
 					throw "UIConfig.popupMenu not defined";
 			}
 			this._contentPane=UIPackage.createObjectFromURL(resourceURL).asCom;
-			this._contentPane.on("display",this,this.__addedToStage);
+			this._contentPane.on(/*laya.events.Event.DISPLAY*/"display",this,this.__addedToStage);
 			this._list=(this._contentPane.getChild("list"));
 			this._list.removeChildrenToPool();
-			this._list.addRelation(this._contentPane,14);
-			this._list.removeRelation(this._contentPane,15);
-			this._contentPane.addRelation(this._list,15);
-			this._list.on("fui_click_item",this,this.__clickItem);
+			this._list.addRelation(this._contentPane,/*fairygui.RelationType.Width*/14);
+			this._list.removeRelation(this._contentPane,/*fairygui.RelationType.Height*/15);
+			this._contentPane.addRelation(this._list,/*fairygui.RelationType.Height*/15);
+			this._list.on(/*fairygui.Events.CLICK_ITEM*/"fui_click_item",this,this.__clickItem);
 		}
 
 		__class(PopupMenu,'fairygui.PopupMenu');
@@ -2263,9 +2279,9 @@
 		__class(RelationItem,'fairygui.RelationItem');
 		var __proto=RelationItem.prototype;
 		__proto.add=function(relationType,usePercent){
-			if (relationType==24){
-				this.add(14,usePercent);
-				this.add(15,usePercent);
+			if (relationType==/*fairygui.RelationType.Size*/24){
+				this.add(/*fairygui.RelationType.Width*/14,usePercent);
+				this.add(/*fairygui.RelationType.Height*/15,usePercent);
 				return;
 			};
 			var length=this._defs.length;
@@ -2278,25 +2294,25 @@
 		}
 
 		__proto.internalAdd=function(relationType,usePercent){
-			if (relationType==24){
-				this.internalAdd(14,usePercent);
-				this.internalAdd(15,usePercent);
+			if (relationType==/*fairygui.RelationType.Size*/24){
+				this.internalAdd(/*fairygui.RelationType.Width*/14,usePercent);
+				this.internalAdd(/*fairygui.RelationType.Height*/15,usePercent);
 				return;
 			};
 			var info=new RelationDef();
 			info.percent=usePercent;
 			info.type=relationType;
 			this._defs.push(info);
-			if (usePercent || relationType==1 || relationType==3 || relationType==5
-				|| relationType==8 || relationType==10 || relationType==12)
+			if (usePercent || relationType==/*fairygui.RelationType.Left_Center*/1 || relationType==/*fairygui.RelationType.Center_Center*/3 || relationType==/*fairygui.RelationType.Right_Center*/5
+				|| relationType==/*fairygui.RelationType.Top_Middle*/8 || relationType==/*fairygui.RelationType.Middle_Middle*/10 || relationType==/*fairygui.RelationType.Bottom_Middle*/12)
 			this._owner.pixelSnapping=true;
 		}
 
 		__proto.remove=function(relationType){
 			(relationType===void 0)&& (relationType=0);
-			if (relationType==24){
-				this.remove(14);
-				this.remove(15);
+			if (relationType==/*fairygui.RelationType.Size*/24){
+				this.remove(/*fairygui.RelationType.Width*/14);
+				this.remove(/*fairygui.RelationType.Height*/15);
 				return;
 			};
 			var dc=this._defs.length;
@@ -2334,20 +2350,20 @@
 			for (var i=0;i < length;i++){
 				var info=this._defs[i];
 				switch (info.type){
-					case 3:
-					case 5:
+					case /*fairygui.RelationType.Center_Center*/3:
+					case /*fairygui.RelationType.Right_Center*/5:
 						this._owner.x-=dWidth / 2;
 						break ;
-					case 4:
-					case 6:
+					case /*fairygui.RelationType.Right_Left*/4:
+					case /*fairygui.RelationType.Right_Right*/6:
 						this._owner.x-=dWidth;
 						break ;
-					case 10:
-					case 12:
+					case /*fairygui.RelationType.Middle_Middle*/10:
+					case /*fairygui.RelationType.Bottom_Middle*/12:
 						this._owner.y-=dHeight / 2;
 						break ;
-					case 11:
-					case 13:
+					case /*fairygui.RelationType.Bottom_Top*/11:
+					case /*fairygui.RelationType.Bottom_Bottom*/13:
 						this._owner.y-=dHeight;
 						break ;
 					}
@@ -2370,45 +2386,45 @@
 		__proto.applyOnXYChanged=function(info,dx,dy){
 			var tmp=NaN;
 			switch (info.type){
-				case 0:
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 6:
+				case /*fairygui.RelationType.Left_Left*/0:
+				case /*fairygui.RelationType.Left_Center*/1:
+				case /*fairygui.RelationType.Left_Right*/2:
+				case /*fairygui.RelationType.Center_Center*/3:
+				case /*fairygui.RelationType.Right_Left*/4:
+				case /*fairygui.RelationType.Right_Center*/5:
+				case /*fairygui.RelationType.Right_Right*/6:
 					this._owner.x+=dx;
 					break ;
-				case 7:
-				case 8:
-				case 9:
-				case 10:
-				case 11:
-				case 12:
-				case 13:
+				case /*fairygui.RelationType.Top_Top*/7:
+				case /*fairygui.RelationType.Top_Middle*/8:
+				case /*fairygui.RelationType.Top_Bottom*/9:
+				case /*fairygui.RelationType.Middle_Middle*/10:
+				case /*fairygui.RelationType.Bottom_Top*/11:
+				case /*fairygui.RelationType.Bottom_Middle*/12:
+				case /*fairygui.RelationType.Bottom_Bottom*/13:
 					this._owner.y+=dy;
 					break ;
-				case 14:
-				case 15:
+				case /*fairygui.RelationType.Width*/14:
+				case /*fairygui.RelationType.Height*/15:
 					break ;
-				case 16:
-				case 17:
+				case /*fairygui.RelationType.LeftExt_Left*/16:
+				case /*fairygui.RelationType.LeftExt_Right*/17:
 					tmp=this._owner.x;
 					this._owner.x+=dx;
 					this._owner.width=this._owner._rawWidth-(this._owner.x-tmp);
 					break ;
-				case 18:
-				case 19:
+				case /*fairygui.RelationType.RightExt_Left*/18:
+				case /*fairygui.RelationType.RightExt_Right*/19:
 					this._owner.width=this._owner._rawWidth+dx;
 					break ;
-				case 20:
-				case 21:
+				case /*fairygui.RelationType.TopExt_Top*/20:
+				case /*fairygui.RelationType.TopExt_Bottom*/21:
 					tmp=this._owner.y;
 					this._owner.y+=dy;
 					this._owner.height=this._owner._rawHeight-(this._owner.y-tmp);
 					break ;
-				case 22:
-				case 23:
+				case /*fairygui.RelationType.BottomExt_Top*/22:
+				case /*fairygui.RelationType.BottomExt_Bottom*/23:
 					this._owner.height=this._owner._rawHeight+dy;
 					break ;
 				}
@@ -2426,7 +2442,7 @@
 			};
 			var v=NaN,tmp=NaN;
 			switch (info.type){
-				case 0:
+				case /*fairygui.RelationType.Left_Left*/0:
 					if(info.percent && this._target==this._owner.parent){
 						v=this._owner.x-targetX;
 						if (info.percent)
@@ -2434,43 +2450,43 @@
 						this._owner.x=targetX+v;
 					}
 					break ;
-				case 1:
+				case /*fairygui.RelationType.Left_Center*/1:
 					v=this._owner.x-(targetX+this._targetWidth / 2);
 					if (info.percent)
 						v=v / this._targetWidth *this._target._rawWidth;
 					this._owner.x=targetX+this._target._rawWidth / 2+v;
 					break ;
-				case 2:
+				case /*fairygui.RelationType.Left_Right*/2:
 					v=this._owner.x-(targetX+this._targetWidth);
 					if (info.percent)
 						v=v / this._targetWidth *this._target._rawWidth;
 					this._owner.x=targetX+this._target._rawWidth+v;
 					break ;
-				case 3:
+				case /*fairygui.RelationType.Center_Center*/3:
 					v=this._owner.x+this._owner._rawWidth / 2-(targetX+this._targetWidth / 2);
 					if (info.percent)
 						v=v / this._targetWidth *this._target._rawWidth;
 					this._owner.x=targetX+this._target._rawWidth / 2+v-this._owner._rawWidth / 2;
 					break ;
-				case 4:
+				case /*fairygui.RelationType.Right_Left*/4:
 					v=this._owner.x+this._owner._rawWidth-targetX;
 					if (info.percent)
 						v=v / this._targetWidth *this._target._rawWidth;
 					this._owner.x=targetX+v-this._owner._rawWidth;
 					break ;
-				case 5:
+				case /*fairygui.RelationType.Right_Center*/5:
 					v=this._owner.x+this._owner._rawWidth-(targetX+this._targetWidth / 2);
 					if (info.percent)
 						v=v / this._targetWidth *this._target._rawWidth;
 					this._owner.x=targetX+this._target._rawWidth / 2+v-this._owner._rawWidth;
 					break ;
-				case 6:
+				case /*fairygui.RelationType.Right_Right*/6:
 					v=this._owner.x+this._owner._rawWidth-(targetX+this._targetWidth);
 					if (info.percent)
 						v=v / this._targetWidth *this._target._rawWidth;
 					this._owner.x=targetX+this._target._rawWidth+v-this._owner._rawWidth;
 					break ;
-				case 7:
+				case /*fairygui.RelationType.Top_Top*/7:
 					if(info.percent && this._target==this._owner.parent){
 						v=this._owner.y-targetY;
 						if (info.percent)
@@ -2478,43 +2494,43 @@
 						this._owner.y=targetY+v;
 					}
 					break ;
-				case 8:
+				case /*fairygui.RelationType.Top_Middle*/8:
 					v=this._owner.y-(targetY+this._targetHeight / 2);
 					if (info.percent)
 						v=v / this._targetHeight *this._target._rawHeight;
 					this._owner.y=targetY+this._target._rawHeight / 2+v;
 					break ;
-				case 9:
+				case /*fairygui.RelationType.Top_Bottom*/9:
 					v=this._owner.y-(targetY+this._targetHeight);
 					if (info.percent)
 						v=v / this._targetHeight *this._target._rawHeight;
 					this._owner.y=targetY+this._target._rawHeight+v;
 					break ;
-				case 10:
+				case /*fairygui.RelationType.Middle_Middle*/10:
 					v=this._owner.y+this._owner._rawHeight / 2-(targetY+this._targetHeight / 2);
 					if (info.percent)
 						v=v / this._targetHeight *this._target._rawHeight;
 					this._owner.y=targetY+this._target._rawHeight / 2+v-this._owner._rawHeight / 2;
 					break ;
-				case 11:
+				case /*fairygui.RelationType.Bottom_Top*/11:
 					v=this._owner.y+this._owner._rawHeight-targetY;
 					if (info.percent)
 						v=v / this._targetHeight *this._target._rawHeight;
 					this._owner.y=targetY+v-this._owner._rawHeight;
 					break ;
-				case 12:
+				case /*fairygui.RelationType.Bottom_Middle*/12:
 					v=this._owner.y+this._owner._rawHeight-(targetY+this._targetHeight / 2);
 					if (info.percent)
 						v=v / this._targetHeight *this._target._rawHeight;
 					this._owner.y=targetY+this._target._rawHeight / 2+v-this._owner._rawHeight;
 					break ;
-				case 13:
+				case /*fairygui.RelationType.Bottom_Bottom*/13:
 					v=this._owner.y+this._owner._rawHeight-(targetY+this._targetHeight);
 					if (info.percent)
 						v=v / this._targetHeight *this._target._rawHeight;
 					this._owner.y=targetY+this._target._rawHeight+v-this._owner._rawHeight;
 					break ;
-				case 14:
+				case /*fairygui.RelationType.Width*/14:
 					if(this._owner._underConstruct && this._owner==this._target.parent)
 						v=this._owner.sourceWidth-this._target._initWidth;
 					else
@@ -2526,7 +2542,7 @@
 					else
 					this._owner.width=this._target._rawWidth+v;
 					break ;
-				case 15:
+				case /*fairygui.RelationType.Height*/15:
 					if(this._owner._underConstruct && this._owner==this._target.parent)
 						v=this._owner.sourceHeight-this._target._initHeight;
 					else
@@ -2538,9 +2554,9 @@
 					else
 					this._owner.height=this._target._rawHeight+v;
 					break ;
-				case 16:
+				case /*fairygui.RelationType.LeftExt_Left*/16:
 					break ;
-				case 17:
+				case /*fairygui.RelationType.LeftExt_Right*/17:
 					v=this._owner.x-(targetX+this._targetWidth);
 					if (info.percent)
 						v=v / this._targetWidth *this._target._rawWidth;
@@ -2548,9 +2564,9 @@
 					this._owner.x=targetX+this._target._rawWidth+v;
 					this._owner.width=this._owner._rawWidth-(this._owner.x-tmp);
 					break ;
-				case 18:
+				case /*fairygui.RelationType.RightExt_Left*/18:
 					break ;
-				case 19:
+				case /*fairygui.RelationType.RightExt_Right*/19:
 					if(this._owner._underConstruct && this._owner==this._target.parent)
 						v=this._owner.sourceWidth-(targetX+this._target._initWidth);
 					else
@@ -2564,9 +2580,9 @@
 					else
 					this._owner.width=targetX+this._target._rawWidth+v;
 					break ;
-				case 20:
+				case /*fairygui.RelationType.TopExt_Top*/20:
 					break ;
-				case 21:
+				case /*fairygui.RelationType.TopExt_Bottom*/21:
 					v=this._owner.y-(targetY+this._targetHeight);
 					if (info.percent)
 						v=v / this._targetHeight *this._target._rawHeight;
@@ -2574,9 +2590,9 @@
 					this._owner.y=targetY+this._target._rawHeight+v;
 					this._owner.height=this._owner._rawHeight-(this._owner.y-tmp);
 					break ;
-				case 22:
+				case /*fairygui.RelationType.BottomExt_Top*/22:
 					break ;
-				case 23:
+				case /*fairygui.RelationType.BottomExt_Bottom*/23:
 					if(this._owner._underConstruct && this._owner==this._target.parent)
 						v=this._owner.sourceHeight-(targetY+this._target._initHeight);
 					else
@@ -2595,9 +2611,9 @@
 
 		__proto.addRefTarget=function(target){
 			if (target !=this._owner.parent)
-				target.on("fui_xy_changed",this,this.__targetXYChanged);
-			target.on("fui_size_changed",this,this.__targetSizeChanged);
-			target.on("fui_size_delay_change",this,this.__targetSizeWillChange);
+				target.on(/*fairygui.Events.XY_CHANGED*/"fui_xy_changed",this,this.__targetXYChanged);
+			target.on(/*fairygui.Events.SIZE_CHANGED*/"fui_size_changed",this,this.__targetSizeChanged);
+			target.on(/*fairygui.Events.SIZE_DELAY_CHANGE*/"fui_size_delay_change",this,this.__targetSizeWillChange);
 			this._targetX=this._target.x;
 			this._targetY=this._target.y;
 			this._targetWidth=this._target._rawWidth;
@@ -2605,9 +2621,9 @@
 		}
 
 		__proto.releaseRefTarget=function(target){
-			target.off("fui_xy_changed",this,this.__targetXYChanged);
-			target.off("fui_size_changed",this,this.__targetSizeChanged);
-			target.off("fui_size_delay_change",this,this.__targetSizeWillChange);
+			target.off(/*fairygui.Events.XY_CHANGED*/"fui_xy_changed",this,this.__targetXYChanged);
+			target.off(/*fairygui.Events.SIZE_CHANGED*/"fui_size_changed",this,this.__targetSizeChanged);
+			target.off(/*fairygui.Events.SIZE_DELAY_CHANGE*/"fui_size_delay_change",this,this.__targetSizeWillChange);
 		}
 
 		__proto.__targetXYChanged=function(){
@@ -3045,6 +3061,7 @@
 			this._isHoldAreaDone=false;
 			this._aniFlag=0;
 			this._scrollBarVisible=false;
+			this._pageController=null;
 			this._hzScrollBar=null;
 			this._vtScrollBar=null;
 			this.isDragged=false;
@@ -3093,10 +3110,10 @@
 			this._scrollBarVisible=true;
 			this._mouseWheelEnabled=true;
 			this._holdAreaPoint=new Point();
-			if(scrollBarDisplay==0)
+			if(scrollBarDisplay==/*fairygui.ScrollBarDisplayType.Default*/0)
 				scrollBarDisplay=UIConfig1.defaultScrollBarDisplay;
-			if(scrollBarDisplay !=3){
-				if(this._scrollType==2 || this._scrollType==1){
+			if(scrollBarDisplay !=/*fairygui.ScrollBarDisplayType.Hidden*/3){
+				if(this._scrollType==/*fairygui.ScrollType.Both*/2 || this._scrollType==/*fairygui.ScrollType.Vertical*/1){
 					var res=vtScrollBarRes ? vtScrollBarRes :UIConfig1.verticalScrollBar;
 					if(res){
 						this._vtScrollBar=(UIPackage.createObjectFromURL(res));
@@ -3106,7 +3123,7 @@
 						this._owner.displayObject.addChild(this._vtScrollBar.displayObject);
 					}
 				}
-				if(this._scrollType==2 || this._scrollType==0){
+				if(this._scrollType==/*fairygui.ScrollType.Both*/2 || this._scrollType==/*fairygui.ScrollType.Horizontal*/0){
 					res=hzScrollBarRes ? hzScrollBarRes :UIConfig1.horizontalScrollBar;
 					if(res){
 						this._hzScrollBar=(UIPackage.createObjectFromURL(res));
@@ -3116,7 +3133,7 @@
 						this._owner.displayObject.addChild(this._hzScrollBar.displayObject);
 					}
 				}
-				this._scrollBarDisplayAuto=scrollBarDisplay==2;
+				this._scrollBarDisplayAuto=scrollBarDisplay==/*fairygui.ScrollBarDisplayType.Auto*/2;
 				if(this._scrollBarDisplayAuto){
 					this._scrollBarVisible=false;
 					if(this._vtScrollBar)
@@ -3128,8 +3145,8 @@
 			this._contentWidth=0;
 			this._contentHeight=0;
 			this.setSize(owner.width,owner.height);
-			this._owner.on("mousedown",this,this.__mouseDown);
-			this._owner.on("mousewheel",this,this.__mouseWheel);
+			this._owner.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__mouseDown);
+			this._owner.on(/*laya.events.Event.MOUSE_WHEEL*/"mousewheel",this,this.__mouseWheel);
 		}
 
 		__class(ScrollPane,'fairygui.ScrollPane');
@@ -3297,9 +3314,9 @@
 		}
 
 		__proto.cancelDragging=function(){
-			this._owner.displayObject.stage.off("mousemove",this,this.__mouseMove);
-			this._owner.displayObject.stage.off("mouseup",this,this.__mouseUp);
-			this._owner.displayObject.stage.off("click",this,this.__click);
+			this._owner.displayObject.stage.off(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__mouseMove);
+			this._owner.displayObject.stage.off(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__mouseUp);
+			this._owner.displayObject.stage.off(/*laya.events.Event.CLICK*/"click",this,this.__click);
 			if (ScrollPane.draggingPane==this)
 				ScrollPane.draggingPane=null;
 			ScrollPane._gestureFlag=0;
@@ -3310,6 +3327,31 @@
 		__proto.onOwnerSizeChanged=function(){
 			this.setSize(this._owner.width,this._owner.height);
 			this.posChanged(false);
+		}
+
+		__proto.handleControllerChanged=function(c){
+			if (this._pageController==c){
+				if (this._scrollType==/*fairygui.ScrollType.Horizontal*/0)
+					this.currentPageX=c.selectedIndex;
+				else
+				this.currentPageY=c.selectedIndex;
+			}
+		}
+
+		__proto.updatePageController=function(){
+			if (this._pageController !=null && !this._pageController.changing){
+				var index=0;
+				if (this._scrollType==/*fairygui.ScrollType.Horizontal*/0)
+					index=this.currentPageX;
+				else
+				index=this.currentPageY;
+				if (index < this._pageController.pageCount){
+					var c=this._pageController;
+					this._pageController=null;
+					c.selectedIndex=index;
+					this._pageController=c;
+				}
+			}
 		}
 
 		__proto.adjustMaskContainer=function(){
@@ -3475,11 +3517,11 @@
 				rect.height=this._viewHeight;
 				this._maskContainer.scrollRect=rect;
 			}
-			if (this._scrollType==0 || this._scrollType==2)
+			if (this._scrollType==/*fairygui.ScrollType.Horizontal*/0 || this._scrollType==/*fairygui.ScrollType.Both*/2)
 				this._xOverlap=Math.ceil(Math.max(0,this._contentWidth-this._viewWidth));
 			else
 			this._xOverlap=0;
-			if (this._scrollType==1 || this._scrollType==2)
+			if (this._scrollType==/*fairygui.ScrollType.Vertical*/1 || this._scrollType==/*fairygui.ScrollType.Both*/2)
 				this._yOverlap=Math.ceil(Math.max(0,this._contentHeight-this._viewHeight));
 			else
 			this._yOverlap=0;
@@ -3504,6 +3546,8 @@
 				this._vtScrollBar.scrollPerc=this._yPerc;
 			if (this._hzScrollBar !=null)
 				this._hzScrollBar.scrollPerc=this._xPerc;
+			if(this._pageMode)
+				this.updatePageController();
 		}
 
 		__proto.validateHolderPos=function(){
@@ -3536,7 +3580,7 @@
 				this._tweening=0;
 				this.validateHolderPos();
 				this.syncScrollBar(true);
-				Events.dispatch("fui_scroll_end",this._owner.displayObject);
+				Events.dispatch(/*fairygui.Events.SCROLL_END*/"fui_scroll_end",this._owner.displayObject);
 			}
 		}
 
@@ -3593,7 +3637,7 @@
 				}
 			}
 			this.refresh2();
-			Events.dispatch("fui_scroll",this._owner.displayObject);
+			Events.dispatch(/*fairygui.Events.SCROLL*/"fui_scroll",this._owner.displayObject);
 			if(this._needRefresh){
 				this._needRefresh=false;
 				Laya.timer.clear(this,this.refresh);
@@ -3649,6 +3693,8 @@
 				if(this._hzScrollBar)
 					this._hzScrollBar.scrollPerc=this._xPerc;
 			}
+			if(this._pageMode)
+				this.updatePageController();
 		}
 
 		__proto.syncPos=function(){
@@ -3660,6 +3706,8 @@
 				this._yPos=ToolSet.clamp(-this._container.y,0,this._yOverlap);
 				this._yPerc=this._yPos / this._yOverlap;
 			}
+			if(this._pageMode)
+				this.updatePageController();
 		}
 
 		__proto.syncScrollBar=function(end){
@@ -3704,9 +3752,9 @@
 			this._holdAreaPoint.y=fairygui.ScrollPane.sHelperPoint.y;
 			this._isHoldAreaDone=false;
 			this.isDragged=false;
-			this._owner.displayObject.stage.on("mousemove",this,this.__mouseMove);
-			this._owner.displayObject.stage.on("mouseup",this,this.__mouseUp);
-			this._owner.displayObject.stage.on("click",this,this.__click);
+			this._owner.displayObject.stage.on(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__mouseMove);
+			this._owner.displayObject.stage.on(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__mouseUp);
+			this._owner.displayObject.stage.on(/*laya.events.Event.CLICK*/"click",this,this.__click);
 		}
 
 		__proto.__mouseMove=function(){
@@ -3718,7 +3766,7 @@
 			var pt=this._owner.globalToLocal(Laya.stage.mouseX,Laya.stage.mouseY,fairygui.ScrollPane.sHelperPoint);
 			var diff=NaN,diff2=NaN;
 			var sv=false,sh=false,st=false;
-			if (this._scrollType==1){
+			if (this._scrollType==/*fairygui.ScrollType.Vertical*/1){
 				if (!this._isHoldAreaDone){
 					ScrollPane._gestureFlag |=1;
 					diff=Math.abs(this._holdAreaPoint.y-this._maskContainer.mouseY);
@@ -3732,7 +3780,7 @@
 				}
 				sv=true;
 			}
-			else if (this._scrollType==0){
+			else if (this._scrollType==/*fairygui.ScrollType.Horizontal*/0){
 				if (!this._isHoldAreaDone){
 					ScrollPane._gestureFlag |=2;
 					diff=Math.abs(this._holdAreaPoint.x-this._maskContainer.mouseX);
@@ -3814,13 +3862,13 @@
 			this.isDragged=true;
 			this.syncPos();
 			this.syncScrollBar();
-			Events.dispatch("fui_scroll",this._owner.displayObject);
+			Events.dispatch(/*fairygui.Events.SCROLL*/"fui_scroll",this._owner.displayObject);
 		}
 
 		__proto.__mouseUp=function(){
-			this._owner.displayObject.stage.off("mousemove",this,this.__mouseMove);
-			this._owner.displayObject.stage.off("mouseup",this,this.__mouseUp);
-			this._owner.displayObject.stage.off("click",this,this.__click);
+			this._owner.displayObject.stage.off(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__mouseMove);
+			this._owner.displayObject.stage.off(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__mouseUp);
+			this._owner.displayObject.stage.off(/*laya.events.Event.CLICK*/"click",this,this.__click);
 			if (!this._touchEffect){
 				this.isDragged=false;
 				return;
@@ -3849,7 +3897,7 @@
 			var delta=0;
 			var fireRelease=0;
 			var testPageSize=NaN;
-			if(this._scrollType==2 || this._scrollType==0){
+			if(this._scrollType==/*fairygui.ScrollType.Both*/2 || this._scrollType==/*fairygui.ScrollType.Horizontal*/0){
 				if (this._container.x > UIConfig1.touchDragSensitivity)
 					fireRelease=1;
 				else if (this._container.x <-this._xOverlap-UIConfig1.touchDragSensitivity)
@@ -3877,7 +3925,7 @@
 			}
 			else
 			change1.x=change2.x=0;
-			if(this._scrollType==2 || this._scrollType==1){
+			if(this._scrollType==/*fairygui.ScrollType.Both*/2 || this._scrollType==/*fairygui.ScrollType.Vertical*/1){
 				if (this._container.y > UIConfig1.touchDragSensitivity)
 					fireRelease=1;
 				else if (this._container.y <-this._yOverlap-UIConfig1.touchDragSensitivity)
@@ -3946,9 +3994,9 @@
 			Handler.create(this,this.__tweenComplete2));
 			this._tweener.update=Handler.create(this,this.__tweenUpdate2,null,false);
 			if (fireRelease==1)
-				Events.dispatch("fui_pull_down_release",this._owner.displayObject);
+				Events.dispatch(/*fairygui.Events.PULL_DOWN_RELEASE*/"fui_pull_down_release",this._owner.displayObject);
 			else if (fireRelease==2)
-			Events.dispatch("fui_pull_up_release",this._owner.displayObject);
+			Events.dispatch(/*fairygui.Events.PULL_UP_RELEASE*/"fui_pull_up_release",this._owner.displayObject);
 		}
 
 		__proto.__click=function(){
@@ -4001,7 +4049,7 @@
 
 		__proto.__tweenUpdate=function(){
 			this.syncScrollBar();
-			Events.dispatch("fui_scroll",this._owner.displayObject);
+			Events.dispatch(/*fairygui.Events.SCROLL*/"fui_scroll",this._owner.displayObject);
 		}
 
 		__proto.__tweenComplete=function(){
@@ -4009,7 +4057,7 @@
 			this._tweening=0;
 			this.validateHolderPos();
 			this.syncScrollBar(true);
-			Events.dispatch("fui_scroll",this._owner.displayObject);
+			Events.dispatch(/*fairygui.Events.SCROLL*/"fui_scroll",this._owner.displayObject);
 		}
 
 		__proto.__tweenUpdate2=function(){
@@ -4019,7 +4067,7 @@
 			+this._tweenHelper.change2.y *this._tweenHelper.value *this._tweenHelper.value));
 			this.syncPos();
 			this.syncScrollBar();
-			Events.dispatch("fui_scroll",this._owner.displayObject);
+			Events.dispatch(/*fairygui.Events.SCROLL*/"fui_scroll",this._owner.displayObject);
 		}
 
 		__proto.__tweenComplete2=function(){
@@ -4028,8 +4076,8 @@
 			this.validateHolderPos();
 			this.syncPos();
 			this.syncScrollBar(true);
-			Events.dispatch("fui_scroll",this._owner.displayObject);
-			Events.dispatch("fui_scroll_end",this._owner.displayObject);
+			Events.dispatch(/*fairygui.Events.SCROLL*/"fui_scroll",this._owner.displayObject);
+			Events.dispatch(/*fairygui.Events.SCROLL_END*/"fui_scroll_end",this._owner.displayObject);
 		}
 
 		__getset(0,__proto,'viewWidth',function(){
@@ -4120,17 +4168,33 @@
 		});
 
 		__getset(0,__proto,'currentPageX',function(){
-			return this._pageMode ? Math.floor(this.posX / this._pageSizeH):0;
+			if (!this._pageMode)
+				return 0;
+			var page=Math.floor(this._xPos / this._pageSizeH);
+			if (this._xPos-page *this._pageSizeH > this._pageSizeH *0.5)
+				page++;
+			return page;
 			},function(value){
 			if(this._pageMode && this._xOverlap>0)
 				this.setPosX(value *this._pageSizeH,false);
 		});
 
 		__getset(0,__proto,'currentPageY',function(){
-			return this._pageMode ? Math.floor(this.posY / this._pageSizeV):0;
+			if (!this._pageMode)
+				return 0;
+			var page=Math.floor(this._yPos / this._pageSizeV);
+			if (this._yPos-page *this._pageSizeV > this._pageSizeV *0.5)
+				page++;
+			return page;
 			},function(value){
 			if(this._pageMode && this._yOverlap>0)
 				this.setPosY(value *this._pageSizeV,false);
+		});
+
+		__getset(0,__proto,'pageController',function(){
+			return this._pageController;
+			},function(value){
+			this._pageController=value;
 		});
 
 		__getset(0,__proto,'scrollingPosX',function(){
@@ -4316,7 +4380,7 @@
 				item.target.releaseDisplayLock(item.displayLockToken);
 				item.displayLockToken=0;
 			}
-			if (item.type==12 && item.filterCreated)
+			if (item.type==/*TransitionActionType.ColorFilter*/12 && item.filterCreated)
 				item.target.filters=null;
 			if(item.completed)
 				return;
@@ -4324,12 +4388,12 @@
 				item.tweener.clear();
 				item.tweener=null;
 			}
-			if(item.type==10){
+			if(item.type==/*TransitionActionType.Transition*/10){
 				var trans=(item.target).getTransition(item.value.s);
 				if(trans !=null)
 					trans.stop(setToComplete,false);
 			}
-			else if(item.type==11){
+			else if(item.type==/*TransitionActionType.Shake*/11){
 				Laya.timer.clear(item,item.__shake);
 				item.target._gearLocked=true;
 				item.target.setXY(item.target.x-item.startValue.f1,item.target.y-item.startValue.f2);
@@ -4343,7 +4407,7 @@
 						else
 						this.applyValue(item,this._reversed?item.endValue:item.startValue);
 					}
-					else if(item.type !=9)
+					else if(item.type !=/*TransitionActionType.Sound*/9)
 					this.applyValue(item,item.value);
 				}
 			}
@@ -4362,12 +4426,12 @@
 					item.tweener.clear();
 					item.tweener=null;
 				}
-				if (item.type==10){
+				if (item.type==/*TransitionActionType.Transition*/10){
 					var trans=(item.target).getTransition(item.value.s);
 					if (trans !=null)
 						trans.dispose();
 				}
-				else if (item.type==11){
+				else if (item.type==/*TransitionActionType.Shake*/11){
 					Laya.timer.clear(item,item.__shake);
 				}
 			}
@@ -4393,49 +4457,49 @@
 				else
 				continue ;
 				switch(item.type){
-					case 0:
-					case 1:
-					case 3:
-					case 2:
-					case 13:
+					case /*TransitionActionType.XY*/0:
+					case /*TransitionActionType.Size*/1:
+					case /*TransitionActionType.Pivot*/3:
+					case /*TransitionActionType.Scale*/2:
+					case /*TransitionActionType.Skew*/13:
 						value.b1=true;
 						value.b2=true;
 						value.f1=parseFloat(args[0]);
 						value.f2=parseFloat(args[1]);
 						break ;
-					case 4:
+					case /*TransitionActionType.Alpha*/4:
 						value.f1=parseFloat(args[0]);
 						break ;
-					case 5:
+					case /*TransitionActionType.Rotation*/5:
 						value.i=parseInt(args[0]);
 						break ;
-					case 6:
+					case /*TransitionActionType.Color*/6:
 						value.s=args[0];
 						break ;
-					case 7:
+					case /*TransitionActionType.Animation*/7:
 						value.i=parseInt(args[0]);
 						if(args.length > 1)
 							value.b=args[1];
 						break ;
-					case 8:
+					case /*TransitionActionType.Visible*/8:
 						value.b=args[0];
 						break ;
-					case 9:
+					case /*TransitionActionType.Sound*/9:
 						value.s=args[0];
 						if(args.length > 1)
 							value.f1=parseFloat(args[1]);
 						break ;
-					case 10:
+					case /*TransitionActionType.Transition*/10:
 						value.s=args[0];
 						if(args.length > 1)
 							value.i=parseInt(args[1]);
 						break ;
-					case 11:
+					case /*TransitionActionType.Shake*/11:
 						value.f1=parseFloat(args[0]);
 						if(args.length > 1)
 							value.f2=parseFloat(args[1]);
 						break ;
-					case 12:
+					case /*TransitionActionType.ColorFilter*/12:
 						value.f1=parseFloat(args[0]);
 						value.f2=parseFloat(args[1]);
 						value.f3=parseFloat(args[2]);
@@ -4493,7 +4557,7 @@
 				return;
 			for(var i=0;i < cnt;i++){
 				var item=this._items[i];
-				if(item.type==0 && item.targetId==targetId){
+				if(item.type==/*TransitionActionType.XY*/0 && item.targetId==targetId){
 					if(item.tween){
 						item.startValue.f1+=dx;
 						item.startValue.f2+=dy;
@@ -4573,9 +4637,9 @@
 				endValue=item.endValue;
 			}
 			switch(item.type){
-				case 0:
-				case 1:
-					if(item.type==0){
+				case /*TransitionActionType.XY*/0:
+				case /*TransitionActionType.Size*/1:
+					if(item.type==/*TransitionActionType.XY*/0){
 						if (item.target==this._owner){
 							if(!startValue.b1)
 								startValue.f1=0;
@@ -4606,22 +4670,22 @@
 					toProps.f1=endValue.f1;
 					toProps.f2=endValue.f2;
 					break ;
-				case 2:
-				case 13:
+				case /*TransitionActionType.Scale*/2:
+				case /*TransitionActionType.Skew*/13:
 					item.value.f1=startValue.f1;
 					item.value.f2=startValue.f2;
 					toProps.f1=endValue.f1;
 					toProps.f2=endValue.f2;
 					break ;
-				case 4:
+				case /*TransitionActionType.Alpha*/4:
 					item.value.f1=startValue.f1;
 					toProps.f1=endValue.f1;
 					break ;
-				case 5:
+				case /*TransitionActionType.Rotation*/5:
 					item.value.i=startValue.i;
 					toProps.i=endValue.i;
 					break ;
-				case 12:
+				case /*TransitionActionType.ColorFilter*/12:
 					item.value.f1=startValue.f1;
 					item.value.f2=startValue.f2;
 					item.value.f3=startValue.f3;
@@ -4756,7 +4820,7 @@
 		__proto.applyValue=function(item,value){
 			item.target._gearLocked=true;
 			switch(item.type){
-				case 0:
+				case /*TransitionActionType.XY*/0:
 					if(item.target==this._owner){
 						var f1=0,f2=0;
 						if(!value.b1)
@@ -4777,41 +4841,41 @@
 						item.target.setXY(value.f1,value.f2);
 					}
 					break ;
-				case 1:
+				case /*TransitionActionType.Size*/1:
 					if(!value.b1)
 						value.f1=item.target.width;
 					if(!value.b2)
 						value.f2=item.target.height;
 					item.target.setSize(value.f1,value.f2);
 					break ;
-				case 3:
+				case /*TransitionActionType.Pivot*/3:
 					item.target.setPivot(value.f1,value.f2);
 					break ;
-				case 4:
+				case /*TransitionActionType.Alpha*/4:
 					item.target.alpha=value.f1;
 					break ;
-				case 5:
+				case /*TransitionActionType.Rotation*/5:
 					item.target.rotation=value.i;
 					break ;
-				case 2:
+				case /*TransitionActionType.Scale*/2:
 					item.target.setScale(value.f1,value.f2);
 					break ;
-				case 13:
+				case /*TransitionActionType.Skew*/13:
 					item.target.setSkew(value.f1,value.f2);
 					break ;
-				case 6:
+				case /*TransitionActionType.Color*/6:
 					(item.target).color=value.s;
 					break ;
-				case 7:
+				case /*TransitionActionType.Animation*/7:
 					if(!value.b1)
 						value.i=(item.target).frame;
 					(item.target).frame=value.i;
 					(item.target).playing=value.b;
 					break ;
-				case 8:
+				case /*TransitionActionType.Visible*/8:
 					item.target.visible=value.b;
 					break ;
-				case 10:;
+				case /*TransitionActionType.Transition*/10:;
 					var trans=(item.target).getTransition(value.s);
 					if(trans !=null){
 						if(value.i==0)
@@ -4828,14 +4892,14 @@
 						}
 					}
 					break ;
-				case 9:;
+				case /*TransitionActionType.Sound*/9:;
 					var pi=UIPackage.getItemByURL(value.s);
 					if(pi)
 						GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
 					else
 					GRoot.inst.playOneShotSound(value.s);
 					break ;
-				case 11:
+				case /*TransitionActionType.Shake*/11:
 					item.startValue.f1=0;
 					item.startValue.f2=0;
 					item.startValue.f3=item.value.f2;
@@ -4844,7 +4908,7 @@
 					this._totalTasks++;
 					item.completed=false;
 					break ;
-				case 12:;
+				case /*TransitionActionType.ColorFilter*/12:;
 					var arr=item.target.filters;
 					if(!arr || !(((arr[0])instanceof laya.filters.ColorFilter )))
 						item.filterCreated=true;
@@ -4914,49 +4978,49 @@
 				str=cxml.getAttribute("type");
 				switch(str){
 					case "XY":
-						item.type=0;
+						item.type=/*TransitionActionType.XY*/0;
 						break ;
 					case "Size":
-						item.type=1;
+						item.type=/*TransitionActionType.Size*/1;
 						break ;
 					case "Scale":
-						item.type=2;
+						item.type=/*TransitionActionType.Scale*/2;
 						break ;
 					case "Pivot":
-						item.type=3;
+						item.type=/*TransitionActionType.Pivot*/3;
 						break ;
 					case "Alpha":
-						item.type=4;
+						item.type=/*TransitionActionType.Alpha*/4;
 						break ;
 					case "Rotation":
-						item.type=5;
+						item.type=/*TransitionActionType.Rotation*/5;
 						break ;
 					case "Color":
-						item.type=6;
+						item.type=/*TransitionActionType.Color*/6;
 						break ;
 					case "Animation":
-						item.type=7;
+						item.type=/*TransitionActionType.Animation*/7;
 						break ;
 					case "Visible":
-						item.type=8;
+						item.type=/*TransitionActionType.Visible*/8;
 						break ;
 					case "Sound":
-						item.type=9;
+						item.type=/*TransitionActionType.Sound*/9;
 						break ;
 					case "Transition":
-						item.type=10;
+						item.type=/*TransitionActionType.Transition*/10;
 						break ;
 					case "Shake":
-						item.type=11;
+						item.type=/*TransitionActionType.Shake*/11;
 						break ;
 					case "ColorFilter":
-						item.type=12;
+						item.type=/*TransitionActionType.ColorFilter*/12;
 						break ;
 					case "Skew":
-						item.type=13;
+						item.type=/*TransitionActionType.Skew*/13;
 						break ;
 					default :
-						item.type=14;
+						item.type=/*TransitionActionType.Unknown*/14;
 						break ;
 					}
 				item.tween=cxml.getAttribute("tween")=="true";
@@ -4994,10 +5058,10 @@
 		__proto.decodeValue=function(type,str,value){
 			var arr;
 			switch(type){
-				case 0:
-				case 1:
-				case 3:
-				case 13:
+				case /*TransitionActionType.XY*/0:
+				case /*TransitionActionType.Size*/1:
+				case /*TransitionActionType.Pivot*/3:
+				case /*TransitionActionType.Skew*/13:
 					arr=str.split(",");
 					if(arr[0]=="-"){
 						value.b1=false;
@@ -5014,21 +5078,21 @@
 						value.b2=true;
 					}
 					break ;
-				case 4:
+				case /*TransitionActionType.Alpha*/4:
 					value.f1=parseFloat(str);
 					break ;
-				case 5:
+				case /*TransitionActionType.Rotation*/5:
 					value.i=parseInt(str);
 					break ;
-				case 2:
+				case /*TransitionActionType.Scale*/2:
 					arr=str.split(",");
 					value.f1=parseFloat(arr[0]);
 					value.f2=parseFloat(arr[1]);
 					break ;
-				case 6:
+				case /*TransitionActionType.Color*/6:
 					value.s=str;
 					break ;
-				case 7:
+				case /*TransitionActionType.Animation*/7:
 					arr=str.split(",");
 					if(arr[0]=="-"){
 						value.b1=false;
@@ -5039,10 +5103,10 @@
 					}
 					value.b=arr[1]=="p";
 					break ;
-				case 8:
+				case /*TransitionActionType.Visible*/8:
 					value.b=str=="true";
 					break ;
-				case 9:
+				case /*TransitionActionType.Sound*/9:
 					arr=str.split(",");
 					value.s=arr[0];
 					if(arr.length > 1){
@@ -5055,7 +5119,7 @@
 					else
 					value.f1=1;
 					break ;
-				case 10:
+				case /*TransitionActionType.Transition*/10:
 					arr=str.split(",");
 					value.s=arr[0];
 					if(arr.length > 1)
@@ -5063,12 +5127,12 @@
 					else
 					value.i=1;
 					break ;
-				case 11:
+				case /*TransitionActionType.Shake*/11:
 					arr=str.split(",");
 					value.f1=parseFloat(arr[0]);
 					value.f2=parseFloat(arr[1]);
 					break ;
-				case 12:
+				case /*TransitionActionType.ColorFilter*/12:
 					arr=str.split(",");
 					value.f1=parseFloat(arr[0]);
 					value.f2=parseFloat(arr[1]);
@@ -5178,6 +5242,526 @@
 	})()
 
 
+	//class fairygui.tree.TreeNode
+	var TreeNode=(function(){
+		function TreeNode(hasChild){
+			this._data=null;
+			this._parent=null;
+			this._children=null;
+			this._expanded=false;
+			this._tree=null;
+			this._cell=null;
+			this._level=0;
+			if(hasChild)
+				this._children=[];
+		}
+
+		__class(TreeNode,'fairygui.tree.TreeNode');
+		var __proto=TreeNode.prototype;
+		__proto.setCell=function(value){
+			this._cell=value;
+		}
+
+		__proto.setLevel=function(value){
+			this._level=value;
+		}
+
+		__proto.addChild=function(child){
+			this.addChildAt(child,this._children.length);
+			return child;
+		}
+
+		__proto.addChildAt=function(child,index){
+			if(!child)
+				throw new Error("child is null");
+			var numChildren=this._children.length;
+			if (index >=0 && index <=numChildren){
+				if (child._parent==this){
+					this.setChildIndex(child,index);
+				}
+				else{
+					if(child._parent)
+						child._parent.removeChild(child);
+					var cnt=this._children.length;
+					if (index==cnt)
+						this._children.push(child);
+					else
+					this._children.splice(index,0,child);
+					child._parent=this;
+					child._level=this._level+1;
+					child.setTree(this._tree);
+					if(this._cell!=null && this._cell.parent!=null && this._expanded)
+						this._tree.afterInserted(child);
+				}
+				return child;
+			}
+			else{
+				throw new Error("Invalid child index");
+			}
+		}
+
+		__proto.removeChild=function(child){
+			var childIndex=this._children.indexOf(child);
+			if (childIndex !=-1){
+				this.removeChildAt(childIndex);
+			}
+			return child;
+		}
+
+		__proto.removeChildAt=function(index){
+			if (index >=0 && index < this.numChildren){
+				var child=this._children[index];
+				this._children.splice(index,1);
+				child._parent=null;
+				if(this._tree!=null){
+					child.setTree(null);
+					this._tree.afterRemoved(child);
+				}
+				return child;
+			}
+			else{
+				throw new Error("Invalid child index");
+			}
+		}
+
+		__proto.removeChildren=function(beginIndex,endIndex){
+			(beginIndex===void 0)&& (beginIndex=0);
+			(endIndex===void 0)&& (endIndex=-1);
+			if (endIndex < 0 || endIndex >=this.numChildren)
+				endIndex=this.numChildren-1;
+			for (var i=beginIndex;i<=endIndex;++i)
+			this.removeChildAt(beginIndex);
+		}
+
+		__proto.getChildAt=function(index){
+			if (index >=0 && index < this.numChildren)
+				return this._children[index];
+			else
+			throw new Error("Invalid child index");
+		}
+
+		__proto.getChildIndex=function(child){
+			return this._children.indexOf(child);
+		}
+
+		__proto.getPrevSibling=function(){
+			if(this._parent==null)
+				return null;
+			var i=this._parent._children.indexOf(this);
+			if(i<=0)
+				return null;
+			return this._parent._children[i-1];
+		}
+
+		__proto.getNextSibling=function(){
+			if(this._parent==null)
+				return null;
+			var i=this._parent._children.indexOf(this);
+			if(i<0 || i>=this._parent._children.length-1)
+				return null;
+			return this._parent._children[i+1];
+		}
+
+		__proto.setChildIndex=function(child,index){
+			var oldIndex=this._children.indexOf(child);
+			if (oldIndex==-1)
+				throw new Error("Not a child of this container");
+			var cnt=this._children.length;
+			if(index<0)
+				index=0;
+			else if(index>cnt)
+			index=cnt;
+			if(oldIndex==index)
+				return;
+			this._children.splice(oldIndex,1);
+			this._children.splice(index,0,child);
+			if(this._cell!=null && this._cell.parent!=null && this._expanded)
+				this._tree.afterMoved(child);
+		}
+
+		__proto.swapChildren=function(child1,child2){
+			var index1=this._children.indexOf(child1);
+			var index2=this._children.indexOf(child2);
+			if (index1==-1 || index2==-1)
+				throw new Error("Not a child of this container");
+			this.swapChildrenAt(index1,index2);
+		}
+
+		__proto.swapChildrenAt=function(index1,index2){
+			var child1=this._children[index1];
+			var child2=this._children[index2];
+			this.setChildIndex(child1,index2);
+			this.setChildIndex(child2,index1);
+		}
+
+		__proto.setTree=function(value){
+			this._tree=value;
+			if(this._tree!=null && this._tree.treeNodeWillExpand && this._expanded)
+				this._tree.treeNodeWillExpand.runWith(this);
+			if(this._children!=null){
+				var cnt=this._children.length;
+				for(var i=0;i<cnt;i++){
+					var node=this._children[i];
+					node._level=this._level+1;
+					node.setTree(value);
+				}
+			}
+		}
+
+		__getset(0,__proto,'expanded',function(){
+			return this._expanded;
+			},function(value){
+			if(this._children==null)
+				return;
+			if(this._expanded!=value){
+				this._expanded=value;
+				if(this._tree!=null){
+					if(this._expanded)
+						this._tree.afterExpanded(this);
+					else
+					this._tree.afterCollapsed(this);
+				}
+			}
+		});
+
+		__getset(0,__proto,'tree',function(){
+			return this._tree;
+		});
+
+		__getset(0,__proto,'level',function(){
+			return this._level;
+		});
+
+		__getset(0,__proto,'cell',function(){
+			return this._cell;
+		});
+
+		__getset(0,__proto,'data',function(){
+			return this._data;
+			},function(value){
+			this._data=value;
+		});
+
+		__getset(0,__proto,'parent',function(){
+			return this._parent;
+		});
+
+		__getset(0,__proto,'isFolder',function(){
+			return this._children!=null;
+		});
+
+		__getset(0,__proto,'text',function(){
+			if(this._cell!=null)
+				return this._cell.text;
+			else
+			return null;
+		});
+
+		__getset(0,__proto,'numChildren',function(){
+			return this._children.length;
+		});
+
+		return TreeNode;
+	})()
+
+
+	//class fairygui.tree.TreeView
+	var TreeView=(function(){
+		function TreeView(list){
+			this._list=null;
+			this._root=null;
+			this._indent=0;
+			this.treeNodeCreateCell=null;
+			this.treeNodeRender=null;
+			this.treeNodeWillExpand=null;
+			this.treeNodeClick=null;
+			this._list=list;
+			this._list.removeChildrenToPool();
+			this._list.on(/*fairygui.Events.CLICK_ITEM*/"fui_click_item",this,this.__clickItem);
+			this._root=new TreeNode(true);
+			this._root.setTree(this);
+			this._root.setCell(this._list);
+			this._root.expanded=true;
+			this._indent=15;
+		}
+
+		__class(TreeView,'fairygui.tree.TreeView');
+		var __proto=TreeView.prototype;
+		__proto.getSelectedNode=function(){
+			if(this._list.selectedIndex!=-1)
+				return (this._list.getChildAt(this._list.selectedIndex).data);
+			else
+			return null;
+		}
+
+		__proto.getSelection=function(){
+			var sels=this._list.getSelection();
+			var cnt=sels.length;
+			var ret=[];
+			for(var i=0;i<cnt;i++){
+				var node=(this._list.getChildAt(sels[i]).data);
+				ret.push(node);
+			}
+			return ret;
+		}
+
+		__proto.addSelection=function(node,scrollItToView){
+			(scrollItToView===void 0)&& (scrollItToView=false);
+			var parentNode=node.parent;
+			while(parentNode!=null && parentNode!=this._root){
+				parentNode.expanded=true;
+				parentNode=parentNode.parent;
+			}
+			if(!node.cell)
+				return;
+			this._list.addSelection(this._list.getChildIndex(node.cell),scrollItToView);
+		}
+
+		__proto.removeSelection=function(node){
+			if(!node.cell)
+				return;
+			this._list.removeSelection(this._list.getChildIndex(node.cell));
+		}
+
+		__proto.clearSelection=function(){
+			this._list.clearSelection();
+		}
+
+		__proto.getNodeIndex=function(node){
+			return this._list.getChildIndex(node.cell);
+		}
+
+		__proto.updateNode=function(node){
+			if(node.cell==null)
+				return;
+			if(this.treeNodeRender)
+				this.treeNodeRender.runWith(node);
+		}
+
+		__proto.updateNodes=function(nodes){
+			var cnt=nodes.length;
+			for(var i=0;i<cnt;i++){
+				var node=nodes[i];
+				if(node.cell==null)
+					return;
+				if(this.treeNodeRender)
+					this.treeNodeRender.runWith(node);
+			}
+		}
+
+		__proto.expandAll=function(folderNode){
+			folderNode.expanded=true;
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				var node=folderNode.getChildAt(i);
+				if(node.isFolder)
+					this.expandAll(node);
+			}
+		}
+
+		__proto.collapseAll=function(folderNode){
+			if(folderNode!=this._root)
+				folderNode.expanded=false;
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				var node=folderNode.getChildAt(i);
+				if(node.isFolder)
+					this.collapseAll(node);
+			}
+		}
+
+		__proto.createCell=function(node){
+			if(this.treeNodeCreateCell)
+				node.setCell(this.treeNodeCreateCell.runWith(node));
+			else
+			node.setCell((this._list.itemPool.getObject(this._list.defaultItem)));
+			node.cell.data=node;
+			var indentObj=node.cell.getChild("indent");
+			if(indentObj!=null)
+				indentObj.width=(node.level-1)*this._indent;
+			var expandButton=(node.cell.getChild("expandButton"));
+			if(expandButton){
+				if(node.isFolder){
+					expandButton.visible=true;
+					expandButton.onClick(this,this.__clickExpandButton);
+					expandButton.data=node;
+					expandButton.selected=node.expanded;
+				}
+				else
+				expandButton.visible=false;
+			}
+			if(this.treeNodeRender)
+				this.treeNodeRender.runWith(node);
+		}
+
+		__proto.afterInserted=function(node){
+			this.createCell(node);
+			var index=this.getInsertIndexForNode(node);
+			this._list.addChildAt(node.cell,index);
+			if(this.treeNodeRender)
+				this.treeNodeRender.runWith(node);
+			if(node.isFolder && node.expanded)
+				this.checkChildren(node,index);
+		}
+
+		__proto.getInsertIndexForNode=function(node){
+			var prevNode=node.getPrevSibling();
+			if(prevNode==null)
+				prevNode=node.parent;
+			var insertIndex=this._list.getChildIndex(prevNode.cell)+1;
+			var myLevel=node.level;
+			var cnt=this._list.numChildren;
+			for(var i=insertIndex;i<cnt;i++){
+				var testNode=(this._list.getChildAt(i).data);
+				if(testNode.level<=myLevel)
+					break ;
+				insertIndex++;
+			}
+			return insertIndex;
+		}
+
+		__proto.afterRemoved=function(node){
+			this.removeNode(node);
+		}
+
+		__proto.afterExpanded=function(node){
+			if(node!=this._root && this.treeNodeWillExpand)
+				this.treeNodeWillExpand(node);
+			if(node.cell==null)
+				return;
+			if(node!=this._root){
+				if(this.treeNodeRender)
+					this.treeNodeRender.runWith(node);
+				var expandButton=(node.cell.getChild("expandButton"));
+				if(expandButton)
+					expandButton.selected=true;
+			}
+			if(node.cell.parent!=null)
+				this.checkChildren(node,this._list.getChildIndex(node.cell));
+		}
+
+		__proto.afterCollapsed=function(node){
+			if(node!=this._root && this.treeNodeWillExpand)
+				this.treeNodeWillExpand(node);
+			if(node.cell==null)
+				return;
+			if(node!=this._root){
+				if(this.treeNodeRender)
+					this.treeNodeRender.runWith(node);
+				var expandButton=(node.cell.getChild("expandButton"));
+				if(expandButton)
+					expandButton.selected=false;
+			}
+			if(node.cell.parent!=null)
+				this.hideFolderNode(node);
+		}
+
+		__proto.afterMoved=function(node){
+			if(!node.isFolder)
+				this._list.removeChild(node.cell);
+			else
+			this.hideFolderNode(node);
+			var index=this.getInsertIndexForNode(node);
+			this._list.addChildAt(node.cell,index);
+			if(node.isFolder && node.expanded)
+				this.checkChildren(node,index);
+		}
+
+		__proto.checkChildren=function(folderNode,index){
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				index++;
+				var node=folderNode.getChildAt(i);
+				if(node.cell==null)
+					this.createCell(node);
+				if(!node.cell.parent)
+					this._list.addChildAt(node.cell,index);
+				if(node.isFolder && node.expanded)
+					index=this.checkChildren(node,index);
+			}
+			return index;
+		}
+
+		__proto.hideFolderNode=function(folderNode){
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				var node=folderNode.getChildAt(i);
+				if(node.cell && node.cell.parent!=null)
+					this._list.removeChild(node.cell);
+				if(node.isFolder && node.expanded)
+					this.hideFolderNode(node);
+			}
+		}
+
+		__proto.removeNode=function(node){
+			if(node.cell!=null){
+				if(node.cell.parent!=null)
+					this._list.removeChild(node.cell);
+				this._list.returnToPool(node.cell);
+				node.cell.data=null;
+				node.setCell(null);
+			}
+			if(node.isFolder){
+				var cnt=node.numChildren;
+				for(var i=0;i<cnt;i++){
+					var node2=node.getChildAt(i);
+					this.removeNode(node2);
+				}
+			}
+		}
+
+		__proto.__clickExpandButton=function(evt){
+			evt.stopPropagation();
+			var expandButton=(GObject.cast(evt.currentTarget));
+			var node=(expandButton.parent.data);
+			if(this._list.scrollPane!=null){
+				var posY=this._list.scrollPane.posY;
+				if(expandButton.selected)
+					node.expanded=true;
+				else
+				node.expanded=false;
+				this._list.scrollPane.posY=posY;
+				this._list.scrollPane.scrollToView(node.cell);
+			}
+			else{
+				if(expandButton.selected)
+					node.expanded=true;
+				else
+				node.expanded=false;
+			}
+		}
+
+		__proto.__clickItem=function(item,evt){
+			if(this._list.scrollPane!=null)
+				var posY=this._list.scrollPane.posY;
+			var node=(item.data);
+			if(this.treeNodeClick)
+				this.treeNodeClick.runWith([node,evt]);
+			if(this._list.scrollPane!=null){
+				this._list.scrollPane.posY=posY;
+				if(node.cell)
+					this._list.scrollPane.scrollToView(node.cell);
+			}
+		}
+
+		__getset(0,__proto,'list',function(){
+			return this._list;
+		});
+
+		__getset(0,__proto,'root',function(){
+			return this._root;
+		});
+
+		__getset(0,__proto,'indent',function(){
+			return this._indent;
+			},function(value){
+			this._indent=value;
+		});
+
+		return TreeView;
+	})()
+
+
 	//class fairygui.UIConfig
 	var UIConfig1=(function(){
 		function UIConfig(){}
@@ -5192,7 +5776,6 @@
 		UIConfig.verticalScrollBar=null
 		UIConfig.defaultScrollSpeed=25;
 		UIConfig.defaultTouchScrollSpeedRatio=1;
-		UIConfig.defaultScrollBarDisplay=1;
 		UIConfig.defaultScrollTouchEffect=true;
 		UIConfig.defaultScrollBounceEffect=true;
 		UIConfig.popupMenu=null
@@ -5205,6 +5788,9 @@
 		UIConfig.clickDragSensitivity=2;
 		UIConfig.bringWindowToFrontOnClick=true;
 		UIConfig.frameTimeForAsyncUIConstruction=2;
+		__static(UIConfig,
+		['defaultScrollBarDisplay',function(){return this.defaultScrollBarDisplay=/*fairygui.ScrollBarDisplayType.Visible*/1;}
+		]);
 		return UIConfig;
 	})()
 
@@ -5234,11 +5820,11 @@
 
 		UIObjectFactory.newObject=function(pi){
 			switch (pi.type){
-				case 0:
+				case /*fairygui.PackageItemType.Image*/0:
 					return new GImage();
-				case 2:
+				case /*fairygui.PackageItemType.MovieClip*/2:
 					return new GMovieClip();
-				case 4:{
+				case /*fairygui.PackageItemType.Component*/4:{
 						var cls=pi.extensionType;
 						if (cls)
 							return new cls();
@@ -5336,13 +5922,13 @@
 			var arr;
 			this.decompressPackage(AssetProxy.inst.getRes(this._resKey+".fui"));
 			str=this.getDesc("sprites.bytes");
-			arr=str.split("\n");
+			arr=str.split(/*CLASS CONST:fairygui.UIPackage.sep1*/"\n");
 			var cnt=arr.length;
 			for(var i=1;i < cnt;i++){
 				str=arr[i];
 				if(!str)
 					continue ;
-				var arr2=str.split(" ");
+				var arr2=str.split(/*CLASS CONST:fairygui.UIPackage.sep2*/" ");
 				var sprite=new AtlasSprite();
 				var itemId=arr2[0];
 				var binIndex=parseInt(arr2[1]);
@@ -5365,7 +5951,7 @@
 			str=this.getDesc("hittest.bytes");
 			if(str!=null){
 				var ba=ToolSet.base64Decode(str);
-				ba.endian="bigEndian";
+				ba.endian=/*laya.utils.Byte.BIG_ENDIAN*/"bigEndian";
 				while(ba.bytesAvailable){
 					var hitTestData=new PixelHitTestData();
 					this._hitTestDatas[ba.readUTFString()]=hitTestData;
@@ -5395,18 +5981,18 @@
 				pi.file=cxml.getAttribute("file");
 				str=cxml.getAttribute("size");
 				if(str){
-					arr=str.split(",");
+					arr=str.split(/*CLASS CONST:fairygui.UIPackage.sep0*/",");
 					pi.width=parseInt(arr[0]);
 					pi.height=parseInt(arr[1]);
 				}
 				switch(pi.type){
-					case 0:{
+					case /*fairygui.PackageItemType.Image*/0:{
 							str=cxml.getAttribute("scale");
 							if(str=="9grid"){
 								pi.scale9Grid=new laya.maths.Rectangle();
 								str=cxml.getAttribute("scale9grid");
 								if(str){
-									arr=str.split(",");
+									arr=str.split(/*CLASS CONST:fairygui.UIPackage.sep0*/",");
 									pi.scale9Grid.x=parseInt(arr[0]);
 									pi.scale9Grid.y=parseInt(arr[1]);
 									pi.scale9Grid.width=parseInt(arr[2]);
@@ -5423,7 +6009,7 @@
 							pi.smoothing=str !="false";
 							break ;
 						}
-					case 4:
+					case /*fairygui.PackageItemType.Component*/4:
 						UIObjectFactory.resolvePackageItemExtension(pi);
 						break ;
 					}
@@ -5435,7 +6021,7 @@
 			cnt=this._items.length;
 			for(i=0;i < cnt;i++){
 				pi=this._items[i];
-				if(pi.type==6){
+				if(pi.type==/*fairygui.PackageItemType.Font*/6){
 					this.loadFont(pi);
 					fairygui.UIPackage._bitmapFonts[pi.bitmapFont.id]=pi.bitmapFont;
 				}
@@ -5445,7 +6031,7 @@
 		__proto.decompressPackage=function(buf){
 			this._resData={};
 			var data;
-			var inflater=new Zlib.RawInflate(buf);data=inflater.decompress();;
+			/*__JS__ */var inflater=new Zlib.RawInflate(buf);data=inflater.decompress();;
 			var source=new Byte(data).readUTFBytes();
 			var curr=0;
 			var fn;
@@ -5484,7 +6070,7 @@
 
 		__proto.internalCreateObject=function(item,userClass){
 			var g;
-			if (item.type==4){
+			if (item.type==/*fairygui.PackageItemType.Component*/4){
 				if (userClass !=null)
 					g=new userClass();
 				else
@@ -5523,7 +6109,7 @@
 
 		__proto.getItemAsset=function(item){
 			switch (item.type){
-				case 0:
+				case /*fairygui.PackageItemType.Image*/0:
 					if (!item.decoded){
 						item.decoded=true;
 						var sprite=this._sprites[item.id];
@@ -5531,32 +6117,32 @@
 							item.texture=this.createSpriteTexture(sprite);
 					}
 					return item.texture;
-				case 7:
+				case /*fairygui.PackageItemType.Atlas*/7:
 					if (!item.decoded){
 						item.decoded=true;
 						var fileName=(item.file !=null && item.file.length > 0)? item.file :(item.id+".png");
 						item.texture=AssetProxy.inst.getRes(this._resKey+"@"+fileName);
 					}
 					return item.texture;
-				case 3:
+				case /*fairygui.PackageItemType.Sound*/3:
 					if (!item.decoded){
 						item.decoded=true;
 						item.sound=AssetProxy.inst.getRes(this._resKey+"@"+item.file);
 					}
 					return item.sound;
-				case 6:
+				case /*fairygui.PackageItemType.Font*/6:
 					if (!item.decoded){
 						item.decoded=true;
 						this.loadFont(item);
 					}
 					return item.bitmapFont;
-				case 2:
+				case /*fairygui.PackageItemType.MovieClip*/2:
 					if (!item.decoded){
 						item.decoded=true;
 						this.loadMovieClip(item);
 					}
 					return item.frames;
-				case 4:
+				case /*fairygui.PackageItemType.Component*/4:
 					if (!item.decoded){
 						item.decoded=true;
 						var str=this.getDesc(item.id+".xml");
@@ -5760,7 +6346,7 @@
 					continue ;
 				var frame=new Frame();
 				str=frameNode.getAttribute("rect");
-				arr=str.split(",");
+				arr=str.split(/*CLASS CONST:fairygui.UIPackage.sep0*/",");
 				frame.rect=new Rectangle(parseInt(arr[0]),parseInt(arr[1]),parseInt(arr[2]),parseInt(arr[3]));
 				str=frameNode.getAttribute("addDelay");
 				if(str)
@@ -5784,7 +6370,7 @@
 			var font=new BitmapFont1();
 			font.id="ui://"+this.id+item.id;
 			var str=this.getDesc(item.id+".fnt");
-			var lines=str.split("\n");
+			var lines=str.split(/*CLASS CONST:fairygui.UIPackage.sep1*/"\n");
 			var lineCount=lines.length;
 			var i=0;
 			var kv={};
@@ -5801,9 +6387,9 @@
 				if (str.length==0)
 					continue ;
 				str=ToolSet.trim(str);
-				var arr=str.split(" ");
+				var arr=str.split(/*CLASS CONST:fairygui.UIPackage.sep2*/" ");
 				for (var j=1;j < arr.length;j++){
-					var arr2=arr[j].split("=");
+					var arr2=arr[j].split(/*CLASS CONST:fairygui.UIPackage.sep3*/"=");
 					kv[arr2[0]]=arr2[1];
 				}
 				str=arr[0];
@@ -6617,6 +7203,7 @@
 			this._playingTransition=null;
 			this._parent=null;
 			this._autoRadioGroupDepth=false;
+			this.changing=false;
 			Controller.__super.call(this);
 			this._pageIds=[];
 			this._pageNames=[];
@@ -6632,9 +7219,11 @@
 			if (this._selectedIndex !=value){
 				if(value > this._pageIds.length-1)
 					throw "index out of bounds: "+value;
+				this.changing=true;
 				this._previousIndex=this._selectedIndex;
 				this._selectedIndex=value;
 				this._parent.applyController(this);
+				this.changing=false;
 				if(this._playingTransition){
 					this._playingTransition.stop();
 					this._playingTransition=null;
@@ -6804,10 +7393,12 @@
 			if(this._selectedIndex !=value){
 				if(value > this._pageIds.length-1)
 					throw "index out of bounds: "+value;
+				this.changing=true;
 				this._previousIndex=this._selectedIndex;
 				this._selectedIndex=value;
 				this._parent.applyController(this);
-				this.event("fui_state_changed");
+				this.event(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed");
+				this.changing=false;
 				if(this._playingTransition){
 					this._playingTransition.stop();
 					this._playingTransition=null;
@@ -7079,6 +7670,8 @@
 			this._margin=null;
 			this._trackBounds=false;
 			this._boundsChanged=false;
+			this._childrenRenderOrder=0;
+			this._apexIndex=0;
 			this._buildingDisplayList=false;
 			this._children=null;
 			this._controllers=null;
@@ -7086,8 +7679,6 @@
 			this._container=null;
 			this._scrollPane=null;
 			this._alignOffset=null;
-			this._childrenRenderOrder=0;
-			this._apexIndex=0;
 			GComponent.__super.call(this);
 			this._children=[];
 			this._controllers=[];
@@ -7194,7 +7785,7 @@
 				this._children.splice(index,1);
 				if(child.inContainer){
 					this._container.removeChild(child.displayObject);
-					if (this._childrenRenderOrder==2)
+					if (this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Arch*/2)
 						Laya.timer.callLater(this,this.buildNativeDisplayList);
 				}
 				if(dispose)
@@ -7311,7 +7902,7 @@
 				var displayIndex=0;
 				var g;
 				var i=0;
-				if (this._childrenRenderOrder==0){
+				if (this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Ascent*/0){
 					for(i=0;i<index;i++){
 						g=this._children[i];
 						if(g.inContainer)
@@ -7321,7 +7912,7 @@
 						displayIndex--;
 					this._container.setChildIndex(child.displayObject,displayIndex);
 				}
-				else if (this._childrenRenderOrder==1){
+				else if (this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Descent*/1){
 					for (i=cnt-1;i > index;i--){
 						g=this._children[i];
 						if (g.inContainer)
@@ -7417,7 +8008,7 @@
 			if(child.finalVisible && child.displayObject!=this._displayObject.mask){
 				if(!child.displayObject.parent){
 					var index=0
-					if (this._childrenRenderOrder==0){
+					if (this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Ascent*/0){
 						for (i=0;i < cnt;i++){
 							g=this._children[i];
 							if (g==child)
@@ -7427,7 +8018,7 @@
 						}
 						this._container.addChildAt(child.displayObject,index);
 					}
-					else if (this._childrenRenderOrder==1){
+					else if (this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Descent*/1){
 						for (i=cnt-1;i >=0;i--){
 							g=this._children[i];
 							if (g==child)
@@ -7446,7 +8037,7 @@
 			else {
 				if(child.displayObject.parent){
 					this._container.removeChild(child.displayObject);
-					if (this._childrenRenderOrder==2)
+					if (this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Arch*/2)
 						Laya.timer.callLater(this,this.buildNativeDisplayList);
 				}
 			}
@@ -7459,7 +8050,7 @@
 			var i=0;
 			var child;
 			switch (this._childrenRenderOrder){
-				case 0:{
+				case /*fairygui.ChildrenRenderOrder.Ascent*/0:{
 						for (i=0;i < cnt;i++){
 							child=this._children[i];
 							if (child.displayObject !=null && child.finalVisible)
@@ -7467,7 +8058,7 @@
 						}
 					}
 					break ;
-				case 1:{
+				case /*fairygui.ChildrenRenderOrder.Descent*/1:{
 						for (i=cnt-1;i >=0;i--){
 							child=this._children[i];
 							if (child.displayObject !=null && child.finalVisible)
@@ -7475,7 +8066,7 @@
 						}
 					}
 					break ;
-				case 2:{
+				case /*fairygui.ChildrenRenderOrder.Arch*/2:{
 						for (i=0;i < this._apexIndex;i++){
 							child=this._children[i];
 							if (child.displayObject !=null && child.finalVisible)
@@ -7598,7 +8189,7 @@
 		}
 
 		__proto.setupOverflow=function(overflow){
-			if(overflow==1){
+			if(overflow==/*fairygui.OverflowType.Hidden*/1){
 				if (this._displayObject==this._container){
 					this._container=new Sprite();
 					this._displayObject.addChild(this._container);
@@ -7826,23 +8417,23 @@
 			if (str)
 				overflow=OverflowType.parse(str);
 			else
-			overflow=0;
+			overflow=/*fairygui.OverflowType.Visible*/0;
 			str=xml.getAttribute("margin");
 			if(str)
 				this._margin.parse(str);
-			if(overflow==2){
+			if(overflow==/*fairygui.OverflowType.Scroll*/2){
 				var scroll=0;
 				str=xml.getAttribute("scroll");
 				if (str)
 					scroll=ScrollType.parse(str);
 				else
-				scroll=1;
+				scroll=/*fairygui.ScrollType.Vertical*/1;
 				var scrollBarDisplay=0;
 				str=xml.getAttribute("scrollBar");
 				if (str)
 					scrollBarDisplay=ScrollBarDisplayType.parse(str);
 				else
-				scrollBarDisplay=0;
+				scrollBarDisplay=/*fairygui.ScrollBarDisplayType.Default*/0;
 				var scrollBarFlags=NaN;
 				str=xml.getAttribute("scrollBarFlags");
 				if(str)
@@ -7922,8 +8513,8 @@
 				}
 			}
 			if(this._transitions.length>0){
-				this.displayObject.on("display",this,this.___added);
-				this.displayObject.on("undisplay",this,this.___removed);
+				this.displayObject.on(/*laya.events.Event.DISPLAY*/"display",this,this.___added);
+				this.displayObject.on(/*laya.events.Event.UNDISPLAY*/"undisplay",this,this.___removed);
 			}
 			this.applyAllControllers();
 			this._buildingDisplayList=false;
@@ -7936,7 +8527,13 @@
 		__proto.constructFromXML=function(xml){}
 		__proto.setup_afterAdd=function(xml){
 			_super.prototype.setup_afterAdd.call(this,xml);
-			var str=xml.getAttribute("controller");
+			var str;
+			if(this.scrollPane){
+				str=xml.getAttribute("pageController");
+				if(str)
+					this.scrollPane.pageController=this.parent.getController(str);
+			}
+			str=xml.getAttribute("controller");
 			if(str){
 				var arr=str.split(",");
 				for(var i=0;i<arr.length;i+=2){
@@ -8016,7 +8613,7 @@
 			},function(value){
 			if (this._apexIndex !=value){
 				this._apexIndex=value;
-				if (this._childrenRenderOrder==2)
+				if (this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Arch*/2)
 					this.buildNativeDisplayList();
 			}
 		});
@@ -8293,137 +8890,6 @@
 	})(GearBase)
 
 
-	//class fairygui.GearLook extends fairygui.GearBase
-	var GearLook=(function(_super){
-		var GearLookValue;
-		function GearLook(owner){
-			this.tweener=null;
-			this._storage=null;
-			this._default=null;
-			this._tweenValue=null;
-			this._tweenTarget=null;
-			GearLook.__super.call(this,owner);
-		}
-
-		__class(GearLook,'fairygui.GearLook',_super);
-		var __proto=GearLook.prototype;
-		__proto.init=function(){
-			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
-			this._storage={};
-		}
-
-		__proto.addStatus=function(pageId,value){
-			if(value=="-")
-				return;
-			var arr=value.split(",");
-			var gv;
-			if(pageId==null)
-				gv=this._default;
-			else {
-				gv=new GearLookValue();
-				this._storage[pageId]=gv;
-			}
-			gv.alpha=parseFloat(arr[0]);
-			gv.rotation=parseInt(arr[1]);
-			gv.grayed=arr[2]=="1" ? true :false;
-		}
-
-		__proto.apply=function(){
-			var gv=this._storage[this._controller.selectedPageId];
-			if(!gv)
-				gv=this._default;
-			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-				this._owner._gearLocked=true;
-				this._owner.grayed=gv.grayed;
-				this._owner._gearLocked=false;
-				if (this.tweener !=null){
-					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
-						this.tweener.complete();
-						this.tweener=null;
-					}
-					else
-					return;
-				};
-				var a=gv.alpha !=this._owner.alpha;
-				var b=gv.rotation !=this._owner.rotation;
-				if(a || b){
-					if(this._owner.checkGearController(0,this._controller))
-						this._displayLockToken=this._owner.addDisplayLock();
-					this._tweenTarget=gv;
-					if(this._tweenValue==null)
-						this._tweenValue=new Point();
-					this._tweenValue.x=this._owner.alpha;
-					this._tweenValue.y=this._owner.rotation;
-					this.tweener=Tween.to(this._tweenValue,
-					{x:gv.alpha,y:gv.rotation },
-					this._tweenTime*1000,
-					this._easeType,
-					Handler.create(this,this.__tweenComplete),
-					this._delay*1000);
-					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
-				}
-			}
-			else {
-				this._owner._gearLocked=true;
-				this._owner.grayed=gv.grayed;
-				this._owner.alpha=gv.alpha;
-				this._owner.rotation=gv.rotation;
-				this._owner._gearLocked=false;
-			}
-		}
-
-		__proto.__tweenUpdate=function(a,b){
-			this._owner._gearLocked=true;
-			if(a)
-				this._owner.alpha=this._tweenValue.x;
-			if(b)
-				this._owner.rotation=this._tweenValue.y;
-			this._owner._gearLocked=false;
-		}
-
-		__proto.__tweenComplete=function(){
-			if(this._displayLockToken!=0){
-				this._owner.releaseDisplayLock(this._displayLockToken);
-				this._displayLockToken=0;
-			}
-			this.tweener=null;
-			this._owner.displayObject.event("fui_gear_stop");
-		}
-
-		__proto.updateState=function(){
-			var gv=this._storage[this._controller.selectedPageId];
-			if(!gv){
-				gv=new GearLookValue();
-				this._storage[this._controller.selectedPageId]=gv;
-			}
-			gv.alpha=this._owner.alpha;
-			gv.rotation=this._owner.rotation;
-			gv.grayed=this._owner.grayed;
-		}
-
-		GearLook.__init$=function(){
-			//class GearLookValue
-			GearLookValue=(function(){
-				function GearLookValue(alpha,rotation,grayed){
-					this.alpha=NaN;
-					this.rotation=NaN;
-					this.grayed=false;
-					(alpha===void 0)&& (alpha=0);
-					(rotation===void 0)&& (rotation=0);
-					(grayed===void 0)&& (grayed=false);
-					this.alpha=alpha;
-					this.rotation=rotation;
-					this.grayed=grayed;
-				}
-				__class(GearLookValue,'');
-				return GearLookValue;
-			})()
-		}
-
-		return GearLook;
-	})(GearBase)
-
-
 	//class fairygui.GGraph extends fairygui.GObject
 	var GGraph=(function(_super){
 		function GGraph(){
@@ -8578,6 +9044,137 @@
 
 		return GGraph;
 	})(GObject)
+
+
+	//class fairygui.GearLook extends fairygui.GearBase
+	var GearLook=(function(_super){
+		var GearLookValue;
+		function GearLook(owner){
+			this.tweener=null;
+			this._storage=null;
+			this._default=null;
+			this._tweenValue=null;
+			this._tweenTarget=null;
+			GearLook.__super.call(this,owner);
+		}
+
+		__class(GearLook,'fairygui.GearLook',_super);
+		var __proto=GearLook.prototype;
+		__proto.init=function(){
+			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
+			this._storage={};
+		}
+
+		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
+			var arr=value.split(",");
+			var gv;
+			if(pageId==null)
+				gv=this._default;
+			else {
+				gv=new GearLookValue();
+				this._storage[pageId]=gv;
+			}
+			gv.alpha=parseFloat(arr[0]);
+			gv.rotation=parseInt(arr[1]);
+			gv.grayed=arr[2]=="1" ? true :false;
+		}
+
+		__proto.apply=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv)
+				gv=this._default;
+			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+				this._owner._gearLocked=true;
+				this._owner.grayed=gv.grayed;
+				this._owner._gearLocked=false;
+				if (this.tweener !=null){
+					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
+						this.tweener.complete();
+						this.tweener=null;
+					}
+					else
+					return;
+				};
+				var a=gv.alpha !=this._owner.alpha;
+				var b=gv.rotation !=this._owner.rotation;
+				if(a || b){
+					if(this._owner.checkGearController(0,this._controller))
+						this._displayLockToken=this._owner.addDisplayLock();
+					this._tweenTarget=gv;
+					if(this._tweenValue==null)
+						this._tweenValue=new Point();
+					this._tweenValue.x=this._owner.alpha;
+					this._tweenValue.y=this._owner.rotation;
+					this.tweener=Tween.to(this._tweenValue,
+					{x:gv.alpha,y:gv.rotation },
+					this._tweenTime*1000,
+					this._easeType,
+					Handler.create(this,this.__tweenComplete),
+					this._delay*1000);
+					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
+				}
+			}
+			else {
+				this._owner._gearLocked=true;
+				this._owner.grayed=gv.grayed;
+				this._owner.alpha=gv.alpha;
+				this._owner.rotation=gv.rotation;
+				this._owner._gearLocked=false;
+			}
+		}
+
+		__proto.__tweenUpdate=function(a,b){
+			this._owner._gearLocked=true;
+			if(a)
+				this._owner.alpha=this._tweenValue.x;
+			if(b)
+				this._owner.rotation=this._tweenValue.y;
+			this._owner._gearLocked=false;
+		}
+
+		__proto.__tweenComplete=function(){
+			if(this._displayLockToken!=0){
+				this._owner.releaseDisplayLock(this._displayLockToken);
+				this._displayLockToken=0;
+			}
+			this.tweener=null;
+			this._owner.displayObject.event(/*fairygui.Events.GEAR_STOP*/"fui_gear_stop");
+		}
+
+		__proto.updateState=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv){
+				gv=new GearLookValue();
+				this._storage[this._controller.selectedPageId]=gv;
+			}
+			gv.alpha=this._owner.alpha;
+			gv.rotation=this._owner.rotation;
+			gv.grayed=this._owner.grayed;
+		}
+
+		GearLook.__init$=function(){
+			//class GearLookValue
+			GearLookValue=(function(){
+				function GearLookValue(alpha,rotation,grayed){
+					this.alpha=NaN;
+					this.rotation=NaN;
+					this.grayed=false;
+					(alpha===void 0)&& (alpha=0);
+					(rotation===void 0)&& (rotation=0);
+					(grayed===void 0)&& (grayed=false);
+					this.alpha=alpha;
+					this.rotation=rotation;
+					this.grayed=grayed;
+				}
+				__class(GearLookValue,'');
+				return GearLookValue;
+			})()
+		}
+
+		return GearLook;
+	})(GearBase)
 
 
 	//class fairygui.GGroup extends fairygui.GObject
@@ -8759,7 +9356,7 @@
 				this._displayLockToken=0;
 			}
 			this.tweener=null;
-			this._owner.displayObject.event("fui_gear_stop");
+			this._owner.displayObject.event(/*fairygui.Events.GEAR_STOP*/"fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
@@ -8848,7 +9445,7 @@
 
 		__proto.handleXYChanged=function(){
 			_super.prototype.handleXYChanged.call(this);
-			if(this._flip !=0){
+			if(this._flip !=/*fairygui.FlipType.None*/0){
 				if(this.scaleX==-1)
 					this.image.x+=this.width;
 				if(this.scaleY==-1)
@@ -8890,9 +9487,9 @@
 			if(this._flip!=value){
 				this._flip=value;
 				var sx=1,sy=1;
-				if(this._flip==1 || this._flip==3)
+				if(this._flip==/*fairygui.FlipType.Horizontal*/1 || this._flip==/*fairygui.FlipType.Both*/3)
 					sx=-1;
-				if(this._flip==2 || this._flip==3)
+				if(this._flip==/*fairygui.FlipType.Vertical*/2 || this._flip==/*fairygui.FlipType.Both*/3)
 					sy=-1;
 				this.setScale(sx,sy);
 				this.handleXYChanged();
@@ -9025,7 +9622,7 @@
 				this._displayLockToken=0;
 			}
 			this.tweener=null;
-			this._owner.displayObject.event("fui_gear_stop");
+			this._owner.displayObject.event(/*fairygui.Events.GEAR_STOP*/"fui_gear_stop");
 		}
 
 		__proto.updateState=function(){
@@ -9078,7 +9675,7 @@
 			GLoader.__super.call(this);
 			this._playing=true;
 			this._url="";
-			this._fill=0;
+			this._fill=/*fairygui.LoaderFillType.None*/0;
 			this._align="left";
 			this._valign="top";
 			this._showErrorSign=true;
@@ -9119,7 +9716,7 @@
 				this._contentItem.load();
 				if(this._autoSize)
 					this.setSize(this._contentItem.width,this._contentItem.height);
-				if(this._contentItem.type==0){
+				if(this._contentItem.type==/*fairygui.PackageItemType.Image*/0){
 					if(this._contentItem.texture==null){
 						this.setErrorState();
 					}
@@ -9139,7 +9736,7 @@
 						this.updateLayout();
 					}
 				}
-				else if(this._contentItem.type==2){
+				else if(this._contentItem.type==/*fairygui.PackageItemType.MovieClip*/2){
 					if(!((this._content instanceof fairygui.display.MovieClip ))){
 						this._content=new MovieClip1();
 						this._displayObject.addChild(this._content);
@@ -9241,15 +9838,15 @@
 			}
 			else {
 				var sx=1,sy=1;
-				if(this._fill!=0){
+				if(this._fill!=/*fairygui.LoaderFillType.None*/0){
 					sx=this.width/this._contentSourceWidth;
 					sy=this.height/this._contentSourceHeight;
 					if(sx!=1 || sy!=1){
-						if (this._fill==2)
+						if (this._fill==/*fairygui.LoaderFillType.ScaleMatchHeight*/2)
 							sx=sy;
-						else if (this._fill==3)
+						else if (this._fill==/*fairygui.LoaderFillType.ScaleMatchWidth*/3)
 						sy=sx;
-						else if (this._fill==1){
+						else if (this._fill==/*fairygui.LoaderFillType.Scale*/1){
 							if (sx > sy)
 								sx=sy;
 							else
@@ -9523,9 +10120,11 @@
 			GBasicTextField.__super.call(this);
 			this._text="";
 			this._color="#000000";
-			this.setAutoSize(1);
 			this.textField.align="left";
 			this.textField.font=UIConfig1.defaultFont;
+			this._autoSize=/*fairygui.AutoSizeType.Both*/1;
+			this._widthAutoSize=this._heightAutoSize=true;
+			this.textField["_sizeDirty"]=false;
 		}
 
 		__class(GBasicTextField,'fairygui.GBasicTextField',_super);
@@ -9538,8 +10137,8 @@
 
 		__proto.setAutoSize=function(value){
 			this._autoSize=value;
-			this._widthAutoSize=value==1;
-			this._heightAutoSize=value==1 || value==2;
+			this._widthAutoSize=value==/*fairygui.AutoSizeType.Both*/1;
+			this._heightAutoSize=value==/*fairygui.AutoSizeType.Both*/1 || value==/*fairygui.AutoSizeType.Height*/2;
 			this.textField.wordWrap=!this._widthAutoSize;
 			if(!this._underConstruct){
 				if(!this._heightAutoSize)
@@ -9603,13 +10202,13 @@
 			LineInfo.returnList(this._lines);
 			var letterSpacing=this.letterSpacing;
 			var lineSpacing=this.leading-1;
-			var rectWidth=this.width-2 *2;
+			var rectWidth=this.width-/*CLASS CONST:fairygui.GBasicTextField.GUTTER_X*/2 *2;
 			var lineWidth=0,lineHeight=0,lineTextHeight=0;
 			var glyphWidth=0,glyphHeight=0;
 			var wordChars=0,wordStart=0,wordEnd=0;
 			var lastLineHeight=0;
 			var lineBuffer="";
-			var lineY=2;
+			var lineY=/*CLASS CONST:fairygui.GBasicTextField.GUTTER_Y*/2;
 			var line;
 			var wordWrap=!this._widthAutoSize && !this._singleLine;
 			var fontSize=this.fontSize;
@@ -9733,14 +10332,14 @@
 				this._lines.push(line);
 			}
 			if (this._textWidth > 0)
-				this._textWidth+=2 *2;
+				this._textWidth+=/*CLASS CONST:fairygui.GBasicTextField.GUTTER_X*/2 *2;
 			var count=this._lines.length;
 			if (count==0){
 				this._textHeight=0;
 			}
 			else {
 				line=this._lines[this._lines.length-1];
-				this._textHeight=line.y+line.height+2;
+				this._textHeight=line.y+line.height+/*CLASS CONST:fairygui.GBasicTextField.GUTTER_Y*/2;
 			};
 			var w=NaN,h=0;
 			if (this._widthAutoSize){
@@ -9765,14 +10364,14 @@
 			this.doAlign();
 			if (w==0 || h==0)
 				return;
-			var charX=2;
+			var charX=/*CLASS CONST:fairygui.GBasicTextField.GUTTER_X*/2;
 			var lineIndent=0;
 			var charIndent=0;
-			rectWidth=this.width-2 *2;
+			rectWidth=this.width-/*CLASS CONST:fairygui.GBasicTextField.GUTTER_X*/2 *2;
 			var lineCount=this._lines.length;
 			for (var i=0;i < lineCount;i++){
 				line=this._lines[i];
-				charX=2;
+				charX=/*CLASS CONST:fairygui.GBasicTextField.GUTTER_X*/2;
 				if (this.align=="center")
 					lineIndent=(rectWidth-line.width)/ 2;
 				else if (this.align=="right")
@@ -9840,7 +10439,7 @@
 
 		__proto.doAlign=function(){
 			if(this.valign=="top" || this._textHeight==0)
-				this._yOffset=2;
+				this._yOffset=/*CLASS CONST:fairygui.GBasicTextField.GUTTER_Y*/2;
 			else {
 				var dh=this.height-this._textHeight;
 				if(dh < 0)
@@ -10046,6 +10645,7 @@
 				function TextExt(owner){
 					this._owner=null;
 					this._lock=false;
+					this._sizeDirty=false;
 					TextExt.__super.call(this);
 					this._owner=owner;
 				}
@@ -10057,6 +10657,7 @@
 					this._lock=false;
 				}
 				__proto.typeset=function(){
+					this._sizeDirty=true;
 					_super.prototype.typeset.call(this);
 					if(!this._lock)
 						this._owner.typeset();
@@ -10064,14 +10665,17 @@
 						Laya.timer.clear(this,this.typeset);
 						this._isChanged=false;
 					}
+					this._sizeDirty=false;
 				}
 				__proto.setChanged=function(){
 					this.isChanged=true;
 				}
 				__getset(0,__proto,'isChanged',null,function(value){
-					if (this._isChanged!==value){
-						if(this._owner.autoSize!=0)
-							this.event("fui_size_delay_change");
+					if (value && !this._sizeDirty){
+						if(this._owner.autoSize!=/*fairygui.AutoSizeType.None*/0 && this._owner.parent){
+							this._sizeDirty=true;
+							this.event(/*fairygui.Events.SIZE_DELAY_CHANGE*/"fui_size_delay_change");
+						}
 					}
 					_super.prototype._$set_isChanged.call(this,value);
 				});
@@ -10106,7 +10710,7 @@
 			this._down=false;
 			this._over=false;
 			GButton.__super.call(this);
-			this._mode=0;
+			this._mode=/*fairygui.ButtonMode.Common*/0;
 			this._title="";
 			this._icon="";
 			this._sound=UIConfig1.buttonSound;
@@ -10120,12 +10724,12 @@
 		var __proto=GButton.prototype;
 		__proto.fireClick=function(downEffect){
 			(downEffect===void 0)&& (downEffect=true);
-			if (downEffect && this._mode==0){
-				this.setState("over");
-				Laya.timer.once(100,this,this.setState,[ "down"]);
-				Laya.timer.once(200,this,this.setState,[ "up"]);
+			if (downEffect && this._mode==/*fairygui.ButtonMode.Common*/0){
+				this.setState(/*CLASS CONST:fairygui.GButton.OVER*/"over");
+				Laya.timer.once(100,this,this.setState,[ /*CLASS CONST:fairygui.GButton.DOWN*/"down"]);
+				Laya.timer.once(200,this,this.setState,[ /*CLASS CONST:fairygui.GButton.UP*/"up"]);
 			}
-			this.__click(Events.createEvent("click",this.displayObject));
+			this.__click(Events.createEvent(/*laya.events.Event.CLICK*/"click",this.displayObject));
 		}
 
 		__proto.setState=function(val){
@@ -10133,7 +10737,7 @@
 				this._buttonController.selectedPage=val;
 			if(this._downEffect==1){
 				var cnt=this.numChildren;
-				if(val=="down" || val=="selectedOver" || val=="selectedDisabled"){
+				if(val==/*CLASS CONST:fairygui.GButton.DOWN*/"down" || val==/*CLASS CONST:fairygui.GButton.SELECTED_OVER*/"selectedOver" || val==/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled"){
 					var r=this._downEffectValue *255;
 					var color=Utils.toHexColor((r << 16)+(r << 8)+r);
 					for(var i=0;i < cnt;i++){
@@ -10153,7 +10757,7 @@
 				}
 			}
 			else if(this._downEffect==2){
-				if(val=="down" || val=="selectedOver" || val=="selectedDisabled")
+				if(val==/*CLASS CONST:fairygui.GButton.DOWN*/"down" || val==/*CLASS CONST:fairygui.GButton.SELECTED_OVER*/"selectedOver" || val==/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled")
 					this.setScale(this._downEffectValue,this._downEffectValue);
 				else
 				this.setScale(1,1);
@@ -10167,17 +10771,17 @@
 		}
 
 		__proto.handleGrayedChanged=function(){
-			if(this._buttonController && this._buttonController.hasPage("disabled")){
+			if(this._buttonController && this._buttonController.hasPage(/*CLASS CONST:fairygui.GButton.DISABLED*/"disabled")){
 				if(this.grayed){
-					if(this._selected && this._buttonController.hasPage("selectedDisabled"))
-						this.setState("selectedDisabled");
+					if(this._selected && this._buttonController.hasPage(/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled"))
+						this.setState(/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled");
 					else
-					this.setState("disabled");
+					this.setState(/*CLASS CONST:fairygui.GButton.DISABLED*/"disabled");
 				}
 				else if(this._selected)
-				this.setState("down");
+				this.setState(/*CLASS CONST:fairygui.GButton.DOWN*/"down");
 				else
-				this.setState("up");
+				this.setState(/*CLASS CONST:fairygui.GButton.UP*/"up");
 			}
 			else
 			_super.prototype.handleGrayedChanged.call(this);
@@ -10209,12 +10813,12 @@
 				this._title=this._titleObject.text;
 			if (this._iconObject !=null)
 				this._icon=this._iconObject.icon;
-			if (this._mode==0)
-				this.setState("up");
-			this.on("mouseover",this,this.__rollover);
-			this.on("mouseout",this,this.__rollout);
-			this.on("mousedown",this,this.__mousedown);
-			this.on("click",this,this.__click);
+			if (this._mode==/*fairygui.ButtonMode.Common*/0)
+				this.setState(/*CLASS CONST:fairygui.GButton.UP*/"up");
+			this.on(/*laya.events.Event.ROLL_OVER*/"mouseover",this,this.__rollover);
+			this.on(/*laya.events.Event.ROLL_OUT*/"mouseout",this,this.__rollout);
+			this.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__mousedown);
+			this.on(/*laya.events.Event.CLICK*/"click",this,this.__click);
 		}
 
 		__proto.setup_afterAdd=function(xml){
@@ -10259,36 +10863,36 @@
 		}
 
 		__proto.__rollover=function(){
-			if(!this._buttonController || !this._buttonController.hasPage("over"))
+			if(!this._buttonController || !this._buttonController.hasPage(/*CLASS CONST:fairygui.GButton.OVER*/"over"))
 				return;
 			this._over=true;
 			if (this._down)
 				return;
-			if(this.grayed && this._buttonController.hasPage("disabled"))
+			if(this.grayed && this._buttonController.hasPage(/*CLASS CONST:fairygui.GButton.DISABLED*/"disabled"))
 				return;
-			this.setState(this._selected ? "selectedOver" :"over");
+			this.setState(this._selected ? /*CLASS CONST:fairygui.GButton.SELECTED_OVER*/"selectedOver" :/*CLASS CONST:fairygui.GButton.OVER*/"over");
 		}
 
 		__proto.__rollout=function(){
-			if(!this._buttonController || !this._buttonController.hasPage("over"))
+			if(!this._buttonController || !this._buttonController.hasPage(/*CLASS CONST:fairygui.GButton.OVER*/"over"))
 				return;
 			this._over=false;
 			if (this._down)
 				return;
-			if(this.grayed && this._buttonController.hasPage("disabled"))
+			if(this.grayed && this._buttonController.hasPage(/*CLASS CONST:fairygui.GButton.DISABLED*/"disabled"))
 				return;
-			this.setState(this._selected ? "down" :"up");
+			this.setState(this._selected ? /*CLASS CONST:fairygui.GButton.DOWN*/"down" :/*CLASS CONST:fairygui.GButton.UP*/"up");
 		}
 
 		__proto.__mousedown=function(evt){
 			this._down=true;
 			GRoot.inst.checkPopups(evt.target);
-			Laya.stage.on("mouseup",this,this.__mouseup);
-			if(this._mode==0){
-				if(this.grayed && this._buttonController && this._buttonController.hasPage("disabled"))
-					this.setState("selectedDisabled");
+			Laya.stage.on(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__mouseup);
+			if(this._mode==/*fairygui.ButtonMode.Common*/0){
+				if(this.grayed && this._buttonController && this._buttonController.hasPage(/*CLASS CONST:fairygui.GButton.DISABLED*/"disabled"))
+					this.setState(/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled");
 				else
-				this.setState("down");
+				this.setState(/*CLASS CONST:fairygui.GButton.DOWN*/"down");
 			}
 			if (this._linkedPopup !=null){
 				if ((this._linkedPopup instanceof fairygui.Window ))
@@ -10300,15 +10904,15 @@
 
 		__proto.__mouseup=function(){
 			if (this._down){
-				Laya.stage.off("mouseup",this,this.__mouseup);
+				Laya.stage.off(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__mouseup);
 				this._down=false;
-				if(this._mode==0){
-					if(this.grayed && this._buttonController && this._buttonController.hasPage("disabled"))
-						this.setState("disabled");
+				if(this._mode==/*fairygui.ButtonMode.Common*/0){
+					if(this.grayed && this._buttonController && this._buttonController.hasPage(/*CLASS CONST:fairygui.GButton.DISABLED*/"disabled"))
+						this.setState(/*CLASS CONST:fairygui.GButton.DISABLED*/"disabled");
 					else if(this._over)
-					this.setState("over");
+					this.setState(/*CLASS CONST:fairygui.GButton.OVER*/"over");
 					else
-					this.setState("up");
+					this.setState(/*CLASS CONST:fairygui.GButton.UP*/"up");
 				}
 			}
 		}
@@ -10323,14 +10927,14 @@
 			}
 			if (!this._changeStateOnClick)
 				return;
-			if (this._mode==1){
+			if (this._mode==/*fairygui.ButtonMode.Check*/1){
 				this.selected=!this._selected;
-				Events.dispatch("fui_state_changed",this.displayObject,evt);
+				Events.dispatch(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed",this.displayObject,evt);
 			}
-			else if (this._mode==2){
+			else if (this._mode==/*fairygui.ButtonMode.Radio*/2){
 				if (!this._selected){
 					this.selected=true;
-					Events.dispatch("fui_state_changed",this.displayObject,evt);
+					Events.dispatch(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed",this.displayObject,evt);
 				}
 			}
 		}
@@ -10438,21 +11042,21 @@
 		__getset(0,__proto,'selected',function(){
 			return this._selected;
 			},function(val){
-			if (this._mode==0)
+			if (this._mode==/*fairygui.ButtonMode.Common*/0)
 				return;
 			if (this._selected !=val){
 				this._selected=val;
-				if(this.grayed && this._buttonController && this._buttonController.hasPage("disabled")){
+				if(this.grayed && this._buttonController && this._buttonController.hasPage(/*CLASS CONST:fairygui.GButton.DISABLED*/"disabled")){
 					if(this._selected)
-						this.setState("selectedDisabled");
+						this.setState(/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled");
 					else
-					this.setState("disabled");
+					this.setState(/*CLASS CONST:fairygui.GButton.DISABLED*/"disabled");
 				}
 				else {
 					if(this._selected)
-						this.setState(this._over ? "selectedOver" :"down");
+						this.setState(this._over ? /*CLASS CONST:fairygui.GButton.SELECTED_OVER*/"selectedOver" :/*CLASS CONST:fairygui.GButton.DOWN*/"down");
 					else
-					this.setState(this._over ? "over" :"up");
+					this.setState(this._over ? /*CLASS CONST:fairygui.GButton.OVER*/"over" :/*CLASS CONST:fairygui.GButton.UP*/"up");
 				}
 				if(this._selectedTitle && this._titleObject)
 					this._titleObject.text=this._selected ? this._selectedTitle :this._title;
@@ -10469,7 +11073,7 @@
 						if(this._relatedController._autoRadioGroupDepth)
 							this._parent.adjustRadioGroupDepth(this,this._relatedController);
 					}
-					else if(this._mode==1 && this._relatedController.selectedPageId==this._pageOption.id)
+					else if(this._mode==/*fairygui.ButtonMode.Check*/1 && this._relatedController.selectedPageId==this._pageOption.id)
 					this._relatedController.oppositePageId=this._pageOption.id;
 				}
 			}
@@ -10479,7 +11083,7 @@
 			return this._mode;
 			},function(value){
 			if (this._mode !=value){
-				if (value==0)
+				if (value==/*fairygui.ButtonMode.Common*/0)
 					this.selected=false;
 				this._mode=value;
 			}
@@ -10526,6 +11130,7 @@
 			this._itemsUpdated=false;
 			this._selectedIndex=0;
 			this._buttonController=null;
+			this._selectionController=null;
 			this._down=false;
 			this._over=false;
 			GComboBox.__super.call(this);
@@ -10543,11 +11148,28 @@
 				this._buttonController.selectedPage=val;
 		}
 
+		__proto.handleControllerChanged=function(c){
+			fairygui.GObject.prototype.handleControllerChanged.call(this,c);
+			if (this._selectionController==c)
+				this.selectedIndex=c.selectedIndex;
+		}
+
+		__proto.updateSelectionController=function(){
+			if (this._selectionController !=null && !this._selectionController.changing
+				&& this._selectedIndex < this._selectionController.pageCount){
+				var c=this._selectionController;
+				this._selectionController=null;
+				c.selectedIndex=this._selectedIndex;
+				this._selectionController=c;
+			}
+		}
+
 		__proto.dispose=function(){
 			if(this.dropdown){
 				this.dropdown.dispose();
 				this.dropdown=null;
 			}
+			this._selectionController=null;
 			_super.prototype.dispose.call(this);
 		}
 
@@ -10571,16 +11193,16 @@
 					Log.print(this.resourceURL+": 下拉框的弹出元件里必须包含名为list的列表");
 					return;
 				}
-				this._list.on("fui_click_item",this,this.__clickItem);
-				this._list.addRelation(this.dropdown,14);
-				this._list.removeRelation(this.dropdown,15);
-				this.dropdown.addRelation(this._list,15);
-				this.dropdown.removeRelation(this._list,14);
-				this.dropdown.displayObject.on("undisplay",this,this.__popupWinClosed);
+				this._list.on(/*fairygui.Events.CLICK_ITEM*/"fui_click_item",this,this.__clickItem);
+				this._list.addRelation(this.dropdown,/*fairygui.RelationType.Width*/14);
+				this._list.removeRelation(this.dropdown,/*fairygui.RelationType.Height*/15);
+				this.dropdown.addRelation(this._list,/*fairygui.RelationType.Height*/15);
+				this.dropdown.removeRelation(this._list,/*fairygui.RelationType.Width*/14);
+				this.dropdown.displayObject.on(/*laya.events.Event.UNDISPLAY*/"undisplay",this,this.__popupWinClosed);
 			}
-			this.on("mouseover",this,this.__rollover);
-			this.on("mouseout",this,this.__rollout);
-			this.on("mousedown",this,this.__mousedown);
+			this.on(/*laya.events.Event.ROLL_OVER*/"mouseover",this,this.__rollover);
+			this.on(/*laya.events.Event.ROLL_OUT*/"mouseout",this,this.__rollout);
+			this.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__mousedown);
 		}
 
 		__proto.setup_afterAdd=function(xml){
@@ -10630,6 +11252,9 @@
 					else if(str=="auto")
 					this._popupDownward=null;
 				}
+				str=xml.getAttribute("selectionController");
+				if (str)
+					this._selectionController=this.parent.getController(str);
 			}
 		}
 
@@ -10650,14 +11275,14 @@
 			this.dropdown.width=this.width;
 			this.root.togglePopup(this.dropdown,this,this._popupDownward);
 			if (this.dropdown.parent)
-				this.setState("down");
+				this.setState(/*fairygui.GButton.DOWN*/"down");
 		}
 
 		__proto.__popupWinClosed=function(){
 			if(this._over)
-				this.setState("over");
+				this.setState(/*fairygui.GButton.OVER*/"over");
 			else
-			this.setState("up");
+			this.setState(/*fairygui.GButton.UP*/"up");
 		}
 
 		__proto.__clickItem=function(itemObject,evt){
@@ -10669,21 +11294,21 @@
 				(this.dropdown.parent).hidePopup();
 			this._selectedIndex=-1;
 			this.selectedIndex=index;
-			Events.dispatch("fui_state_changed",this.displayObject,evt);
+			Events.dispatch(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed",this.displayObject,evt);
 		}
 
 		__proto.__rollover=function(){
 			this._over=true;
 			if (this._down || this.dropdown && this.dropdown.parent)
 				return;
-			this.setState("over");
+			this.setState(/*fairygui.GButton.OVER*/"over");
 		}
 
 		__proto.__rollout=function(){
 			this._over=false;
 			if (this._down || this.dropdown && this.dropdown.parent)
 				return;
-			this.setState("up");
+			this.setState(/*fairygui.GButton.UP*/"up");
 		}
 
 		__proto.__mousedown=function(evt){
@@ -10691,7 +11316,7 @@
 				return;
 			this._down=true;
 			GRoot.inst.checkPopups(evt.target);
-			Laya.stage.on("mouseup",this,this.__mouseup);
+			Laya.stage.on(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__mouseup);
 			if (this.dropdown)
 				this.showDropdown();
 		}
@@ -10699,12 +11324,12 @@
 		__proto.__mouseup=function(){
 			if(this._down){
 				this._down=false;
-				Laya.stage.off("mouseup",this,this.__mouseup);
+				Laya.stage.off(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__mouseup);
 				if(this.dropdown && !this.dropdown.parent){
 					if(this._over)
-						this.setState("over");
+						this.setState(/*fairygui.GButton.OVER*/"over");
 					else
-					this.setState("up");
+					this.setState(/*fairygui.GButton.UP*/"up");
 				}
 			}
 		}
@@ -10754,6 +11379,7 @@
 				if (this._icons !=null)
 					this.icon=null;
 			}
+			this.updateSelectionController();
 		});
 
 		__getset(0,__proto,'icon',function(){
@@ -10773,6 +11399,12 @@
 			this._icons=value;
 			if (this._icons !=null && this._selectedIndex !=-1 && this._selectedIndex < this._icons.length)
 				this.icon=this._icons[this._selectedIndex];
+		});
+
+		__getset(0,__proto,'selectionController',function(){
+			return this._selectionController;
+			},function(value){
+			this._selectionController=value;
 		});
 
 		__getset(0,__proto,'visibleItemCount',function(){
@@ -10880,9 +11512,9 @@
 						(this._titleObject).password=str=="true";
 					str=xml.getAttribute("keyboardType");
 					if(str=="4")
-						(this._titleObject).keyboardType="number";
+						(this._titleObject).keyboardType=/*laya.display.Input.TYPE_NUMBER*/"number";
 					else if(str=="3")
-					(this._titleObject).keyboardType="url";
+					(this._titleObject).keyboardType=/*laya.display.Input.TYPE_URL*/"url";
 				}
 			}
 		}
@@ -10990,6 +11622,7 @@
 			this._selectionMode=0;
 			this._align=null;
 			this._verticalAlign=null;
+			this._selectionController=null;
 			this._lastSelectedIndex=0;
 			this._pool=null;
 			this._virtual=false;
@@ -11006,10 +11639,10 @@
 			GList.__super.call(this);
 			this._trackBounds=true;
 			this._pool=new GObjectPool();
-			this._layout=0;
+			this._layout=/*fairygui.ListLayoutType.SingleColumn*/0;
 			this._autoResizeItem=true;
 			this._lastSelectedIndex=-1;
-			this._selectionMode=0;
+			this._selectionMode=/*fairygui.ListSelectionMode.Single*/0;
 			this.opaque=true;
 			this.scrollItemToViewOnClick=true;
 			this._align="left";
@@ -11042,9 +11675,9 @@
 		__proto.addChildAt=function(child,index){
 			(index===void 0)&& (index=0);
 			if (this._autoResizeItem){
-				if (this._layout==0)
+				if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0)
 					child.width=this.viewWidth;
-				else if (this._layout==1)
+				else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1)
 				child.height=this.viewHeight;
 			}
 			_super.prototype.addChildAt.call(this,child,index);
@@ -11053,7 +11686,7 @@
 				button.selected=false;
 				button.changeStateOnClick=false;
 			}
-			child.on("click",this,this.__clickItem);
+			child.on(/*laya.events.Event.CLICK*/"click",this,this.__clickItem);
 			return child;
 		}
 
@@ -11070,7 +11703,7 @@
 		__proto.removeChildAt=function(index,dispose){
 			(dispose===void 0)&& (dispose=false);
 			var child=_super.prototype.removeChildAt.call(this,index,dispose);
-			child.off("click",this,this.__clickItem);
+			child.off(/*laya.events.Event.CLICK*/"click",this,this.__clickItem);
 			return child;
 		}
 
@@ -11107,10 +11740,10 @@
 
 		__proto.addSelection=function(index,scrollItToView){
 			(scrollItToView===void 0)&& (scrollItToView=false);
-			if (this._selectionMode==3)
+			if (this._selectionMode==/*fairygui.ListSelectionMode.None*/3)
 				return;
 			this.checkVirtualList();
-			if (this._selectionMode==0)
+			if (this._selectionMode==/*fairygui.ListSelectionMode.Single*/0)
 				this.clearSelection();
 			if(scrollItToView)
 				this.scrollToView(index);
@@ -11118,13 +11751,15 @@
 			if(index<0 || index >=this._children.length)
 				return;
 			var obj=this.getChildAt(index);
-			if (((obj instanceof fairygui.GButton ))&& !(obj).selected)
+			if (((obj instanceof fairygui.GButton ))&& !(obj).selected){
 				(obj).selected=true;
+				this.updateSelectionController(index);
+			}
 		}
 
 		__proto.removeSelection=function(index){
 			(index===void 0)&& (index=0);
-			if (this._selectionMode==3)
+			if (this._selectionMode==/*fairygui.ListSelectionMode.None*/3)
 				return;
 			index=this.itemIndexToChildIndex(index);
 			if(index >=this._children.length)
@@ -11146,11 +11781,16 @@
 		__proto.selectAll=function(){
 			this.checkVirtualList();
 			var cnt=this._children.length;
+			var last=-1;
 			for (var i=0;i < cnt;i++){
 				var obj=this._children[i];
-				if ((obj instanceof fairygui.GButton ))
+				if ((obj instanceof fairygui.GButton )){
 					(obj).selected=true;
+					last=i;
+				}
 			}
+			if(last!=-1)
+				this.updateSelectionController(last);
 		}
 
 		__proto.selectNone=function(){
@@ -11165,11 +11805,17 @@
 
 		__proto.selectReverse=function(){
 			var cnt=this._children.length;
+			var last=-1;
 			for (var i=0;i < cnt;i++){
 				var obj=this._children[i];
-				if ((obj instanceof fairygui.GButton ))
+				if ((obj instanceof fairygui.GButton )){
 					(obj).selected=!(obj).selected;
+					if((obj).selected)
+						last=i;
+				}
 			}
+			if(last!=-1)
+				this.updateSelectionController(last);
 		}
 
 		__proto.handleArrowKey=function(dir){
@@ -11179,14 +11825,14 @@
 				return;
 			switch (dir){
 				case 1:
-					if (this._layout==0 || this._layout==3){
+					if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 						index--;
 						if (index >=0){
 							this.clearSelection();
 							this.addSelection(index,true);
 						}
 					}
-					else if (this._layout==2 || this._layout==4){
+					else if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
 						var current=this._children[index];
 						var k=0;
 						for (var i=index-1;i >=0;i--){
@@ -11208,14 +11854,14 @@
 					}
 					break ;
 				case 3:
-					if (this._layout==1 || this._layout==2 || this._layout==4){
+					if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
 						index++;
 						if (index < this._children.length){
 							this.clearSelection();
 							this.addSelection(index,true);
 						}
 					}
-					else if (this._layout==3){
+					else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 						current=this._children[index];
 						k=0;
 						var cnt=this._children.length;
@@ -11238,14 +11884,14 @@
 					}
 					break ;
 				case 5:
-					if (this._layout==0 || this._layout==3){
+					if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 						index++;
 						if (index < this._children.length){
 							this.clearSelection();
 							this.addSelection(index,true);
 						}
 					}
-					else if (this._layout==2 || this._layout==4){
+					else if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
 						current=this._children[index];
 						k=0;
 						cnt=this._children.length;
@@ -11268,14 +11914,14 @@
 					}
 					break ;
 				case 7:
-					if (this._layout==1 || this._layout==2 || this._layout==4){
+					if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
 						index--;
 						if (index >=0){
 							this.clearSelection();
 							this.addSelection(index,true);
 						}
 					}
-					else if (this._layout==3){
+					else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 						current=this._children[index];
 						k=0;
 						for (i=index-1;i >=0;i--){
@@ -11306,16 +11952,16 @@
 			this.setSelectionOnEvent(item,evt);
 			if(this._scrollPane && this.scrollItemToViewOnClick)
 				this._scrollPane.scrollToView(item,true);
-			this.displayObject.event("fui_click_item",[item,Events.createEvent("fui_click_item",this.displayObject,evt)]);
+			this.displayObject.event(/*fairygui.Events.CLICK_ITEM*/"fui_click_item",[item,Events.createEvent(/*fairygui.Events.CLICK_ITEM*/"fui_click_item",this.displayObject,evt)]);
 		}
 
 		__proto.setSelectionOnEvent=function(item,evt){
-			if (!((item instanceof fairygui.GButton ))|| this._selectionMode==3)
+			if (!((item instanceof fairygui.GButton ))|| this._selectionMode==/*fairygui.ListSelectionMode.None*/3)
 				return;
 			var dontChangeLastIndex=false;
 			var button=(item);
 			var index=this.getChildIndex(item);
-			if (this._selectionMode==0){
+			if (this._selectionMode==/*fairygui.ListSelectionMode.Single*/0){
 				if (!button.selected){
 					this.clearSelectionExcept(button);
 					button.selected=true;
@@ -11340,7 +11986,7 @@
 						}
 					}
 				}
-				else if (evt.ctrlKey || this._selectionMode==2){
+				else if (evt.ctrlKey || this._selectionMode==/*fairygui.ListSelectionMode.Multiple_SingleClick*/2){
 					button.selected=!button.selected;
 				}
 				else {
@@ -11354,7 +12000,8 @@
 			}
 			if (!dontChangeLastIndex)
 				this._lastSelectedIndex=index;
-			return;
+			if(button.selected)
+				this.updateSelectionController(index);
 		}
 
 		__proto.clearSelectionExcept=function(obj){
@@ -11375,13 +12022,13 @@
 				itemCount=curCount;
 			if(this._virtual){
 				var lineCount=Math.ceil(itemCount / this._curLineItemCount);
-				if(this._layout==0 || this._layout==2)
+				if(this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2)
 					this.viewHeight=lineCount *this._itemSize.y+Math.max(0,lineCount-1)*this._lineGap;
 				else
 				this.viewWidth=lineCount *this._itemSize.x+Math.max(0,lineCount-1)*this._columnGap;
 			}
 			else if(itemCount==0){
-				if (this._layout==0 || this._layout==2)
+				if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2)
 					this.viewHeight=minSize;
 				else
 				this.viewWidth=minSize;
@@ -11396,14 +12043,14 @@
 					i--;
 				}
 				if (i < 0){
-					if (this._layout==0 || this._layout==2)
+					if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2)
 						this.viewHeight=minSize;
 					else
 					this.viewWidth=minSize;
 				}
 				else {
 					var size=0;
-					if (this._layout==0 || this._layout==2){
+					if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
 						size=obj.y+obj.height;
 						if (size < minSize)
 							size=minSize;
@@ -11434,15 +12081,29 @@
 			_super.prototype.handleSizeChanged.call(this);
 			if (this._autoResizeItem)
 				this.adjustItemsSize();
-			if (this._layout==2 || this._layout==3){
-				this.setBoundsChangedFlag();
-				if (this._virtual)
-					this.setVirtualListChangedFlag(true);
+			this.setBoundsChangedFlag();
+			if (this._virtual)
+				this.setVirtualListChangedFlag(true);
+		}
+
+		__proto.handleControllerChanged=function(c){
+			fairygui.GObject.prototype.handleControllerChanged.call(this,c);
+			if (this._selectionController==c)
+				this.selectedIndex=c.selectedIndex;
+		}
+
+		__proto.updateSelectionController=function(index){
+			if (this._selectionController !=null && !this._selectionController.changing
+				&& index < this._selectionController.pageCount){
+				var c=this._selectionController;
+				this._selectionController=null;
+				c.selectedIndex=index;
+				this._selectionController=c;
 			}
 		}
 
 		__proto.adjustItemsSize=function(){
-			if (this._layout==0){
+			if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0){
 				var cnt=this._children.length;
 				var cw=this.viewWidth;
 				for (var i=0;i < cnt;i++){
@@ -11450,7 +12111,7 @@
 					child.width=cw;
 				}
 			}
-			else if (this._layout==1){
+			else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1){
 				cnt=this._children.length;
 				var ch=this.viewHeight;
 				for (i=0;i < cnt;i++){
@@ -11466,7 +12127,7 @@
 					resultPoint=new Point();
 				var saved=NaN;
 				var index=0;
-				if (this._layout==0 || this._layout==2){
+				if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
 					saved=yValue;
 					fairygui.GList.pos_param=yValue;
 					index=this.getIndexOnPos1(false);
@@ -11474,7 +12135,7 @@
 					if (index < this._virtualItems.length && saved-yValue > this._virtualItems[index].height / 2 && index < this._realNumItems)
 						yValue+=this._virtualItems[index].height+this._lineGap;
 				}
-				else if (this._layout==1 || this._layout==3){
+				else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1 || this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 					saved=xValue;
 					fairygui.GList.pos_param=xValue;
 					index=this.getIndexOnPos2(false);
@@ -11513,12 +12174,12 @@
 				var ii=this._virtualItems[index];
 				var pos=0;
 				var i=0;
-				if (this._layout==0 || this._layout==2){
+				if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
 					for (i=0;i < index;i+=this._curLineItemCount)
 					pos+=this._virtualItems[i].height+this._lineGap;
 					rect=new Rectangle(0,pos,this._itemSize.x,ii.height);
 				}
-				else if (this._layout==1 || this._layout==3){
+				else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1 || this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 					for (i=0;i < index;i+=this._curLineItemCount)
 					pos+=this._virtualItems[i].width+this._columnGap;
 					rect=new Rectangle(pos,0,ii.width,this._itemSize.y);
@@ -11549,7 +12210,7 @@
 		__proto.childIndexToItemIndex=function(index){
 			if (!this._virtual)
 				return index;
-			if (this._layout==4){
+			if (this._layout==/*fairygui.ListLayoutType.Pagination*/4){
 				for (var i=this._firstIndex;i < this._realNumItems;i++){
 					if (this._virtualItems[i].obj !=null){
 						index--;
@@ -11570,7 +12231,7 @@
 		__proto.itemIndexToChildIndex=function(index){
 			if (!this._virtual)
 				return index;
-			if (this._layout==4){
+			if (this._layout==/*fairygui.ListLayoutType.Pagination*/4){
 				return this.getChildIndex(this._virtualItems[index].obj);
 			}
 			else{
@@ -11602,7 +12263,7 @@
 				if(this._scrollPane==null)
 					throw new Error("Virtual list must be scrollable!");
 				if(loop){
-					if(this._layout==2 || this._layout==3)
+					if(this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.FlowVertical*/3)
 						throw new Error("Loop list is not supported for FlowHorizontal or FlowVertical layout!");
 					this._scrollPane.bouncebackEffect=false;
 				}
@@ -11622,11 +12283,11 @@
 					}
 					this.returnToPool(obj);
 				}
-				if(this._layout==0 || this._layout==2)
+				if(this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2)
 					this._scrollPane.scrollSpeed=this._itemSize.y;
 				else
 				this._scrollPane.scrollSpeed=this._itemSize.x;
-				this.on("fui_scroll",this,this.__scrolled);
+				this.on(/*fairygui.Events.SCROLL*/"fui_scroll",this,this.__scrolled);
 				this.setVirtualListChangedFlag(true);
 			}
 		}
@@ -11656,9 +12317,9 @@
 			this._virtualListChanged=0;
 			this._eventLocked=true;
 			if (layoutChanged){
-				if (this._layout==0 || this._layout==1)
+				if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.SingleRow*/1)
 					this._curLineItemCount=1;
-				else if (this._layout==2){
+				else if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
 					if (this._columnCount > 0)
 						this._curLineItemCount=this._columnCount;
 					else{
@@ -11667,7 +12328,7 @@
 							this._curLineItemCount=1;
 					}
 				}
-				else if (this._layout==3){
+				else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 					if (this._lineCount > 0)
 						this._curLineItemCount=this._lineCount;
 					else{
@@ -11697,14 +12358,14 @@
 			if (this._realNumItems > 0){
 				var i=0;
 				var len=Math.ceil(this._realNumItems / this._curLineItemCount)*this._curLineItemCount;
-				if (this._layout==0 || this._layout==2){
+				if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
 					for (i=0;i < len;i+=this._curLineItemCount)
 					ch+=this._virtualItems[i].height+this._lineGap;
 					if (ch > 0)
 						ch-=this._lineGap;
 					cw=this._scrollPane.contentWidth;
 				}
-				else if (this._layout==1 || this._layout==3){
+				else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1 || this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 					for (i=0;i < len;i+=this._curLineItemCount)
 					cw+=this._virtualItems[i].width+this._columnGap;
 					if (cw > 0)
@@ -11853,7 +12514,7 @@
 				return;
 			var pos=NaN;
 			var roundSize=0;
-			if (this._layout==0 || this._layout==2){
+			if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
 				if (this._loop){
 					pos=this.scrollPane.scrollingPosY;
 					roundSize=this._numItems *(this._itemSize.y+this._lineGap);
@@ -11864,7 +12525,7 @@
 				}
 				this.handleScroll1(forceUpdate);
 			}
-			else if (this._layout==1 || this._layout==3){
+			else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1 || this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 				if (this._loop){
 					pos=this.scrollPane.scrollingPosX;
 					roundSize=this._numItems *(this._itemSize.x+this._columnGap);
@@ -12253,7 +12914,7 @@
 		__proto.handleAlign=function(contentWidth,contentHeight){
 			var newOffsetX=0;
 			var newOffsetY=0;
-			if (this._layout==0 || this._layout==2 || this._layout==4){
+			if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
 				if (contentHeight < this.viewHeight){
 					if (this._verticalAlign=="middle")
 						newOffsetY=Math.floor((this.viewHeight-contentHeight)/ 2);
@@ -12297,7 +12958,7 @@
 			var cnt=this._children.length;
 			var viewWidth=this.viewWidth;
 			var viewHeight=this.viewHeight;
-			if (this._layout==0){
+			if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0){
 				for (i=0;i < cnt;i++){
 					child=this.getChildAt(i);
 					if (this.foldInvisibleItems && !child.visible)
@@ -12314,7 +12975,7 @@
 				cw=curX+maxWidth;
 				ch=curY;
 			}
-			else if (this._layout==1){
+			else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1){
 				for (i=0;i < cnt;i++){
 					child=this.getChildAt(i);
 					if (this.foldInvisibleItems && !child.visible)
@@ -12331,7 +12992,7 @@
 				cw=curX;
 				ch=curY+maxHeight;
 			}
-			else if (this._layout==2){
+			else if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
 				for (i=0;i < cnt;i++){
 					child=this.getChildAt(i);
 					if (this.foldInvisibleItems && !child.visible)
@@ -12359,7 +13020,7 @@
 				ch=curY+maxHeight;
 				cw=maxWidth;
 			}
-			else if (this._layout==3){
+			else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 				for (i=0;i < cnt;i++){
 					child=this.getChildAt(i);
 					if (!child.visible)
@@ -12438,7 +13099,7 @@
 			if (str)
 				overflow=OverflowType.parse(str);
 			else
-			overflow=0;
+			overflow=/*fairygui.OverflowType.Visible*/0;
 			str=xml.getAttribute("margin");
 			if(str)
 				this._margin.parse(str);
@@ -12448,19 +13109,19 @@
 			str=xml.getAttribute("vAlign");
 			if(str)
 				this._verticalAlign=str;
-			if(overflow==2){
+			if(overflow==/*fairygui.OverflowType.Scroll*/2){
 				var scroll=0;
 				str=xml.getAttribute("scroll");
 				if (str)
 					scroll=ScrollType.parse(str);
 				else
-				scroll=1;
+				scroll=/*fairygui.ScrollType.Vertical*/1;
 				var scrollBarDisplay=0;
 				str=xml.getAttribute("scrollBar");
 				if (str)
 					scrollBarDisplay=ScrollBarDisplayType.parse(str);
 				else
-				scrollBarDisplay=0;
+				scrollBarDisplay=/*fairygui.ScrollBarDisplayType.Default*/0;
 				var scrollBarFlags=NaN;
 				str=xml.getAttribute("scrollBarFlags");
 				if(str)
@@ -12491,9 +13152,9 @@
 				this._columnGap=parseInt(str);
 			str=xml.getAttribute("lineItemCount");
 			if(str){
-				if (this._layout==2 || this._layout==4)
+				if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4)
 					this._columnCount=parseInt(str);
-				else if (this._layout==3)
+				else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3)
 				this._lineCount=parseInt(str);
 			}
 			str=xml.getAttribute("lineItemCount2");
@@ -12507,6 +13168,15 @@
 				this._defaultItem=str;
 			str=xml.getAttribute("autoItemSize");
 			this._autoResizeItem=str !="false";
+			str=xml.getAttribute("renderOrder");
+			if(str){
+				this._childrenRenderOrder=ChildrenRenderOrder.parse(str);
+				if(this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Arch*/2){
+					str=xml.getAttribute("apex");
+					if(str)
+						this._apexIndex=parseInt(str);
+				}
+			};
 			var col=xml.childNodes;
 			var length=col.length;
 			for (var i=0;i < length;i++){
@@ -12532,6 +13202,14 @@
 						obj.name=str;
 				}
 			}
+		}
+
+		__proto.setup_afterAdd=function(xml){
+			_super.prototype.setup_afterAdd.call(this,xml);
+			var str;
+			str=xml.getAttribute("selectionController");
+			if(str)
+				this._selectionController=this.parent.getController(str);
 		}
 
 		__getset(0,__proto,'layout',function(){
@@ -12561,7 +13239,7 @@
 			},function(value){
 			if (this._lineCount !=value){
 				this._lineCount=value;
-				if (this._layout==3 || this._layout==4){
+				if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
 					this.setBoundsChangedFlag();
 					if (this._virtual)
 						this.setVirtualListChangedFlag(true);
@@ -12574,7 +13252,7 @@
 			},function(value){
 			if (this._columnCount !=value){
 				this._columnCount=value;
-				if (this._layout==2 || this._layout==4){
+				if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
 					this.setBoundsChangedFlag();
 					if (this._virtual)
 						this.setVirtualListChangedFlag(true);
@@ -12642,6 +13320,12 @@
 			return this._selectionMode;
 			},function(value){
 			this._selectionMode=value;
+		});
+
+		__getset(0,__proto,'selectionController',function(){
+			return this._selectionController;
+			},function(value){
+			this._selectionController=value;
 		});
 
 		__getset(0,__proto,'itemPool',function(){
@@ -12772,7 +13456,7 @@
 			},function(value){
 			this._text=value;
 			if(this._ubbEnabled)
-				this.div.innerHTML=ToolSet.parseUBB(ToolSet.encodeHTML(this._text));
+				this.div.innerHTML=ToolSet.parseUBB(this._text);
 			else
 			this.div.innerHTML=this._text;
 		});
@@ -12861,7 +13545,7 @@
 			this._tweener=null;
 			this._tweenValue=0;
 			GProgressBar.__super.call(this);
-			this._titleType=0;
+			this._titleType=/*fairygui.ProgressTitleType.Percent*/0;
 			this._value=50;
 			this._max=100;
 		}
@@ -12895,16 +13579,16 @@
 			var percent=Math.min(newValue / this._max,1);
 			if(this._titleObject){
 				switch(this._titleType){
-					case 0:
+					case /*fairygui.ProgressTitleType.Percent*/0:
 						this._titleObject.text=Math.round(percent *100)+"%";
 						break ;
-					case 1:
+					case /*fairygui.ProgressTitleType.ValueAndMax*/1:
 						this._titleObject.text=Math.round(newValue)+"/"+Math.round(this._max);
 						break ;
-					case 2:
+					case /*fairygui.ProgressTitleType.Value*/2:
 						this._titleObject.text=""+Math.round(newValue);
 						break ;
-					case 3:
+					case /*fairygui.ProgressTitleType.Max*/3:
 						this._titleObject.text=""+Math.round(this._max);
 						break ;
 					}
@@ -13036,7 +13720,7 @@
 			this.opaque=false;
 			this._popupStack=[];
 			this._justClosedPopups=[];
-			this.displayObject.once("display",this,this.__addedToStage);
+			this.displayObject.once(/*laya.events.Event.DISPLAY*/"display",this,this.__addedToStage);
 		}
 
 		__class(GRoot,'fairygui.GRoot',_super);
@@ -13088,7 +13772,7 @@
 				if(this._modalWaitPane==null)
 					this._modalWaitPane=UIPackage.createObjectFromURL(UIConfig1.globalModalWaiting);
 				this._modalWaitPane.setSize(this.width,this.height);
-				this._modalWaitPane.addRelation(this,24);
+				this._modalWaitPane.addRelation(this,/*fairygui.RelationType.Size*/24);
 				this.addChild(this._modalWaitPane);
 				this._modalWaitPane.text=msg;
 			}
@@ -13260,7 +13944,7 @@
 		__proto.setFocus=function(value){
 			if(this._focusedObject!=value){
 				this._focusedObject=value;
-				this.displayObject.event("fui_focus_changed");
+				this.displayObject.event(/*fairygui.Events.FOCUS_CHANGED*/"fui_focus_changed");
 			}
 		}
 
@@ -13288,13 +13972,13 @@
 		}
 
 		__proto.__addedToStage=function(){
-			Laya.stage.on("mousedown",this,this.__stageMouseDown);
-			Laya.stage.on("mouseup",this,this.__stageMouseUp);
+			Laya.stage.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__stageMouseDown);
+			Laya.stage.on(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__stageMouseUp);
 			this._modalLayer=new GGraph();
 			this._modalLayer.setSize(this.width,this.height);
 			this._modalLayer.drawRect(0,null,UIConfig1.modalLayerColor);
-			this._modalLayer.addRelation(this,24);
-			this.displayObject.stage.on("resize",this,this.__winResize);
+			this._modalLayer.addRelation(this,/*fairygui.RelationType.Size*/24);
+			this.displayObject.stage.on(/*laya.events.Event.RESIZE*/"resize",this,this.__winResize);
 			this.__winResize();
 		}
 
@@ -13428,9 +14112,9 @@
 			else{
 				str=xml.getAttribute("keyboardType");
 				if(str=="4")
-					this.keyboardType="number";
+					this.keyboardType=/*laya.display.Input.TYPE_NUMBER*/"number";
 				else if(str=="3")
-				this.keyboardType="url";
+				this.keyboardType=/*laya.display.Input.TYPE_URL*/"url";
 			}
 		}
 
@@ -13596,20 +14280,20 @@
 			}
 			this._arrowButton1=this.getChild("arrow1");
 			this._arrowButton2=this.getChild("arrow2");
-			this._grip.on("mousedown",this,this.__gripMouseDown);
+			this._grip.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__gripMouseDown);
 			if(this._arrowButton1)
-				this._arrowButton1.on("mousedown",this,this.__arrowButton1Click);
+				this._arrowButton1.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__arrowButton1Click);
 			if(this._arrowButton2)
-				this._arrowButton2.on("mousedown",this,this.__arrowButton2Click);
-			this.on("mousedown",this,this.__barMouseDown);
+				this._arrowButton2.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__arrowButton2Click);
+			this.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__barMouseDown);
 		}
 
 		__proto.__gripMouseDown=function(evt){
 			if (!this._bar)
 				return;
 			evt.stopPropagation();
-			Laya.stage.on("mousemove",this,this.__gripMouseMove);
-			Laya.stage.on("mouseup",this,this.__gripMouseUp);
+			Laya.stage.on(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__gripMouseMove);
+			Laya.stage.on(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__gripMouseUp);
 			this.globalToLocal(Laya.stage.mouseX,Laya.stage.mouseY,this._dragOffset);
 			this._dragOffset.x-=this._grip.x;
 			this._dragOffset.y-=this._grip.y;
@@ -13630,8 +14314,8 @@
 		__proto.__gripMouseUp=function(evt){
 			if (!this._bar)
 				return;
-			Laya.stage.off("mousemove",this,this.__gripMouseMove);
-			Laya.stage.off("mouseup",this,this.__gripMouseUp);
+			Laya.stage.off(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__gripMouseMove);
+			Laya.stage.off(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__gripMouseUp);
 		}
 
 		__proto.__arrowButton1Click=function(evt){
@@ -13719,7 +14403,7 @@
 			this._clickPos=null;
 			this._clickPercent=0;
 			GSlider.__super.call(this);
-			this._titleType=0;
+			this._titleType=/*fairygui.ProgressTitleType.Percent*/0;
 			this._value=50;
 			this._max=100;
 			this._clickPos=new laya.maths.Point();
@@ -13735,16 +14419,16 @@
 		__proto.updateWidthPercent=function(percent){
 			if (this._titleObject){
 				switch (this._titleType){
-					case 0:
+					case /*fairygui.ProgressTitleType.Percent*/0:
 						this._titleObject.text=Math.round(percent *100)+"%";
 						break ;
-					case 1:
+					case /*fairygui.ProgressTitleType.ValueAndMax*/1:
 						this._titleObject.text=this._value+"/"+this._max;
 						break ;
-					case 2:
+					case /*fairygui.ProgressTitleType.Value*/2:
 						this._titleObject.text=""+this._value;
 						break ;
-					case 3:
+					case /*fairygui.ProgressTitleType.Max*/3:
 						this._titleObject.text=""+this._max;
 						break ;
 					}
@@ -13778,7 +14462,7 @@
 				this._barMaxHeightDelta=this.height-this._barMaxHeight;
 			}
 			if(this._gripObject){
-				this._gripObject.on("mousedown",this,this.__gripMouseDown);
+				this._gripObject.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__gripMouseDown);
 			}
 		}
 
@@ -13805,8 +14489,8 @@
 		__proto.__gripMouseDown=function(evt){
 			this._clickPos=this.globalToLocal(Laya.stage.mouseX,Laya.stage.mouseY);
 			this._clickPercent=this._value / this._max;
-			Laya.stage.on("mousemove",this,this.__gripMouseMove);
-			Laya.stage.on("mouseup",this,this.__gripMouseUp);
+			Laya.stage.on(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__gripMouseMove);
+			Laya.stage.on(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__gripMouseUp);
 		}
 
 		__proto.__gripMouseMove=function(evt){
@@ -13825,7 +14509,7 @@
 			var newValue=Math.round(this._max *percent);
 			if (newValue !=this._value){
 				this._value=newValue;
-				Events.dispatch("fui_state_changed",this.displayObject,evt);
+				Events.dispatch(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed",this.displayObject,evt);
 			}
 			this.updateWidthPercent(percent);
 		}
@@ -13833,8 +14517,8 @@
 		__proto.__gripMouseUp=function(evt){
 			var percent=this._value / this._max;
 			this.updateWidthPercent(percent);
-			Laya.stage.off("mousemove",this,this.__gripMouseMove);
-			Laya.stage.off("mouseup",this,this.__gripMouseUp);
+			Laya.stage.off(/*laya.events.Event.MOUSE_MOVE*/"mousemove",this,this.__gripMouseMove);
+			Laya.stage.off(/*laya.events.Event.MOUSE_UP*/"mouseup",this,this.__gripMouseUp);
 		}
 
 		__getset(0,__proto,'max',function(){
@@ -13887,9 +14571,9 @@
 			this.focusable=true;
 			this._uiSources=[];
 			this.bringToFontOnClick=UIConfig1.bringWindowToFrontOnClick;
-			this.displayObject.on("display",this,this.__onShown);
-			this.displayObject.on("undisplay",this,this.__onHidden);
-			this.displayObject.on("mousedown",this,this.__mouseDown);
+			this.displayObject.on(/*laya.events.Event.DISPLAY*/"display",this,this.__onShown);
+			this.displayObject.on(/*laya.events.Event.UNDISPLAY*/"undisplay",this,this.__onHidden);
+			this.displayObject.on(/*laya.events.Event.MOUSE_DOWN*/"mousedown",this,this.__mouseDown);
 		}
 
 		__class(Window,'fairygui.Window',_super,'Window2');
@@ -13922,8 +14606,8 @@
 			(restraint===void 0)&& (restraint=false);
 			this.setXY(Math.round((r.width-this.width)/ 2),Math.round((r.height-this.height)/ 2));
 			if(restraint){
-				this.addRelation(r,3);
-				this.addRelation(r,10);
+				this.addRelation(r,/*fairygui.RelationType.Center_Center*/3);
+				this.addRelation(r,/*fairygui.RelationType.Middle_Middle*/10);
 			}
 		}
 
@@ -14064,7 +14748,7 @@
 				if(this._contentPane !=null){
 					this.addChild(this._contentPane);
 					this.setSize(this._contentPane.width,this._contentPane.height);
-					this._contentPane.addRelation(this,24);
+					this._contentPane.addRelation(this,/*fairygui.RelationType.Size*/24);
 					this._frame=(this._contentPane.getChild("frame"));
 					if(this._frame !=null){
 						this.closeButton=this._frame.getChild("closeButton");
@@ -14095,14 +14779,14 @@
 			if(this._dragArea !=value){
 				if(this._dragArea !=null){
 					this._dragArea.draggable=false;
-					this._dragArea.off("fui_drag_start",this,this.__dragStart);
+					this._dragArea.off(/*fairygui.Events.DRAG_START*/"fui_drag_start",this,this.__dragStart);
 				}
 				this._dragArea=value;
 				if(this._dragArea !=null){
 					if((this._dragArea instanceof fairygui.GGraph ))
 						this._dragArea.asGraph.drawRect(0,null,null);
 					this._dragArea.draggable=true;
-					this._dragArea.on("fui_drag_start",this,this.__dragStart);
+					this._dragArea.on(/*fairygui.Events.DRAG_START*/"fui_drag_start",this,this.__dragStart);
 				}
 			}
 		});
@@ -14324,8 +15008,8 @@
 			this._playing=true;
 			this.mouseEnabled=false;
 			this.setPlaySettings();
-			this.on("display",this,this.__addToStage);
-			this.on("undisplay",this,this.__removeFromStage);
+			this.on(/*laya.events.Event.DISPLAY*/"display",this,this.__addToStage);
+			this.on(/*laya.events.Event.UNDISPLAY*/"undisplay",this,this.__removeFromStage);
 		}
 
 		__class(MovieClip,'fairygui.display.MovieClip',_super,'MovieClip1');
@@ -14455,5 +15139,5 @@
 	})(Sprite)
 
 
-	Laya.__init([GList,GearColor,GearAnimation,Transition,ScrollPane,UIPackage,GBasicTextField,Controller,GearLook,GearSize,RelationItem]);
+	Laya.__init([GList,GearColor,GearAnimation,Transition,ScrollPane,RelationItem,UIPackage,GBasicTextField,Controller,GearLook,GearSize]);
 })(window,document,Laya);

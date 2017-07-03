@@ -14,7 +14,9 @@ package fairygui {
 		
 		protected var _margin: Margin;
 		protected var _trackBounds: Boolean;
-		protected var _boundsChanged: Boolean;
+		protected var _boundsChanged: Boolean;		
+		protected var _childrenRenderOrder:int;
+		protected var _apexIndex:int;
 		
 		public var _buildingDisplayList: Boolean;
 		public var _children: Vector.<GObject>;
@@ -23,9 +25,6 @@ package fairygui {
 		public var _container: Sprite;
 		public var _scrollPane: ScrollPane;
 		public var _alignOffset:Point;
-		
-		private var _childrenRenderOrder:int;
-		private var _apexIndex:int;
 		
 		public function GComponent() {
 			super();
@@ -1128,7 +1127,16 @@ package fairygui {
 		{
 			super.setup_afterAdd(xml);
 			
-			var str:String = xml.getAttribute("controller");
+			var str:String;
+			if(scrollPane)
+			{
+				str = xml.getAttribute("pageController");
+				if(str)
+					scrollPane.pageController = parent.getController(str);
+			}
+			
+			
+			str = xml.getAttribute("controller");
 			if(str)
 			{
 				var arr:Array = str.split(",");

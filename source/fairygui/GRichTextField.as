@@ -24,7 +24,7 @@ package fairygui {
 		override public function set text(value: String):void {
 			this._text = value;
 			if(this._ubbEnabled)
-				this.div.innerHTML = ToolSet.parseUBB(ToolSet.encodeHTML(this._text));
+				this.div.innerHTML = ToolSet.parseUBB(this._text);
 			else
 				this.div.innerHTML = this._text;
 		}

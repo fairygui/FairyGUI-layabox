@@ -870,7 +870,7 @@ declare module fairygui {
         singleLine: boolean;
         stroke: number;
         strokeColor: string;
-        asPassword: boolean;
+        password: boolean;
         editable: boolean;
         maxChars: number;
         promptText: string;
@@ -1409,5 +1409,55 @@ declare module fairygui.utils {
         scaleY: number;	
         constructor(data: fairygui.utils.PixelHitTestData, offsetX: number, offsetY: number);
         isHit(x: number, y: number):boolean;
+    }
+}
+
+declare module fairygui.tree {
+    class TreeNode {
+        tree: fairygui.tree.TreeView;
+        parent: fairygui.tree.TreeNode;
+        cell: fairygui.GComponent;
+        expanded: boolean;
+        isFolder: boolean;
+        text: string;       
+        level: number;
+        data: any;
+        numChildren: number;
+        constructor(hasChild: boolean);
+        addChild(child: fairygui.tree.TreeNode): fairygui.tree.TreeNode;
+        addChildAt(child: fairygui.tree.TreeNode, index: number): fairygui.tree.TreeNode;
+        removeChild(child: fairygui.tree.TreeNode): fairygui.tree.TreeNode;
+        removeChildAt(index: number): fairygui.tree.TreeNode;
+        removeChildren(beginIndex?: number, endIndex?: number): void;
+        getChildAt(index: number): fairygui.tree.TreeNode;
+        getChildIndex(child: fairygui.tree.TreeNode): number;
+        getPrevSibling(): fairygui.tree.TreeNode;
+        getNextSibling(): fairygui.tree.TreeNode;
+        setChildIndex(child: fairygui.tree.TreeNode, index: number): void;
+        swapChildren(child1: fairygui.tree.TreeNode, child2: fairygui.tree.TreeNode): void;
+        swapChildrenAt(index1: number, index2: number): void;
+    }
+}
+
+declare module fairygui.tree {
+    class TreeView {
+        treeNodeCreateCell: laya.utils.Handler;
+        treeNodeRender: laya.utils.Handler;
+        treeNodeWillExpand: laya.utils.Handler;
+        treeNodeClick: laya.utils.Handler;
+        list: fairygui.GList;
+        root: fairygui.tree.TreeNode;
+        indent: number;
+        constructor(list: fairygui.GList);
+        getSelectedNode(): fairygui.tree.TreeNode;
+        getSelection(): Array<fairygui.tree.TreeNode>;
+        addSelection(node: fairygui.tree.TreeNode, scrollItToView?: boolean): void;
+        removeSelection(node: fairygui.tree.TreeNode): void;
+        clearSelection(): void;
+        getNodeIndex(node: fairygui.tree.TreeNode): number;
+        updateNode(node: fairygui.tree.TreeNode): void;
+        updateNodes(nodes: Array<fairygui.tree.TreeNode>): void;
+        expandAll(folderNode: fairygui.tree.TreeNode): void;
+        collapseAll(folderNode: fairygui.tree.TreeNode): void;
     }
 }

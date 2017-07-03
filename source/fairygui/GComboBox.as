@@ -21,6 +21,7 @@ package fairygui {
 		private var _itemsUpdated:Boolean;
 		private var _selectedIndex:int;
 		private var _buttonController:Controller;
+		private var _selectionController:Controller;
 		
 		private var _down:Boolean;
 		private var _over:Boolean;
@@ -178,6 +179,8 @@ package fairygui {
 				if (_icons != null)
 					this.icon = null;
 			}
+			
+			updateSelectionController();
 		}
 		
 		public function get value(): String {
@@ -193,6 +196,36 @@ package fairygui {
 				this._buttonController.selectedPage = val;
 		}
 		
+		public function get selectionController():Controller
+		{
+			return _selectionController;
+		}
+		
+		public function set selectionController(value:Controller):void
+		{
+			_selectionController = value;
+		}
+		
+		override public function handleControllerChanged(c:Controller):void
+		{
+			super.handleControllerChanged(c);
+			
+			if (_selectionController == c)
+				this.selectedIndex = c.selectedIndex;
+		}
+		
+		private function updateSelectionController():void
+		{
+			if (_selectionController != null && !_selectionController.changing
+				&& _selectedIndex < _selectionController.pageCount)
+			{
+				var c:Controller = _selectionController;
+				_selectionController = null;
+				c.selectedIndex = _selectedIndex;
+				_selectionController = c;
+			}
+		}
+		
 		override public function dispose():void
 		{
 			if(this.dropdown)
@@ -200,6 +233,8 @@ package fairygui {
 				this.dropdown.dispose();
 				this.dropdown = null;
 			}
+			
+			_selectionController = null;
 			
 			super.dispose();
 		}
@@ -299,6 +334,10 @@ package fairygui {
 					else if(str=="auto")
 						this._popupDownward = null;
 				}
+				
+				str = xml.getAttribute("selectionController");
+				if (str)
+					_selectionController = parent.getController(str);
 			}
 		}
 		

@@ -103,17 +103,19 @@ package fairygui {
 				var pages:Array;
 				var values:Array;
 				
-				str = xml.getAttribute("pages");				
+				str = xml.getAttribute("pages");
 				if(str)
 					pages = str.split(",");
 				
-				str = xml.getAttribute("values");				
-				if(str)
-					values = str.split("|");
-				
-				if(pages && values)
+				if(pages)
 				{
-					for(var i:Number=0;i<values.length;i++)
+					str = xml.getAttribute("values");
+					if(str!=null)
+						values = str.split("|");
+					else
+						values = [];
+					
+					for(var i:Number=0;i<pages.length;i++)
 						addStatus(pages[i], values[i]);
 				}
 				

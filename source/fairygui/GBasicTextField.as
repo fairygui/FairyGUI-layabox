@@ -35,9 +35,11 @@ package fairygui {
 			
 			this._text = "";
 			this._color = "#000000";            
-			this.setAutoSize(AutoSizeType.Both);
 			this.textField.align = "left";
 			this.textField.font = fairygui.UIConfig.defaultFont;
+			this._autoSize = AutoSizeType.Both;
+			this._widthAutoSize = this._heightAutoSize = true;
+			this.textField["_sizeDirty"] = false;
 		}
 		
 		override protected function createDisplayObject(): void {
@@ -650,6 +652,7 @@ class TextExt extends Text
 	}
 	
 	private var _lock:Boolean;
+	private var _sizeDirty:Boolean;
 	public function baseTypeset():void
 	{
 		_lock = true;
@@ -659,6 +662,7 @@ class TextExt extends Text
 	
 	override public function typeset():void
 	{
+		_sizeDirty = true; //阻止SIZE_DELAY_CHANGE的触发
 		super.typeset();
 		if(!_lock)
 			this._owner.typeset();
@@ -666,6 +670,7 @@ class TextExt extends Text
 			Laya.timer.clear(this, this.typeset);
 			this._isChanged = false;
 		}
+		_sizeDirty = false;
 	}
 	
 	public function setChanged():void
@@ -674,9 +679,12 @@ class TextExt extends Text
 	}
 	
 	override protected function set isChanged(value:Boolean):void {
-		if (this._isChanged !== value) {
-			if(this._owner.autoSize!=AutoSizeType.None)
+		if (value && !_sizeDirty) {
+			if(this._owner.autoSize!=AutoSizeType.None && this._owner.parent)
+			{
+				_sizeDirty = true;
 				this.event(Events.SIZE_DELAY_CHANGE);
+			}
 		}
 		
 		super.isChanged = value;
