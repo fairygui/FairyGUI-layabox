@@ -456,12 +456,22 @@ declare module fairygui {
 }
 declare module fairygui {
     class GGroup extends GObject {
-        _updating: boolean;
-        _empty: boolean;
+        layout: number;
+        lineGap: number;
+        columnGap: number;
         constructor();
-        updateBounds(): void;
-        moveChildren(dx: number, dy: number): void;
+        setBoundsChangedFlag(childSizeChanged: boolean): void;
+        ensureBoundsCorrect(): void;
         protected updateAlpha(): void;
+    }
+}
+declare module fairygui {
+    class GroupLayoutType {
+        static None: number;
+        static Horizontal: number;
+        static Vertical: number;
+        constructor();
+        static parse(value: string): number;
     }
 }
 declare module fairygui {
@@ -542,7 +552,6 @@ declare module fairygui {
         resizeToFit(itemCount?: number, minSize?: number): void;
         getMaxItemWidth(): number;
         protected handleSizeChanged(): void;
-        adjustItemsSize(): void;
         getSnappingPosition(xValue: number, yValue: number, resultPoint?: laya.maths.Point): laya.maths.Point;
         scrollToView(index: number, ani?: boolean, setFirst?: boolean): void;
         getFirstChildInView(): number;
@@ -637,6 +646,10 @@ declare module fairygui {
         sourceWidth: number;
         initHeight: number;
         initWidth: number;
+        maxHeight: number;
+        maxWidth: number;
+        minHeight: number;
+        minWidth: number;
         actualWidth: number;
         actualHeight: number;
         scaleX: number;

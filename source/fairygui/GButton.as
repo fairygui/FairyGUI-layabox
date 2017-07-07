@@ -473,18 +473,23 @@ package fairygui {
 					GRoot.inst.playOneShotSound(this._sound);
 			}
 			
-			if (!this._changeStateOnClick)
-				return;
-			
 			if (this._mode == ButtonMode.Check) {
-				this.selected = !this._selected;
-				Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
+				if(this._changeStateOnClick)
+				{
+					this.selected = !this._selected;
+					Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
+				}
 			}
 			else if (this._mode == ButtonMode.Radio) {
-				if (!this._selected) {
+				if (this._changeStateOnClick && !this._selected) {
 					this.selected = true;
 					Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
 				}
+			}
+			else
+			{
+				if(_relatedController)
+					_relatedController.selectedPageId = _pageOption.id;
 			}
 		}
 	}

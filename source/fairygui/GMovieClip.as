@@ -55,12 +55,12 @@ package fairygui {
 		}
 		
 		override public function constructFromResource(): void {
-			this._sourceWidth = this.packageItem.width;
-			this._sourceHeight = this.packageItem.height;
-			this._initWidth = this._sourceWidth;
-			this._initHeight = this._sourceHeight;
+			this.sourceWidth = this.packageItem.width;
+			this.sourceHeight = this.packageItem.height;
+			this.initWidth = this.sourceWidth;
+			this.initHeight = this.sourceHeight;
 			
-			this.setSize(this._sourceWidth, this._sourceHeight);
+			this.setSize(this.sourceWidth, this.sourceHeight);
 			
 			this.packageItem.load();
 			

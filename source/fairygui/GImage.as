@@ -55,15 +55,15 @@ package fairygui {
 		override public function constructFromResource(): void {
 			this.packageItem.load();
 			
-			this._sourceWidth = this.packageItem.width;
-			this._sourceHeight = this.packageItem.height;
-			this._initWidth = this._sourceWidth;
-			this._initHeight = this._sourceHeight;
+			this.sourceWidth = this.packageItem.width;
+			this.sourceHeight = this.packageItem.height;
+			this.initWidth = this.sourceWidth;
+			this.initHeight = this.sourceHeight;
 			this.image.scale9Grid = this.packageItem.scale9Grid;
 			this.image.scaleByTile = this.packageItem.scaleByTile;
 			this.image.tileGridIndice = this.packageItem.tileGridIndice;
 			this.image.tex = this.packageItem.texture;
-			this.setSize(this._sourceWidth, this._sourceHeight);
+			this.setSize(this.sourceWidth, this.sourceHeight);
 		}
 		
 		override protected function handleXYChanged(): void {
@@ -80,7 +80,7 @@ package fairygui {
 		
 		override protected function handleSizeChanged(): void {
 			if(this.image.tex!=null) {
-				this.image.scaleTexture(this.width/this._sourceWidth, this.height/this._sourceHeight);
+				this.image.scaleTexture(this.width/this.sourceWidth, this.height/this.sourceHeight);
 			}
 		}
 		
