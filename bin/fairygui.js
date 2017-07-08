@@ -13749,6 +13749,7 @@
 			return this._autoResizeItem;
 			},function(value){
 			if(this._autoResizeItem !=value){
+				this._autoResizeItem=value;
 				this.setBoundsChangedFlag();
 				if (this._virtual)
 					this.setVirtualListChangedFlag(true);

@@ -209,6 +209,7 @@ package fairygui {
 		public function set autoResizeItem(value: Boolean):void {
 			if(_autoResizeItem != value)
 			{
+				_autoResizeItem = value;
 				setBoundsChangedFlag();
 				if (_virtual)
 					setVirtualListChangedFlag(true);
