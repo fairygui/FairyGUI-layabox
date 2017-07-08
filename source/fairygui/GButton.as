@@ -23,6 +23,7 @@ package fairygui {
 		private var _linkedPopup: GObject;
 		private var _downEffect:Number = 0;
 		private var _downEffectValue:Number = 0;
+		private var _downScaled:Boolean = false;
 		
 		private var _down: Boolean;
 		private var _over: Boolean;
@@ -281,9 +282,21 @@ package fairygui {
 			}
 			else if(this._downEffect == 2) {
 				if(val == GButton.DOWN || val == GButton.SELECTED_OVER || val == GButton.SELECTED_DISABLED)
-					this.setScale(this._downEffectValue,this._downEffectValue);
+				{
+					if(!_downScaled)
+					{
+						setScale(this.scaleX*_downEffectValue, this.scaleY*_downEffectValue);
+						_downScaled = true;
+					}
+				}
 				else
-					this.setScale(1,1);
+				{
+					if(_downScaled)
+					{
+						setScale(this.scaleX/_downEffectValue, this.scaleY/_downEffectValue);
+						_downScaled = false;
+					}
+				}
 			}
 		}
 		

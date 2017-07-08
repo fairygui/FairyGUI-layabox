@@ -11007,6 +11007,7 @@
 			this._linkedPopup=null;
 			this._downEffect=0;
 			this._downEffectValue=0;
+			this._downScaled=false;
 			this._down=false;
 			this._over=false;
 			GButton.__super.call(this);
@@ -11057,10 +11058,18 @@
 				}
 			}
 			else if(this._downEffect==2){
-				if(val==/*CLASS CONST:fairygui.GButton.DOWN*/"down" || val==/*CLASS CONST:fairygui.GButton.SELECTED_OVER*/"selectedOver" || val==/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled")
-					this.setScale(this._downEffectValue,this._downEffectValue);
-				else
-				this.setScale(1,1);
+				if(val==/*CLASS CONST:fairygui.GButton.DOWN*/"down" || val==/*CLASS CONST:fairygui.GButton.SELECTED_OVER*/"selectedOver" || val==/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled"){
+					if(!this._downScaled){
+						this.setScale(this.scaleX*this._downEffectValue,this.scaleY*this._downEffectValue);
+						this._downScaled=true;
+					}
+				}
+				else{
+					if(this._downScaled){
+						this.setScale(this.scaleX/this._downEffectValue,this.scaleY/this._downEffectValue);
+						this._downScaled=false;
+					}
+				}
 			}
 		}
 
