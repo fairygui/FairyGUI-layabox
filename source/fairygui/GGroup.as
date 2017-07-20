@@ -60,7 +60,7 @@ package fairygui
 		
 		public function setBoundsChangedFlag(childSizeChanged:Boolean = false):void
 		{
-			if (_updating == 0 && parent != null && !_underConstruct)
+			if (_updating == 0 && parent != null)
 			{
 				if (childSizeChanged)
 					_percentReady = false;
