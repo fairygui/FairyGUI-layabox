@@ -513,6 +513,7 @@ package fairygui {
 				child = this._children[i];
 				child.handleControllerChanged(c);
 			}
+			c.runActions();
 		}
 		
 		public function applyAllControllers(): void {
