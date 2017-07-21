@@ -11,6 +11,49 @@
 	Laya.interface('fairygui.IUISource');
 	Laya.interface('fairygui.IColorGear');
 	Laya.interface('fairygui.IAnimationGear');
+	//class fairygui.action.ControllerAction
+	var ControllerAction=(function(){
+		function ControllerAction(){
+			this.fromPage=null;
+			this.toPage=null;
+		}
+
+		__class(ControllerAction,'fairygui.action.ControllerAction');
+		var __proto=ControllerAction.prototype;
+		__proto.run=function(controller,prevPage,curPage){
+			if((this.fromPage==null || this.fromPage.length==0 || this.fromPage.indexOf(prevPage)!=-1)
+				&& (this.toPage==null || this.toPage.length==0 || this.toPage.indexOf(curPage)!=-1))
+			this.enter(controller);
+			else
+			this.leave(controller);
+		}
+
+		__proto.enter=function(controller){}
+		__proto.leave=function(controller){}
+		__proto.setup=function(xml){
+			var str;
+			str=xml.getAttribute('fromPage');
+			if(str)
+				this.fromPage=str.split(",");
+			str=xml.getAttribute('toPage');
+			if(str)
+				this.toPage=str.split(",");
+		}
+
+		ControllerAction.createAction=function(type){
+			switch(type){
+				case "play_transition":
+					return new PlayTransitionAction();
+				case "change_page":
+					return new ChangePageAction();
+				}
+			return null;
+		}
+
+		return ControllerAction;
+	})()
+
+
 	//class fairygui.AssetProxy
 	var AssetProxy=(function(){
 		function AssetProxy(){
@@ -3397,7 +3440,6 @@
 			if(this._owner._alignOffset.x!=0 || this._owner._alignOffset.y!=0){
 				if(this._alignContainer==null){
 					this._alignContainer=new Sprite();
-					this._alignContainer.mouseEnabled=false;
 					this._maskContainer.addChild(this._alignContainer);
 					this._alignContainer.addChild(this._container);
 				}
@@ -4344,15 +4386,15 @@
 			this._play(onComplete,times,delay,true);
 		}
 
+		__proto.changeRepeat=function(value){
+			this._totalTimes=value;
+		}
+
 		__proto._play=function(onComplete,times,delay,reversed){
 			(times===void 0)&& (times=1);
 			(delay===void 0)&& (delay=0);
 			(reversed===void 0)&& (reversed=false);
 			this.stop();
-			if(times==0)
-				times=1;
-			else if(times==-1)
-			times=Number.MAX_VALUE;
 			this._totalTimes=times;
 			this._reversed=reversed;
 			this.internalPlay(delay);
@@ -4913,7 +4955,7 @@
 						if(value.i==0)
 							trans.stop(false,true);
 						else if(trans.playing)
-						trans._totalTimes=value.i==-1?Number.MAX_VALUE:value.i;
+						trans._totalTimes=value.i;
 						else {
 							item.completed=false;
 							this._totalTasks++;
@@ -7224,15 +7266,13 @@
 
 	//class fairygui.Controller extends laya.events.EventDispatcher
 	var Controller=(function(_super){
-		var PageTransition;
 		function Controller(){
 			this._name=null;
 			this._selectedIndex=0;
 			this._previousIndex=0;
 			this._pageIds=null;
 			this._pageNames=null;
-			this._pageTransitions=null;
-			this._playingTransition=null;
+			this._actions=null;
 			this._parent=null;
 			this._autoRadioGroupDepth=false;
 			this.changing=false;
@@ -7256,10 +7296,6 @@
 				this._selectedIndex=value;
 				this._parent.applyController(this);
 				this.changing=false;
-				if(this._playingTransition){
-					this._playingTransition.stop();
-					this._playingTransition=null;
-				}
 			}
 		}
 
@@ -7354,6 +7390,15 @@
 			return this._pageIds[index];
 		}
 
+		__proto.runActions=function(){
+			if(this._actions){
+				var cnt=this._actions.length;
+				for(var i=0;i<cnt;i++){
+					this._actions[i].run(this,this.previousPageId,this.selectedPageId);
+				}
+			}
+		}
+
 		__proto.setup=function(xml){
 			this._name=xml.getAttribute("name");
 			this._autoRadioGroupDepth=xml.getAttribute("autoRadioGroupDepth")=="true";
@@ -7367,28 +7412,46 @@
 					this._pageIds.push(arr[i]);
 					this._pageNames.push(arr[i+1]);
 				}
+			};
+			var col=xml.childNodes;
+			var length1=col.length;
+			if(length1>0){
+				if(!this._actions)
+					this._actions=[];
+				for(var i1=0;i1 < length1;i1++){
+					var cxml=col[i1];
+					var action=ControllerAction.createAction(cxml.getAttribute('type'));
+					action.setup(cxml);
+					this._actions.push(action);
+				}
 			}
 			str=xml.getAttribute("transitions");
 			if(str){
-				this._pageTransitions=[];
+				if(!this._actions)
+					this._actions=[];
 				arr=str.split(",");
 				cnt=arr.length;
+				var ii=0;
 				for(i=0;i < cnt;i++){
 					str=arr[i];
 					if(!str)
 						continue ;
-					var pt=new PageTransition();
+					var taction=new PlayTransitionAction();
 					k=str.indexOf("=");
-					pt.transitionName=str.substr(k+1);
+					taction.transitionName=str.substr(k+1);
 					str=str.substring(0,k);
 					k=str.indexOf("-");
-					pt.toIndex=parseInt(str.substring(k+1));
+					ii=parseInt(str.substring(k+1));
+					if(ii<this._pageIds.length)
+						taction.toPage=[this._pageIds[ii]];
 					str=str.substring(0,k);
-					if(str=="*")
-						pt.fromIndex=-1;
-					else
-					pt.fromIndex=parseInt(str);
-					this._pageTransitions.push(pt);
+					if(str=="*"){
+						ii=parseInt(str);
+						if(ii<this._pageIds.length)
+							taction.fromPage=[this._pageIds[ii]];
+					}
+					taction.stopOnExit=true;
+					this._actions.push(taction);
 				}
 			}
 			if (this._parent && this._pageIds.length > 0)
@@ -7431,22 +7494,6 @@
 				this._parent.applyController(this);
 				this.event(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed");
 				this.changing=false;
-				if(this._playingTransition){
-					this._playingTransition.stop();
-					this._playingTransition=null;
-				}
-				if(this._pageTransitions){
-					var len=this._pageTransitions.length;
-					for(var i=0;i < len;i++){
-						var pt=this._pageTransitions[i];
-						if(pt.toIndex==this._selectedIndex && (pt.fromIndex==-1 || pt.fromIndex==this._previousIndex)){
-							this._playingTransition=this.parent.getTransition(pt.transitionName);
-							break ;
-						}
-					}
-					if(this._playingTransition)
-						this._playingTransition.play(Handler.create(this,function(){this._playingTransition=null;}));
-				}
 			}
 		});
 
@@ -7491,19 +7538,6 @@
 		});
 
 		Controller._nextPageId=0;
-		Controller.__init$=function(){
-			//class PageTransition
-			PageTransition=(function(){
-				function PageTransition(){
-					this.transitionName=null;
-					this.fromIndex=0;
-					this.toIndex=0;
-				}
-				__class(PageTransition,'');
-				return PageTransition;
-			})()
-		}
-
 		return Controller;
 	})(EventDispatcher)
 
@@ -7544,6 +7578,91 @@
 
 		return PixelHitTest;
 	})(HitArea)
+
+
+	//class fairygui.action.ChangePageAction extends fairygui.action.ControllerAction
+	var ChangePageAction=(function(_super){
+		function ChangePageAction(){
+			this.objectId=null;
+			this.controllerName=null;
+			this.targetPage=null;
+			ChangePageAction.__super.call(this);
+		}
+
+		__class(ChangePageAction,'fairygui.action.ChangePageAction',_super);
+		var __proto=ChangePageAction.prototype;
+		__proto.enter=function(controller){
+			if(!this.controllerName)
+				return;
+			var gcom;
+			if(this.objectId)
+				gcom=controller.parent.getChildById(this.objectId);
+			else
+			gcom=controller.parent;
+			if(gcom){
+				var cc=gcom.getController(this.controllerName);
+				if(cc && cc!=controller && !cc.changing)
+					cc.selectedPageId=this.targetPage;
+			}
+		}
+
+		__proto.setup=function(xml){
+			_super.prototype.setup.call(this,xml);
+			this.objectId=xml.getAttribute("objectId");
+			this.controllerName=xml.getAttribute("controller");
+			this.targetPage=xml.getAttribute("targetPage");
+		}
+
+		return ChangePageAction;
+	})(ControllerAction)
+
+
+	//class fairygui.action.PlayTransitionAction extends fairygui.action.ControllerAction
+	var PlayTransitionAction=(function(_super){
+		function PlayTransitionAction(){
+			this.transitionName=null;
+			this.repeat=1;
+			this.delay=0;
+			this.stopOnExit=false;
+			this._currentTransition=null;
+			PlayTransitionAction.__super.call(this);
+		}
+
+		__class(PlayTransitionAction,'fairygui.action.PlayTransitionAction',_super);
+		var __proto=PlayTransitionAction.prototype;
+		__proto.enter=function(controller){
+			var trans=controller.parent.getTransition(this.transitionName);
+			if(trans){
+				if(this._currentTransition && this._currentTransition.playing)
+					trans.changeRepeat(this.repeat);
+				else
+				trans.play(null,this.repeat,this.delay);
+				this._currentTransition=trans;
+			}
+		}
+
+		__proto.leave=function(controller){
+			if(this.stopOnExit && this._currentTransition){
+				this._currentTransition.stop();
+				this._currentTransition=null;
+			}
+		}
+
+		__proto.setup=function(xml){
+			_super.prototype.setup.call(this,xml);
+			this.transitionName=xml.getAttribute("transition");
+			var str;
+			str=xml.getAttribute("repeat");
+			if(str)
+				this.repeat=parseInt(str);
+			str=xml.getAttribute("delay");
+			if(str)
+				this.delay=parseFloat(str);
+			this.stopOnExit=xml.getAttribute("stopOnExit")=="true";
+		}
+
+		return PlayTransitionAction;
+	})(ControllerAction)
 
 
 	//class fairygui.GTextField extends fairygui.GObject
@@ -8122,6 +8241,7 @@
 				child=this._children[i];
 				child.handleControllerChanged(c);
 			}
+			c.runActions();
 		}
 
 		__proto.applyAllControllers=function(){
@@ -8931,6 +9051,137 @@
 	})(GearBase)
 
 
+	//class fairygui.GearLook extends fairygui.GearBase
+	var GearLook=(function(_super){
+		var GearLookValue;
+		function GearLook(owner){
+			this.tweener=null;
+			this._storage=null;
+			this._default=null;
+			this._tweenValue=null;
+			this._tweenTarget=null;
+			GearLook.__super.call(this,owner);
+		}
+
+		__class(GearLook,'fairygui.GearLook',_super);
+		var __proto=GearLook.prototype;
+		__proto.init=function(){
+			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
+			this._storage={};
+		}
+
+		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
+			var arr=value.split(",");
+			var gv;
+			if(pageId==null)
+				gv=this._default;
+			else {
+				gv=new GearLookValue();
+				this._storage[pageId]=gv;
+			}
+			gv.alpha=parseFloat(arr[0]);
+			gv.rotation=parseInt(arr[1]);
+			gv.grayed=arr[2]=="1" ? true :false;
+		}
+
+		__proto.apply=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv)
+				gv=this._default;
+			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+				this._owner._gearLocked=true;
+				this._owner.grayed=gv.grayed;
+				this._owner._gearLocked=false;
+				if (this.tweener !=null){
+					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
+						this.tweener.complete();
+						this.tweener=null;
+					}
+					else
+					return;
+				};
+				var a=gv.alpha !=this._owner.alpha;
+				var b=gv.rotation !=this._owner.rotation;
+				if(a || b){
+					if(this._owner.checkGearController(0,this._controller))
+						this._displayLockToken=this._owner.addDisplayLock();
+					this._tweenTarget=gv;
+					if(this._tweenValue==null)
+						this._tweenValue=new Point();
+					this._tweenValue.x=this._owner.alpha;
+					this._tweenValue.y=this._owner.rotation;
+					this.tweener=Tween.to(this._tweenValue,
+					{x:gv.alpha,y:gv.rotation },
+					this._tweenTime*1000,
+					this._easeType,
+					Handler.create(this,this.__tweenComplete),
+					this._delay*1000);
+					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
+				}
+			}
+			else {
+				this._owner._gearLocked=true;
+				this._owner.grayed=gv.grayed;
+				this._owner.alpha=gv.alpha;
+				this._owner.rotation=gv.rotation;
+				this._owner._gearLocked=false;
+			}
+		}
+
+		__proto.__tweenUpdate=function(a,b){
+			this._owner._gearLocked=true;
+			if(a)
+				this._owner.alpha=this._tweenValue.x;
+			if(b)
+				this._owner.rotation=this._tweenValue.y;
+			this._owner._gearLocked=false;
+		}
+
+		__proto.__tweenComplete=function(){
+			if(this._displayLockToken!=0){
+				this._owner.releaseDisplayLock(this._displayLockToken);
+				this._displayLockToken=0;
+			}
+			this.tweener=null;
+			this._owner.displayObject.event(/*fairygui.Events.GEAR_STOP*/"fui_gear_stop");
+		}
+
+		__proto.updateState=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv){
+				gv=new GearLookValue();
+				this._storage[this._controller.selectedPageId]=gv;
+			}
+			gv.alpha=this._owner.alpha;
+			gv.rotation=this._owner.rotation;
+			gv.grayed=this._owner.grayed;
+		}
+
+		GearLook.__init$=function(){
+			//class GearLookValue
+			GearLookValue=(function(){
+				function GearLookValue(alpha,rotation,grayed){
+					this.alpha=NaN;
+					this.rotation=NaN;
+					this.grayed=false;
+					(alpha===void 0)&& (alpha=0);
+					(rotation===void 0)&& (rotation=0);
+					(grayed===void 0)&& (grayed=false);
+					this.alpha=alpha;
+					this.rotation=rotation;
+					this.grayed=grayed;
+				}
+				__class(GearLookValue,'');
+				return GearLookValue;
+			})()
+		}
+
+		return GearLook;
+	})(GearBase)
+
+
 	//class fairygui.GGraph extends fairygui.GObject
 	var GGraph=(function(_super){
 		function GGraph(){
@@ -9087,137 +9338,6 @@
 	})(GObject)
 
 
-	//class fairygui.GearLook extends fairygui.GearBase
-	var GearLook=(function(_super){
-		var GearLookValue;
-		function GearLook(owner){
-			this.tweener=null;
-			this._storage=null;
-			this._default=null;
-			this._tweenValue=null;
-			this._tweenTarget=null;
-			GearLook.__super.call(this,owner);
-		}
-
-		__class(GearLook,'fairygui.GearLook',_super);
-		var __proto=GearLook.prototype;
-		__proto.init=function(){
-			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
-			this._storage={};
-		}
-
-		__proto.addStatus=function(pageId,value){
-			if(value=="-")
-				return;
-			var arr=value.split(",");
-			var gv;
-			if(pageId==null)
-				gv=this._default;
-			else {
-				gv=new GearLookValue();
-				this._storage[pageId]=gv;
-			}
-			gv.alpha=parseFloat(arr[0]);
-			gv.rotation=parseInt(arr[1]);
-			gv.grayed=arr[2]=="1" ? true :false;
-		}
-
-		__proto.apply=function(){
-			var gv=this._storage[this._controller.selectedPageId];
-			if(!gv)
-				gv=this._default;
-			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-				this._owner._gearLocked=true;
-				this._owner.grayed=gv.grayed;
-				this._owner._gearLocked=false;
-				if (this.tweener !=null){
-					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
-						this.tweener.complete();
-						this.tweener=null;
-					}
-					else
-					return;
-				};
-				var a=gv.alpha !=this._owner.alpha;
-				var b=gv.rotation !=this._owner.rotation;
-				if(a || b){
-					if(this._owner.checkGearController(0,this._controller))
-						this._displayLockToken=this._owner.addDisplayLock();
-					this._tweenTarget=gv;
-					if(this._tweenValue==null)
-						this._tweenValue=new Point();
-					this._tweenValue.x=this._owner.alpha;
-					this._tweenValue.y=this._owner.rotation;
-					this.tweener=Tween.to(this._tweenValue,
-					{x:gv.alpha,y:gv.rotation },
-					this._tweenTime*1000,
-					this._easeType,
-					Handler.create(this,this.__tweenComplete),
-					this._delay*1000);
-					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
-				}
-			}
-			else {
-				this._owner._gearLocked=true;
-				this._owner.grayed=gv.grayed;
-				this._owner.alpha=gv.alpha;
-				this._owner.rotation=gv.rotation;
-				this._owner._gearLocked=false;
-			}
-		}
-
-		__proto.__tweenUpdate=function(a,b){
-			this._owner._gearLocked=true;
-			if(a)
-				this._owner.alpha=this._tweenValue.x;
-			if(b)
-				this._owner.rotation=this._tweenValue.y;
-			this._owner._gearLocked=false;
-		}
-
-		__proto.__tweenComplete=function(){
-			if(this._displayLockToken!=0){
-				this._owner.releaseDisplayLock(this._displayLockToken);
-				this._displayLockToken=0;
-			}
-			this.tweener=null;
-			this._owner.displayObject.event(/*fairygui.Events.GEAR_STOP*/"fui_gear_stop");
-		}
-
-		__proto.updateState=function(){
-			var gv=this._storage[this._controller.selectedPageId];
-			if(!gv){
-				gv=new GearLookValue();
-				this._storage[this._controller.selectedPageId]=gv;
-			}
-			gv.alpha=this._owner.alpha;
-			gv.rotation=this._owner.rotation;
-			gv.grayed=this._owner.grayed;
-		}
-
-		GearLook.__init$=function(){
-			//class GearLookValue
-			GearLookValue=(function(){
-				function GearLookValue(alpha,rotation,grayed){
-					this.alpha=NaN;
-					this.rotation=NaN;
-					this.grayed=false;
-					(alpha===void 0)&& (alpha=0);
-					(rotation===void 0)&& (rotation=0);
-					(grayed===void 0)&& (grayed=false);
-					this.alpha=alpha;
-					this.rotation=rotation;
-					this.grayed=grayed;
-				}
-				__class(GearLookValue,'');
-				return GearLookValue;
-			})()
-		}
-
-		return GearLook;
-	})(GearBase)
-
-
 	//class fairygui.GGroup extends fairygui.GObject
 	var GGroup=(function(_super){
 		function GGroup(){
@@ -9234,7 +9354,7 @@
 		var __proto=GGroup.prototype;
 		__proto.setBoundsChangedFlag=function(childSizeChanged){
 			(childSizeChanged===void 0)&& (childSizeChanged=false);
-			if (this._updating==0 && this.parent !=null && !this._underConstruct){
+			if (this._updating==0 && this.parent !=null){
 				if (childSizeChanged)
 					this._percentReady=false;
 				if(!this._boundsChanged){
@@ -11114,6 +11234,8 @@
 				this._downEffect=str=="dark"?1:(str=="scale"?2:0);
 				str=xml.getAttribute("downEffectValue");
 				this._downEffectValue=parseFloat(str);
+				if(this._downEffect==2)
+					this.setPivot(0.5,0.5);
 			}
 			this._buttonController=this.getController("button");
 			this._titleObject=this.getChild("title");
@@ -11132,8 +11254,6 @@
 
 		__proto.setup_afterAdd=function(xml){
 			_super.prototype.setup_afterAdd.call(this,xml);
-			if(this._downEffect==2)
-				this.setPivot(0.5,0.5);
 			xml=ToolSet.findChildNode(xml,"Button");
 			if (xml){
 				var str;
@@ -13253,10 +13373,8 @@
 				this._alignOffset.setTo(newOffsetX,newOffsetY);
 				if (this.scrollPane !=null)
 					this.scrollPane.adjustMaskContainer();
-				else{
-					this._container.x=this._margin.left+this._alignOffset.x;
-					this._container.y=this._margin.top+this._alignOffset.y;
-				}
+				else
+				this._container.pos(this._margin.left+this._alignOffset.x,this._margin.top+this._alignOffset.y);
 			}
 		}
 
@@ -15583,5 +15701,5 @@
 	})(Sprite)
 
 
-	Laya.__init([GList,GearColor,GearAnimation,Transition,ScrollPane,RelationItem,UIPackage,GBasicTextField,Controller,GearLook,GearSize]);
+	Laya.__init([GList,GearColor,GearAnimation,Transition,ScrollPane,RelationItem,UIPackage,GBasicTextField,GearLook,GearSize]);
 })(window,document,Laya);

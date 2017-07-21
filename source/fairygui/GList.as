@@ -1909,10 +1909,7 @@ package fairygui {
 				if (scrollPane != null)
 					scrollPane.adjustMaskContainer();
 				else
-				{
-					_container.x = _margin.left + _alignOffset.x;
-					_container.y = _margin.top + _alignOffset.y;
-				}
+					_container.pos(_margin.left + _alignOffset.x, _margin.top + _alignOffset.y);
 			}
 		}
 		
