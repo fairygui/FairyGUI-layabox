@@ -574,7 +574,6 @@ package fairygui {
 				if(_alignContainer==null)
 				{
 					_alignContainer = new Sprite();
-					_alignContainer.mouseEnabled = false;
 					_maskContainer.addChild(_alignContainer);
 					_alignContainer.addChild(_container);
 				}

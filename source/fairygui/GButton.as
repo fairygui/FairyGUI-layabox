@@ -23,6 +23,7 @@ package fairygui {
 		private var _linkedPopup: GObject;
 		private var _downEffect:Number = 0;
 		private var _downEffectValue:Number = 0;
+		private var _downScaled:Boolean = false;
 		
 		private var _down: Boolean;
 		private var _over: Boolean;
@@ -281,9 +282,21 @@ package fairygui {
 			}
 			else if(this._downEffect == 2) {
 				if(val == GButton.DOWN || val == GButton.SELECTED_OVER || val == GButton.SELECTED_DISABLED)
-					this.setScale(this._downEffectValue,this._downEffectValue);
+				{
+					if(!_downScaled)
+					{
+						setScale(this.scaleX*_downEffectValue, this.scaleY*_downEffectValue);
+						_downScaled = true;
+					}
+				}
 				else
-					this.setScale(1,1);
+				{
+					if(_downScaled)
+					{
+						setScale(this.scaleX/_downEffectValue, this.scaleY/_downEffectValue);
+						_downScaled = false;
+					}
+				}
 			}
 		}
 		
@@ -333,6 +346,8 @@ package fairygui {
 				this._downEffect = str=="dark"?1:(str=="scale"?2:0);
 				str = xml.getAttribute("downEffectValue");
 				this._downEffectValue = parseFloat(str);
+				if(this._downEffect==2)
+					this.setPivot(0.5, 0.5);
 			}
 			
 			this._buttonController = this.getController("button");
@@ -354,9 +369,6 @@ package fairygui {
 		
 		override public function setup_afterAdd(xml: Object): void {
 			super.setup_afterAdd(xml);
-			
-			if(this._downEffect==2)
-				this.setPivot(0.5, 0.5);
 			
 			xml = ToolSet.findChildNode(xml, "Button");
 			if (xml) {
@@ -473,18 +485,23 @@ package fairygui {
 					GRoot.inst.playOneShotSound(this._sound);
 			}
 			
-			if (!this._changeStateOnClick)
-				return;
-			
 			if (this._mode == ButtonMode.Check) {
-				this.selected = !this._selected;
-				Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
+				if(this._changeStateOnClick)
+				{
+					this.selected = !this._selected;
+					Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
+				}
 			}
 			else if (this._mode == ButtonMode.Radio) {
-				if (!this._selected) {
+				if (this._changeStateOnClick && !this._selected) {
 					this.selected = true;
 					Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
 				}
+			}
+			else
+			{
+				if(_relatedController)
+					_relatedController.selectedPageId = _pageOption.id;
 			}
 		}
 	}

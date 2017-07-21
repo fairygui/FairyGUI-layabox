@@ -11,6 +11,49 @@
 	Laya.interface('fairygui.IUISource');
 	Laya.interface('fairygui.IColorGear');
 	Laya.interface('fairygui.IAnimationGear');
+	//class fairygui.action.ControllerAction
+	var ControllerAction=(function(){
+		function ControllerAction(){
+			this.fromPage=null;
+			this.toPage=null;
+		}
+
+		__class(ControllerAction,'fairygui.action.ControllerAction');
+		var __proto=ControllerAction.prototype;
+		__proto.run=function(controller,prevPage,curPage){
+			if((this.fromPage==null || this.fromPage.length==0 || this.fromPage.indexOf(prevPage)!=-1)
+				&& (this.toPage==null || this.toPage.length==0 || this.toPage.indexOf(curPage)!=-1))
+			this.enter(controller);
+			else
+			this.leave(controller);
+		}
+
+		__proto.enter=function(controller){}
+		__proto.leave=function(controller){}
+		__proto.setup=function(xml){
+			var str;
+			str=xml.getAttribute('fromPage');
+			if(str)
+				this.fromPage=str.split(",");
+			str=xml.getAttribute('toPage');
+			if(str)
+				this.toPage=str.split(",");
+		}
+
+		ControllerAction.createAction=function(type){
+			switch(type){
+				case "play_transition":
+					return new PlayTransitionAction();
+				case "change_page":
+					return new ChangePageAction();
+				}
+			return null;
+		}
+
+		return ControllerAction;
+	})()
+
+
 	//class fairygui.AssetProxy
 	var AssetProxy=(function(){
 		function AssetProxy(){
@@ -567,8 +610,6 @@
 			this.packageItem=null;
 			this._x=0;
 			this._y=0;
-			this._width=0;
-			this._height=0;
 			this._alpha=1;
 			this._rotation=0;
 			this._visible=true;
@@ -597,17 +638,24 @@
 			this._displayObject=null;
 			this._yOffset=0;
 			this._sizeImplType=0;
+			this.minWidth=0;
+			this.minHeight=0;
+			this.maxWidth=0;
+			this.maxHeight=0;
+			this.sourceWidth=0;
+			this.sourceHeight=0;
+			this.initWidth=0;
+			this.initHeight=0;
 			this._parent=null;
+			this._width=0;
+			this._height=0;
 			this._rawWidth=0;
 			this._rawHeight=0;
-			this._sourceWidth=0;
-			this._sourceHeight=0;
-			this._initWidth=0;
-			this._initHeight=0;
 			this._id=null;
 			this._name=null;
 			this._underConstruct=false;
 			this._gearLocked=false;
+			this._sizePercentInGroup=0;
 			this._touchDownPoint=null;
 			;
 			this._id=""+fairygui.GObject._gInstanceCounter++;
@@ -631,6 +679,8 @@
 				this.updateGear(1);
 				if(this._parent && !((this._parent instanceof fairygui.GList ))){
 					this._parent.setBoundsChangedFlag();
+					if (this._group !=null)
+						this._group.setBoundsChangedFlag();
 					this.displayObject.event(/*fairygui.Events.XY_CHANGED*/"fui_xy_changed");
 				}
 				if (GObject.draggingObject==this && !GObject.sUpdateInDragging)
@@ -657,10 +707,14 @@
 			if(this._rawWidth !=wv || this._rawHeight !=hv){
 				this._rawWidth=wv;
 				this._rawHeight=hv;
-				if(wv < 0)
-					wv=0;
-				if(hv < 0)
-					hv=0;
+				if(wv<this.minWidth)
+					wv=this.minWidth;
+				if(hv<this.minHeight)
+					hv=this.minHeight;
+				if(this.maxWidth>0 && wv>this.maxWidth)
+					wv=this.maxWidth;
+				if(this.maxHeight>0 && hv>this.maxHeight)
+					hv=this.maxHeight;
 				var dWidth=wv-this._width;
 				var dHeight=hv-this._height;
 				this._width=wv;
@@ -675,10 +729,14 @@
 					else
 					this.applyPivot();
 				}
+				if ((this instanceof fairygui.GGroup ))
+					(this).resizeChildren(dWidth,dHeight);
 				this.updateGear(2);
 				if(this._parent){
 					this._relations.onOwnerSizeChanged(dWidth,dHeight);
 					this._parent.setBoundsChangedFlag();
+					if (this._group !=null)
+						this._group.setBoundsChangedFlag(true);
 				}
 				this.displayObject.event(/*fairygui.Events.SIZE_CHANGED*/"fui_size_changed");
 			}
@@ -734,8 +792,8 @@
 						fairygui.GObject.sHelperPoint.y=this._pivotY*this._height;
 					}
 					else {
-						fairygui.GObject.sHelperPoint.x=this._pivotX*this._sourceWidth;
-						fairygui.GObject.sHelperPoint.y=this._pivotY*this._sourceHeight;
+						fairygui.GObject.sHelperPoint.x=this._pivotX*this.sourceWidth;
+						fairygui.GObject.sHelperPoint.y=this._pivotY*this.sourceHeight;
 					};
 					var pt=this._displayObject.transform.transformPoint(fairygui.GObject.sHelperPoint);
 					this._pivotOffsetX=this._pivotX*this._width-pt.x;
@@ -1009,21 +1067,21 @@
 
 		__proto.handleSizeChanged=function(){
 			if(this._displayObject!=null){
-				if(this._sizeImplType==0 || this._sourceWidth==0 || this._sourceHeight==0)
+				if(this._sizeImplType==0 || this.sourceWidth==0 || this.sourceHeight==0)
 					this._displayObject.size(this._width,this._height);
 				else
-				this._displayObject.scale(this._width/this._sourceWidth*this._scaleX,
-				this._height/this._sourceHeight*this._scaleY);
+				this._displayObject.scale(this._width/this.sourceWidth*this._scaleX,
+				this._height/this.sourceHeight*this._scaleY);
 			}
 		}
 
 		__proto.handleScaleChanged=function(){
 			if(this._displayObject!=null){
-				if(this._sizeImplType==0 || this._sourceWidth==0 || this._sourceHeight==0)
+				if(this._sizeImplType==0 || this.sourceWidth==0 || this.sourceHeight==0)
 					this._displayObject.scale(this._scaleX,this._scaleY);
 				else
-				this._displayObject.scale(this._width/this._sourceWidth*this._scaleX,
-				this._height/this._sourceHeight*this._scaleY);
+				this._displayObject.scale(this._width/this.sourceWidth*this._scaleX,
+				this._height/this.sourceHeight*this._scaleY);
 			}
 		}
 
@@ -1048,9 +1106,17 @@
 			str=xml.getAttribute("size");
 			if (str){
 				arr=str.split(",");
-				this._initWidth=parseInt(arr[0]);
-				this._initHeight=parseInt(arr[1]);
-				this.setSize(this._initWidth,this._initHeight,true);
+				this.initWidth=parseInt(arr[0]);
+				this.initHeight=parseInt(arr[1]);
+				this.setSize(this.initWidth,this.initHeight,true);
+			}
+			str=xml.getAttribute("restrictSize");
+			if(str){
+				arr=str.split(",");
+				this.minWidth=parseInt(arr[0]);
+				this.maxWidth=parseInt(arr[1]);
+				this.minHeight=parseInt(arr[2]);
+				this.maxHeight=parseInt(arr[3]);
 			}
 			str=xml.getAttribute("scale");
 			if(str){
@@ -1071,8 +1137,6 @@
 				str=xml.getAttribute("anchor");
 				this.setPivot(parseFloat(arr[0]),parseFloat(arr[1]),str=="true");
 			}
-			else
-			this.setPivot(0,0,false);
 			str=xml.getAttribute("alpha");
 			if (str)
 				this.alpha=parseFloat(str);
@@ -1213,6 +1277,10 @@
 			}
 		}
 
+		__getset(0,__proto,'actualHeight',function(){
+			return this.height *Math.abs(this._scaleY);
+		});
+
 		__getset(0,__proto,'id',function(){
 			return this._id;
 		});
@@ -1266,14 +1334,6 @@
 			this.setXY(this._x,value);
 		});
 
-		__getset(0,__proto,'sourceWidth',function(){
-			return this._sourceWidth;
-		});
-
-		__getset(0,__proto,'sourceHeight',function(){
-			return this._sourceHeight;
-		});
-
 		__getset(0,__proto,'pixelSnapping',function(){
 			return this._pixelSnapping;
 			},function(value){
@@ -1292,24 +1352,12 @@
 			this.setSize(this._rawWidth,value);
 		});
 
-		__getset(0,__proto,'initHeight',function(){
-			return this._initHeight;
-		});
-
-		__getset(0,__proto,'initWidth',function(){
-			return this._initWidth;
-		});
-
 		__getset(0,__proto,'asButton',function(){
 			return this;
 		});
 
 		__getset(0,__proto,'actualWidth',function(){
 			return this.width *Math.abs(this._scaleX);
-		});
-
-		__getset(0,__proto,'actualHeight',function(){
-			return this.height *Math.abs(this._scaleY);
 		});
 
 		__getset(0,__proto,'blendMode',function(){
@@ -1485,7 +1533,13 @@
 		__getset(0,__proto,'group',function(){
 			return this._group;
 			},function(value){
-			this._group=value;
+			if (this._group !=value){
+				if (this._group !=null)
+					this._group.setBoundsChangedFlag(true);
+				this._group=value;
+				if (this._group !=null)
+					this._group.setBoundsChangedFlag(true);
+			}
 		});
 
 		__getset(0,__proto,'filters',function(){
@@ -1773,6 +1827,30 @@
 		});
 
 		return GObjectPool;
+	})()
+
+
+	//class fairygui.GroupLayoutType
+	var GroupLayoutType=(function(){
+		function GroupLayoutType(){}
+		__class(GroupLayoutType,'fairygui.GroupLayoutType');
+		GroupLayoutType.parse=function(value){
+			switch (value){
+				case "none":
+					return 0;
+				case "hz":
+					return 1;
+				case "vt":
+					return 2;
+				default :
+					return 0;
+				}
+		}
+
+		GroupLayoutType.None=0;
+		GroupLayoutType.Horizontal=1;
+		GroupLayoutType.Vertical=2;
+		return GroupLayoutType;
 	})()
 
 
@@ -2384,7 +2462,6 @@
 		}
 
 		__proto.applyOnXYChanged=function(info,dx,dy){
-			var tmp=NaN;
 			switch (info.type){
 				case /*fairygui.RelationType.Left_Left*/0:
 				case /*fairygui.RelationType.Left_Center*/1:
@@ -2409,9 +2486,8 @@
 					break ;
 				case /*fairygui.RelationType.LeftExt_Left*/16:
 				case /*fairygui.RelationType.LeftExt_Right*/17:
-					tmp=this._owner.x;
 					this._owner.x+=dx;
-					this._owner.width=this._owner._rawWidth-(this._owner.x-tmp);
+					this._owner.width=this._owner._rawWidth-dx;
 					break ;
 				case /*fairygui.RelationType.RightExt_Left*/18:
 				case /*fairygui.RelationType.RightExt_Right*/19:
@@ -2419,9 +2495,8 @@
 					break ;
 				case /*fairygui.RelationType.TopExt_Top*/20:
 				case /*fairygui.RelationType.TopExt_Bottom*/21:
-					tmp=this._owner.y;
 					this._owner.y+=dy;
-					this._owner.height=this._owner._rawHeight-(this._owner.y-tmp);
+					this._owner.height=this._owner._rawHeight-dy;
 					break ;
 				case /*fairygui.RelationType.BottomExt_Top*/22:
 				case /*fairygui.RelationType.BottomExt_Bottom*/23:
@@ -2446,165 +2521,165 @@
 					if(info.percent && this._target==this._owner.parent){
 						v=this._owner.x-targetX;
 						if (info.percent)
-							v=v / this._targetWidth *this._target._rawWidth;
+							v=v / this._targetWidth *this._target._width;
 						this._owner.x=targetX+v;
 					}
 					break ;
 				case /*fairygui.RelationType.Left_Center*/1:
 					v=this._owner.x-(targetX+this._targetWidth / 2);
 					if (info.percent)
-						v=v / this._targetWidth *this._target._rawWidth;
-					this._owner.x=targetX+this._target._rawWidth / 2+v;
+						v=v / this._targetWidth *this._target._width;
+					this._owner.x=targetX+this._target._width / 2+v;
 					break ;
 				case /*fairygui.RelationType.Left_Right*/2:
 					v=this._owner.x-(targetX+this._targetWidth);
 					if (info.percent)
-						v=v / this._targetWidth *this._target._rawWidth;
-					this._owner.x=targetX+this._target._rawWidth+v;
+						v=v / this._targetWidth *this._target._width;
+					this._owner.x=targetX+this._target._width+v;
 					break ;
 				case /*fairygui.RelationType.Center_Center*/3:
 					v=this._owner.x+this._owner._rawWidth / 2-(targetX+this._targetWidth / 2);
 					if (info.percent)
-						v=v / this._targetWidth *this._target._rawWidth;
-					this._owner.x=targetX+this._target._rawWidth / 2+v-this._owner._rawWidth / 2;
+						v=v / this._targetWidth *this._target._width;
+					this._owner.x=targetX+this._target._width / 2+v-this._owner._rawWidth / 2;
 					break ;
 				case /*fairygui.RelationType.Right_Left*/4:
 					v=this._owner.x+this._owner._rawWidth-targetX;
 					if (info.percent)
-						v=v / this._targetWidth *this._target._rawWidth;
+						v=v / this._targetWidth *this._target._width;
 					this._owner.x=targetX+v-this._owner._rawWidth;
 					break ;
 				case /*fairygui.RelationType.Right_Center*/5:
 					v=this._owner.x+this._owner._rawWidth-(targetX+this._targetWidth / 2);
 					if (info.percent)
-						v=v / this._targetWidth *this._target._rawWidth;
-					this._owner.x=targetX+this._target._rawWidth / 2+v-this._owner._rawWidth;
+						v=v / this._targetWidth *this._target._width;
+					this._owner.x=targetX+this._target._width / 2+v-this._owner._rawWidth;
 					break ;
 				case /*fairygui.RelationType.Right_Right*/6:
 					v=this._owner.x+this._owner._rawWidth-(targetX+this._targetWidth);
 					if (info.percent)
-						v=v / this._targetWidth *this._target._rawWidth;
-					this._owner.x=targetX+this._target._rawWidth+v-this._owner._rawWidth;
+						v=v / this._targetWidth *this._target._width;
+					this._owner.x=targetX+this._target._width+v-this._owner._rawWidth;
 					break ;
 				case /*fairygui.RelationType.Top_Top*/7:
 					if(info.percent && this._target==this._owner.parent){
 						v=this._owner.y-targetY;
 						if (info.percent)
-							v=v / this._targetHeight *this._target._rawHeight;
+							v=v / this._targetHeight *this._target._height;
 						this._owner.y=targetY+v;
 					}
 					break ;
 				case /*fairygui.RelationType.Top_Middle*/8:
 					v=this._owner.y-(targetY+this._targetHeight / 2);
 					if (info.percent)
-						v=v / this._targetHeight *this._target._rawHeight;
-					this._owner.y=targetY+this._target._rawHeight / 2+v;
+						v=v / this._targetHeight *this._target._height;
+					this._owner.y=targetY+this._target._height / 2+v;
 					break ;
 				case /*fairygui.RelationType.Top_Bottom*/9:
 					v=this._owner.y-(targetY+this._targetHeight);
 					if (info.percent)
-						v=v / this._targetHeight *this._target._rawHeight;
-					this._owner.y=targetY+this._target._rawHeight+v;
+						v=v / this._targetHeight *this._target._height;
+					this._owner.y=targetY+this._target._height+v;
 					break ;
 				case /*fairygui.RelationType.Middle_Middle*/10:
 					v=this._owner.y+this._owner._rawHeight / 2-(targetY+this._targetHeight / 2);
 					if (info.percent)
-						v=v / this._targetHeight *this._target._rawHeight;
-					this._owner.y=targetY+this._target._rawHeight / 2+v-this._owner._rawHeight / 2;
+						v=v / this._targetHeight *this._target._height;
+					this._owner.y=targetY+this._target._height / 2+v-this._owner._rawHeight / 2;
 					break ;
 				case /*fairygui.RelationType.Bottom_Top*/11:
 					v=this._owner.y+this._owner._rawHeight-targetY;
 					if (info.percent)
-						v=v / this._targetHeight *this._target._rawHeight;
+						v=v / this._targetHeight *this._target._height;
 					this._owner.y=targetY+v-this._owner._rawHeight;
 					break ;
 				case /*fairygui.RelationType.Bottom_Middle*/12:
 					v=this._owner.y+this._owner._rawHeight-(targetY+this._targetHeight / 2);
 					if (info.percent)
-						v=v / this._targetHeight *this._target._rawHeight;
-					this._owner.y=targetY+this._target._rawHeight / 2+v-this._owner._rawHeight;
+						v=v / this._targetHeight *this._target._height;
+					this._owner.y=targetY+this._target._height / 2+v-this._owner._rawHeight;
 					break ;
 				case /*fairygui.RelationType.Bottom_Bottom*/13:
 					v=this._owner.y+this._owner._rawHeight-(targetY+this._targetHeight);
 					if (info.percent)
-						v=v / this._targetHeight *this._target._rawHeight;
-					this._owner.y=targetY+this._target._rawHeight+v-this._owner._rawHeight;
+						v=v / this._targetHeight *this._target._height;
+					this._owner.y=targetY+this._target._height+v-this._owner._rawHeight;
 					break ;
 				case /*fairygui.RelationType.Width*/14:
 					if(this._owner._underConstruct && this._owner==this._target.parent)
-						v=this._owner.sourceWidth-this._target._initWidth;
+						v=this._owner.sourceWidth-this._target.initWidth;
 					else
 					v=this._owner._rawWidth-this._targetWidth;
 					if (info.percent)
-						v=v / this._targetWidth *this._target._rawWidth;
+						v=v / this._targetWidth *this._target._width;
 					if(this._target==this._owner.parent)
-						this._owner.setSize(this._target._rawWidth+v,this._owner._rawHeight,true);
+						this._owner.setSize(this._target._width+v,this._owner._rawHeight,true);
 					else
-					this._owner.width=this._target._rawWidth+v;
+					this._owner.width=this._target._width+v;
 					break ;
 				case /*fairygui.RelationType.Height*/15:
 					if(this._owner._underConstruct && this._owner==this._target.parent)
-						v=this._owner.sourceHeight-this._target._initHeight;
+						v=this._owner.sourceHeight-this._target.initHeight;
 					else
 					v=this._owner._rawHeight-this._targetHeight;
 					if (info.percent)
-						v=v / this._targetHeight *this._target._rawHeight;
+						v=v / this._targetHeight *this._target._height;
 					if(this._target==this._owner.parent)
-						this._owner.setSize(this._owner._rawWidth,this._target._rawHeight+v,true);
+						this._owner.setSize(this._owner._rawWidth,this._target._height+v,true);
 					else
-					this._owner.height=this._target._rawHeight+v;
+					this._owner.height=this._target._height+v;
 					break ;
 				case /*fairygui.RelationType.LeftExt_Left*/16:
 					break ;
 				case /*fairygui.RelationType.LeftExt_Right*/17:
 					v=this._owner.x-(targetX+this._targetWidth);
 					if (info.percent)
-						v=v / this._targetWidth *this._target._rawWidth;
+						v=v / this._targetWidth *this._target._width;
 					tmp=this._owner.x;
-					this._owner.x=targetX+this._target._rawWidth+v;
+					this._owner.x=targetX+this._target._width+v;
 					this._owner.width=this._owner._rawWidth-(this._owner.x-tmp);
 					break ;
 				case /*fairygui.RelationType.RightExt_Left*/18:
 					break ;
 				case /*fairygui.RelationType.RightExt_Right*/19:
 					if(this._owner._underConstruct && this._owner==this._target.parent)
-						v=this._owner.sourceWidth-(targetX+this._target._initWidth);
+						v=this._owner.sourceWidth-(targetX+this._target.initWidth);
 					else
 					v=this._owner.width-(targetX+this._targetWidth);
 					if (this._owner !=this._target.parent)
 						v+=this._owner.x;
 					if (info.percent)
-						v=v / this._targetWidth *this._target._rawWidth;
+						v=v / this._targetWidth *this._target._width;
 					if (this._owner !=this._target.parent)
-						this._owner.width=targetX+this._target._rawWidth+v-this._owner.x;
+						this._owner.width=targetX+this._target._width+v-this._owner.x;
 					else
-					this._owner.width=targetX+this._target._rawWidth+v;
+					this._owner.width=targetX+this._target._width+v;
 					break ;
 				case /*fairygui.RelationType.TopExt_Top*/20:
 					break ;
 				case /*fairygui.RelationType.TopExt_Bottom*/21:
 					v=this._owner.y-(targetY+this._targetHeight);
 					if (info.percent)
-						v=v / this._targetHeight *this._target._rawHeight;
+						v=v / this._targetHeight *this._target._height;
 					tmp=this._owner.y;
-					this._owner.y=targetY+this._target._rawHeight+v;
+					this._owner.y=targetY+this._target._height+v;
 					this._owner.height=this._owner._rawHeight-(this._owner.y-tmp);
 					break ;
 				case /*fairygui.RelationType.BottomExt_Top*/22:
 					break ;
 				case /*fairygui.RelationType.BottomExt_Bottom*/23:
 					if(this._owner._underConstruct && this._owner==this._target.parent)
-						v=this._owner.sourceHeight-(targetY+this._target._initHeight);
+						v=this._owner.sourceHeight-(targetY+this._target.initHeight);
 					else
 					v=this._owner._rawHeight-(targetY+this._targetHeight);
 					if (this._owner !=this._target.parent)
 						v+=this._owner.y;
 					if (info.percent)
-						v=v / this._targetHeight *this._target._rawHeight;
+						v=v / this._targetHeight *this._target._height;
 					if (this._owner !=this._target.parent)
-						this._owner.height=targetY+this._target._rawHeight+v-this._owner.y;
+						this._owner.height=targetY+this._target._height+v-this._owner.y;
 					else
-					this._owner.height=targetY+this._target._rawHeight+v;
+					this._owner.height=targetY+this._target._height+v;
 					break ;
 				}
 		}
@@ -2616,8 +2691,8 @@
 			target.on(/*fairygui.Events.SIZE_DELAY_CHANGE*/"fui_size_delay_change",this,this.__targetSizeWillChange);
 			this._targetX=this._target.x;
 			this._targetY=this._target.y;
-			this._targetWidth=this._target._rawWidth;
-			this._targetHeight=this._target._rawHeight;
+			this._targetWidth=this._target._width;
+			this._targetHeight=this._target._height;
 		}
 
 		__proto.releaseRefTarget=function(target){
@@ -2673,8 +2748,8 @@
 				var info=this._defs[i];
 				this.applyOnSizeChanged(info);
 			}
-			this._targetWidth=this._target._rawWidth;
-			this._targetHeight=this._target._rawHeight;
+			this._targetWidth=this._target._width;
+			this._targetHeight=this._target._height;
 			if (ox !=this._owner.x || oy !=this._owner.y){
 				ox=this._owner.x-ox;
 				oy=this._owner.y-oy;
@@ -3365,7 +3440,6 @@
 			if(this._owner._alignOffset.x!=0 || this._owner._alignOffset.y!=0){
 				if(this._alignContainer==null){
 					this._alignContainer=new Sprite();
-					this._alignContainer.mouseEnabled=false;
 					this._maskContainer.addChild(this._alignContainer);
 					this._alignContainer.addChild(this._container);
 				}
@@ -4312,15 +4386,15 @@
 			this._play(onComplete,times,delay,true);
 		}
 
+		__proto.changeRepeat=function(value){
+			this._totalTimes=value;
+		}
+
 		__proto._play=function(onComplete,times,delay,reversed){
 			(times===void 0)&& (times=1);
 			(delay===void 0)&& (delay=0);
 			(reversed===void 0)&& (reversed=false);
 			this.stop();
-			if(times==0)
-				times=1;
-			else if(times==-1)
-			times=Number.MAX_VALUE;
 			this._totalTimes=times;
 			this._reversed=reversed;
 			this.internalPlay(delay);
@@ -4881,7 +4955,7 @@
 						if(value.i==0)
 							trans.stop(false,true);
 						else if(trans.playing)
-						trans._totalTimes=value.i==-1?Number.MAX_VALUE:value.i;
+						trans._totalTimes=value.i;
 						else {
 							item.completed=false;
 							this._totalTasks++;
@@ -7192,15 +7266,13 @@
 
 	//class fairygui.Controller extends laya.events.EventDispatcher
 	var Controller=(function(_super){
-		var PageTransition;
 		function Controller(){
 			this._name=null;
 			this._selectedIndex=0;
 			this._previousIndex=0;
 			this._pageIds=null;
 			this._pageNames=null;
-			this._pageTransitions=null;
-			this._playingTransition=null;
+			this._actions=null;
 			this._parent=null;
 			this._autoRadioGroupDepth=false;
 			this.changing=false;
@@ -7224,10 +7296,6 @@
 				this._selectedIndex=value;
 				this._parent.applyController(this);
 				this.changing=false;
-				if(this._playingTransition){
-					this._playingTransition.stop();
-					this._playingTransition=null;
-				}
 			}
 		}
 
@@ -7322,6 +7390,15 @@
 			return this._pageIds[index];
 		}
 
+		__proto.runActions=function(){
+			if(this._actions){
+				var cnt=this._actions.length;
+				for(var i=0;i<cnt;i++){
+					this._actions[i].run(this,this.previousPageId,this.selectedPageId);
+				}
+			}
+		}
+
 		__proto.setup=function(xml){
 			this._name=xml.getAttribute("name");
 			this._autoRadioGroupDepth=xml.getAttribute("autoRadioGroupDepth")=="true";
@@ -7335,28 +7412,46 @@
 					this._pageIds.push(arr[i]);
 					this._pageNames.push(arr[i+1]);
 				}
+			};
+			var col=xml.childNodes;
+			var length1=col.length;
+			if(length1>0){
+				if(!this._actions)
+					this._actions=[];
+				for(var i1=0;i1 < length1;i1++){
+					var cxml=col[i1];
+					var action=ControllerAction.createAction(cxml.getAttribute('type'));
+					action.setup(cxml);
+					this._actions.push(action);
+				}
 			}
 			str=xml.getAttribute("transitions");
 			if(str){
-				this._pageTransitions=[];
+				if(!this._actions)
+					this._actions=[];
 				arr=str.split(",");
 				cnt=arr.length;
+				var ii=0;
 				for(i=0;i < cnt;i++){
 					str=arr[i];
 					if(!str)
 						continue ;
-					var pt=new PageTransition();
+					var taction=new PlayTransitionAction();
 					k=str.indexOf("=");
-					pt.transitionName=str.substr(k+1);
+					taction.transitionName=str.substr(k+1);
 					str=str.substring(0,k);
 					k=str.indexOf("-");
-					pt.toIndex=parseInt(str.substring(k+1));
+					ii=parseInt(str.substring(k+1));
+					if(ii<this._pageIds.length)
+						taction.toPage=[this._pageIds[ii]];
 					str=str.substring(0,k);
-					if(str=="*")
-						pt.fromIndex=-1;
-					else
-					pt.fromIndex=parseInt(str);
-					this._pageTransitions.push(pt);
+					if(str=="*"){
+						ii=parseInt(str);
+						if(ii<this._pageIds.length)
+							taction.fromPage=[this._pageIds[ii]];
+					}
+					taction.stopOnExit=true;
+					this._actions.push(taction);
 				}
 			}
 			if (this._parent && this._pageIds.length > 0)
@@ -7399,22 +7494,6 @@
 				this._parent.applyController(this);
 				this.event(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed");
 				this.changing=false;
-				if(this._playingTransition){
-					this._playingTransition.stop();
-					this._playingTransition=null;
-				}
-				if(this._pageTransitions){
-					var len=this._pageTransitions.length;
-					for(var i=0;i < len;i++){
-						var pt=this._pageTransitions[i];
-						if(pt.toIndex==this._selectedIndex && (pt.fromIndex==-1 || pt.fromIndex==this._previousIndex)){
-							this._playingTransition=this.parent.getTransition(pt.transitionName);
-							break ;
-						}
-					}
-					if(this._playingTransition)
-						this._playingTransition.play(Handler.create(this,function(){this._playingTransition=null;}));
-				}
 			}
 		});
 
@@ -7459,19 +7538,6 @@
 		});
 
 		Controller._nextPageId=0;
-		Controller.__init$=function(){
-			//class PageTransition
-			PageTransition=(function(){
-				function PageTransition(){
-					this.transitionName=null;
-					this.fromIndex=0;
-					this.toIndex=0;
-				}
-				__class(PageTransition,'');
-				return PageTransition;
-			})()
-		}
-
 		return Controller;
 	})(EventDispatcher)
 
@@ -7512,6 +7578,91 @@
 
 		return PixelHitTest;
 	})(HitArea)
+
+
+	//class fairygui.action.ChangePageAction extends fairygui.action.ControllerAction
+	var ChangePageAction=(function(_super){
+		function ChangePageAction(){
+			this.objectId=null;
+			this.controllerName=null;
+			this.targetPage=null;
+			ChangePageAction.__super.call(this);
+		}
+
+		__class(ChangePageAction,'fairygui.action.ChangePageAction',_super);
+		var __proto=ChangePageAction.prototype;
+		__proto.enter=function(controller){
+			if(!this.controllerName)
+				return;
+			var gcom;
+			if(this.objectId)
+				gcom=controller.parent.getChildById(this.objectId);
+			else
+			gcom=controller.parent;
+			if(gcom){
+				var cc=gcom.getController(this.controllerName);
+				if(cc && cc!=controller && !cc.changing)
+					cc.selectedPageId=this.targetPage;
+			}
+		}
+
+		__proto.setup=function(xml){
+			_super.prototype.setup.call(this,xml);
+			this.objectId=xml.getAttribute("objectId");
+			this.controllerName=xml.getAttribute("controller");
+			this.targetPage=xml.getAttribute("targetPage");
+		}
+
+		return ChangePageAction;
+	})(ControllerAction)
+
+
+	//class fairygui.action.PlayTransitionAction extends fairygui.action.ControllerAction
+	var PlayTransitionAction=(function(_super){
+		function PlayTransitionAction(){
+			this.transitionName=null;
+			this.repeat=1;
+			this.delay=0;
+			this.stopOnExit=false;
+			this._currentTransition=null;
+			PlayTransitionAction.__super.call(this);
+		}
+
+		__class(PlayTransitionAction,'fairygui.action.PlayTransitionAction',_super);
+		var __proto=PlayTransitionAction.prototype;
+		__proto.enter=function(controller){
+			var trans=controller.parent.getTransition(this.transitionName);
+			if(trans){
+				if(this._currentTransition && this._currentTransition.playing)
+					trans.changeRepeat(this.repeat);
+				else
+				trans.play(null,this.repeat,this.delay);
+				this._currentTransition=trans;
+			}
+		}
+
+		__proto.leave=function(controller){
+			if(this.stopOnExit && this._currentTransition){
+				this._currentTransition.stop();
+				this._currentTransition=null;
+			}
+		}
+
+		__proto.setup=function(xml){
+			_super.prototype.setup.call(this,xml);
+			this.transitionName=xml.getAttribute("transition");
+			var str;
+			str=xml.getAttribute("repeat");
+			if(str)
+				this.repeat=parseInt(str);
+			str=xml.getAttribute("delay");
+			if(str)
+				this.delay=parseFloat(str);
+			this.stopOnExit=xml.getAttribute("stopOnExit")=="true";
+		}
+
+		return PlayTransitionAction;
+	})(ControllerAction)
 
 
 	//class fairygui.GTextField extends fairygui.GObject
@@ -7783,6 +7934,7 @@
 				if(child.sortingOrder !=0)
 					this._sortingChildCount--;
 				this._children.splice(index,1);
+				child.group=null;
 				if(child.inContainer){
 					this._container.removeChild(child.displayObject);
 					if (this._childrenRenderOrder==/*fairygui.ChildrenRenderOrder.Arch*/2)
@@ -8089,6 +8241,7 @@
 				child=this._children[i];
 				child.handleControllerChanged(c);
 			}
+			c.runActions();
 		}
 
 		__proto.applyAllControllers=function(){
@@ -8389,11 +8542,19 @@
 			var arr;
 			str=xml.getAttribute("size");
 			arr=str.split(",");
-			this._sourceWidth=parseInt(arr[0]);
-			this._sourceHeight=parseInt(arr[1]);
-			this._initWidth=this._sourceWidth;
-			this._initHeight=this._sourceHeight;
-			this.setSize(this._sourceWidth,this._sourceHeight);
+			this.sourceWidth=parseInt(arr[0]);
+			this.sourceHeight=parseInt(arr[1]);
+			this.initWidth=this.sourceWidth;
+			this.initHeight=this.sourceHeight;
+			this.setSize(this.sourceWidth,this.sourceHeight);
+			str=xml.getAttribute("restrictSize");
+			if(str){
+				arr=str.split(",");
+				this.minWidth=parseInt(arr[0]);
+				this.maxWidth=parseInt(arr[1]);
+				this.minHeight=parseInt(arr[2]);
+				this.maxHeight=parseInt(arr[3]);
+			}
 			str=xml.getAttribute("pivot");
 			if(str){
 				arr=str.split(",");
@@ -8890,6 +9051,137 @@
 	})(GearBase)
 
 
+	//class fairygui.GearLook extends fairygui.GearBase
+	var GearLook=(function(_super){
+		var GearLookValue;
+		function GearLook(owner){
+			this.tweener=null;
+			this._storage=null;
+			this._default=null;
+			this._tweenValue=null;
+			this._tweenTarget=null;
+			GearLook.__super.call(this,owner);
+		}
+
+		__class(GearLook,'fairygui.GearLook',_super);
+		var __proto=GearLook.prototype;
+		__proto.init=function(){
+			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
+			this._storage={};
+		}
+
+		__proto.addStatus=function(pageId,value){
+			if(value=="-")
+				return;
+			var arr=value.split(",");
+			var gv;
+			if(pageId==null)
+				gv=this._default;
+			else {
+				gv=new GearLookValue();
+				this._storage[pageId]=gv;
+			}
+			gv.alpha=parseFloat(arr[0]);
+			gv.rotation=parseInt(arr[1]);
+			gv.grayed=arr[2]=="1" ? true :false;
+		}
+
+		__proto.apply=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv)
+				gv=this._default;
+			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+				this._owner._gearLocked=true;
+				this._owner.grayed=gv.grayed;
+				this._owner._gearLocked=false;
+				if (this.tweener !=null){
+					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
+						this.tweener.complete();
+						this.tweener=null;
+					}
+					else
+					return;
+				};
+				var a=gv.alpha !=this._owner.alpha;
+				var b=gv.rotation !=this._owner.rotation;
+				if(a || b){
+					if(this._owner.checkGearController(0,this._controller))
+						this._displayLockToken=this._owner.addDisplayLock();
+					this._tweenTarget=gv;
+					if(this._tweenValue==null)
+						this._tweenValue=new Point();
+					this._tweenValue.x=this._owner.alpha;
+					this._tweenValue.y=this._owner.rotation;
+					this.tweener=Tween.to(this._tweenValue,
+					{x:gv.alpha,y:gv.rotation },
+					this._tweenTime*1000,
+					this._easeType,
+					Handler.create(this,this.__tweenComplete),
+					this._delay*1000);
+					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
+				}
+			}
+			else {
+				this._owner._gearLocked=true;
+				this._owner.grayed=gv.grayed;
+				this._owner.alpha=gv.alpha;
+				this._owner.rotation=gv.rotation;
+				this._owner._gearLocked=false;
+			}
+		}
+
+		__proto.__tweenUpdate=function(a,b){
+			this._owner._gearLocked=true;
+			if(a)
+				this._owner.alpha=this._tweenValue.x;
+			if(b)
+				this._owner.rotation=this._tweenValue.y;
+			this._owner._gearLocked=false;
+		}
+
+		__proto.__tweenComplete=function(){
+			if(this._displayLockToken!=0){
+				this._owner.releaseDisplayLock(this._displayLockToken);
+				this._displayLockToken=0;
+			}
+			this.tweener=null;
+			this._owner.displayObject.event(/*fairygui.Events.GEAR_STOP*/"fui_gear_stop");
+		}
+
+		__proto.updateState=function(){
+			var gv=this._storage[this._controller.selectedPageId];
+			if(!gv){
+				gv=new GearLookValue();
+				this._storage[this._controller.selectedPageId]=gv;
+			}
+			gv.alpha=this._owner.alpha;
+			gv.rotation=this._owner.rotation;
+			gv.grayed=this._owner.grayed;
+		}
+
+		GearLook.__init$=function(){
+			//class GearLookValue
+			GearLookValue=(function(){
+				function GearLookValue(alpha,rotation,grayed){
+					this.alpha=NaN;
+					this.rotation=NaN;
+					this.grayed=false;
+					(alpha===void 0)&& (alpha=0);
+					(rotation===void 0)&& (rotation=0);
+					(grayed===void 0)&& (grayed=false);
+					this.alpha=alpha;
+					this.rotation=rotation;
+					this.grayed=grayed;
+				}
+				__class(GearLookValue,'');
+				return GearLookValue;
+			})()
+		}
+
+		return GearLook;
+	})(GearBase)
+
+
 	//class fairygui.GGraph extends fairygui.GObject
 	var GGraph=(function(_super){
 		function GGraph(){
@@ -9046,199 +9338,287 @@
 	})(GObject)
 
 
-	//class fairygui.GearLook extends fairygui.GearBase
-	var GearLook=(function(_super){
-		var GearLookValue;
-		function GearLook(owner){
-			this.tweener=null;
-			this._storage=null;
-			this._default=null;
-			this._tweenValue=null;
-			this._tweenTarget=null;
-			GearLook.__super.call(this,owner);
-		}
-
-		__class(GearLook,'fairygui.GearLook',_super);
-		var __proto=GearLook.prototype;
-		__proto.init=function(){
-			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
-			this._storage={};
-		}
-
-		__proto.addStatus=function(pageId,value){
-			if(value=="-")
-				return;
-			var arr=value.split(",");
-			var gv;
-			if(pageId==null)
-				gv=this._default;
-			else {
-				gv=new GearLookValue();
-				this._storage[pageId]=gv;
-			}
-			gv.alpha=parseFloat(arr[0]);
-			gv.rotation=parseInt(arr[1]);
-			gv.grayed=arr[2]=="1" ? true :false;
-		}
-
-		__proto.apply=function(){
-			var gv=this._storage[this._controller.selectedPageId];
-			if(!gv)
-				gv=this._default;
-			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-				this._owner._gearLocked=true;
-				this._owner.grayed=gv.grayed;
-				this._owner._gearLocked=false;
-				if (this.tweener !=null){
-					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
-						this.tweener.complete();
-						this.tweener=null;
-					}
-					else
-					return;
-				};
-				var a=gv.alpha !=this._owner.alpha;
-				var b=gv.rotation !=this._owner.rotation;
-				if(a || b){
-					if(this._owner.checkGearController(0,this._controller))
-						this._displayLockToken=this._owner.addDisplayLock();
-					this._tweenTarget=gv;
-					if(this._tweenValue==null)
-						this._tweenValue=new Point();
-					this._tweenValue.x=this._owner.alpha;
-					this._tweenValue.y=this._owner.rotation;
-					this.tweener=Tween.to(this._tweenValue,
-					{x:gv.alpha,y:gv.rotation },
-					this._tweenTime*1000,
-					this._easeType,
-					Handler.create(this,this.__tweenComplete),
-					this._delay*1000);
-					this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
-				}
-			}
-			else {
-				this._owner._gearLocked=true;
-				this._owner.grayed=gv.grayed;
-				this._owner.alpha=gv.alpha;
-				this._owner.rotation=gv.rotation;
-				this._owner._gearLocked=false;
-			}
-		}
-
-		__proto.__tweenUpdate=function(a,b){
-			this._owner._gearLocked=true;
-			if(a)
-				this._owner.alpha=this._tweenValue.x;
-			if(b)
-				this._owner.rotation=this._tweenValue.y;
-			this._owner._gearLocked=false;
-		}
-
-		__proto.__tweenComplete=function(){
-			if(this._displayLockToken!=0){
-				this._owner.releaseDisplayLock(this._displayLockToken);
-				this._displayLockToken=0;
-			}
-			this.tweener=null;
-			this._owner.displayObject.event(/*fairygui.Events.GEAR_STOP*/"fui_gear_stop");
-		}
-
-		__proto.updateState=function(){
-			var gv=this._storage[this._controller.selectedPageId];
-			if(!gv){
-				gv=new GearLookValue();
-				this._storage[this._controller.selectedPageId]=gv;
-			}
-			gv.alpha=this._owner.alpha;
-			gv.rotation=this._owner.rotation;
-			gv.grayed=this._owner.grayed;
-		}
-
-		GearLook.__init$=function(){
-			//class GearLookValue
-			GearLookValue=(function(){
-				function GearLookValue(alpha,rotation,grayed){
-					this.alpha=NaN;
-					this.rotation=NaN;
-					this.grayed=false;
-					(alpha===void 0)&& (alpha=0);
-					(rotation===void 0)&& (rotation=0);
-					(grayed===void 0)&& (grayed=false);
-					this.alpha=alpha;
-					this.rotation=rotation;
-					this.grayed=grayed;
-				}
-				__class(GearLookValue,'');
-				return GearLookValue;
-			})()
-		}
-
-		return GearLook;
-	})(GearBase)
-
-
 	//class fairygui.GGroup extends fairygui.GObject
 	var GGroup=(function(_super){
 		function GGroup(){
-			this._updating=false;
-			this._empty=false;
+			this._layout=0;
+			this._lineGap=0;
+			this._columnGap=0;
+			this._percentReady=false;
+			this._boundsChanged=false;
+			this._updating=0;
 			GGroup.__super.call(this);
 		}
 
 		__class(GGroup,'fairygui.GGroup',_super);
 		var __proto=GGroup.prototype;
+		__proto.setBoundsChangedFlag=function(childSizeChanged){
+			(childSizeChanged===void 0)&& (childSizeChanged=false);
+			if (this._updating==0 && this.parent !=null){
+				if (childSizeChanged)
+					this._percentReady=false;
+				if(!this._boundsChanged){
+					this._boundsChanged=true;
+					if(this._layout!=/*fairygui.GroupLayoutType.None*/0)
+						Laya.timer.callLater(this,this.ensureBoundsCorrect);
+				}
+			}
+		}
+
+		__proto.ensureBoundsCorrect=function(){
+			if (this._boundsChanged)
+				this.updateBounds();
+		}
+
 		__proto.updateBounds=function(){
-			if (this._updating || !this.parent)
+			Laya.timer.clear(this,this.ensureBoundsCorrect);
+			this._boundsChanged=false;
+			if (this.parent==null)
 				return;
+			this.handleLayout();
 			var cnt=this._parent.numChildren;
 			var i=0;
 			var child;
-			var ax=Number.POSITIVE_INFINITY,ay=Number.POSITIVE_INFINITY;
-			var ar=Number.NEGATIVE_INFINITY,ab=Number.NEGATIVE_INFINITY;
+			var ax=Number.MAX_VALUE,ay=Number.MAX_VALUE;
+			var ar=Number.MIN_VALUE,ab=Number.MIN_VALUE;
 			var tmp=0;
-			this._empty=true;
-			for (i=0;i < cnt;i++){
+			var empty=true;
+			for(i=0;i<cnt;i++){
 				child=this._parent.getChildAt(i);
-				if (child.group==this){
+				if(child.group==this){
 					tmp=child.x;
-					if (tmp < ax)
+					if(tmp<ax)
 						ax=tmp;
 					tmp=child.y;
-					if (tmp < ay)
+					if(tmp<ay)
 						ay=tmp;
 					tmp=child.x+child.width;
-					if (tmp > ar)
+					if(tmp>ar)
 						ar=tmp;
 					tmp=child.y+child.height;
-					if (tmp > ab)
+					if(tmp>ab)
 						ab=tmp;
-					this._empty=false;
+					empty=false;
 				}
 			}
-			this._updating=true;
-			if (!this._empty){
+			if (!empty){
+				this._updating=1;
 				this.setXY(ax,ay);
+				this._updating=2;
 				this.setSize(ar-ax,ab-ay);
 			}
-			else
-			this.setSize(0,0);
-			this._updating=false;
+			else{
+				this._updating=2;
+				this.setSize(0,0);
+			}
+			this._updating=0;
+		}
+
+		__proto.handleLayout=function(){
+			this._updating |=1;
+			var child;
+			var i=0;
+			var cnt=0;
+			if (this._layout==/*fairygui.GroupLayoutType.Horizontal*/1){
+				var curX=NaN;
+				cnt=this.parent.numChildren;
+				for (i=0;i < cnt;i++){
+					child=this.parent.getChildAt(i);
+					if (child.group !=this)
+						continue ;
+					if (isNaN(curX))
+						curX=Math.floor(child.x);
+					else
+					child.x=curX;
+					if (child.width !=0)
+						curX+=Math.floor(child.width+this._columnGap);
+				}
+				if (!this._percentReady)
+					this.updatePercent();
+			}
+			else if (this._layout==/*fairygui.GroupLayoutType.Vertical*/2){
+				var curY=NaN;
+				cnt=this.parent.numChildren;
+				for (i=0;i < cnt;i++){
+					child=this.parent.getChildAt(i);
+					if (child.group !=this)
+						continue ;
+					if (isNaN(curY))
+						curY=Math.floor(child.y);
+					else
+					child.y=curY;
+					if (child.height !=0)
+						curY+=Math.floor(child.height+this._lineGap);
+				}
+				if (!this._percentReady)
+					this.updatePercent();
+			}
+			this._updating &=2;
+		}
+
+		__proto.updatePercent=function(){
+			this._percentReady=true;
+			var cnt=this.parent.numChildren;
+			var i=0;
+			var child;
+			var size=0;
+			if (this._layout==/*fairygui.GroupLayoutType.Horizontal*/1){
+				for (i=0;i < cnt;i++){
+					child=this.parent.getChildAt(i);
+					if (child.group !=this)
+						continue ;
+					size+=child.width;
+				}
+				for (i=0;i < cnt;i++){
+					child=this.parent.getChildAt(i);
+					if (child.group !=this)
+						continue ;
+					if (size > 0)
+						child._sizePercentInGroup=child.width / size;
+					else
+					child._sizePercentInGroup=0;
+				}
+			}
+			else{
+				for (i=0;i < cnt;i++){
+					child=this.parent.getChildAt(i);
+					if (child.group !=this)
+						continue ;
+					size+=child.height;
+				}
+				for (i=0;i < cnt;i++){
+					child=this.parent.getChildAt(i);
+					if (child.group !=this)
+						continue ;
+					if (size > 0)
+						child._sizePercentInGroup=child.height / size;
+					else
+					child._sizePercentInGroup=0;
+				}
+			}
 		}
 
 		__proto.moveChildren=function(dx,dy){
-			if (this._updating || !this.parent)
+			if ((this._updating & 1)!=0 || this.parent==null)
 				return;
-			this._updating=true;
-			var cnt=this._parent.numChildren;
+			this._updating |=1;
+			var cnt=this.parent.numChildren;
 			var i=0;
 			var child;
 			for (i=0;i < cnt;i++){
-				child=this._parent.getChildAt(i);
+				child=this.parent.getChildAt(i);
 				if (child.group==this){
 					child.setXY(child.x+dx,child.y+dy);
 				}
 			}
-			this._updating=false;
+			this._updating &=2;
+		}
+
+		__proto.resizeChildren=function(dw,dh){
+			if (this._layout==/*fairygui.GroupLayoutType.None*/0 || (this._updating & 2)!=0 || this.parent==null)
+				return;
+			this._updating |=2;
+			if (!this._percentReady)
+				this.updatePercent();
+			var cnt=this.parent.numChildren;
+			var i=0;
+			var j=0;
+			var child;
+			var last=-1;
+			var numChildren=0;
+			var lineSize=0;
+			var remainSize=0;
+			var found=false;
+			for (i=0;i < cnt;i++){
+				child=this.parent.getChildAt(i);
+				if (child.group !=this)
+					continue ;
+				last=i;
+				numChildren++;
+			}
+			if (this._layout==/*fairygui.GroupLayoutType.Horizontal*/1){
+				remainSize=lineSize=this.width-(numChildren-1)*this._columnGap;
+				var curX=NaN;
+				var nw=NaN;
+				for (i=0;i < cnt;i++){
+					child=this.parent.getChildAt(i);
+					if (child.group !=this)
+						continue ;
+					if (isNaN(curX))
+						curX=Math.floor(child.x);
+					else
+					child.x=curX;
+					if (last==i)
+						nw=remainSize;
+					else
+					nw=Math.round(child._sizePercentInGroup *lineSize);
+					child.setSize(nw,child._rawHeight+dh,true);
+					remainSize-=child.width;
+					if (last==i){
+						if (remainSize >=1){
+							for (j=0;j <=i;j++){
+								child=this.parent.getChildAt(j);
+								if (child.group !=this)
+									continue ;
+								if (!found){
+									nw=child.width+remainSize;
+									if ((child.maxWidth==0 || nw < child.maxWidth)
+										&& (child.minWidth==0 || nw > child.minWidth)){
+										child.setSize(nw,child.height,true);
+										found=true;
+									}
+								}
+								else
+								child.x+=remainSize;
+							}
+						}
+					}
+					else
+					curX+=(child.width+this._columnGap);
+				}
+			}
+			else if (this._layout==/*fairygui.GroupLayoutType.Vertical*/2){
+				remainSize=lineSize=this.height-(numChildren-1)*this._lineGap;
+				var curY=NaN;
+				var nh=NaN;
+				for (i=0;i < cnt;i++){
+					child=this.parent.getChildAt(i);
+					if (child.group !=this)
+						continue ;
+					if (isNaN(curY))
+						curY=Math.floor(child.y);
+					else
+					child.y=curY;
+					if (last==i)
+						nh=remainSize;
+					else
+					nh=Math.round(child._sizePercentInGroup *lineSize);
+					child.setSize(child._rawWidth+dw,nh,true);
+					remainSize-=child.height;
+					if (last==i){
+						if (remainSize >=1){
+							for (j=0;j <=i;j++){
+								child=this.parent.getChildAt(j);
+								if (child.group !=this)
+									continue ;
+								if (!found){
+									nh=child.height+remainSize;
+									if ((child.maxHeight==0 || nh < child.maxHeight)
+										&& (child.minHeight==0 || nh > child.minHeight)){
+										child.setSize(child.width,nh,true);
+										found=true;
+									}
+								}
+								else
+								child.y+=remainSize;
+							}
+						}
+					}
+					else
+					curY+=(child.height+this._lineGap);
+				}
+			}
+			this._updating &=1;
 		}
 
 		__proto.updateAlpha=function(){
@@ -9246,14 +9626,54 @@
 			if(this._underConstruct)
 				return;
 			var cnt=this._parent.numChildren;
-			var i=NaN;
-			var child;
-			for(i=0;i<cnt;i++){
-				child=this._parent.getChildAt(i);
+			for(var i=0;i<cnt;i++){
+				var child=this._parent.getChildAt(i);
 				if(child.group==this)
 					child.alpha=this.alpha;
 			}
 		}
+
+		__proto.setup_beforeAdd=function(xml){
+			_super.prototype.setup_beforeAdd.call(this,xml);
+			var str;
+			str=xml.getAttribute("layout");
+			if (str !=null){
+				this._layout=GroupLayoutType.parse(str);
+				str=xml.getAttribute("lineGap");
+				if(str)
+					this._lineGap=parseInt(str);
+				str=xml.getAttribute("colGap");
+				if(str)
+					this._columnGap=parseInt(str);
+			}
+		}
+
+		__getset(0,__proto,'layout',function(){
+			return this._layout;
+			},function(value){
+			if(this._layout !=value){
+				this._layout=value;
+				this.setBoundsChangedFlag(true);
+			}
+		});
+
+		__getset(0,__proto,'columnGap',function(){
+			return this._columnGap;
+			},function(value){
+			if(this._columnGap !=value){
+				this._columnGap=value;
+				this.setBoundsChangedFlag();
+			}
+		});
+
+		__getset(0,__proto,'lineGap',function(){
+			return this._lineGap;
+			},function(value){
+			if(this._lineGap !=value){
+				this._lineGap=value;
+				this.setBoundsChangedFlag();
+			}
+		});
 
 		return GGroup;
 	})(GObject)
@@ -9432,15 +9852,15 @@
 
 		__proto.constructFromResource=function(){
 			this.packageItem.load();
-			this._sourceWidth=this.packageItem.width;
-			this._sourceHeight=this.packageItem.height;
-			this._initWidth=this._sourceWidth;
-			this._initHeight=this._sourceHeight;
+			this.sourceWidth=this.packageItem.width;
+			this.sourceHeight=this.packageItem.height;
+			this.initWidth=this.sourceWidth;
+			this.initHeight=this.sourceHeight;
 			this.image.scale9Grid=this.packageItem.scale9Grid;
 			this.image.scaleByTile=this.packageItem.scaleByTile;
 			this.image.tileGridIndice=this.packageItem.tileGridIndice;
 			this.image.tex=this.packageItem.texture;
-			this.setSize(this._sourceWidth,this._sourceHeight);
+			this.setSize(this.sourceWidth,this.sourceHeight);
 		}
 
 		__proto.handleXYChanged=function(){
@@ -9455,7 +9875,7 @@
 
 		__proto.handleSizeChanged=function(){
 			if(this.image.tex!=null){
-				this.image.scaleTexture(this.width/this._sourceWidth,this.height/this._sourceHeight);
+				this.image.scaleTexture(this.width/this.sourceWidth,this.height/this.sourceHeight);
 			}
 		}
 
@@ -9835,40 +10255,40 @@
 					this._contentHeight=30;
 				this.setSize(this._contentWidth,this._contentHeight);
 				this._updatingLayout=false;
-			}
-			else {
-				var sx=1,sy=1;
-				if(this._fill!=/*fairygui.LoaderFillType.None*/0){
-					sx=this.width/this._contentSourceWidth;
-					sy=this.height/this._contentSourceHeight;
-					if(sx!=1 || sy!=1){
-						if (this._fill==/*fairygui.LoaderFillType.ScaleMatchHeight*/2)
+				if(this._contentWidth==this._width && this._contentHeight==this._height)
+					return;
+			};
+			var sx=1,sy=1;
+			if(this._fill!=/*fairygui.LoaderFillType.None*/0){
+				sx=this.width/this._contentSourceWidth;
+				sy=this.height/this._contentSourceHeight;
+				if(sx!=1 || sy!=1){
+					if (this._fill==/*fairygui.LoaderFillType.ScaleMatchHeight*/2)
+						sx=sy;
+					else if (this._fill==/*fairygui.LoaderFillType.ScaleMatchWidth*/3)
+					sy=sx;
+					else if (this._fill==/*fairygui.LoaderFillType.Scale*/1){
+						if (sx > sy)
 							sx=sy;
-						else if (this._fill==/*fairygui.LoaderFillType.ScaleMatchWidth*/3)
+						else
 						sy=sx;
-						else if (this._fill==/*fairygui.LoaderFillType.Scale*/1){
-							if (sx > sy)
-								sx=sy;
-							else
-							sy=sx;
-						}
-						this._contentWidth=this._contentSourceWidth *sx;
-						this._contentHeight=this._contentSourceHeight *sy;
 					}
+					this._contentWidth=this._contentSourceWidth *sx;
+					this._contentHeight=this._contentSourceHeight *sy;
 				}
-				if ((this._content instanceof fairygui.display.Image ))
-					(this._content).scaleTexture(sx,sy);
-				else
-				this._content.scale(sx,sy);
-				if (this._align=="center")
-					this._content.x=Math.floor((this.width-this._contentWidth)/ 2);
-				else if (this._align=="right")
-				this._content.x=this.width-this._contentWidth;
-				if (this._valign=="middle")
-					this._content.y=Math.floor((this.height-this._contentHeight)/ 2);
-				else if (this._valign=="bottom")
-				this._content.y=this.height-this._contentHeight;
 			}
+			if ((this._content instanceof fairygui.display.Image ))
+				(this._content).scaleTexture(sx,sy);
+			else
+			this._content.scale(sx,sy);
+			if (this._align=="center")
+				this._content.x=Math.floor((this.width-this._contentWidth)/ 2);
+			else if (this._align=="right")
+			this._content.x=this.width-this._contentWidth;
+			if (this._valign=="middle")
+				this._content.y=Math.floor((this.height-this._contentHeight)/ 2);
+			else if (this._valign=="bottom")
+			this._content.y=this.height-this._contentHeight;
 		}
 
 		__proto.clearContent=function(){
@@ -10045,11 +10465,11 @@
 		}
 
 		__proto.constructFromResource=function(){
-			this._sourceWidth=this.packageItem.width;
-			this._sourceHeight=this.packageItem.height;
-			this._initWidth=this._sourceWidth;
-			this._initHeight=this._sourceHeight;
-			this.setSize(this._sourceWidth,this._sourceHeight);
+			this.sourceWidth=this.packageItem.width;
+			this.sourceHeight=this.packageItem.height;
+			this.initWidth=this.sourceWidth;
+			this.initHeight=this.sourceHeight;
+			this.setSize(this.sourceWidth,this.sourceHeight);
 			this.packageItem.load();
 			this.movieClip.interval=this.packageItem.interval;
 			this.movieClip.swing=this.packageItem.swing;
@@ -10707,6 +11127,7 @@
 			this._linkedPopup=null;
 			this._downEffect=0;
 			this._downEffectValue=0;
+			this._downScaled=false;
 			this._down=false;
 			this._over=false;
 			GButton.__super.call(this);
@@ -10757,10 +11178,18 @@
 				}
 			}
 			else if(this._downEffect==2){
-				if(val==/*CLASS CONST:fairygui.GButton.DOWN*/"down" || val==/*CLASS CONST:fairygui.GButton.SELECTED_OVER*/"selectedOver" || val==/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled")
-					this.setScale(this._downEffectValue,this._downEffectValue);
-				else
-				this.setScale(1,1);
+				if(val==/*CLASS CONST:fairygui.GButton.DOWN*/"down" || val==/*CLASS CONST:fairygui.GButton.SELECTED_OVER*/"selectedOver" || val==/*CLASS CONST:fairygui.GButton.SELECTED_DISABLED*/"selectedDisabled"){
+					if(!this._downScaled){
+						this.setScale(this.scaleX*this._downEffectValue,this.scaleY*this._downEffectValue);
+						this._downScaled=true;
+					}
+				}
+				else{
+					if(this._downScaled){
+						this.setScale(this.scaleX/this._downEffectValue,this.scaleY/this._downEffectValue);
+						this._downScaled=false;
+					}
+				}
 			}
 		}
 
@@ -10805,6 +11234,8 @@
 				this._downEffect=str=="dark"?1:(str=="scale"?2:0);
 				str=xml.getAttribute("downEffectValue");
 				this._downEffectValue=parseFloat(str);
+				if(this._downEffect==2)
+					this.setPivot(0.5,0.5);
 			}
 			this._buttonController=this.getController("button");
 			this._titleObject=this.getChild("title");
@@ -10823,8 +11254,6 @@
 
 		__proto.setup_afterAdd=function(xml){
 			_super.prototype.setup_afterAdd.call(this,xml);
-			if(this._downEffect==2)
-				this.setPivot(0.5,0.5);
 			xml=ToolSet.findChildNode(xml,"Button");
 			if (xml){
 				var str;
@@ -10925,17 +11354,21 @@
 				else
 				GRoot.inst.playOneShotSound(this._sound);
 			}
-			if (!this._changeStateOnClick)
-				return;
 			if (this._mode==/*fairygui.ButtonMode.Check*/1){
-				this.selected=!this._selected;
-				Events.dispatch(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed",this.displayObject,evt);
+				if(this._changeStateOnClick){
+					this.selected=!this._selected;
+					Events.dispatch(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed",this.displayObject,evt);
+				}
 			}
 			else if (this._mode==/*fairygui.ButtonMode.Radio*/2){
-				if (!this._selected){
+				if (this._changeStateOnClick && !this._selected){
 					this.selected=true;
 					Events.dispatch(/*fairygui.Events.STATE_CHANGED*/"fui_state_changed",this.displayObject,evt);
 				}
+			}
+			else{
+				if(this._relatedController)
+					this._relatedController.selectedPageId=this._pageOption.id;
 			}
 		}
 
@@ -12079,8 +12512,6 @@
 
 		__proto.handleSizeChanged=function(){
 			_super.prototype.handleSizeChanged.call(this);
-			if (this._autoResizeItem)
-				this.adjustItemsSize();
 			this.setBoundsChangedFlag();
 			if (this._virtual)
 				this.setVirtualListChangedFlag(true);
@@ -12099,25 +12530,6 @@
 				this._selectionController=null;
 				c.selectedIndex=index;
 				this._selectionController=c;
-			}
-		}
-
-		__proto.adjustItemsSize=function(){
-			if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0){
-				var cnt=this._children.length;
-				var cw=this.viewWidth;
-				for (var i=0;i < cnt;i++){
-					var child=this.getChildAt(i);
-					child.width=cw;
-				}
-			}
-			else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1){
-				cnt=this._children.length;
-				var ch=this.viewHeight;
-				for (i=0;i < cnt;i++){
-					child=this.getChildAt(i);
-					child.height=ch;
-				}
 			}
 		}
 
@@ -12358,19 +12770,34 @@
 			if (this._realNumItems > 0){
 				var i=0;
 				var len=Math.ceil(this._realNumItems / this._curLineItemCount)*this._curLineItemCount;
+				var len2=Math.min(this._curLineItemCount,this._realNumItems);
 				if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
 					for (i=0;i < len;i+=this._curLineItemCount)
 					ch+=this._virtualItems[i].height+this._lineGap;
 					if (ch > 0)
 						ch-=this._lineGap;
-					cw=this._scrollPane.contentWidth;
+					if (this._autoResizeItem)
+						cw=this.scrollPane.viewWidth;
+					else{
+						for (i=0;i < len2;i++)
+						cw+=this._virtualItems[i].width+this._columnGap;
+						if (cw > 0)
+							cw-=this._columnGap;
+					}
 				}
 				else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1 || this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
 					for (i=0;i < len;i+=this._curLineItemCount)
 					cw+=this._virtualItems[i].width+this._columnGap;
 					if (cw > 0)
 						cw-=this._columnGap;
-					ch=this._scrollPane.contentHeight;
+					if (this._autoResizeItem)
+						ch=this.scrollPane.viewHeight;
+					else{
+						for (i=0;i < len2;i++)
+						ch+=this._virtualItems[i].height+this._lineGap;
+						if (ch > 0)
+							ch-=this._lineGap;
+					}
 				}
 				else{
 					var pageCount=Math.ceil(len / (this._curLineItemCount *this._curLineItemCount2));
@@ -12578,6 +13005,7 @@
 			var url=this.defaultItem;
 			var ii,ii2;
 			var i=0,j=0;
+			var partSize=(this.scrollPane.viewWidth-this._columnGap *(this._curLineItemCount-1))/ this._curLineItemCount;
 			GList.itemInfoVer++;
 			while (curIndex < this._realNumItems && (end || curY < max)){
 				ii=this._virtualItems[curIndex];
@@ -12635,6 +13063,8 @@
 				else
 				needRender=forceUpdate;
 				if (needRender){
+					if (this._autoResizeItem && (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._columnCount > 0))
+						ii.obj.setSize(partSize,ii.obj.height,true);
 					this.itemRenderer.runWith([curIndex % this._numItems,ii.obj]);
 					if (curIndex % this._curLineItemCount==0){
 						deltaSize+=Math.ceil(ii.obj.height)-ii.height;
@@ -12698,6 +13128,7 @@
 			var url=this.defaultItem;
 			var ii,ii2;
 			var i=0,j=0;
+			var partSize=(this.scrollPane.viewHeight-this._lineGap *(this._curLineItemCount-1))/ this._curLineItemCount;
 			GList.itemInfoVer++;
 			while (curIndex < this._realNumItems && (end || curX < max)){
 				ii=this._virtualItems[curIndex];
@@ -12755,6 +13186,8 @@
 				else
 				needRender=forceUpdate;
 				if (needRender){
+					if (this._autoResizeItem && (this._layout==/*fairygui.ListLayoutType.SingleRow*/1 || this._lineCount > 0))
+						ii.obj.setSize(ii.obj.width,partSize,true);
 					this.itemRenderer.runWith([curIndex % this._numItems,ii.obj]);
 					if (curIndex % this._curLineItemCount==0){
 						deltaSize+=Math.ceil(ii.obj.width)-ii.width;
@@ -12812,6 +13245,8 @@
 			var ii,ii2;
 			var col=0;
 			var url=this._defaultItem;
+			var partWidth=(this.scrollPane.viewWidth-this._columnGap *(this._curLineItemCount-1))/ this._curLineItemCount;
+			var partHeight=(this.scrollPane.viewHeight-this._lineGap *(this._curLineItemCount2-1))/ this._curLineItemCount2;
 			GList.itemInfoVer++;
 			for (i=startIndex;i < lastIndex;i++){
 				if (i >=this._realNumItems)
@@ -12872,6 +13307,14 @@
 					lastObj=ii.obj;
 				}
 				if (needRender){
+					if (this._autoResizeItem){
+						if (this._curLineItemCount==this._columnCount && this._curLineItemCount2==this._lineCount)
+							ii.obj.setSize(partWidth,partHeight,true);
+						else if (this._curLineItemCount==this._columnCount)
+						ii.obj.setSize(partWidth,ii.obj.height,true);
+						else if (this._curLineItemCount2==this._lineCount)
+						ii.obj.setSize(ii.obj.width,partHeight,true);
+					}
 					this.itemRenderer.runWith([i % this._numItems,ii.obj]);
 					ii.width=Math.ceil(ii.obj.width);
 					ii.height=Math.ceil(ii.obj.height);
@@ -12914,30 +13357,24 @@
 		__proto.handleAlign=function(contentWidth,contentHeight){
 			var newOffsetX=0;
 			var newOffsetY=0;
-			if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0 || this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2 || this._layout==/*fairygui.ListLayoutType.Pagination*/4){
-				if (contentHeight < this.viewHeight){
-					if (this._verticalAlign=="middle")
-						newOffsetY=Math.floor((this.viewHeight-contentHeight)/ 2);
-					else if (this._verticalAlign=="bottom")
-					newOffsetY=this.viewHeight-contentHeight;
-				}
+			if (contentHeight < this.viewHeight){
+				if (this._verticalAlign=="middle")
+					newOffsetY=Math.floor((this.viewHeight-contentHeight)/ 2);
+				else if (this._verticalAlign=="bottom")
+				newOffsetY=this.viewHeight-contentHeight;
 			}
-			else{
-				if (contentWidth < this.viewWidth){
-					if (this._align=="center")
-						newOffsetX=Math.floor((this.viewWidth-contentWidth)/ 2);
-					else if (this._align=="right")
-					newOffsetX=this.viewWidth-contentWidth;
-				}
+			if (contentWidth < this.viewWidth){
+				if (this._align=="center")
+					newOffsetX=Math.floor((this.viewWidth-contentWidth)/ 2);
+				else if (this._align=="right")
+				newOffsetX=this.viewWidth-contentWidth;
 			}
 			if (newOffsetX!=this._alignOffset.x || newOffsetY!=this._alignOffset.y){
 				this._alignOffset.setTo(newOffsetX,newOffsetY);
 				if (this.scrollPane !=null)
 					this.scrollPane.adjustMaskContainer();
-				else{
-					this._container.x=this._margin.left+this._alignOffset.x;
-					this._container.y=this._margin.top+this._alignOffset.y;
-				}
+				else
+				this._container.pos(this._margin.left+this._alignOffset.x,this._margin.top+this._alignOffset.y);
 			}
 		}
 
@@ -12947,141 +13384,254 @@
 			var i=0;
 			var child;
 			var curX=0;
-			var curY=0;;
+			var curY=0;
 			var maxWidth=0;
 			var maxHeight=0;
-			var cw=NaN,ch=0;
-			var sw=0,sh=0;
+			var cw=0,ch=0;
 			var j=0;
-			var p=0;
+			var page=0;
 			var k=0;
 			var cnt=this._children.length;
 			var viewWidth=this.viewWidth;
 			var viewHeight=this.viewHeight;
-			if (this._layout==/*fairygui.ListLayoutType.SingleColumn*/0){
-				for (i=0;i < cnt;i++){
+			var lineSize=0;
+			var lineStart=0;
+			var ratio=NaN;
+			if(this._layout==/*fairygui.ListLayoutType.SingleColumn*/0){
+				for(i=0;i<cnt;i++){
 					child=this.getChildAt(i);
 					if (this.foldInvisibleItems && !child.visible)
 						continue ;
-					sw=Math.ceil(child.width);
-					sh=Math.ceil(child.height);
 					if (curY !=0)
 						curY+=this._lineGap;
 					child.y=curY;
-					curY+=sh;
-					if (sw > maxWidth)
-						maxWidth=sw;
+					if (this._autoResizeItem)
+						child.setSize(viewWidth,child.height,true);
+					curY+=Math.ceil(child.height);
+					if(child.width>maxWidth)
+						maxWidth=child.width;
 				}
-				cw=curX+maxWidth;
+				cw=Math.ceil(maxWidth);
 				ch=curY;
 			}
-			else if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1){
-				for (i=0;i < cnt;i++){
+			else if(this._layout==/*fairygui.ListLayoutType.SingleRow*/1){
+				for(i=0;i<cnt;i++){
 					child=this.getChildAt(i);
 					if (this.foldInvisibleItems && !child.visible)
 						continue ;
-					sw=Math.ceil(child.width);
-					sh=Math.ceil(child.height);
-					if (curX !=0)
+					if(curX!=0)
 						curX+=this._columnGap;
 					child.x=curX;
-					curX+=sw;
-					if (sh > maxHeight)
-						maxHeight=sh;
+					if (this._autoResizeItem)
+						child.setSize(child.width,viewHeight,true);
+					curX+=Math.ceil(child.width);
+					if(child.height>maxHeight)
+						maxHeight=child.height;
 				}
 				cw=curX;
-				ch=curY+maxHeight;
+				ch=Math.ceil(maxHeight);
 			}
-			else if (this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
-				for (i=0;i < cnt;i++){
-					child=this.getChildAt(i);
-					if (this.foldInvisibleItems && !child.visible)
-						continue ;
-					sw=Math.ceil(child.width);
-					sh=Math.ceil(child.height);
-					if (curX !=0)
-						curX+=this._columnGap;
-					if(this._columnCount !=0 && j >=this._columnCount
-						|| this._columnCount==0 && curX+sw > viewWidth && maxHeight !=0){
-						curX-=this._columnGap;
-						if(curX > maxWidth)
-							maxWidth=curX;
-						curX=0;
-						curY+=maxHeight+this._lineGap;
-						maxHeight=0;
-						j=0;
-					}
-					child.setXY(curX,curY);
-					curX+=sw;
-					if(sh > maxHeight)
-						maxHeight=sh;
-					j++;
-				}
-				ch=curY+maxHeight;
-				cw=maxWidth;
-			}
-			else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
-				for (i=0;i < cnt;i++){
-					child=this.getChildAt(i);
-					if (!child.visible)
-						continue ;
-					sw=Math.ceil(child.width);
-					sh=Math.ceil(child.height);
-					if (curY !=0)
-						curY+=this._lineGap;
-					if(this._lineCount !=0 && j >=this._lineCount
-						|| this._lineCount==0 && curY+sh > viewHeight && maxWidth !=0){
-						curY-=this._lineGap;
-						if(curY > maxHeight)
-							maxHeight=curY;
-						curY=0;
-						curX+=maxWidth+this._columnGap;
-						maxWidth=0;
-						j=0;
-					}
-					child.setXY(curX,curY);
-					curY+=sh;
-					if(sw > maxWidth)
-						maxWidth=sw;
-					j++;
-				}
-				cw=curX+maxWidth;
-				ch=maxHeight;
-			}
-			else{
-				for (i=0;i < cnt;i++){
-					child=this.getChildAt(i);
-					if (this.foldInvisibleItems && !child.visible)
-						continue ;
-					sw=Math.ceil(child.width);
-					sh=Math.ceil(child.height);
-					if (curX !=0)
-						curX+=this._columnGap;
-					if (this._columnCount !=0 && j >=this._columnCount
-						|| this._columnCount==0 && curX+sw > viewWidth && maxHeight !=0){
-						curX-=this._columnGap;
-						if (curX > maxWidth)
-							maxWidth=curX;
-						curX=0;
-						curY+=maxHeight+this._lineGap;
-						maxHeight=0;
-						j=0;
-						k++;
-						if (this._lineCount !=0 && k >=this._lineCount
-							|| this._lineCount==0 && curY+sh > viewHeight && maxWidth !=0){
-							p++;
-							curY=0;
-							k=0;
+			else if(this._layout==/*fairygui.ListLayoutType.FlowHorizontal*/2){
+				if (this._autoResizeItem && this._columnCount > 0){
+					for (i=0;i < cnt;i++){
+						child=this.getChildAt(i);
+						if (this.foldInvisibleItems && !child.visible)
+							continue ;
+						lineSize+=child.sourceWidth;
+						j++;
+						if (j==this._columnCount || i==cnt-1){
+							ratio=(viewWidth-lineSize-(j-1)*this._columnGap)/ lineSize;
+							curX=0;
+							for (j=lineStart;j <=i;j++){
+								child=this.getChildAt(j);
+								if (this.foldInvisibleItems && !child.visible)
+									continue ;
+								child.setXY(curX,curY);
+								if (j < i){
+									child.setSize(child.sourceWidth+Math.round(child.sourceWidth *ratio),child.height,true);
+									curX+=Math.ceil(child.width)+this._columnGap;
+								}
+								else{
+									child.setSize(viewWidth-curX,child.height,true);
+								}
+								if (child.height > maxHeight)
+									maxHeight=child.height;
+							}
+							curY+=Math.ceil(maxHeight)+this._lineGap;
+							maxHeight=0;
+							j=0;
+							lineStart=i+1;
+							lineSize=0;
 						}
 					}
-					child.setXY(p *viewWidth+curX,curY);
-					curX+=sw;
-					if (sh > maxHeight)
-						maxHeight=sh;
-					j++;
+					ch=curY+Math.ceil(maxHeight);
+					cw=viewWidth;
 				}
-				ch=curY+maxHeight;
-				cw=(p+1)*viewWidth;
+				else{
+					for(i=0;i<cnt;i++){
+						child=this.getChildAt(i);
+						if (this.foldInvisibleItems && !child.visible)
+							continue ;
+						if(curX!=0)
+							curX+=this._columnGap;
+						if (this._columnCount !=0 && j >=this._columnCount
+							|| this._columnCount==0 && curX+child.width > viewWidth && maxHeight !=0){
+							curX=0;
+							curY+=Math.ceil(maxHeight)+this._lineGap;
+							maxHeight=0;
+							j=0;
+						}
+						child.setXY(curX,curY);
+						curX+=Math.ceil(child.width);
+						if (curX > maxWidth)
+							maxWidth=curX;
+						if (child.height > maxHeight)
+							maxHeight=child.height;
+						j++;
+					}
+					ch=curY+Math.ceil(maxHeight);
+					cw=Math.ceil(maxWidth);
+				}
+			}
+			else if (this._layout==/*fairygui.ListLayoutType.FlowVertical*/3){
+				if (this._autoResizeItem && this._lineCount > 0){
+					for (i=0;i < cnt;i++){
+						child=this.getChildAt(i);
+						if (this.foldInvisibleItems && !child.visible)
+							continue ;
+						lineSize+=child.sourceHeight;
+						j++;
+						if (j==this._lineCount || i==cnt-1){
+							ratio=(viewHeight-lineSize-(j-1)*this._lineGap)/ lineSize;
+							curY=0;
+							for (j=lineStart;j <=i;j++){
+								child=this.getChildAt(j);
+								if (this.foldInvisibleItems && !child.visible)
+									continue ;
+								child.setXY(curX,curY);
+								if (j < i){
+									child.setSize(child.width,child.sourceHeight+Math.round(child.sourceHeight *ratio),true);
+									curY+=Math.ceil(child.height)+this._lineGap;
+								}
+								else{
+									child.setSize(child.width,viewHeight-curY,true);
+								}
+								if (child.width > maxWidth)
+									maxWidth=child.width;
+							}
+							curX+=Math.ceil(maxWidth)+this._columnGap;
+							maxWidth=0;
+							j=0;
+							lineStart=i+1;
+							lineSize=0;
+						}
+					}
+					cw=curX+Math.ceil(maxWidth);
+					ch=viewHeight;
+				}
+				else{
+					for(i=0;i<cnt;i++){
+						child=this.getChildAt(i);
+						if (this.foldInvisibleItems && !child.visible)
+							continue ;
+						if(curY!=0)
+							curY+=this._lineGap;
+						if (this._lineCount !=0 && j >=this._lineCount
+							|| this._lineCount==0 && curY+child.height > viewHeight && maxWidth !=0){
+							curY=0;
+							curX+=Math.ceil(maxWidth)+this._columnGap;
+							maxWidth=0;
+							j=0;
+						}
+						child.setXY(curX,curY);
+						curY+=Math.ceil(child.height);
+						if (curY > maxHeight)
+							maxHeight=curY;
+						if (child.width > maxWidth)
+							maxWidth=child.width;
+						j++;
+					}
+					cw=curX+Math.ceil(maxWidth);
+					ch=Math.ceil(maxHeight);
+				}
+			}
+			else{
+				var eachHeight=0;
+				if(this._autoResizeItem && this._lineCount>0)
+					eachHeight=Math.floor((viewHeight-(this._lineCount-1)*this._lineGap)/this._lineCount);
+				if (this._autoResizeItem && this._columnCount > 0){
+					for (i=0;i < cnt;i++){
+						child=this.getChildAt(i);
+						if (this.foldInvisibleItems && !child.visible)
+							continue ;
+						lineSize+=child.sourceWidth;
+						j++;
+						if (j==this._columnCount || i==cnt-1){
+							ratio=(viewWidth-lineSize-(j-1)*this._columnGap)/ lineSize;
+							curX=0;
+							for (j=lineStart;j <=i;j++){
+								child=this.getChildAt(j);
+								if (this.foldInvisibleItems && !child.visible)
+									continue ;
+								child.setXY(page *viewWidth+curX,curY);
+								if (j < i){
+									child.setSize(child.sourceWidth+Math.round(child.sourceWidth *ratio),
+									this._lineCount>0?eachHeight:child.height,true);
+									curX+=Math.ceil(child.width)+this._columnGap;
+								}
+								else{
+									child.setSize(viewWidth-curX,this._lineCount>0?eachHeight:child.height,true);
+								}
+								if (child.height > maxHeight)
+									maxHeight=child.height;
+							}
+							curY+=Math.ceil(maxHeight)+this._lineGap;
+							maxHeight=0;
+							j=0;
+							lineStart=i+1;
+							lineSize=0;
+							k++;
+							if (this._lineCount !=0 && k >=this._lineCount
+								|| this._lineCount==0 && curY+child.height > viewHeight){
+								page++;
+								curY=0;
+								k=0;
+							}
+						}
+					}
+				}
+				else{
+					for (i=0;i < cnt;i++){
+						child=this.getChildAt(i);
+						if (this.foldInvisibleItems && !child.visible)
+							continue ;
+						if (curX !=0)
+							curX+=this._columnGap;
+						if (this._autoResizeItem && this._lineCount > 0)
+							child.setSize(child.width,eachHeight,true);
+						if (this._columnCount !=0 && j >=this._columnCount
+							|| this._columnCount==0 && curX+child.width > viewWidth && maxHeight !=0){
+							curX=0;
+							curY+=Math.ceil(maxHeight)+this._lineGap;
+							maxHeight=0;
+							j=0;
+							k++;
+							if (this._lineCount !=0 && k >=this._lineCount
+								|| this._lineCount==0 && curY+child.height > viewHeight && maxWidth !=0){
+								page++;
+								curY=0;
+								k=0;
+							}
+						}
+						child.setXY(page *viewWidth+curX,curY);
+						curX+=Math.ceil(child.width);
+						if (child.height > maxHeight)
+							maxHeight=child.height;
+						j++;
+					}
+				}
+				ch=page > 0 ? viewHeight :curY+Math.ceil(maxHeight);
+				cw=(page+1)*viewWidth;
 			}
 			this.handleAlign(cw,ch);
 			this.setBounds(0,0,cw,ch);
@@ -13167,7 +13717,10 @@
 			if (str)
 				this._defaultItem=str;
 			str=xml.getAttribute("autoItemSize");
-			this._autoResizeItem=str !="false";
+			if (this._layout==/*fairygui.ListLayoutType.SingleRow*/1 || this._layout==/*fairygui.ListLayoutType.SingleColumn*/0)
+				this._autoResizeItem=str!="false";
+			else
+			this._autoResizeItem=str=="true";
 			str=xml.getAttribute("renderOrder");
 			if(str){
 				this._childrenRenderOrder=ChildrenRenderOrder.parse(str);
@@ -13313,7 +13866,12 @@
 		__getset(0,__proto,'autoResizeItem',function(){
 			return this._autoResizeItem;
 			},function(value){
-			this._autoResizeItem=value;
+			if(this._autoResizeItem !=value){
+				this._autoResizeItem=value;
+				this.setBoundsChangedFlag();
+				if (this._virtual)
+					this.setVirtualListChangedFlag(true);
+			}
 		});
 
 		__getset(0,__proto,'selectionMode',function(){
@@ -14038,14 +14596,6 @@
 			this.setSize(Laya.stage.width,Laya.stage.height);
 		}
 
-		__getset(0,__proto,'hasModalWindow',function(){
-			return this._modalLayer.parent !=null;
-		});
-
-		__getset(0,__proto,'modalWaiting',function(){
-			return this._modalWaitPane && this._modalWaitPane.inContainer;
-		});
-
 		__getset(0,__proto,'focus',function(){
 			if (this._focusedObject && !this._focusedObject.onStage)
 				this._focusedObject=null;
@@ -14058,6 +14608,18 @@
 
 		__getset(0,__proto,'hasAnyPopup',function(){
 			return this._popupStack.length !=0;
+		});
+
+		__getset(0,__proto,'modalLayer',function(){
+			return this._modalLayer;
+		});
+
+		__getset(0,__proto,'hasModalWindow',function(){
+			return this._modalLayer.parent !=null;
+		});
+
+		__getset(0,__proto,'modalWaiting',function(){
+			return this._modalWaitPane && this._modalWaitPane.inContainer;
 		});
 
 		__getset(0,__proto,'volumeScale',function(){
@@ -15139,5 +15701,5 @@
 	})(Sprite)
 
 
-	Laya.__init([GList,GearColor,GearAnimation,Transition,ScrollPane,RelationItem,UIPackage,GBasicTextField,Controller,GearLook,GearSize]);
+	Laya.__init([GList,GearColor,GearAnimation,Transition,ScrollPane,RelationItem,UIPackage,GBasicTextField,GearLook,GearSize]);
 })(window,document,Laya);

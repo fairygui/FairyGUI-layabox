@@ -1,6 +1,8 @@
 package fairygui {
+	import fairygui.action.ControllerAction;
+	import fairygui.action.PlayTransitionAction;
+	
 	import laya.events.EventDispatcher;
-	import laya.utils.Handler;
 	
 	public class Controller extends EventDispatcher {
 		private var _name: String;
@@ -8,8 +10,7 @@ package fairygui {
 		private var _previousIndex: Number = 0;
 		private var _pageIds: Vector.<String>;
 		private var _pageNames: Vector.<String>;
-		private var _pageTransitions: Vector.<PageTransition>;
-		private var _playingTransition: Transition;
+		private var _actions:Vector.<ControllerAction>;
 		
 		public var _parent: GComponent;
 		public var _autoRadioGroupDepth: Boolean;
@@ -55,25 +56,6 @@ package fairygui {
 				this.event(Events.STATE_CHANGED);
 				
 				this.changing = false; 
-				
-				if(this._playingTransition) {
-					this._playingTransition.stop();
-					this._playingTransition = null;
-				}
-				
-				if(this._pageTransitions) {
-					var len: Number = this._pageTransitions.length;
-					for(var i: Number = 0;i < len;i++) {
-						var pt: PageTransition = this._pageTransitions[i];
-						if(pt.toIndex == this._selectedIndex && (pt.fromIndex == -1 || pt.fromIndex==this._previousIndex)) {
-							this._playingTransition = this.parent.getTransition(pt.transitionName);
-							break;
-						}
-					}
-					
-					if(this._playingTransition)
-						this._playingTransition.play(Handler.create(this, function(): void { this._playingTransition = null; }));
-				}
 			}
 		}
 		
@@ -88,11 +70,6 @@ package fairygui {
 				this._selectedIndex = value;
 				this._parent.applyController(this);
 				this.changing = false;
-				
-				if(this._playingTransition) {
-					this._playingTransition.stop();
-					this._playingTransition = null;
-				}
 			}
 		}
 		
@@ -238,6 +215,18 @@ package fairygui {
 				return this._pageIds[this._previousIndex];
 		}
 		
+		public function runActions():void
+		{
+			if(_actions)
+			{
+				var cnt:int = _actions.length;
+				for(var i:int=0;i<cnt;i++)
+				{
+					_actions[i].run(this, previousPageId, selectedPageId);
+				}
+			}
+		}
+		
 		public function setup(xml: Object): void {
 			this._name = xml.getAttribute("name");
 			this._autoRadioGroupDepth = xml.getAttribute("autoRadioGroupDepth") == "true";
@@ -254,28 +243,51 @@ package fairygui {
 				}
 			}
 			
+			var col: Array = xml.childNodes;
+			var length1: Number = col.length;
+			if(length1>0)
+			{
+				if(!_actions)
+					_actions = new Vector.<ControllerAction>();
+
+				for(var i1: Number = 0;i1 < length1;i1++) {
+					var cxml: Object = col[i1];
+					var action:ControllerAction = ControllerAction.createAction(cxml.@type);
+					action.setup(cxml);
+					_actions.push(action);
+				}
+			}
+			
 			str = xml.getAttribute("transitions");
 			if(str) {
-				this._pageTransitions = new Vector.<PageTransition>();
+				if(!_actions)
+					_actions = new Vector.<ControllerAction>();
+				
 				arr = str.split(",");
 				cnt = arr.length;
+				var ii:int;
 				for(i = 0;i < cnt;i++) {
 					str = arr[i];
 					if(!str)
 						continue;
 					
-					var pt: PageTransition = new PageTransition();
+					var taction:PlayTransitionAction = new PlayTransitionAction();
 					k = str.indexOf("=");
-					pt.transitionName = str.substr(k + 1);
+					taction.transitionName = str.substr(k + 1);
 					str = str.substring(0,k);
 					k = str.indexOf("-");
-					pt.toIndex = parseInt(str.substring(k + 1));
+					ii = parseInt(str.substring(k+1));
+					if(ii<_pageIds.length)
+						taction.toPage = [_pageIds[ii]];
 					str = str.substring(0,k);
 					if(str == "*")
-						pt.fromIndex = -1;
-					else
-						pt.fromIndex = parseInt(str);
-					this._pageTransitions.push(pt);
+					{
+						ii = parseInt(str);
+						if(ii<_pageIds.length)
+							taction.fromPage = [_pageIds[ii]];
+					}
+					taction.stopOnExit = true;
+					_actions.push(taction);
 				}
 			}
 			
@@ -285,11 +297,4 @@ package fairygui {
 				this._selectedIndex = -1;
 		}
 	}
-}
-
-class PageTransition
-{
-	public var transitionName:String;
-	public var fromIndex: Number = 0;
-	public var toIndex: Number = 0;
 }

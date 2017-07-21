@@ -143,6 +143,7 @@ package fairygui {
 					this._sortingChildCount--;
 				
 				this._children.splice(index,1);
+				child.group = null;
 				if(child.inContainer) {
 					this._container.removeChild(child.displayObject);
 					
@@ -512,6 +513,7 @@ package fairygui {
 				child = this._children[i];
 				child.handleControllerChanged(c);
 			}
+			c.runActions();
 		}
 		
 		public function applyAllControllers(): void {
@@ -950,12 +952,22 @@ package fairygui {
 			
 			str = xml.getAttribute("size");
 			arr = str.split(",");
-			this._sourceWidth = parseInt(arr[0]);
-			this._sourceHeight = parseInt(arr[1]);
-			this._initWidth = this._sourceWidth;
-			this._initHeight = this._sourceHeight;
+			this.sourceWidth = parseInt(arr[0]);
+			this.sourceHeight = parseInt(arr[1]);
+			this.initWidth = this.sourceWidth;
+			this.initHeight = this.sourceHeight;
 			
-			this.setSize(this._sourceWidth,this._sourceHeight);
+			this.setSize(this.sourceWidth,this.sourceHeight);
+			
+			str = xml.getAttribute("restrictSize");
+			if(str)
+			{
+				arr = str.split(",");
+				minWidth = parseInt(arr[0]);
+				maxWidth = parseInt(arr[1]);
+				minHeight = parseInt(arr[2]);
+				maxHeight= parseInt(arr[3]);
+			}
 			
 			str = xml.getAttribute("pivot");
 			if(str) {

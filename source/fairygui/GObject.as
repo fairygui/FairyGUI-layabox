@@ -14,8 +14,6 @@ package fairygui {
 		
 		private var _x: Number = 0;
 		private var _y: Number = 0;
-		private var _width: Number = 0;
-		private var _height: Number = 0;
 		private var _alpha: Number = 1;
 		private var _rotation: Number = 0;
 		private var _visible: Boolean = true;
@@ -48,17 +46,25 @@ package fairygui {
 		//Size的实现方式，有两种，0-GObject的w/h等于DisplayObject的w/h。1-GObject的sourceWidth/sourceHeight等于DisplayObject的w/h，剩余部分由scale实现
 		protected var _sizeImplType:int;
 		
+		public var minWidth:Number = 0;
+		public var minHeight:Number = 0;
+		public var maxWidth:Number = 0;
+		public var maxHeight:Number = 0;
+		public var sourceWidth: Number = 0;
+		public var sourceHeight: Number = 0;
+		public var initWidth: Number = 0;
+		public var initHeight: Number = 0;
+		
 		public var _parent: GComponent;
+		public var _width: Number = 0;
+		public var _height: Number = 0;
 		public var _rawWidth: Number = 0;
 		public var _rawHeight: Number = 0;
-		public var _sourceWidth: Number = 0;
-		public var _sourceHeight: Number = 0;
-		public var _initWidth: Number = 0;
-		public var _initHeight: Number = 0;
 		public var _id: String;
 		public var _name: String;
 		public var _underConstruct: Boolean;
 		public var _gearLocked: Boolean;
+		public var _sizePercentInGroup:Number = 0;
 		
 		public static var _gInstanceCounter: Number = 0;
 		
@@ -117,6 +123,8 @@ package fairygui {
 				
 				if(this._parent && !(this._parent is GList)) {
 					this._parent.setBoundsChangedFlag();
+					if (_group != null)
+						_group.setBoundsChangedFlag();
 					this.displayObject.event(Events.XY_CHANGED);
 				}
 				
@@ -179,10 +187,14 @@ package fairygui {
 			if(this._rawWidth != wv || this._rawHeight != hv) {
 				this._rawWidth = wv;
 				this._rawHeight = hv;
-				if(wv < 0)
-					wv = 0;
-				if(hv < 0)
-					hv = 0;
+				if(wv<minWidth)
+					wv = minWidth;
+				if(hv<minHeight)
+					hv = minHeight;
+				if(maxWidth>0 && wv>maxWidth)
+					wv = maxWidth;
+				if(maxHeight>0 && hv>maxHeight)
+					hv = maxHeight;
 				var dWidth: Number = wv - this._width;
 				var dHeight: Number = hv - this._height;
 				this._width = wv;
@@ -200,11 +212,16 @@ package fairygui {
 						this.applyPivot();
 				}
 				
+				if (this is GGroup)
+					GGroup(this).resizeChildren(dWidth, dHeight);
+				
 				this.updateGear(2);
 				
 				if(this._parent) {
 					this._relations.onOwnerSizeChanged(dWidth,dHeight);
 					this._parent.setBoundsChangedFlag();
+					if (_group != null)
+						_group.setBoundsChangedFlag(true);
 				}
 				
 				this.displayObject.event(Events.SIZE_CHANGED);
@@ -212,22 +229,6 @@ package fairygui {
 		}
 		
 		public function ensureSizeCorrect(): void {
-		}
-		
-		public function get sourceHeight(): Number {
-			return this._sourceHeight;
-		}
-		
-		public function get sourceWidth(): Number {
-			return this._sourceWidth;
-		}
-		
-		public function get initHeight(): Number {
-			return this._initHeight;
-		}
-		
-		public function get initWidth(): Number {
-			return this._initWidth;
 		}
 		
 		public function get actualWidth(): Number {
@@ -337,8 +338,8 @@ package fairygui {
 						GObject.sHelperPoint.y = this._pivotY*_height;
 					}
 					else {
-						GObject.sHelperPoint.x = this._pivotX*this._sourceWidth;
-						GObject.sHelperPoint.y = this._pivotY*this._sourceHeight;
+						GObject.sHelperPoint.x = this._pivotX*this.sourceWidth;
+						GObject.sHelperPoint.y = this._pivotY*this.sourceHeight;
 					}
 					var pt:Point = this._displayObject.transform.transformPoint(GObject.sHelperPoint);
 					this._pivotOffsetX = this._pivotX*_width - pt.x;
@@ -538,7 +539,14 @@ package fairygui {
 		}
 		
 		public function set group(value: GGroup):void {
-			this._group = value;
+			if (_group != value)
+			{
+				if (_group != null)
+					_group.setBoundsChangedFlag(true);
+				_group = value;
+				if (_group != null)
+					_group.setBoundsChangedFlag(true);
+			}
 		}
 		
 		public function get group(): GGroup {
@@ -959,11 +967,11 @@ package fairygui {
 		{
 			if(this._displayObject!=null)
 			{
-				if(this._sizeImplType==0 || this._sourceWidth==0 || this._sourceHeight==0)
+				if(this._sizeImplType==0 || this.sourceWidth==0 || this.sourceHeight==0)
 					this._displayObject.size(this._width, this._height);
 				else
-					this._displayObject.scale(this._width/this._sourceWidth*this._scaleX,
-						this._height/this._sourceHeight*this._scaleY);
+					this._displayObject.scale(this._width/this.sourceWidth*this._scaleX,
+						this._height/this.sourceHeight*this._scaleY);
 			}
 		}
 		
@@ -971,11 +979,11 @@ package fairygui {
 		{
 			if(this._displayObject!=null)
 			{
-				if( this._sizeImplType==0 || this._sourceWidth==0 || this._sourceHeight==0)
+				if( this._sizeImplType==0 || this.sourceWidth==0 || this.sourceHeight==0)
 					this._displayObject.scale(this._scaleX, this._scaleY);
 				else
-					this._displayObject.scale(this._width/this._sourceWidth*this._scaleX,
-						this._height/this._sourceHeight*this._scaleY);
+					this._displayObject.scale(this._width/this.sourceWidth*this._scaleX,
+						this._height/this.sourceHeight*this._scaleY);
 			}
 		}
 		
@@ -1007,9 +1015,19 @@ package fairygui {
 			str = xml.getAttribute("size");
 			if (str) {
 				arr = str.split(",");
-				this._initWidth = parseInt(arr[0]);
-				this._initHeight = parseInt(arr[1]);
-				this.setSize(this._initWidth, this._initHeight, true);
+				this.initWidth = parseInt(arr[0]);
+				this.initHeight = parseInt(arr[1]);
+				this.setSize(this.initWidth, this.initHeight, true);
+			}
+			
+			str = xml.getAttribute("restrictSize");
+			if(str)
+			{
+				arr = str.split(",");
+				minWidth = parseInt(arr[0]);
+				maxWidth = parseInt(arr[1]);
+				minHeight = parseInt(arr[2]);
+				maxHeight= parseInt(arr[3]);
 			}
 			
 			str = xml.getAttribute("scale");
@@ -1034,8 +1052,6 @@ package fairygui {
 				str = xml.getAttribute("anchor");
 				this.setPivot(parseFloat(arr[0]), parseFloat(arr[1]), str=="true");
 			}
-			else
-				this.setPivot(0,0,false);			
 			
 			str = xml.getAttribute("alpha");
 			if (str)

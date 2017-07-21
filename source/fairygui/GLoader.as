@@ -326,46 +326,48 @@ package fairygui {
 					this._contentHeight = 30;
 				this.setSize(this._contentWidth, this._contentHeight);
 				this._updatingLayout = false;
+				
+				if(_contentWidth==_width && _contentHeight==_height)
+					return;
 			}
-			else {
-				var sx: Number = 1, sy: Number = 1;
-				if(_fill!=LoaderFillType.None)
+
+			var sx: Number = 1, sy: Number = 1;
+			if(_fill!=LoaderFillType.None)
+			{
+				sx = this.width/_contentSourceWidth;
+				sy = this.height/_contentSourceHeight;
+				
+				if(sx!=1 || sy!=1)
 				{
-					sx = this.width/_contentSourceWidth;
-					sy = this.height/_contentSourceHeight;
-					
-					if(sx!=1 || sy!=1)
+					if (_fill == LoaderFillType.ScaleMatchHeight)
+						sx = sy;
+					else if (_fill == LoaderFillType.ScaleMatchWidth)
+						sy = sx;
+					else if (_fill == LoaderFillType.Scale)
 					{
-						if (_fill == LoaderFillType.ScaleMatchHeight)
+						if (sx > sy)
 							sx = sy;
-						else if (_fill == LoaderFillType.ScaleMatchWidth)
+						else
 							sy = sx;
-						else if (_fill == LoaderFillType.Scale)
-						{
-							if (sx > sy)
-								sx = sy;
-							else
-								sy = sx;
-						}
-						_contentWidth = _contentSourceWidth * sx;
-						_contentHeight = _contentSourceHeight * sy;
 					}
+					_contentWidth = _contentSourceWidth * sx;
+					_contentHeight = _contentSourceHeight * sy;
 				}
-				
-				if (this._content is Image)
-					Image(this._content).scaleTexture(sx, sy);
-				else
-					this._content.scale(sx, sy);
-				
-				if (this._align == "center")
-					this._content.x = Math.floor((this.width - this._contentWidth) / 2);
-				else if (this._align == "right")
-					this._content.x = this.width - this._contentWidth;
-				if (this._valign == "middle")
-					this._content.y = Math.floor((this.height - this._contentHeight) / 2);
-				else if (this._valign == "bottom")
-					this._content.y = this.height - this._contentHeight;
 			}
+			
+			if (this._content is Image)
+				Image(this._content).scaleTexture(sx, sy);
+			else
+				this._content.scale(sx, sy);
+			
+			if (this._align == "center")
+				this._content.x = Math.floor((this.width - this._contentWidth) / 2);
+			else if (this._align == "right")
+				this._content.x = this.width - this._contentWidth;
+			if (this._valign == "middle")
+				this._content.y = Math.floor((this.height - this._contentHeight) / 2);
+			else if (this._valign == "bottom")
+				this._content.y = this.height - this._contentHeight;
 		}
 		
 		private function clearContent(): void {
