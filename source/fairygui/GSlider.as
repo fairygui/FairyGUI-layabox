@@ -8,9 +8,9 @@ package fairygui {
 		private var _max: Number = 0;
 		private var _value: Number = 0;
 		private var _titleType: int;
+		private var _reverse:Boolean = false;
 		
 		private var _titleObject: GTextField;
-		private var _aniObject: GObject;
 		private var _barObjectH: GObject;
 		private var _barObjectV: GObject;
 		private var _barMaxWidth: Number = 0;
@@ -20,6 +20,13 @@ package fairygui {
 		private var _gripObject: GObject;
 		private var _clickPos: Point;
 		private var _clickPercent: Number = 0;
+		private var _barStartX:Number = 0;
+		private var _barStartY:Number = 0;
+		
+		public var changeOnClick:Boolean = true;
+		
+		/**是否可拖动开关**/
+		public var canDrag:Boolean = true;
 		
 		public function GSlider() {
 			super();
@@ -86,13 +93,28 @@ package fairygui {
 				}
 			}
 			
-			if (this._barObjectH)
-				this._barObjectH.width = (this.width - this._barMaxWidthDelta) * percent;
-			if (this._barObjectV)
-				this._barObjectV.height = (this.height - this._barMaxHeightDelta) * percent;
-			
-			if (this._aniObject is GMovieClip)
-				GMovieClip(this._aniObject).frame = Math.round(percent * 100);
+			var fullWidth:int = this.width-this._barMaxWidthDelta;
+			var fullHeight:int = this.height-this._barMaxHeightDelta;
+			if(!_reverse)
+			{
+				if(_barObjectH)
+					_barObjectH.width = fullWidth*percent;
+				if(_barObjectV)
+					_barObjectV.height = fullHeight*percent;
+			}
+			else
+			{
+				if(_barObjectH)
+				{
+					_barObjectH.width = Math.round(fullWidth*percent);
+					_barObjectH.x = _barStartX + (fullWidth-_barObjectH.width); 
+				}
+				if(_barObjectV)
+				{
+					_barObjectV.height = Math.round(fullHeight*percent);
+					_barObjectV.y =  _barStartY + (fullHeight-_barObjectV.height);
+				}
+			}
 		}
 		
 		override protected function constructFromXML(xml: Object): void {
@@ -105,23 +127,28 @@ package fairygui {
 			if(str)
 				this._titleType = ProgressTitleType.parse(str);
 			
+			_reverse = xml.getAttribute("reverse")=="true";
+			
 			this._titleObject = GTextField(this.getChild("title"));
 			this._barObjectH = this.getChild("bar");
 			this._barObjectV = this.getChild("bar_v");
-			this._aniObject = this.getChild("ani");
 			this._gripObject = this.getChild("grip");
 			
 			if(this._barObjectH) {
 				this._barMaxWidth = this._barObjectH.width;
 				this._barMaxWidthDelta = this.width - this._barMaxWidth;
+				_barStartX = _barObjectH.x;
 			}
 			if(this._barObjectV) {
 				this._barMaxHeight = this._barObjectV.height;
 				this._barMaxHeightDelta = this.height - this._barMaxHeight;
+				_barStartY = _barObjectV.y;
 			}
 			if(this._gripObject) {
 				this._gripObject.on(Event.MOUSE_DOWN, this, this.__gripMouseDown);
 			}
+			
+			this.displayObject.on(Event.MOUSE_DOWN, this, this.__barMouseDown);
 		}
 		
 		override protected function handleSizeChanged(): void {
@@ -148,6 +175,9 @@ package fairygui {
 		}
 		
 		private function __gripMouseDown(evt: Event): void {
+			this.canDrag=true;
+			evt.stopPropagation();
+			
 			this._clickPos = this.globalToLocal(Laya.stage.mouseX,Laya.stage.mouseY);
 			this._clickPercent = this._value / this._max;
 			
@@ -157,10 +187,18 @@ package fairygui {
 		
 		private static var sSilderHelperPoint: Point = new Point();
 		private function __gripMouseMove(evt: Event): void {
+			if(!this.canDrag){
+				return;
+			}
+			
 			var pt: Point = this.globalToLocal(Laya.stage.mouseX,Laya.stage.mouseY,GSlider.sSilderHelperPoint);
 			var deltaX: Number = pt.x - this._clickPos.x;
 			var deltaY: Number = pt.y - this._clickPos.y;
-			
+			if(_reverse)
+			{
+				deltaX = -deltaX;
+				deltaY = -deltaY;
+			}
 			var percent: Number;
 			if (this._barObjectH)
 				percent = this._clickPercent + deltaX / this._barMaxWidth;
@@ -179,11 +217,36 @@ package fairygui {
 		}
 		
 		private function __gripMouseUp(evt: Event): void {
-			var percent: Number = this._value / this._max;
-			this.updateWidthPercent(percent);
-			
 			Laya.stage.off(Event.MOUSE_MOVE, this, this.__gripMouseMove);
 			Laya.stage.off(Event.MOUSE_UP,this,this.__gripMouseUp);
+		}
+		
+		private function __barMouseDown(evt:Event):void {
+			if(!changeOnClick)
+				return;
+			
+			var pt:Point = _gripObject.globalToLocal(evt.stageX, evt.stageY, GSlider.sSilderHelperPoint);
+			var percent:Number = _value/_max;
+			var delta:Number;
+			if(_barObjectH)
+				delta = (pt.x-_gripObject.width/2)/_barMaxWidth;
+			if(_barObjectV)
+				delta = (pt.y-_gripObject.height/2)/_barMaxHeight;
+			if(_reverse)
+				percent -= delta;
+			else
+				percent += delta;
+			if(percent>1)
+				percent = 1;
+			else if(percent<0)
+				percent = 0;
+			var newValue:int = Math.round(_max*percent);
+			if(newValue!=_value)
+			{
+				_value = newValue;
+				Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
+			}
+			updateWidthPercent(percent);
 		}
 	}
 }

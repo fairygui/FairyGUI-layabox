@@ -1426,12 +1426,15 @@
 		__getset(0,__proto,'touchable',function(){
 			return this._touchable;
 			},function(value){
-			this._touchable=value;
-			if(((this instanceof fairygui.GImage ))|| ((this instanceof fairygui.GMovieClip ))
-				|| ((this instanceof fairygui.GTextField ))&& !((this instanceof fairygui.GTextInput ))&& !((this instanceof fairygui.GRichTextField )))
-			return;
-			if(this._displayObject !=null)
-				this._displayObject.mouseEnabled=this._touchable;
+			if(this._touchable!=value){
+				this._touchable=value;
+				this.updateGear(3);
+				if(((this instanceof fairygui.GImage ))|| ((this instanceof fairygui.GMovieClip ))
+					|| ((this instanceof fairygui.GTextField ))&& !((this instanceof fairygui.GTextInput ))&& !((this instanceof fairygui.GRichTextField )))
+				return;
+				if(this._displayObject !=null)
+					this._displayObject.mouseEnabled=this._touchable;
+			}
 		});
 
 		__getset(0,__proto,'alpha',function(){
@@ -8544,7 +8547,7 @@
 		__class(GearLook,'fairygui.GearLook',_super);
 		var __proto=GearLook.prototype;
 		__proto.init=function(){
-			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
+			this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed,this._owner.touchable);
 			this._storage={};
 		}
 
@@ -8562,6 +8565,10 @@
 			gv.alpha=parseFloat(arr[0]);
 			gv.rotation=parseInt(arr[1]);
 			gv.grayed=arr[2]=="1" ? true :false;
+			if(arr.length<4)
+				gv.touchable=this._owner.touchable;
+			else
+			gv.touchable=arr[3]=="1"?true:false;
 		}
 
 		__proto.apply=function(){
@@ -8571,6 +8578,7 @@
 			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
 				this._owner._gearLocked=true;
 				this._owner.grayed=gv.grayed;
+				this._owner.touchable=gv.touchable;
 				this._owner._gearLocked=false;
 				if (this.tweener !=null){
 					if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
@@ -8604,6 +8612,7 @@
 				this._owner.grayed=gv.grayed;
 				this._owner.alpha=gv.alpha;
 				this._owner.rotation=gv.rotation;
+				this._owner.touchable=gv.touchable;
 				this._owner._gearLocked=false;
 			}
 		}
@@ -8635,21 +8644,25 @@
 			gv.alpha=this._owner.alpha;
 			gv.rotation=this._owner.rotation;
 			gv.grayed=this._owner.grayed;
+			gv.touchable=this._owner.touchable;
 		}
 
 		GearLook.__init$=function(){
 			//class GearLookValue
 			GearLookValue=(function(){
-				function GearLookValue(alpha,rotation,grayed){
+				function GearLookValue(alpha,rotation,grayed,touchable){
 					this.alpha=NaN;
 					this.rotation=NaN;
 					this.grayed=false;
+					this.touchable=false;
 					(alpha===void 0)&& (alpha=0);
 					(rotation===void 0)&& (rotation=0);
 					(grayed===void 0)&& (grayed=false);
+					(touchable===void 0)&& (touchable=true);
 					this.alpha=alpha;
 					this.rotation=rotation;
 					this.grayed=grayed;
+					this.touchable=touchable;
 				}
 				__class(GearLookValue,'');
 				return GearLookValue;
@@ -13856,7 +13869,7 @@
 			this.addChild(popup);
 			this.adjustModalLayer();
 			var pos;
-			var sizeW=NaN,sizeH=0;
+			var sizeW=0,sizeH=0;
 			if(target){
 				pos=target.localToGlobal();
 				sizeW=target.width;
@@ -14425,8 +14438,8 @@
 			this._max=0;
 			this._value=0;
 			this._titleType=0;
+			this._reverse=false;
 			this._titleObject=null;
-			this._aniObject=null;
 			this._barObjectH=null;
 			this._barObjectV=null;
 			this._barMaxWidth=0;
@@ -14436,6 +14449,10 @@
 			this._gripObject=null;
 			this._clickPos=null;
 			this._clickPercent=0;
+			this._barStartX=0;
+			this._barStartY=0;
+			this.changeOnClick=true;
+			this.canDrag=true;
 			GSlider.__super.call(this);
 			this._titleType=0;
 			this._value=50;
@@ -14466,13 +14483,25 @@
 						this._titleObject.text=""+this._max;
 						break ;
 					}
+			};
+			var fullWidth=this.width-this._barMaxWidthDelta;
+			var fullHeight=this.height-this._barMaxHeightDelta;
+			if(!this._reverse){
+				if(this._barObjectH)
+					this._barObjectH.width=fullWidth*percent;
+				if(this._barObjectV)
+					this._barObjectV.height=fullHeight*percent;
 			}
-			if (this._barObjectH)
-				this._barObjectH.width=(this.width-this._barMaxWidthDelta)*percent;
-			if (this._barObjectV)
-				this._barObjectV.height=(this.height-this._barMaxHeightDelta)*percent;
-			if ((this._aniObject instanceof fairygui.GMovieClip ))
-				(this._aniObject).frame=Math.round(percent *100);
+			else{
+				if(this._barObjectH){
+					this._barObjectH.width=Math.round(fullWidth*percent);
+					this._barObjectH.x=this._barStartX+(fullWidth-this._barObjectH.width);
+				}
+				if(this._barObjectV){
+					this._barObjectV.height=Math.round(fullHeight*percent);
+					this._barObjectV.y=this._barStartY+(fullHeight-this._barObjectV.height);
+				}
+			}
 		}
 
 		__proto.constructFromXML=function(xml){
@@ -14482,22 +14511,25 @@
 			str=xml.getAttribute("titleType");
 			if(str)
 				this._titleType=ProgressTitleType.parse(str);
+			this._reverse=xml.getAttribute("reverse")=="true";
 			this._titleObject=(this.getChild("title"));
 			this._barObjectH=this.getChild("bar");
 			this._barObjectV=this.getChild("bar_v");
-			this._aniObject=this.getChild("ani");
 			this._gripObject=this.getChild("grip");
 			if(this._barObjectH){
 				this._barMaxWidth=this._barObjectH.width;
 				this._barMaxWidthDelta=this.width-this._barMaxWidth;
+				this._barStartX=this._barObjectH.x;
 			}
 			if(this._barObjectV){
 				this._barMaxHeight=this._barObjectV.height;
 				this._barMaxHeightDelta=this.height-this._barMaxHeight;
+				this._barStartY=this._barObjectV.y;
 			}
 			if(this._gripObject){
 				this._gripObject.on("mousedown",this,this.__gripMouseDown);
 			}
+			this.displayObject.on("mousedown",this,this.__barMouseDown);
 		}
 
 		__proto.handleSizeChanged=function(){
@@ -14521,6 +14553,8 @@
 		}
 
 		__proto.__gripMouseDown=function(evt){
+			this.canDrag=true;
+			evt.stopPropagation();
 			this._clickPos=this.globalToLocal(Laya.stage.mouseX,Laya.stage.mouseY);
 			this._clickPercent=this._value / this._max;
 			Laya.stage.on("mousemove",this,this.__gripMouseMove);
@@ -14528,9 +14562,16 @@
 		}
 
 		__proto.__gripMouseMove=function(evt){
+			if(!this.canDrag){
+				return;
+			};
 			var pt=this.globalToLocal(Laya.stage.mouseX,Laya.stage.mouseY,fairygui.GSlider.sSilderHelperPoint);
 			var deltaX=pt.x-this._clickPos.x;
 			var deltaY=pt.y-this._clickPos.y;
+			if(this._reverse){
+				deltaX=-deltaX;
+				deltaY=-deltaY;
+			};
 			var percent=NaN;
 			if (this._barObjectH)
 				percent=this._clickPercent+deltaX / this._barMaxWidth;
@@ -14549,10 +14590,34 @@
 		}
 
 		__proto.__gripMouseUp=function(evt){
-			var percent=this._value / this._max;
-			this.updateWidthPercent(percent);
 			Laya.stage.off("mousemove",this,this.__gripMouseMove);
 			Laya.stage.off("mouseup",this,this.__gripMouseUp);
+		}
+
+		__proto.__barMouseDown=function(evt){
+			if(!this.changeOnClick)
+				return;
+			var pt=this._gripObject.globalToLocal(evt.stageX,evt.stageY,fairygui.GSlider.sSilderHelperPoint);
+			var percent=this._value/this._max;
+			var delta=NaN;
+			if(this._barObjectH)
+				delta=(pt.x-this._gripObject.width/2)/this._barMaxWidth;
+			if(this._barObjectV)
+				delta=(pt.y-this._gripObject.height/2)/this._barMaxHeight;
+			if(this._reverse)
+				percent-=delta;
+			else
+			percent+=delta;
+			if(percent>1)
+				percent=1;
+			else if(percent<0)
+			percent=0;
+			var newValue=Math.round(this._max*percent);
+			if(newValue!=this._value){
+				this._value=newValue;
+				Events.dispatch("fui_state_changed",this.displayObject,evt);
+			}
+			this.updateWidthPercent(percent);
 		}
 
 		__getset(0,__proto,'max',function(){

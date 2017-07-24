@@ -357,7 +357,7 @@ package fairygui {
 			if(this._pivotX != 0 || this._pivotY != 0) {
 				this.updatePivotOffset();
 				this.handleXYChanged();
-			}                
+			}
 		}
 		
 		public function get touchable(): Boolean {
@@ -365,14 +365,19 @@ package fairygui {
 		}
 		
 		public function set touchable(value: Boolean):void {
-			this._touchable = value;
-			if((this is GImage) || (this is GMovieClip)
-				|| (this is GTextField) && !(this is GTextInput) && !(this is GRichTextField))
-				//Touch is not supported by GImage/GMovieClip/GTextField
-				return;
-			
-			if(this._displayObject != null) 
-				this._displayObject.mouseEnabled = this._touchable;
+			if(this._touchable!=value)
+			{
+				this._touchable = value;
+				updateGear(3);
+				
+				if((this is GImage) || (this is GMovieClip)
+					|| (this is GTextField) && !(this is GTextInput) && !(this is GRichTextField))
+					//Touch is not supported by GImage/GMovieClip/GTextField
+					return;
+				
+				if(this._displayObject != null) 
+					this._displayObject.mouseEnabled = this._touchable;
+			}
 		}
 		
 		public function get grayed(): Boolean {

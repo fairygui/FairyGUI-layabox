@@ -159,7 +159,7 @@ package fairygui {
 			this.adjustModalLayer();
 			
 			var pos: laya.maths.Point;
-			var sizeW: Number,sizeH: Number = 0;
+			var sizeW: Number = 0,sizeH: Number = 0;
 			if(target) {
 				pos = target.localToGlobal();
 				sizeW = target.width;
