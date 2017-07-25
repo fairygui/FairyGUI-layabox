@@ -280,7 +280,7 @@ package fairygui {
 					if(ii<_pageIds.length)
 						taction.toPage = [_pageIds[ii]];
 					str = str.substring(0,k);
-					if(str == "*")
+					if(str != "*")
 					{
 						ii = parseInt(str);
 						if(ii<_pageIds.length)

@@ -16,7 +16,7 @@ package fairygui {
 		}
 		
 		override protected function init(): void {
-			this._default = new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed);
+			this._default = new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed,this._owner.touchable);
 			this._storage = {};
 		}
 		
@@ -35,10 +35,13 @@ package fairygui {
 			gv.alpha = parseFloat(arr[0]);
 			gv.rotation = parseInt(arr[1]);
 			gv.grayed = arr[2] == "1" ? true : false;
+			if(arr.length<4)
+				gv.touchable = _owner.touchable;
+			else
+				gv.touchable = arr[3]=="1"?true:false;
 		}
 		
-		override public function apply(): void {           
-			
+		override public function apply(): void {
 			var gv: GearLookValue = this._storage[this._controller.selectedPageId];
 			if(!gv)
 				gv = this._default;
@@ -46,6 +49,7 @@ package fairygui {
 			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect) {
 				this._owner._gearLocked = true;
 				this._owner.grayed = gv.grayed;
+				this._owner.touchable = gv.touchable;
 				this._owner._gearLocked = false;
 				
 				if (this.tweener != null) {
@@ -82,6 +86,7 @@ package fairygui {
 				this._owner.grayed = gv.grayed;
 				this._owner.alpha = gv.alpha;
 				this._owner.rotation = gv.rotation;
+				this._owner.touchable = gv.touchable;
 				this._owner._gearLocked = false;
 			}            
 		}
@@ -115,6 +120,7 @@ package fairygui {
 			gv.alpha = this._owner.alpha;
 			gv.rotation = this._owner.rotation;
 			gv.grayed = this._owner.grayed;
+			gv.touchable = this._owner.touchable;
 		}
 	}
 }
@@ -123,10 +129,13 @@ class GearLookValue {
 	public var alpha: Number;
 	public var rotation: Number;
 	public var grayed: Boolean;
+	public var touchable:Boolean;
 	
-	public function GearLookValue(alpha: Number = 0,rotation: Number = 0,grayed: Boolean = false) {
+	public function GearLookValue(alpha: Number = 0,rotation: Number = 0,
+								  grayed: Boolean = false, touchable:Boolean=true) {
 		this.alpha = alpha;
 		this.rotation = rotation;
 		this.grayed = grayed;
+		this.touchable = touchable;
 	}
 }
