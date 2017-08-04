@@ -8391,6 +8391,12 @@
 			}
 		}
 
+		__proto.handleControllerChanged=function(c){
+			_super.prototype.handleControllerChanged.call(this,c);
+			if (this._scrollPane !=null)
+				this._scrollPane.handleControllerChanged(c);
+		}
+
 		__proto.setBoundsChangedFlag=function(){
 			if (!this._scrollPane && !this._trackBounds)
 				return;
@@ -11213,7 +11219,7 @@
 		}
 
 		__proto.handleControllerChanged=function(c){
-			fairygui.GObject.prototype.handleControllerChanged.call(this,c);
+			_super.prototype.handleControllerChanged.call(this,c);
 			if (this._relatedController==c)
 				this.selected=this._pageOption.id==c.selectedPageId;
 		}
@@ -11601,7 +11607,7 @@
 		}
 
 		__proto.handleControllerChanged=function(c){
-			fairygui.GObject.prototype.handleControllerChanged.call(this,c);
+			_super.prototype.handleControllerChanged.call(this,c);
 			if (this._selectionController==c)
 				this.selectedIndex=c.selectedIndex;
 		}
@@ -12531,7 +12537,7 @@
 		}
 
 		__proto.handleControllerChanged=function(c){
-			fairygui.GObject.prototype.handleControllerChanged.call(this,c);
+			_super.prototype.handleControllerChanged.call(this,c);
 			if (this._selectionController==c)
 				this.selectedIndex=c.selectedIndex;
 		}

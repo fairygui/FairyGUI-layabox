@@ -756,6 +756,14 @@ package fairygui {
 			}
 		}
 		
+		override public function handleControllerChanged(c:Controller):void
+		{
+			super.handleControllerChanged(c);
+			
+			if (_scrollPane != null)
+				_scrollPane.handleControllerChanged(c);
+		}
+		
 		public function setBoundsChangedFlag(): void {
 			if (!this._scrollPane && !this._trackBounds)
 				return;
