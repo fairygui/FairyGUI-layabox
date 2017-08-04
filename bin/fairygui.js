@@ -7821,6 +7821,7 @@
 		function GComponent(){
 			this._sortingChildCount=0;
 			this._opaque=false;
+			this._applyingController=null;
 			this._margin=null;
 			this._trackBounds=false;
 			this._boundsChanged=false;
@@ -8238,12 +8239,14 @@
 		}
 
 		__proto.applyController=function(c){
+			this._applyingController=c;
 			var child;
 			var length=this._children.length;
 			for(var i=0;i < length;i++){
 				child=this._children[i];
 				child.handleControllerChanged(c);
 			}
+			this._applyingController=null;
 			c.runActions();
 		}
 
@@ -8270,8 +8273,11 @@
 						maxIndex=i;
 				}
 			}
-			if(myIndex < maxIndex)
+			if(myIndex < maxIndex){
+				if(this._applyingController!=null)
+					this._children[maxIndex].handleControllerChanged(this._applyingController);
 				this.swapChildrenAt(myIndex,maxIndex);
+			}
 		}
 
 		__proto.getTransitionAt=function(index){
@@ -14170,11 +14176,11 @@
 			}
 			else {
 				if(this._barObjectH){
-					this._barObjectH.width=fullWidth *percent;
+					this._barObjectH.width=Math.round(fullWidth *percent);
 					this._barObjectH.x=this._barStartX+(fullWidth-this._barObjectH.width);
 				}
 				if(this._barObjectV){
-					this._barObjectV.height=fullHeight *percent;
+					this._barObjectV.height=Math.round(fullHeight *percent);
 					this._barObjectV.y=this._barStartY+(fullHeight-this._barObjectV.height);
 				}
 			}
