@@ -1785,7 +1785,7 @@ package fairygui {
 					{
 						if (itemProvider != null)
 						{
-							url = itemProvider(i % _numItems);
+							url = itemProvider.runWith(i % _numItems);
 							if (url == null)
 								url = _defaultItem;
 							url = UIPackage.normalizeURL(url);

@@ -13304,7 +13304,7 @@
 						insertIndex=this.getChildIndex(lastObj)+1;
 					if (ii.obj==null){
 						if (this.itemProvider !=null){
-							url=this.itemProvider(i % this._numItems);
+							url=this.itemProvider.runWith(i % this._numItems);
 							if (url==null)
 								url=this._defaultItem;
 							url=UIPackage.normalizeURL(url);
