@@ -130,12 +130,12 @@ package fairygui {
 			}
 			else {
 				if(this._barObjectH) {
-					this._barObjectH.width = fullWidth * percent;
+					this._barObjectH.width = Math.round(fullWidth * percent);
 					this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
 					
 				}
 				if(this._barObjectV) {
-					this._barObjectV.height = fullHeight * percent;
+					this._barObjectV.height = Math.round(fullHeight * percent);
 					this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
 				}
 			}

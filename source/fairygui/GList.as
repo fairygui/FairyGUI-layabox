@@ -1785,7 +1785,7 @@ package fairygui {
 					{
 						if (itemProvider != null)
 						{
-							url = itemProvider(i % _numItems);
+							url = itemProvider.runWith(i % _numItems);
 							if (url == null)
 								url = _defaultItem;
 							url = UIPackage.normalizeURL(url);
@@ -2220,6 +2220,8 @@ package fairygui {
 						}
 						child.setXY(page * viewWidth + curX, curY);
 						curX += Math.ceil(child.width);
+						if (curX > maxWidth)
+							maxWidth = curX;
 						if (child.height > maxHeight)
 							maxHeight = child.height;
 						j++;
