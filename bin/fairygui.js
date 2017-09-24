@@ -11992,7 +11992,7 @@
 						if (this._lastSelectedIndex !=-1){
 							var min=Math.min(this._lastSelectedIndex,index);
 							var max=Math.max(this._lastSelectedIndex,index);
-							max=Math.min(max,this._numItems-1);
+							max=Math.min(max,this.numItems-1);
 							var i=0;
 							if (this._virtual){
 								for (i=min;i <=max;i++){
@@ -13524,9 +13524,13 @@
 			}
 			return-1;
 			},function(value){
-			this.clearSelection();
-			if (value >=0 && value < this._numItems)
+			if (value >=0 && value < this.numItems){
+				if(this._selectionMode!=0)
+					this.clearSelection();
 				this.addSelection(value);
+			}
+			else
+			this.clearSelection();
 		});
 
 		/// </summary>

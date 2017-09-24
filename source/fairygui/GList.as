@@ -335,10 +335,16 @@ package fairygui {
 			return -1;
 		}
 		
-		public function set selectedIndex(value: int):void {
-			this.clearSelection();
-			if (value >= 0 && value < _numItems)
-				this.addSelection(value);
+		public function set selectedIndex(value: int):void
+		{
+			if (value >= 0 && value < this.numItems)
+			{
+				if(_selectionMode!=ListSelectionMode.Single)
+					clearSelection();
+				addSelection(value);
+			}
+			else
+				clearSelection();
 		}
 		
 		public function getSelection():Vector.<int>
@@ -725,7 +731,7 @@ package fairygui {
 						if (this._lastSelectedIndex != -1) {
 							var min:int = Math.min(_lastSelectedIndex, index);
 							var max:int = Math.max(_lastSelectedIndex, index);
-							max = Math.min(max, _numItems-1);
+							max = Math.min(max, this.numItems-1);
 							var i:int;
 							if (_virtual)
 							{
