@@ -1030,7 +1030,12 @@ package fairygui {
 				return;
 			
 			if(_tweener!=null)
+			{
 				this.killTween();
+				this.isDragged = true;
+			}
+			else
+				this.isDragged = false;
 			
 			this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, ScrollPane.sHelperPoint);
 			
@@ -1044,7 +1049,6 @@ package fairygui {
 			this._holdAreaPoint.x = ScrollPane.sHelperPoint.x;
 			this._holdAreaPoint.y = ScrollPane.sHelperPoint.y;
 			this._isHoldAreaDone = false;
-			this.isDragged = false;
 			
 			this._owner.displayObject.stage.on(Event.MOUSE_MOVE, this, this.__mouseMove);
 			this._owner.displayObject.stage.on(Event.MOUSE_UP, this, this.__mouseUp);
