@@ -116,7 +116,12 @@ package fairygui {
 						values = [];
 					
 					for(var i:Number=0;i<pages.length;i++)
-						addStatus(pages[i], values[i]);
+					{
+						str = values[i];
+						if(str==null)
+							str = "";
+						addStatus(pages[i], str);
+					}
 				}
 				
 				str = xml.getAttribute("default");

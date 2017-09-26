@@ -17,7 +17,7 @@ package fairygui {
 		}
 		
 		override protected function addStatus(pageId: String, value: String): void {
-			if(value=="-")
+			if(value=="-"|| value.length==0)
 				return;
 			
 			var pos:int = value.indexOf(",");
