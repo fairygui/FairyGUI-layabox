@@ -992,11 +992,15 @@ package fairygui {
 			}
 		}
 		
-		private static const grayFilter:ColorFilter = new ColorFilter([0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0, 0, 0, 1, 0]);
+		private static var grayFilter:ColorFilter = null;
 		protected function handleGrayedChanged(): void {
 			if(this._displayObject) {
 				if(this._grayed)
+				{
+					if(grayFilter==null)
+						grayFilter = new ColorFilter([0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0, 0, 0, 1, 0]);
 					this._displayObject.filters = [grayFilter];
+				}
 				else
 					this._displayObject.filters = null;
 			}
