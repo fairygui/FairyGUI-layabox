@@ -76,7 +76,7 @@ package fairygui.tree
 		
 		public function getSelection():Vector.<TreeNode>
 		{
-			var sels:Vector.<Number> = _list.getSelection();
+			var sels:Vector.<int> = _list.getSelection();
 			var cnt:int = sels.length;
 			var ret:Vector.<TreeNode> = new Vector.<TreeNode>();
 			for(var i:int=0;i<cnt;i++)

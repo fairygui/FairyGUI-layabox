@@ -34,11 +34,11 @@ package fairygui {
 		}
 		
 		override public function get font(): String {
-			return this.div.style.font;
+			return this.div.style.fontFamily;
 		}
 		
 		override public function set font(value: String):void {
-			this.div.style.font = value;
+			this.div.style.fontFamily = value;
 		}
 		
 		override public function get fontSize(): Number {
