@@ -15832,6 +15832,8 @@
 								else
 								this._status=1;
 							}
+							else if(this._start!=0)
+							this._status=1;
 						}
 					}
 					this.setFrame(this._frames[this._currentFrame]);
