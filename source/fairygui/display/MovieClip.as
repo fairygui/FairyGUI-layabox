@@ -151,6 +151,8 @@ package fairygui.display {
 								else
 									this._status = 1;
 							}
+							else if(_start!=0)
+								this._status = 1;
 						}
 					}
 					

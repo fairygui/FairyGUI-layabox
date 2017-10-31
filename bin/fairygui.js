@@ -1087,8 +1087,11 @@
 
 		__proto.handleGrayedChanged=function(){
 			if(this._displayObject){
-				if(this._grayed)
+				if(this._grayed){
+					if(GObject.grayFilter==null)
+						GObject.grayFilter=new ColorFilter([0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0,0,0,1,0]);
 					this._displayObject.filters=[GObject.grayFilter];
+				}
 				else
 				this._displayObject.filters=null;
 			}
@@ -1652,10 +1655,11 @@
 
 		GObject.draggingObject=null
 		GObject._gInstanceCounter=0;
+		GObject.grayFilter=null;
 		GObject.sDraggingQuery=false;
 		GObject.sUpdateInDragging=false;
 		__static(GObject,
-		['grayFilter',function(){return this.grayFilter=new ColorFilter([0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0,0,0,1,0]);},'GearXMLKeys',function(){return this.GearXMLKeys={
+		['GearXMLKeys',function(){return this.GearXMLKeys={
 				"gearDisplay":0,
 				"gearXY":1,
 				"gearSize":2,
@@ -5323,6 +5327,526 @@
 		}
 
 		return Transition;
+	})()
+
+
+	//class fairygui.tree.TreeNode
+	var TreeNode=(function(){
+		function TreeNode(hasChild){
+			this._data=null;
+			this._parent=null;
+			this._children=null;
+			this._expanded=false;
+			this._tree=null;
+			this._cell=null;
+			this._level=0;
+			if(hasChild)
+				this._children=[];
+		}
+
+		__class(TreeNode,'fairygui.tree.TreeNode');
+		var __proto=TreeNode.prototype;
+		__proto.setCell=function(value){
+			this._cell=value;
+		}
+
+		__proto.setLevel=function(value){
+			this._level=value;
+		}
+
+		__proto.addChild=function(child){
+			this.addChildAt(child,this._children.length);
+			return child;
+		}
+
+		__proto.addChildAt=function(child,index){
+			if(!child)
+				throw new Error("child is null");
+			var numChildren=this._children.length;
+			if (index >=0 && index <=numChildren){
+				if (child._parent==this){
+					this.setChildIndex(child,index);
+				}
+				else{
+					if(child._parent)
+						child._parent.removeChild(child);
+					var cnt=this._children.length;
+					if (index==cnt)
+						this._children.push(child);
+					else
+					this._children.splice(index,0,child);
+					child._parent=this;
+					child._level=this._level+1;
+					child.setTree(this._tree);
+					if(this._cell!=null && this._cell.parent!=null && this._expanded)
+						this._tree.afterInserted(child);
+				}
+				return child;
+			}
+			else{
+				throw new Error("Invalid child index");
+			}
+		}
+
+		__proto.removeChild=function(child){
+			var childIndex=this._children.indexOf(child);
+			if (childIndex !=-1){
+				this.removeChildAt(childIndex);
+			}
+			return child;
+		}
+
+		__proto.removeChildAt=function(index){
+			if (index >=0 && index < this.numChildren){
+				var child=this._children[index];
+				this._children.splice(index,1);
+				child._parent=null;
+				if(this._tree!=null){
+					child.setTree(null);
+					this._tree.afterRemoved(child);
+				}
+				return child;
+			}
+			else{
+				throw new Error("Invalid child index");
+			}
+		}
+
+		__proto.removeChildren=function(beginIndex,endIndex){
+			(beginIndex===void 0)&& (beginIndex=0);
+			(endIndex===void 0)&& (endIndex=-1);
+			if (endIndex < 0 || endIndex >=this.numChildren)
+				endIndex=this.numChildren-1;
+			for (var i=beginIndex;i<=endIndex;++i)
+			this.removeChildAt(beginIndex);
+		}
+
+		__proto.getChildAt=function(index){
+			if (index >=0 && index < this.numChildren)
+				return this._children[index];
+			else
+			throw new Error("Invalid child index");
+		}
+
+		__proto.getChildIndex=function(child){
+			return this._children.indexOf(child);
+		}
+
+		__proto.getPrevSibling=function(){
+			if(this._parent==null)
+				return null;
+			var i=this._parent._children.indexOf(this);
+			if(i<=0)
+				return null;
+			return this._parent._children[i-1];
+		}
+
+		__proto.getNextSibling=function(){
+			if(this._parent==null)
+				return null;
+			var i=this._parent._children.indexOf(this);
+			if(i<0 || i>=this._parent._children.length-1)
+				return null;
+			return this._parent._children[i+1];
+		}
+
+		__proto.setChildIndex=function(child,index){
+			var oldIndex=this._children.indexOf(child);
+			if (oldIndex==-1)
+				throw new Error("Not a child of this container");
+			var cnt=this._children.length;
+			if(index<0)
+				index=0;
+			else if(index>cnt)
+			index=cnt;
+			if(oldIndex==index)
+				return;
+			this._children.splice(oldIndex,1);
+			this._children.splice(index,0,child);
+			if(this._cell!=null && this._cell.parent!=null && this._expanded)
+				this._tree.afterMoved(child);
+		}
+
+		__proto.swapChildren=function(child1,child2){
+			var index1=this._children.indexOf(child1);
+			var index2=this._children.indexOf(child2);
+			if (index1==-1 || index2==-1)
+				throw new Error("Not a child of this container");
+			this.swapChildrenAt(index1,index2);
+		}
+
+		__proto.swapChildrenAt=function(index1,index2){
+			var child1=this._children[index1];
+			var child2=this._children[index2];
+			this.setChildIndex(child1,index2);
+			this.setChildIndex(child2,index1);
+		}
+
+		__proto.setTree=function(value){
+			this._tree=value;
+			if(this._tree!=null && this._tree.treeNodeWillExpand && this._expanded)
+				this._tree.treeNodeWillExpand.runWith(this);
+			if(this._children!=null){
+				var cnt=this._children.length;
+				for(var i=0;i<cnt;i++){
+					var node=this._children[i];
+					node._level=this._level+1;
+					node.setTree(value);
+				}
+			}
+		}
+
+		__getset(0,__proto,'expanded',function(){
+			return this._expanded;
+			},function(value){
+			if(this._children==null)
+				return;
+			if(this._expanded!=value){
+				this._expanded=value;
+				if(this._tree!=null){
+					if(this._expanded)
+						this._tree.afterExpanded(this);
+					else
+					this._tree.afterCollapsed(this);
+				}
+			}
+		});
+
+		__getset(0,__proto,'tree',function(){
+			return this._tree;
+		});
+
+		__getset(0,__proto,'level',function(){
+			return this._level;
+		});
+
+		__getset(0,__proto,'cell',function(){
+			return this._cell;
+		});
+
+		__getset(0,__proto,'data',function(){
+			return this._data;
+			},function(value){
+			this._data=value;
+		});
+
+		__getset(0,__proto,'parent',function(){
+			return this._parent;
+		});
+
+		__getset(0,__proto,'isFolder',function(){
+			return this._children!=null;
+		});
+
+		__getset(0,__proto,'text',function(){
+			if(this._cell!=null)
+				return this._cell.text;
+			else
+			return null;
+		});
+
+		__getset(0,__proto,'numChildren',function(){
+			return this._children.length;
+		});
+
+		return TreeNode;
+	})()
+
+
+	//class fairygui.tree.TreeView
+	var TreeView=(function(){
+		function TreeView(list){
+			this._list=null;
+			this._root=null;
+			this._indent=0;
+			this.treeNodeCreateCell=null;
+			this.treeNodeRender=null;
+			this.treeNodeWillExpand=null;
+			this.treeNodeClick=null;
+			this._list=list;
+			this._list.removeChildrenToPool();
+			this._list.on("fui_click_item",this,this.__clickItem);
+			this._root=new TreeNode(true);
+			this._root.setTree(this);
+			this._root.setCell(this._list);
+			this._root.expanded=true;
+			this._indent=15;
+		}
+
+		__class(TreeView,'fairygui.tree.TreeView');
+		var __proto=TreeView.prototype;
+		__proto.getSelectedNode=function(){
+			if(this._list.selectedIndex!=-1)
+				return (this._list.getChildAt(this._list.selectedIndex).data);
+			else
+			return null;
+		}
+
+		__proto.getSelection=function(){
+			var sels=this._list.getSelection();
+			var cnt=sels.length;
+			var ret=[];
+			for(var i=0;i<cnt;i++){
+				var node=(this._list.getChildAt(sels[i]).data);
+				ret.push(node);
+			}
+			return ret;
+		}
+
+		__proto.addSelection=function(node,scrollItToView){
+			(scrollItToView===void 0)&& (scrollItToView=false);
+			var parentNode=node.parent;
+			while(parentNode!=null && parentNode!=this._root){
+				parentNode.expanded=true;
+				parentNode=parentNode.parent;
+			}
+			if(!node.cell)
+				return;
+			this._list.addSelection(this._list.getChildIndex(node.cell),scrollItToView);
+		}
+
+		__proto.removeSelection=function(node){
+			if(!node.cell)
+				return;
+			this._list.removeSelection(this._list.getChildIndex(node.cell));
+		}
+
+		__proto.clearSelection=function(){
+			this._list.clearSelection();
+		}
+
+		__proto.getNodeIndex=function(node){
+			return this._list.getChildIndex(node.cell);
+		}
+
+		__proto.updateNode=function(node){
+			if(node.cell==null)
+				return;
+			if(this.treeNodeRender)
+				this.treeNodeRender.runWith(node);
+		}
+
+		__proto.updateNodes=function(nodes){
+			var cnt=nodes.length;
+			for(var i=0;i<cnt;i++){
+				var node=nodes[i];
+				if(node.cell==null)
+					return;
+				if(this.treeNodeRender)
+					this.treeNodeRender.runWith(node);
+			}
+		}
+
+		__proto.expandAll=function(folderNode){
+			folderNode.expanded=true;
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				var node=folderNode.getChildAt(i);
+				if(node.isFolder)
+					this.expandAll(node);
+			}
+		}
+
+		__proto.collapseAll=function(folderNode){
+			if(folderNode!=this._root)
+				folderNode.expanded=false;
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				var node=folderNode.getChildAt(i);
+				if(node.isFolder)
+					this.collapseAll(node);
+			}
+		}
+
+		__proto.createCell=function(node){
+			if(this.treeNodeCreateCell)
+				node.setCell(this.treeNodeCreateCell.runWith(node));
+			else
+			node.setCell((this._list.itemPool.getObject(this._list.defaultItem)));
+			node.cell.data=node;
+			var indentObj=node.cell.getChild("indent");
+			if(indentObj!=null)
+				indentObj.width=(node.level-1)*this._indent;
+			var expandButton=(node.cell.getChild("expandButton"));
+			if(expandButton){
+				if(node.isFolder){
+					expandButton.visible=true;
+					expandButton.onClick(this,this.__clickExpandButton);
+					expandButton.data=node;
+					expandButton.selected=node.expanded;
+				}
+				else
+				expandButton.visible=false;
+			}
+			if(this.treeNodeRender)
+				this.treeNodeRender.runWith(node);
+		}
+
+		__proto.afterInserted=function(node){
+			this.createCell(node);
+			var index=this.getInsertIndexForNode(node);
+			this._list.addChildAt(node.cell,index);
+			if(this.treeNodeRender)
+				this.treeNodeRender.runWith(node);
+			if(node.isFolder && node.expanded)
+				this.checkChildren(node,index);
+		}
+
+		__proto.getInsertIndexForNode=function(node){
+			var prevNode=node.getPrevSibling();
+			if(prevNode==null)
+				prevNode=node.parent;
+			var insertIndex=this._list.getChildIndex(prevNode.cell)+1;
+			var myLevel=node.level;
+			var cnt=this._list.numChildren;
+			for(var i=insertIndex;i<cnt;i++){
+				var testNode=(this._list.getChildAt(i).data);
+				if(testNode.level<=myLevel)
+					break ;
+				insertIndex++;
+			}
+			return insertIndex;
+		}
+
+		__proto.afterRemoved=function(node){
+			this.removeNode(node);
+		}
+
+		__proto.afterExpanded=function(node){
+			if(node!=this._root && this.treeNodeWillExpand)
+				this.treeNodeWillExpand(node);
+			if(node.cell==null)
+				return;
+			if(node!=this._root){
+				if(this.treeNodeRender)
+					this.treeNodeRender.runWith(node);
+				var expandButton=(node.cell.getChild("expandButton"));
+				if(expandButton)
+					expandButton.selected=true;
+			}
+			if(node.cell.parent!=null)
+				this.checkChildren(node,this._list.getChildIndex(node.cell));
+		}
+
+		__proto.afterCollapsed=function(node){
+			if(node!=this._root && this.treeNodeWillExpand)
+				this.treeNodeWillExpand(node);
+			if(node.cell==null)
+				return;
+			if(node!=this._root){
+				if(this.treeNodeRender)
+					this.treeNodeRender.runWith(node);
+				var expandButton=(node.cell.getChild("expandButton"));
+				if(expandButton)
+					expandButton.selected=false;
+			}
+			if(node.cell.parent!=null)
+				this.hideFolderNode(node);
+		}
+
+		__proto.afterMoved=function(node){
+			if(!node.isFolder)
+				this._list.removeChild(node.cell);
+			else
+			this.hideFolderNode(node);
+			var index=this.getInsertIndexForNode(node);
+			this._list.addChildAt(node.cell,index);
+			if(node.isFolder && node.expanded)
+				this.checkChildren(node,index);
+		}
+
+		__proto.checkChildren=function(folderNode,index){
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				index++;
+				var node=folderNode.getChildAt(i);
+				if(node.cell==null)
+					this.createCell(node);
+				if(!node.cell.parent)
+					this._list.addChildAt(node.cell,index);
+				if(node.isFolder && node.expanded)
+					index=this.checkChildren(node,index);
+			}
+			return index;
+		}
+
+		__proto.hideFolderNode=function(folderNode){
+			var cnt=folderNode.numChildren;
+			for(var i=0;i<cnt;i++){
+				var node=folderNode.getChildAt(i);
+				if(node.cell && node.cell.parent!=null)
+					this._list.removeChild(node.cell);
+				if(node.isFolder && node.expanded)
+					this.hideFolderNode(node);
+			}
+		}
+
+		__proto.removeNode=function(node){
+			if(node.cell!=null){
+				if(node.cell.parent!=null)
+					this._list.removeChild(node.cell);
+				this._list.returnToPool(node.cell);
+				node.cell.data=null;
+				node.setCell(null);
+			}
+			if(node.isFolder){
+				var cnt=node.numChildren;
+				for(var i=0;i<cnt;i++){
+					var node2=node.getChildAt(i);
+					this.removeNode(node2);
+				}
+			}
+		}
+
+		__proto.__clickExpandButton=function(evt){
+			evt.stopPropagation();
+			var expandButton=(GObject.cast(evt.currentTarget));
+			var node=(expandButton.parent.data);
+			if(this._list.scrollPane!=null){
+				var posY=this._list.scrollPane.posY;
+				if(expandButton.selected)
+					node.expanded=true;
+				else
+				node.expanded=false;
+				this._list.scrollPane.posY=posY;
+				this._list.scrollPane.scrollToView(node.cell);
+			}
+			else{
+				if(expandButton.selected)
+					node.expanded=true;
+				else
+				node.expanded=false;
+			}
+		}
+
+		__proto.__clickItem=function(item,evt){
+			if(this._list.scrollPane!=null)
+				var posY=this._list.scrollPane.posY;
+			var node=(item.data);
+			if(this.treeNodeClick)
+				this.treeNodeClick.runWith([node,evt]);
+			if(this._list.scrollPane!=null){
+				this._list.scrollPane.posY=posY;
+				if(node.cell)
+					this._list.scrollPane.scrollToView(node.cell);
+			}
+		}
+
+		__getset(0,__proto,'list',function(){
+			return this._list;
+		});
+
+		__getset(0,__proto,'root',function(){
+			return this._root;
+		});
+
+		__getset(0,__proto,'indent',function(){
+			return this._indent;
+			},function(value){
+			this._indent=value;
+		});
+
+		return TreeView;
 	})()
 
 
@@ -13665,9 +14189,9 @@
 		});
 
 		__getset(0,__proto,'font',function(){
-			return this.div.style.font;
+			return this.div.style.fontFamily;
 			},function(value){
-			this.div.style.font=value;
+			this.div.style.fontFamily=value;
 		});
 
 		__getset(0,__proto,'leading',function(){
@@ -13789,9 +14313,9 @@
 			var fullHeight=this.height-this._barMaxHeightDelta;
 			if(!this._reverse){
 				if(this._barObjectH)
-					this._barObjectH.width=fullWidth *percent;
+					this._barObjectH.width=Math.round(fullWidth *percent);
 				if(this._barObjectV)
-					this._barObjectV.height=fullHeight *percent;
+					this._barObjectV.height=Math.round(fullHeight *percent);
 			}
 			else {
 				if(this._barObjectH){
@@ -14637,9 +15161,9 @@
 			var fullHeight=this.height-this._barMaxHeightDelta;
 			if(!this._reverse){
 				if(this._barObjectH)
-					this._barObjectH.width=fullWidth*percent;
+					this._barObjectH.width=Math.round(fullWidth*percent);
 				if(this._barObjectV)
-					this._barObjectV.height=fullHeight*percent;
+					this._barObjectV.height=Math.round(fullHeight*percent);
 			}
 			else{
 				if(this._barObjectH){
@@ -15308,6 +15832,8 @@
 								else
 								this._status=1;
 							}
+							else if(this._start!=0)
+							this._status=1;
 						}
 					}
 					this.setFrame(this._frames[this._currentFrame]);
@@ -15387,5 +15913,5 @@
 	})(Sprite)
 
 
-	Laya.__init([GList,GearColor,GearAnimation,Transition,RelationItem,UIPackage,ScrollPane,GBasicTextField,GearLook,GearSize]);
+	Laya.__init([GList,GearColor,GearAnimation,Transition,RelationItem,UIPackage,GBasicTextField,ScrollPane,GearLook,GearSize]);
 })(window,document,Laya);

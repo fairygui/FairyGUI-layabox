@@ -98,9 +98,9 @@ package fairygui {
 			if(!_reverse)
 			{
 				if(_barObjectH)
-					_barObjectH.width = fullWidth*percent;
+					_barObjectH.width = Math.round(fullWidth*percent);
 				if(_barObjectV)
-					_barObjectV.height = fullHeight*percent;
+					_barObjectV.height = Math.round(fullHeight*percent);
 			}
 			else
 			{
