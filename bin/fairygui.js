@@ -10593,7 +10593,7 @@
 			this._autoSize=value;
 			this._widthAutoSize=value==1;
 			this._heightAutoSize=value==1 || value==2;
-			this.textField.wordWrap=!this._widthAutoSize;
+			this.textField.wordWrap=!this._widthAutoSize && !this._singleLine;
 			if(!this._underConstruct){
 				if(!this._heightAutoSize)
 					this.textField.size(this.width,this.height);
@@ -11019,6 +11019,7 @@
 			return this._singleLine;
 			},function(value){
 			this._singleLine=value;
+			this.textField.wordWrap=!this._widthAutoSize && !this._singleLine;
 		});
 
 		__getset(0,__proto,'stroke',function(){
