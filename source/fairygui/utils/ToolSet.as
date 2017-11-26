@@ -226,14 +226,14 @@ package fairygui.utils {
 				code += (BASE64_CHARS.indexOf(bstr.charAt(i + 2)) & 0x3F) << 6;
 				code += (BASE64_CHARS.indexOf(bstr.charAt(i + 3)) & 0x3F);
 				
-				ba.writeByte(code >> 16 & 0xFF);
-				ba.writeByte(code >> 8 & 0xFF);
+				ba.writeByte((code >> 16) & 0xFF);
+				ba.writeByte((code >> 8) & 0xFF);
 				ba.writeByte(code & 0xFF);
 			}
 			
-			if ((code & 0x3F) == 0)
+			if ((code & 0x3F) == 0x3F)
 				ba.length -= 1; 
-			if (((code >> 8) & 0x3F) == 0)
+			if (((code >> 6) & 0x3F) == 0x3F)
 				ba.length -= 1; 
 			ba.pos = 0;
 			return ba;
