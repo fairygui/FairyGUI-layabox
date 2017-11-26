@@ -813,10 +813,14 @@
 			}
 		}
 
-		__proto.updateAlpha=function(){
+		__proto.handleAlphaChanged=function(){
 			if(this._displayObject)
 				this._displayObject.alpha=this._alpha;
-			this.updateGear(3);
+		}
+
+		__proto.handleVisibleChanged=function(){
+			if(this._displayObject)
+				this._displayObject.visible=this._visible;
 		}
 
 		__proto.requestFocus=function(){
@@ -1445,7 +1449,8 @@
 			},function(value){
 			if(this._alpha!=value){
 				this._alpha=value;
-				this.updateAlpha();
+				this.handleAlphaChanged();
+				this.updateGear(3);
 			}
 		});
 
@@ -1494,17 +1499,14 @@
 			},function(value){
 			if (this._visible !=value){
 				this._visible=value;
-				if (this._displayObject)
-					this._displayObject.visible=this._visible;
-				if (this._parent){
-					this._parent.childStateChanged(this);
+				this.handleVisibleChanged();
+				if (this._parent)
 					this._parent.setBoundsChangedFlag();
-				}
 			}
 		});
 
 		__getset(0,__proto,'finalVisible',function(){
-			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible)
+			return this._internalVisible && (!this._group || this._group.finalVisible)
 			&& !this._displayObject._$P["maskParent"];
 		});
 
@@ -6140,6 +6142,11 @@
 			var cnt=this._items.length;
 			for(var i=0;i < cnt;i++){
 				var pi=this._items[i];
+				if(pi.type==7){
+					var texture=pi.texture;
+					if(texture !=null)
+						texture.destroy(true);
+				}
 				if(pi.bitmapFont !=null){
 					delete fairygui.UIPackage._bitmapFonts[pi.bitmapFont.id];
 				}
@@ -6598,8 +6605,12 @@
 			return pkg;
 		}
 
-		UIPackage.removePackage=function(packageId){
-			var pkg=fairygui.UIPackage._packageInstById[packageId];
+		UIPackage.removePackage=function(packageIdOrName){
+			var pkg=fairygui.UIPackage._packageInstById[packageIdOrName];
+			if(!pkg)
+				pkg=fairygui.UIPackage._packageInstByName[packageIdOrName];
+			if(!pkg)
+				throw new Error("unknown package: "+packageIdOrName);
 			pkg.dispose();
 			delete fairygui.UIPackage._packageInstById[pkg.id];
 			if(pkg._customId !=null)
@@ -6937,13 +6948,13 @@
 				code+=(ToolSet.BASE64_CHARS.indexOf(bstr.charAt(i+1))& 0x3F)<< 12;
 				code+=(ToolSet.BASE64_CHARS.indexOf(bstr.charAt(i+2))& 0x3F)<< 6;
 				code+=(ToolSet.BASE64_CHARS.indexOf(bstr.charAt(i+3))& 0x3F);
-				ba.writeByte(code >> 16 & 0xFF);
-				ba.writeByte(code >> 8 & 0xFF);
+				ba.writeByte((code >> 16)& 0xFF);
+				ba.writeByte((code >> 8)& 0xFF);
 				ba.writeByte(code & 0xFF);
 			}
-			if ((code & 0x3F)==0)
+			if ((code & 0x3F)==0x3F)
 				ba.length-=1;
-			if (((code >> 8)& 0x3F)==0)
+			if (((code >> 6)& 0x3F)==0x3F)
 				ba.length-=1;
 			ba.pos=0;
 			return ba;
@@ -9655,8 +9666,8 @@
 			this._updating &=1;
 		}
 
-		__proto.updateAlpha=function(){
-			_super.prototype.updateAlpha.call(this);
+		__proto.handleAlphaChanged=function(){
+			_super.prototype.handleAlphaChanged.call(this);
 			if(this._underConstruct)
 				return;
 			var cnt=this._parent.numChildren;
@@ -9664,6 +9675,18 @@
 				var child=this._parent.getChildAt(i);
 				if(child.group==this)
 					child.alpha=this.alpha;
+			}
+		}
+
+		__proto.handleVisibleChanged=function(){
+			if(!this._parent)
+				return;
+			var v=this.visible;
+			var cnt=this._parent.numChildren;
+			for(var i=0;i<cnt;i++){
+				var child=this._parent.getChildAt(i);
+				if(child.group==this)
+					child.visible=v;
 			}
 		}
 
@@ -9680,6 +9703,12 @@
 				if(str)
 					this._columnGap=parseInt(str);
 			}
+		}
+
+		__proto.setup_afterAdd=function(xml){
+			_super.prototype.setup_afterAdd.call(this,xml);
+			if(!this.visible)
+				this.handleVisibleChanged();
 		}
 
 		__getset(0,__proto,'layout',function(){

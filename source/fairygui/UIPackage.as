@@ -60,8 +60,13 @@ package fairygui {
 			return pkg;
 		}
 		
-		public static function removePackage(packageId: String): void {
-			var pkg: UIPackage = UIPackage._packageInstById[packageId];
+		public static function removePackage(packageIdOrName: String): void {
+			var pkg: UIPackage = UIPackage._packageInstById[packageIdOrName];
+			if(!pkg)
+				pkg = UIPackage._packageInstByName[packageIdOrName];
+			if(!pkg)
+				throw new Error("unknown package: " + packageIdOrName);
+
 			pkg.dispose();
 			delete UIPackage._packageInstById[pkg.id];
 			if(pkg._customId != null)
@@ -343,12 +348,12 @@ package fairygui {
 			var cnt:Number=this._items.length;
 			for(var i: Number = 0;i < cnt;i++) {
 				var pi: PackageItem = this._items[i];
-				/*if(pi.type==PackageItemType.Atlas)
+				if(pi.type==PackageItemType.Atlas)
 				{
-				var texture: Texture = pi.texture;
-				if(texture != null)
-				texture.destroy();
-				}*/
+					var texture: Texture = pi.texture;
+					if(texture != null)
+						texture.destroy(true);
+				}
 				
 				if(pi.bitmapFont != null) {
 					delete UIPackage._bitmapFonts[pi.bitmapFont.id];

@@ -432,15 +432,14 @@ package fairygui {
 		public function set alpha(value: Number):void {
 			if(this._alpha!=value) {
 				this._alpha = value;
-				this.updateAlpha();
+				this.handleAlphaChanged();
+				this.updateGear(3);
 			}
 		}
 		
-		protected function updateAlpha():void {
+		protected function handleAlphaChanged():void {
 			if(this._displayObject)
 				this._displayObject.alpha = this._alpha;
-			
-			this.updateGear(3);
 		}
 		
 		public function get visible(): Boolean {
@@ -450,18 +449,19 @@ package fairygui {
 		public function set visible(value: Boolean):void {
 			if (this._visible != value) {
 				this._visible = value;
-				if (this._displayObject)
-					this._displayObject.visible = this._visible;
+				handleVisibleChanged();
 				if (this._parent)
-				{
-					this._parent.childStateChanged(this);
 					this._parent.setBoundsChangedFlag();
-				}
 			}
 		}
 		
+		protected function handleVisibleChanged():void {
+			if(this._displayObject)
+				this._displayObject.visible = this._visible;
+		}
+		
 		public function get finalVisible(): Boolean {
-			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible)
+			return this._internalVisible && (!this._group || this._group.finalVisible)
 				&& !this._displayObject._$P["maskParent"];
 		}
 		
