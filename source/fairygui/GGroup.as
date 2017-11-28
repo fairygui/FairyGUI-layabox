@@ -400,8 +400,6 @@ package fairygui
 		
 		override protected function handleAlphaChanged():void
 		{
-			super.handleAlphaChanged();
-			
 			if(this._underConstruct)
 				return;
 			
@@ -414,18 +412,17 @@ package fairygui
 			}
 		}
 		
-		override protected function handleVisibleChanged():void
+		override public function handleVisibleChanged():void
 		{
 			if(!_parent)
 				return;
 			
-			var v:Boolean = this.visible;
 			var cnt:int = _parent.numChildren;
 			for(var i:int =0;i<cnt;i++)
 			{
 				var child:GObject = _parent.getChildAt(i);
 				if(child.group==this)
-					child.visible = v;
+					child.handleVisibleChanged();
 			}
 		}
 		

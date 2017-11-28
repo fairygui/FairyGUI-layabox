@@ -435,12 +435,7 @@ package fairygui {
 				this.handleAlphaChanged();
 				this.updateGear(3);
 			}
-		}
-		
-		protected function handleAlphaChanged():void {
-			if(this._displayObject)
-				this._displayObject.alpha = this._alpha;
-		}
+		}		
 		
 		public function get visible(): Boolean {
 			return this._visible;
@@ -455,14 +450,13 @@ package fairygui {
 			}
 		}
 		
-		protected function handleVisibleChanged():void {
-			if(this._displayObject)
-				this._displayObject.visible = this._visible;
+		public function get internalVisible(): Boolean {
+			return this._internalVisible && (!this._group || this._group.internalVisible)
+				&& !this._displayObject._$P["maskParent"];
 		}
 		
-		public function get finalVisible(): Boolean {
-			return this._internalVisible && (!this._group || this._group.finalVisible)
-				&& !this._displayObject._$P["maskParent"];
+		public function get internalVisible2(): Boolean {
+			return this._visible && (!this._group || this._group.internalVisible2);
 		}
 		
 		public function get sortingOrder(): Number {
@@ -1004,6 +998,16 @@ package fairygui {
 				else
 					this._displayObject.filters = null;
 			}
+		}
+		
+		protected function handleAlphaChanged():void {
+			if(this._displayObject)
+				this._displayObject.alpha = this._alpha;
+		}
+		
+		public function handleVisibleChanged():void {
+			if(this._displayObject)
+				this._displayObject.visible = this.internalVisible2;
 		}
 		
 		public function constructFromResource(): void {

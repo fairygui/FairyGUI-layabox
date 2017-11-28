@@ -813,16 +813,6 @@
 			}
 		}
 
-		__proto.handleAlphaChanged=function(){
-			if(this._displayObject)
-				this._displayObject.alpha=this._alpha;
-		}
-
-		__proto.handleVisibleChanged=function(){
-			if(this._displayObject)
-				this._displayObject.visible=this._visible;
-		}
-
 		__proto.requestFocus=function(){
 			var p=this;
 			while (p && !p._focusable)
@@ -1099,6 +1089,16 @@
 				else
 				this._displayObject.filters=null;
 			}
+		}
+
+		__proto.handleAlphaChanged=function(){
+			if(this._displayObject)
+				this._displayObject.alpha=this._alpha;
+		}
+
+		__proto.handleVisibleChanged=function(){
+			if(this._displayObject)
+				this._displayObject.visible=this.internalVisible2;
 		}
 
 		__proto.constructFromResource=function(){}
@@ -1505,9 +1505,18 @@
 			}
 		});
 
-		__getset(0,__proto,'finalVisible',function(){
-			return this._internalVisible && (!this._group || this._group.finalVisible)
+		__getset(0,__proto,'internalVisible',function(){
+			return this._internalVisible && (!this._group || this._group.internalVisible)
 			&& !this._displayObject._$P["maskParent"];
+		});
+
+		__getset(0,__proto,'icon',function(){
+			return null;
+			},function(value){
+		});
+
+		__getset(0,__proto,'internalVisible2',function(){
+			return this._visible && (!this._group || this._group.internalVisible2);
 		});
 
 		__getset(0,__proto,'asGraph',function(){
@@ -1642,11 +1651,6 @@
 		});
 
 		__getset(0,__proto,'text',function(){
-			return null;
-			},function(value){
-		});
-
-		__getset(0,__proto,'icon',function(){
 			return null;
 			},function(value){
 		});
@@ -6952,9 +6956,9 @@
 				ba.writeByte((code >> 8)& 0xFF);
 				ba.writeByte(code & 0xFF);
 			}
-			if ((code & 0x3F)==0x3F)
+			if(len>0 && bstr.charAt(len-1)=="=")
 				ba.length-=1;
-			if (((code >> 6)& 0x3F)==0x3F)
+			if(len>1 && bstr.charAt(len-2)=="=")
 				ba.length-=1;
 			ba.pos=0;
 			return ba;
@@ -8005,7 +8009,7 @@
 			var cnt=this._children.length;
 			for(var i=0;i < cnt;++i){
 				var child=this._children[i];
-				if(child.finalVisible && child.name==name)
+				if(child.internalVisible && child.internalVisible2 && child.name==name)
 					return child;
 			}
 			return null;
@@ -8181,7 +8185,7 @@
 			}
 			if(!child.displayObject)
 				return;
-			if(child.finalVisible && child.displayObject!=this._displayObject.mask){
+			if(child.internalVisible && child.displayObject!=this._displayObject.mask){
 				if(!child.displayObject.parent){
 					var index=0
 					if (this._childrenRenderOrder==0){
@@ -8229,7 +8233,7 @@
 				case 0:{
 						for (i=0;i < cnt;i++){
 							child=this._children[i];
-							if (child.displayObject !=null && child.finalVisible)
+							if (child.displayObject !=null && child.internalVisible)
 								this._container.addChild(child.displayObject);
 						}
 					}
@@ -8237,7 +8241,7 @@
 				case 1:{
 						for (i=cnt-1;i >=0;i--){
 							child=this._children[i];
-							if (child.displayObject !=null && child.finalVisible)
+							if (child.displayObject !=null && child.internalVisible)
 								this._container.addChild(child.displayObject);
 						}
 					}
@@ -8245,12 +8249,12 @@
 				case 2:{
 						for (i=0;i < this._apexIndex;i++){
 							child=this._children[i];
-							if (child.displayObject !=null && child.finalVisible)
+							if (child.displayObject !=null && child.internalVisible)
 								this._container.addChild(child.displayObject);
 						}
 						for (i=cnt-1;i >=this._apexIndex;i--){
 							child=this._children[i];
-							if (child.displayObject !=null && child.finalVisible)
+							if (child.displayObject !=null && child.internalVisible)
 								this._container.addChild(child.displayObject);
 						}
 					}
@@ -9667,7 +9671,6 @@
 		}
 
 		__proto.handleAlphaChanged=function(){
-			_super.prototype.handleAlphaChanged.call(this);
 			if(this._underConstruct)
 				return;
 			var cnt=this._parent.numChildren;
@@ -9681,12 +9684,11 @@
 		__proto.handleVisibleChanged=function(){
 			if(!this._parent)
 				return;
-			var v=this.visible;
 			var cnt=this._parent.numChildren;
 			for(var i=0;i<cnt;i++){
 				var child=this._parent.getChildAt(i);
 				if(child.group==this)
-					child.visible=v;
+					child.handleVisibleChanged();
 			}
 		}
 

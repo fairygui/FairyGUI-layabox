@@ -218,7 +218,7 @@ package fairygui.utils {
 		private static const BASE64_CHARS:String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 		public static function base64Decode(bstr:String):Byte {
 			var ba:Byte = new Byte();
-			var code:int = 0;
+			var code:uint = 0;
 			var len:int = bstr.length;
 			for (var i:int = 0; i < len; i += 4) {
 				code = (BASE64_CHARS.indexOf(bstr.charAt(i)) & 0x3F) << 18;
@@ -231,10 +231,11 @@ package fairygui.utils {
 				ba.writeByte(code & 0xFF);
 			}
 			
-			if ((code & 0x3F) == 0x3F)
-				ba.length -= 1; 
-			if (((code >> 6) & 0x3F) == 0x3F)
-				ba.length -= 1; 
+			if(len>0 && bstr.charAt(len-1)=="=")
+				ba.length -= 1;
+			if(len>1 && bstr.charAt(len-2)=="=")
+				ba.length -= 1;
+
 			ba.pos = 0;
 			return ba;
 		}

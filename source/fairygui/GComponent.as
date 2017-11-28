@@ -193,7 +193,7 @@ package fairygui {
 			var cnt: Number = this._children.length;
 			for(var i: Number = 0;i < cnt;++i) {
 				var child: GObject = this._children[i];
-				if(child.finalVisible && child.name == name)
+				if(child.internalVisible && child.internalVisible2 && child.name == name)
 					return child;
 			}
 			
@@ -410,7 +410,7 @@ package fairygui {
 			if(!child.displayObject)
 				return;
 			
-			if(child.finalVisible && child.displayObject!=_displayObject.mask) {
+			if(child.internalVisible && child.displayObject!=_displayObject.mask) {
 				if(!child.displayObject.parent) {
 					var index:int = 0
 					if (_childrenRenderOrder == ChildrenRenderOrder.Ascent)
@@ -472,7 +472,7 @@ package fairygui {
 					for (i = 0; i < cnt; i++)
 					{
 						child = _children[i];
-						if (child.displayObject != null && child.finalVisible)
+						if (child.displayObject != null && child.internalVisible)
 							_container.addChild(child.displayObject);
 					}
 				}
@@ -482,7 +482,7 @@ package fairygui {
 					for (i = cnt - 1; i >= 0; i--)
 					{
 						child = _children[i];
-						if (child.displayObject != null && child.finalVisible)
+						if (child.displayObject != null && child.internalVisible)
 							_container.addChild(child.displayObject);
 					}
 				}
@@ -493,13 +493,13 @@ package fairygui {
 					for (i = 0; i < _apexIndex; i++)
 					{
 						child = _children[i];
-						if (child.displayObject != null && child.finalVisible)
+						if (child.displayObject != null && child.internalVisible)
 							_container.addChild(child.displayObject);
 					}
 					for (i = cnt - 1; i >= _apexIndex; i--)
 					{
 						child = _children[i];
-						if (child.displayObject != null && child.finalVisible)
+						if (child.displayObject != null && child.internalVisible)
 							_container.addChild(child.displayObject);
 					}
 				}

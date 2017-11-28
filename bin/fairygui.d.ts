@@ -462,7 +462,6 @@ declare module fairygui {
         constructor();
         setBoundsChangedFlag(childSizeChanged: boolean): void;
         ensureBoundsCorrect(): void;
-        protected updateAlpha(): void;
     }
 }
 declare module fairygui {
@@ -668,10 +667,7 @@ declare module fairygui {
         normalizeRotation: number;
         alpha: number;
         filters: Array<any>;
-        protected updateAlpha(): void;
         visible: boolean;
-        internalVisible: number;
-        finalVisible: boolean;
         sortingOrder: number;
         focusable: boolean;
         focused: boolean;
