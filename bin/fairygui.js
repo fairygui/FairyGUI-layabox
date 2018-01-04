@@ -6004,15 +6004,17 @@
 
 		__class(UIPackage,'fairygui.UIPackage');
 		var __proto=UIPackage.prototype;
-		__proto.create=function(resKey){
+		__proto.create=function(resKey,descData){
 			this._resKey=resKey;
-			this.loadPackage();
+			this.loadPackage(descData);
 		}
 
-		__proto.loadPackage=function(){
+		__proto.loadPackage=function(descData){
 			var str;
 			var arr;
-			this.decompressPackage(AssetProxy.inst.getRes(this._resKey+".fui"));
+			if(!descData)
+				descData=AssetProxy.inst.getRes(this._resKey+".fui");
+			this.decompressPackage(descData);
 			str=this.getDesc("sprites.bytes");
 			arr=str.split("\n");
 			var cnt=arr.length;
@@ -6122,23 +6124,57 @@
 
 		__proto.decompressPackage=function(buf){
 			this._resData={};
-			var data;
-			var inflater=new Zlib.RawInflate(buf);data=inflater.decompress();;
-			var source=new Byte(data).readUTFBytes();
-			var curr=0;
-			var fn;
-			var size=NaN;
-			while(true){
-				var pos=source.indexOf("|",curr);
-				if(pos==-1)
-					break ;
-				fn=source.substring(curr,pos);
-				curr=pos+1;
-				pos=source.indexOf("|",curr);
-				size=parseInt(source.substring(curr,pos));
-				curr=pos+1;
-				this._resData[fn]=source.substr(curr,size);
-				curr+=size;
+			var mark=new Uint8Array(buf.slice(0,2));
+			if(mark[0]==0x50 && mark[1]==0x4b){
+				buf.position=0;
+				this.decodeUncompressed(buf);
+			}
+			else{
+				var data;
+				var inflater=new Zlib.RawInflate(buf);data=inflater.decompress();;
+				var source=new Byte(data).readUTFBytes();
+				var curr=0;
+				var fn;
+				var size=NaN;
+				while(true){
+					var pos=source.indexOf("|",curr);
+					if(pos==-1)
+						break ;
+					fn=source.substring(curr,pos);
+					curr=pos+1;
+					pos=source.indexOf("|",curr);
+					size=parseInt(source.substring(curr,pos));
+					curr=pos+1;
+					this._resData[fn]=source.substr(curr,size);
+					curr+=size;
+				}
+			}
+		}
+
+		__proto.decodeUncompressed=function(buf){
+			var ba=new Byte(buf);
+			var pos=ba.length-22;
+			ba.pos=pos+10;
+			var entryCount=ba.getUint16();
+			ba.pos=pos+16;
+			pos=ba.getInt32();
+			for (var i=0;i < entryCount;i++){
+				ba.pos=pos+28;
+				var len=ba.getUint16();
+				var len2=ba.getUint16()+ba.getUint16();
+				ba.pos=pos+46;
+				var entryName=ba.getUTFBytes(len);
+				if (entryName[entryName.length-1] !='/' && entryName[entryName.length-1] !='\\'){
+					ba.pos=pos+20;
+					var size=ba.getInt32();
+					ba.pos=pos+42;
+					var offset=ba.getInt32()+30+len;
+					if (size > 0){
+						ba.pos=offset;
+						this._resData[entryName]=ba.readUTFBytes(size);
+					}
+				}
+				pos+=46+len+len2;
 			}
 		}
 
@@ -6600,9 +6636,9 @@
 			return fairygui.UIPackage._packageInstByName[name];
 		}
 
-		UIPackage.addPackage=function(resKey){
+		UIPackage.addPackage=function(resKey,descData){
 			var pkg=new UIPackage();
-			pkg.create(resKey);
+			pkg.create(resKey,descData);
 			fairygui.UIPackage._packageInstById[pkg.id]=pkg;
 			fairygui.UIPackage._packageInstByName[pkg.name]=pkg;
 			pkg.customId=resKey;

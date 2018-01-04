@@ -51,9 +51,9 @@ package fairygui {
 			return UIPackage._packageInstByName[name];
 		}
 		
-		public static function addPackage(resKey: String): UIPackage {
+		public static function addPackage(resKey: String, descData:ArrayBuffer = null): UIPackage {
 			var pkg: UIPackage = new UIPackage();
-			pkg.create(resKey);
+			pkg.create(resKey, descData);
 			UIPackage._packageInstById[pkg.id] = pkg;
 			UIPackage._packageInstByName[pkg.name] = pkg;
 			pkg.customId = resKey;
@@ -184,17 +184,20 @@ package fairygui {
 			}
 		}
 		
-		private function create(resKey: String): void {
+		private function create(resKey: String, descData:ArrayBuffer): void {
 			this._resKey = resKey;
 			
-			this.loadPackage();
+			this.loadPackage(descData);
 		}
 		
-		private function loadPackage(): void {
+		private function loadPackage(descData:ArrayBuffer): void {
 			var str: String;
 			var arr: Array;
 			
-			this.decompressPackage(AssetProxy.inst.getRes(this._resKey+".fui"));
+			if(!descData)
+				descData = AssetProxy.inst.getRes(this._resKey+".fui");
+			
+			this.decompressPackage(descData);
 			
 			str = this.getDesc("sprites.bytes");
 			
@@ -323,25 +326,69 @@ package fairygui {
 		private function decompressPackage(buf: ArrayBuffer): void {
 			this._resData = {};
 			
-			var data: Uint8Array;
-			__JS__("var inflater = new Zlib.RawInflate(buf);data = inflater.decompress();");
-			var source: String = new Byte(data).readUTFBytes();
-			var curr: Number = 0;            
-			var fn: String;
-			var size: Number;
-			while(true)
+			var mark:Uint8Array = new Uint8Array(buf.slice(0,2));
+			if(mark[0]==0x50 && mark[1]==0x4b)
 			{
-				var pos:Number = source.indexOf("|", curr);
-				if(pos == -1)
-					break;
-				fn = source.substring(curr,pos);
-				curr = pos + 1;
-				pos = source.indexOf("|",curr);
-				size = parseInt(source.substring(curr,pos));
-				curr = pos + 1;
-				this._resData[fn] = source.substr(curr,size);
-				curr += size;
-			}            
+				buf.position = 0;
+				decodeUncompressed(buf);
+			}
+			else
+			{
+				var data: Uint8Array;
+				__JS__("var inflater = new Zlib.RawInflate(buf);data = inflater.decompress();");
+				var source: String = new Byte(data).readUTFBytes();
+				var curr: Number = 0;            
+				var fn: String;
+				var size: Number;
+				while(true)
+				{
+					var pos:Number = source.indexOf("|", curr);
+					if(pos == -1)
+						break;
+					fn = source.substring(curr,pos);
+					curr = pos + 1;
+					pos = source.indexOf("|",curr);
+					size = parseInt(source.substring(curr,pos));
+					curr = pos + 1;
+					this._resData[fn] = source.substr(curr,size);
+					curr += size;
+				}
+			}
+		}
+		
+		private function decodeUncompressed(buf: ArrayBuffer):void {
+			var ba:Byte = new Byte(buf);			
+			var pos:int = ba.length - 22;
+			ba.pos = pos + 10;
+			var entryCount:int = ba.getUint16();
+			ba.pos = pos + 16;
+			pos = ba.getInt32();
+			
+			for (var i:int = 0; i < entryCount; i++)
+			{
+				ba.pos = pos + 28;
+				var len:int = ba.getUint16();
+				var len2:int = ba.getUint16() + ba.getUint16();
+				
+				ba.pos = pos + 46;
+				var entryName:String = ba.getUTFBytes(len);
+				
+				if (entryName[entryName.length - 1] != '/' && entryName[entryName.length - 1] != '\\') //not directory
+				{
+					ba.pos = pos + 20;
+					var size:int = ba.getInt32();
+					ba.pos  = pos + 42;
+					var offset:int = ba.getInt32() + 30 + len;
+					
+					if (size > 0)
+					{
+						ba.pos = offset;
+						this._resData[entryName] = ba.readUTFBytes(size);
+					}
+				}
+				
+				pos += 46 + len + len2;
+			}
 		}
 		
 		public function dispose(): void {
