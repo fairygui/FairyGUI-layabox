@@ -32,10 +32,10 @@
 		__proto.leave=function(controller){}
 		__proto.setup=function(xml){
 			var str;
-			str=xml.getAttribute('fromPage');
+			str=xml.getAttribute("fromPage");
 			if(str)
 				this.fromPage=str.split(",");
-			str=xml.getAttribute('toPage');
+			str=xml.getAttribute("toPage");
 			if(str)
 				this.toPage=str.split(",");
 		}
@@ -1157,11 +1157,11 @@
 			str=xml.getAttribute("blend");
 			if (str)
 				this.blendMode=str;
-			str=xml.getAttribute('filter');
+			str=xml.getAttribute("filter");
 			if (str){
 				switch (str){
 					case "color":
-						str=xml.getAttribute('filterData');
+						str=xml.getAttribute("filterData");
 						arr=str.split(",");
 						var cm=new ColorMatrix();
 						cm.adjustBrightness(parseFloat(arr[0]));
@@ -1173,6 +1173,9 @@
 						break ;
 					}
 			}
+			str=xml.getAttribute("customData");
+			if (str)
+				this.data=str;
 		}
 
 		__proto.setup_afterAdd=function(xml){
@@ -7483,7 +7486,7 @@
 					this._actions=[];
 				for(var i1=0;i1 < length1;i1++){
 					var cxml=col[i1];
-					var action=ControllerAction.createAction(cxml.getAttribute('type'));
+					var action=ControllerAction.createAction(cxml.getAttribute("type"));
 					action.setup(cxml);
 					this._actions.push(action);
 				}

@@ -1082,13 +1082,13 @@ package fairygui {
 			if (str)
 				this.blendMode = str;
 			
-			str = xml.@filter;
+			str = xml.getAttribute("filter");
 			if (str)
 			{
 				switch (str)
 				{
 					case "color":
-						str = xml.@filterData;
+						str = xml.getAttribute("filterData");
 						arr = str.split(",");
 						var cm:ColorMatrix = new ColorMatrix();
 						cm.adjustBrightness(parseFloat(arr[0]));
@@ -1100,6 +1100,10 @@ package fairygui {
 						break;
 				}
 			}
+			
+			str = xml.getAttribute("customData");
+			if (str)
+				this.data = str;
 		}
 		
 		private static var GearXMLKeys:Object = {

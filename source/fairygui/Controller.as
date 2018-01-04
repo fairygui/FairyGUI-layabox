@@ -252,7 +252,7 @@ package fairygui {
 
 				for(var i1: Number = 0;i1 < length1;i1++) {
 					var cxml: Object = col[i1];
-					var action:ControllerAction = ControllerAction.createAction(cxml.@type);
+					var action:ControllerAction = ControllerAction.createAction(cxml.getAttribute("type"));
 					action.setup(cxml);
 					_actions.push(action);
 				}
