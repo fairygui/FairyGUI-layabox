@@ -359,13 +359,14 @@ package fairygui {
 					if ((ii.obj is GButton) && GButton(ii.obj).selected
 						|| ii.obj == null && ii.selected)
 					{
+						var j:int = i;
 						if (_loop)
 						{
-							i = i % _numItems;
-							if (ret.indexOf(i)!=-1)
+							j = i % _numItems;
+							if (ret.indexOf(j)!=-1)
 								continue;
 						}
-						ret.push(i);
+						ret.push(j);
 					}
 				}
 			}
