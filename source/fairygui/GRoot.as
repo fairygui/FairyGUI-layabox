@@ -1,4 +1,6 @@
 package fairygui {
+	import fairygui.utils.ToolSet;
+	
 	import laya.display.Node;
 	import laya.display.Sprite;
 	import laya.events.Event;
@@ -320,6 +322,9 @@ package fairygui {
 		}
 		
 		public function playOneShotSound(url:String, volumeScale: Number = 1):void {
+			if(ToolSet.startsWith(url,"ui://"))
+				return;
+			
 			SoundManager.playSound(url);
 		}
 		

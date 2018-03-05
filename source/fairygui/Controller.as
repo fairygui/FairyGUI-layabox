@@ -27,6 +27,10 @@ package fairygui {
 			this._previousIndex = -1;
 		}
 		
+		public function dispose():void {
+			this.offAll();
+		}
+		
 		public function get name(): String {
 			return this._name;
 		}

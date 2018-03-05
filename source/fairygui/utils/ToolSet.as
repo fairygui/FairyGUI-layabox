@@ -239,5 +239,10 @@ package fairygui.utils {
 			ba.pos = 0;
 			return ba;
 		}
+		
+		public static function lerp(start:Number, end:Number, percent:Number):Number
+		{
+			return (start + percent*(end - start));
+		}
 	}
 }
