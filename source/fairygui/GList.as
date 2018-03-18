@@ -2594,6 +2594,9 @@ package fairygui {
 					str = cxml.getAttribute("name");
 					if(str)
 						obj.name = str;
+					str = cxml.getAttribute("selectedIcon");
+					if(str && (obj is GButton))
+						GButton(obj).selectedIcon = str;
 				}
 			}
 		}
