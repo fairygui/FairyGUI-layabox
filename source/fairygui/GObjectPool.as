@@ -9,8 +9,7 @@ package fairygui {
 		}
 		
 		public function clear(): void {
-			var length1: Number = this._pool.length;
-			for (var i1: Number = 0; i1 < length1; i1++) {
+			for (var i1:String in this._pool) {
 				var arr: Array = this._pool[i1];
 				var cnt: Number = arr.length;
 				for (var i: Number = 0; i < cnt; i++)
