@@ -554,6 +554,8 @@ declare module fairygui {
         getSnappingPosition(xValue: number, yValue: number, resultPoint?: laya.maths.Point): laya.maths.Point;
         scrollToView(index: number, ani?: boolean, setFirst?: boolean): void;
         getFirstChildInView(): number;
+        childIndexToItemIndex(index: number): number;
+        itemIndexToChildIndex(index: number): number;
         setVirtual(): void;
         setVirtualAndLoop(): void;
         numItems: number;
