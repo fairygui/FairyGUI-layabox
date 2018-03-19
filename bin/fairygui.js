@@ -1809,8 +1809,7 @@ var GObjectPool=(function(){
 	__class(GObjectPool,'fairygui.GObjectPool');
 	var __proto=GObjectPool.prototype;
 	__proto.clear=function(){
-		var length1=this._pool.length;
-		for (var i1=0;i1 < length1;i1++){
+		for (var i1 in this._pool){
 			var arr=this._pool[i1];
 			var cnt=arr.length;
 			for (var i=0;i < cnt;i++)
@@ -14351,6 +14350,9 @@ var GList=(function(_super){
 				str=cxml.getAttribute("name");
 				if(str)
 					obj.name=str;
+				str=cxml.getAttribute("selectedIcon");
+				if(str && ((obj instanceof fairygui.GButton )))
+					(obj).selectedIcon=str;
 			}
 		}
 	}
@@ -15003,6 +15005,18 @@ var GRoot=(function(_super){
 			}
 		}
 		this._popupStack.push(popup);
+		if (target !=null){
+			var p=target;
+			while (p !=null){
+				if (p.parent==this){
+					if (popup.sortingOrder < p.sortingOrder){
+						popup.sortingOrder=p.sortingOrder;
+					}
+					break ;
+				}
+				p=p.parent;
+			}
+		}
 		this.addChild(popup);
 		this.adjustModalLayer();
 		var pos;
