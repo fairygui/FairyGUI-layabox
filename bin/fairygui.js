@@ -825,6 +825,21 @@ var GObject=(function(){
 			this.root.focus=p;
 	}
 
+	__proto.__rollOver=function(evt){
+		Laya.timer.once(100,this,this.__doShowTooltips);
+	}
+
+	__proto.__doShowTooltips=function(){
+		var r=this.root;
+		if(r)
+			this.root.showTooltips(this._tooltips);
+	}
+
+	__proto.__rollOut=function(evt){
+		Laya.timer.clear(this,this.__doShowTooltips);
+		this.root.hideTooltips();
+	}
+
 	__proto.getGear=function(index){
 		var gear=this._gears[index];
 		if (gear==null){
@@ -1547,7 +1562,15 @@ var GObject=(function(){
 	__getset(0,__proto,'tooltips',function(){
 		return this._tooltips;
 		},function(value){
+		if(this._tooltips){
+			this.off("mouseover",this,this.__rollOver);
+			this.off("mouseout",this,this.__rollOut);
+		}
 		this._tooltips=value;
+		if(this._tooltips){
+			this.on("mouseover",this,this.__rollOver);
+			this.on("mouseout",this,this.__rollOut);
+		}
 	});
 
 	__getset(0,__proto,'dragging',function(){
@@ -6207,6 +6230,7 @@ var UIConfig$1=(function(){
 	UIConfig.clickDragSensitivity=2;
 	UIConfig.bringWindowToFrontOnClick=true;
 	UIConfig.frameTimeForAsyncUIConstruction=2;
+	UIConfig.textureLinearSampling=true;
 	return UIConfig;
 })()
 
@@ -6579,6 +6603,8 @@ var UIPackage=(function(){
 					item.decoded=true;
 					var fileName=(item.file !=null && item.file.length > 0)? item.file :(item.id+".png");
 					item.texture=AssetProxy.inst.getRes(this._resKey+"@"+fileName);
+					if(!UIConfig$1.textureLinearSampling)
+						item.texture.isLinearSampling=false;
 				}
 				return item.texture;
 			case 3:

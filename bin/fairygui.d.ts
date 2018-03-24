@@ -1256,6 +1256,7 @@ declare module fairygui {
         static touchDragSensitivity: number;
         static clickDragSensitivity: number;
         static bringWindowToFrontOnClick: boolean;
+        static textureLinearSampling: boolean;
     }
 }
 declare module fairygui {
