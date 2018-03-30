@@ -174,6 +174,7 @@ declare module fairygui {
         static ScaleMatchHeight: number;
 				static ScaleMatchWidth: number;
         static ScaleFree: number; 
+        static ScaleNoBorder: number;
         constructor();
         static parse(value: string): number;
     }

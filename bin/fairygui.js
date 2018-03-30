@@ -1973,6 +1973,8 @@ var LoaderFillType=(function(){
 				return 3;
 			case "scaleFree":
 				return 4;
+			case "scaleNoBorder":
+				return 5;
 			default :
 				return 0;
 			}
@@ -1983,6 +1985,7 @@ var LoaderFillType=(function(){
 	LoaderFillType.ScaleMatchHeight=2;
 	LoaderFillType.ScaleMatchWidth=3;
 	LoaderFillType.ScaleFree=4;
+	LoaderFillType.ScaleNoBorder=5;
 	return LoaderFillType;
 })()
 
@@ -10749,6 +10752,12 @@ var GLoader=(function(_super){
 						sx=sy;
 					else
 					sy=sx;
+				}
+				else if (this._fill==5){
+					if (sx > sy)
+						sy=sx;
+					else
+					sx=sy;
 				}
 				this._contentWidth=this._contentSourceWidth *sx;
 				this._contentHeight=this._contentSourceHeight *sy;
