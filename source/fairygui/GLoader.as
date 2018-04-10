@@ -350,6 +350,13 @@ package fairygui {
 						else
 							sy = sx;
 					}
+					else if (_fill == LoaderFillType.ScaleNoBorder)
+					{
+						if (sx > sy)
+							sy = sx;
+						else
+							sx = sy;
+					}
 					_contentWidth = _contentSourceWidth * sx;
 					_contentHeight = _contentSourceHeight * sy;
 				}

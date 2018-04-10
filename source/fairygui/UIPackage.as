@@ -494,6 +494,8 @@ package fairygui {
 						item.decoded = true;
 						var fileName:String = (item.file != null && item.file.length > 0) ? item.file : (item.id + ".png");
 						item.texture = AssetProxy.inst.getRes(this._resKey + "@" + fileName);
+						if(!fairygui.UIConfig.textureLinearSampling)
+							item.texture.isLinearSampling = false;
 					}
 					return item.texture;
 					
