@@ -11,6 +11,7 @@ package fairygui {
 		private var _lineSize: Number;
 		private var _lineColor: String;
 		private var _fillColor: String;
+		private var _corner: int;
 		
 		public function GGraph () {
 			super();
@@ -19,6 +20,7 @@ package fairygui {
 			this._lineSize = 1;
 			this._lineColor = "#000000"
 			this._fillColor = "#FFFFFF";
+			this._corner = 0;
 		}
 		
 		public function drawRect(lineSize: Number, lineColor: String, fillColor: String): void {
@@ -72,9 +74,25 @@ package fairygui {
 					this.alpha = a;
 				}
 			}
-			if (this._type == 1)
-				gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
-			else 
+			if (this._type == 1) {
+				if(_corner > 0) {
+					var fixCorner:int = w<h?w:h;
+					if(2*_corner > fixCorner)
+						fixCorner = parseInt(fixCorner/2+"");
+					
+					var path:Array =  [
+						["moveTo", fixCorner, 0], 
+						["arcTo", w, 0,    w, h, fixCorner], 
+						["arcTo", w, h,    0, h, fixCorner], 
+						["arcTo", 0, h,    0, 0, fixCorner], 
+						["arcTo", 0, 0,    w, 0, fixCorner],
+						["closePath"]
+					];
+					
+					gr.drawPath(0, 0, path, {fillStyle: fillColor}, {strokeStyle:this._lineSize>0?lineColor:null, lineWidth:this._lineSize});
+				} else
+					gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
+			} else
 				gr.drawCircle(w/2,h/2,w/2, fillColor, this._lineSize>0?lineColor:null, this._lineSize);
 			
 			this._displayObject.repaint();
@@ -166,6 +184,11 @@ package fairygui {
 						this._fillColor = "rgba(" + ((c>>16) & 0xFF) + "," + ((c>>8) & 0xFF) + "," + (c & 0xFF) + "," + a + ")";
 					else
 						this._fillColor = Utils.toHexColor(c & 0xFFFFFF);   
+				}
+				
+				str = xml.getAttribute("corner");
+				if (str) {
+					this._corner = parseInt(str);
 				}
 				
 				if (type == "rect")
