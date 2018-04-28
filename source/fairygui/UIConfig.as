@@ -6,7 +6,7 @@ package fairygui {
 		}
 		
 		//Default font name
-		public static var defaultFont: String = "宋体";
+		public static var defaultFont: String = "SimSun";
 		
 		//Resource using in Window.ShowModalWait for locking the window.
 		public static var windowModalWaiting: String;
@@ -62,5 +62,7 @@ package fairygui {
 		public static var frameTimeForAsyncUIConstruction:int = 2;
 		
 		public static var textureLinearSampling:Boolean = true; 
+		
+		public static var packageFileExtension:String = "fui";
 	}
 }

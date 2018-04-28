@@ -195,7 +195,7 @@ package fairygui {
 			var arr: Array;
 			
 			if(!descData)
-				descData = AssetProxy.inst.getRes(this._resKey+".fui");
+				descData = AssetProxy.inst.getRes(this._resKey+"."+fairygui.UIConfig.packageFileExtension);
 			
 			this.decompressPackage(descData);
 			

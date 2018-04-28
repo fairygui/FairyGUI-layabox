@@ -6210,7 +6210,7 @@ var TreeView=(function(){
 var UIConfig$1=(function(){
 	function UIConfig(){}
 	__class(UIConfig,'fairygui.UIConfig',null,'UIConfig$1');
-	UIConfig.defaultFont="宋体";
+	UIConfig.defaultFont="SimSun";
 	UIConfig.windowModalWaiting=null;
 	UIConfig.globalModalWaiting=null;
 	UIConfig.modalLayerColor="rgba(33,33,33,0.2)";
@@ -6234,6 +6234,7 @@ var UIConfig$1=(function(){
 	UIConfig.bringWindowToFrontOnClick=true;
 	UIConfig.frameTimeForAsyncUIConstruction=2;
 	UIConfig.textureLinearSampling=true;
+	UIConfig.packageFileExtension="fui";
 	return UIConfig;
 })()
 
@@ -6364,7 +6365,7 @@ var UIPackage=(function(){
 		var str;
 		var arr;
 		if(!descData)
-			descData=AssetProxy.inst.getRes(this._resKey+".fui");
+			descData=AssetProxy.inst.getRes(this._resKey+"."+UIConfig$1.packageFileExtension);
 		this.decompressPackage(descData);
 		str=this.getDesc("sprites.bytes");
 		arr=str.split("\n");
@@ -9653,11 +9654,13 @@ var GGraph=(function(_super){
 		this._lineSize=NaN;
 		this._lineColor=null;
 		this._fillColor=null;
+		this._corner=0;
 		GGraph.__super.call(this);
 		this._type=0;
 		this._lineSize=1;
 		this._lineColor="#000000"
 		this._fillColor="#FFFFFF";
+		this._corner=0;
 	}
 
 	__class(GGraph,'fairygui.GGraph',_super);
@@ -9699,9 +9702,22 @@ var GGraph=(function(_super){
 				this.alpha=a;
 			}
 		}
-		if (this._type==1)
+		if (this._type==1){
+			if(this._corner > 0){
+				var fixCorner=w<h?w:h;
+				if(2*this._corner > fixCorner)
+					fixCorner=parseInt(fixCorner/2+"");
+				var path=[
+				["moveTo",fixCorner,0],
+				["arcTo",w,0,w,h,fixCorner],
+				["arcTo",w,h,0,h,fixCorner],
+				["arcTo",0,h,0,0,fixCorner],
+				["arcTo",0,0,w,0,fixCorner],
+				["closePath"]];
+				gr.drawPath(0,0,path,{fillStyle:fillColor},this._lineSize>0?{strokeStyle:lineColor,lineWidth:this._lineSize}:null);
+			}else
 			gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
-		else
+		}else
 		gr.drawCircle(w/2,h/2,w/2,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
 		this._displayObject.repaint();
 	}
@@ -9781,6 +9797,10 @@ var GGraph=(function(_super){
 					this._fillColor="rgba("+((c>>16)& 0xFF)+","+((c>>8)& 0xFF)+","+(c & 0xFF)+","+a+")";
 				else
 				this._fillColor=Utils.toHexColor(c & 0xFFFFFF);
+			}
+			str=xml.getAttribute("corner");
+			if (str){
+				this._corner=parseInt(str);
 			}
 			if (type=="rect")
 				this._type=1;
