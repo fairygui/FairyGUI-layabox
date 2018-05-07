@@ -27,6 +27,10 @@ package fairygui {
 			this._previousIndex = -1;
 		}
 		
+		public function dispose():void {
+			this.offAll();
+		}
+		
 		public function get name(): String {
 			return this._name;
 		}
@@ -252,7 +256,7 @@ package fairygui {
 
 				for(var i1: Number = 0;i1 < length1;i1++) {
 					var cxml: Object = col[i1];
-					var action:ControllerAction = ControllerAction.createAction(cxml.@type);
+					var action:ControllerAction = ControllerAction.createAction(cxml.getAttribute("type"));
 					action.setup(cxml);
 					_actions.push(action);
 				}

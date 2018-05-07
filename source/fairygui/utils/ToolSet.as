@@ -218,7 +218,7 @@ package fairygui.utils {
 		private static const BASE64_CHARS:String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 		public static function base64Decode(bstr:String):Byte {
 			var ba:Byte = new Byte();
-			var code:int = 0;
+			var code:uint = 0;
 			var len:int = bstr.length;
 			for (var i:int = 0; i < len; i += 4) {
 				code = (BASE64_CHARS.indexOf(bstr.charAt(i)) & 0x3F) << 18;
@@ -226,17 +226,23 @@ package fairygui.utils {
 				code += (BASE64_CHARS.indexOf(bstr.charAt(i + 2)) & 0x3F) << 6;
 				code += (BASE64_CHARS.indexOf(bstr.charAt(i + 3)) & 0x3F);
 				
-				ba.writeByte(code >> 16 & 0xFF);
-				ba.writeByte(code >> 8 & 0xFF);
+				ba.writeByte((code >> 16) & 0xFF);
+				ba.writeByte((code >> 8) & 0xFF);
 				ba.writeByte(code & 0xFF);
 			}
 			
-			if ((code & 0x3F) == 0)
-				ba.length -= 1; 
-			if (((code >> 8) & 0x3F) == 0)
-				ba.length -= 1; 
+			if(len>0 && bstr.charAt(len-1)=="=")
+				ba.length -= 1;
+			if(len>1 && bstr.charAt(len-2)=="=")
+				ba.length -= 1;
+
 			ba.pos = 0;
 			return ba;
+		}
+		
+		public static function lerp(start:Number, end:Number, percent:Number):Number
+		{
+			return (start + percent*(end - start));
 		}
 	}
 }

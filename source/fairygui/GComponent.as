@@ -45,16 +45,27 @@ package fairygui {
 		
 		override public function dispose(): void {
 			var i:int;
+			var cnt:int;
 			
-			var transCnt:int = this._transitions.length;
-			for (i = 0; i < transCnt; ++i)
+			cnt = this._transitions.length;
+			for (i = 0; i < cnt; ++i)
 			{
 				var trans:Transition = _transitions[i];
 				trans.dispose();
 			}
 			
-			var numChildren: Number = this._children.length;
-			for(i = numChildren - 1;i >= 0;--i) {
+			cnt = this._controllers.length;
+			for (i = 0; i < cnt; ++i)
+			{
+				var cc:Controller = this._controllers[i];
+				cc.dispose();
+			}
+			
+			if (scrollPane != null)
+				scrollPane.dispose();
+			
+			cnt = this._children.length;
+			for(i = cnt - 1;i >= 0;--i) {
 				var obj:GObject = this._children[i];
 				obj.parent = null;//avoid removeFromParent call
 				obj.dispose();
@@ -193,7 +204,7 @@ package fairygui {
 			var cnt: Number = this._children.length;
 			for(var i: Number = 0;i < cnt;++i) {
 				var child: GObject = this._children[i];
-				if(child.finalVisible && child.name == name)
+				if(child.internalVisible && child.internalVisible2 && child.name == name)
 					return child;
 			}
 			
@@ -410,7 +421,7 @@ package fairygui {
 			if(!child.displayObject)
 				return;
 			
-			if(child.finalVisible && child.displayObject!=_displayObject.mask) {
+			if(child.internalVisible && child.displayObject!=_displayObject.mask) {
 				if(!child.displayObject.parent) {
 					var index:int = 0
 					if (_childrenRenderOrder == ChildrenRenderOrder.Ascent)
@@ -472,7 +483,7 @@ package fairygui {
 					for (i = 0; i < cnt; i++)
 					{
 						child = _children[i];
-						if (child.displayObject != null && child.finalVisible)
+						if (child.displayObject != null && child.internalVisible)
 							_container.addChild(child.displayObject);
 					}
 				}
@@ -482,7 +493,7 @@ package fairygui {
 					for (i = cnt - 1; i >= 0; i--)
 					{
 						child = _children[i];
-						if (child.displayObject != null && child.finalVisible)
+						if (child.displayObject != null && child.internalVisible)
 							_container.addChild(child.displayObject);
 					}
 				}
@@ -493,13 +504,13 @@ package fairygui {
 					for (i = 0; i < _apexIndex; i++)
 					{
 						child = _children[i];
-						if (child.displayObject != null && child.finalVisible)
+						if (child.displayObject != null && child.internalVisible)
 							_container.addChild(child.displayObject);
 					}
 					for (i = cnt - 1; i >= _apexIndex; i--)
 					{
 						child = _children[i];
-						if (child.displayObject != null && child.finalVisible)
+						if (child.displayObject != null && child.internalVisible)
 							_container.addChild(child.displayObject);
 					}
 				}
@@ -701,13 +712,16 @@ package fairygui {
 									   scrollBarDisplay: int,
 									   flags: Number,
 									   vtScrollBarRes: String,
-									   hzScrollBarRes: String): void {
+									   hzScrollBarRes: String,
+									   headerRes:String,
+									   footerRes:String): void {
 			if (this._displayObject == this._container)
 			{
 				this._container = new Sprite();
 				this._displayObject.addChild(this._container);
 			}
-			this._scrollPane = new ScrollPane(this,scroll,scrollBarMargin,scrollBarDisplay,flags,vtScrollBarRes,hzScrollBarRes);
+			this._scrollPane = new ScrollPane(this,scroll,scrollBarMargin,scrollBarDisplay,flags,
+				vtScrollBarRes,hzScrollBarRes, headerRes, footerRes);
 		}
 		
 		protected function setupOverflow(overflow: int): void {
@@ -1056,7 +1070,18 @@ package fairygui {
 					hzScrollBarRes = arr[1];
 				}
 				
-				this.setupScroll(scrollBarMargin,scroll,scrollBarDisplay,scrollBarFlags,vtScrollBarRes,hzScrollBarRes);
+				var headerRes:String;
+				var footerRes:String;
+				str = xml.@ptrRes;
+				if(str)
+				{
+					arr = str.split(",");
+					headerRes = arr[0];
+					footerRes = arr[1];
+				}
+				
+				this.setupScroll(scrollBarMargin,scroll,scrollBarDisplay,scrollBarFlags,
+					vtScrollBarRes,hzScrollBarRes, headerRes, footerRes);
 			}
 			else
 				this.setupOverflow(overflow);

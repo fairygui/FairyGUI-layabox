@@ -7,6 +7,7 @@ package fairygui
 		public static const ScaleMatchHeight:int = 2;
 		public static const ScaleMatchWidth:int = 3;
 		public static const ScaleFree:int = 4;
+		public static const ScaleNoBorder:int = 5;
 		
 		public function LoaderFillType()
 		{
@@ -26,6 +27,8 @@ package fairygui
 					return ScaleMatchWidth;
 				case "scaleFree":
 					return ScaleFree;
+				case "scaleNoBorder":
+					return ScaleNoBorder;
 				default:
 					return None;
 			}

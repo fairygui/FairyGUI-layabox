@@ -47,11 +47,11 @@ package fairygui.action
 		{
 			var str:String;
 			
-			str = xml.@fromPage;
+			str = xml.getAttribute("fromPage");
 			if(str)
 				fromPage = str.split(",");
 			
-			str = xml.@toPage;
+			str = xml.getAttribute("toPage");
 			if(str)
 				toPage = str.split(",");
 		}

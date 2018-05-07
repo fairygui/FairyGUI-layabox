@@ -174,6 +174,7 @@ declare module fairygui {
         static ScaleMatchHeight: number;
 				static ScaleMatchWidth: number;
         static ScaleFree: number; 
+        static ScaleNoBorder: number;
         constructor();
         static parse(value: string): number;
     }
@@ -326,7 +327,7 @@ declare module fairygui {
         mask: laya.display.Sprite;
         protected updateHitArea(): void;
         protected updateMask(): void;
-        protected setupScroll(scrollBarMargin: Margin, scroll: number, scrollBarDisplay: number, flags: number, vtScrollBarRes: string, hzScrollBarRes: string): void;
+        protected setupScroll(scrollBarMargin: Margin, scroll: number, scrollBarDisplay: number, flags: number, vtScrollBarRes: string, hzScrollBarRes: string, headerRes: string, footerRes: string): void;
         protected setupOverflow(overflow: number): void;
         protected handleSizeChanged(): void;
         protected handleGrayedChanged(): void;
@@ -462,7 +463,6 @@ declare module fairygui {
         constructor();
         setBoundsChangedFlag(childSizeChanged: boolean): void;
         ensureBoundsCorrect(): void;
-        protected updateAlpha(): void;
     }
 }
 declare module fairygui {
@@ -555,6 +555,8 @@ declare module fairygui {
         getSnappingPosition(xValue: number, yValue: number, resultPoint?: laya.maths.Point): laya.maths.Point;
         scrollToView(index: number, ani?: boolean, setFirst?: boolean): void;
         getFirstChildInView(): number;
+        childIndexToItemIndex(index: number): number;
+        itemIndexToChildIndex(index: number): number;
         setVirtual(): void;
         setVirtualAndLoop(): void;
         numItems: number;
@@ -668,10 +670,7 @@ declare module fairygui {
         normalizeRotation: number;
         alpha: number;
         filters: Array<any>;
-        protected updateAlpha(): void;
         visible: boolean;
-        internalVisible: number;
-        finalVisible: boolean;
         sortingOrder: number;
         focusable: boolean;
         focused: boolean;
@@ -1113,14 +1112,16 @@ declare module fairygui {
 }
 declare module fairygui {
     class ScrollPane extends Object {
-        private static _easeTypeFunc;
-        _isMouseMoved: boolean;
-        private static sHelperRect;
-        constructor(owner: GComponent, scrollType: number, scrollBarMargin: Margin, scrollBarDisplay: number, flags: number, vtScrollBarRes: string, hzScrollBarRes: string);
+        constructor(owner: GComponent, scrollType: number, scrollBarMargin: Margin, scrollBarDisplay: number, flags: number, vtScrollBarRes: string, hzScrollBarRes: string, headerRes: string, footerRes: string);
         owner: GComponent;
+        hzScrollBar: GScrollBar;
+        vtScrollBar: GScrollBar;
+        header: GComponent;
+        footer: GComponent;
         bouncebackEffect: boolean;
         touchEffect: boolean;
-        scrollSpeed: number;
+        scrollStep: number;
+        decelerationRate: number;
         snapToItem: boolean;
         percX: number;
         setPercX(sc: number, ani?: boolean): void;
@@ -1138,7 +1139,7 @@ declare module fairygui {
         contentHeight: number;
         viewWidth: number;
         viewHeight: number;
-	isDragged: boolean;
+				isDragged: boolean;
         scrollTop(ani?: boolean): void;
         scrollBottom(ani?: boolean): void;
         scrollUp(speed?: number, ani?: boolean): void;
@@ -1149,19 +1150,9 @@ declare module fairygui {
         isChildInView(obj: GObject): boolean;
         setSize(aWidth: number, aHeight: number, noRefresh?: boolean): void;
         setContentSize(aWidth: number, aHeight: number): void;
-        private static sHelperPoint;
-        __tweenUpdate(): void;
-        __tweenUpdate2(): void;
-    }
-    class TweenHelper {
-        value: number;
-        start: laya.maths.Point;
-        change1: laya.maths.Point;
-        change2: laya.maths.Point;
-        private static checkpoint;
-        TweenHelper(): any;
-        static calculateChange(velocity: number, duration: number): number;
-        static easeOutCubic(t: number, b: number, c: number, d: number): number;
+        cancelDragging(): void;
+        lockHeader(size: number): void;
+        lockFooter(size: number): void;
     }
 }
 declare module fairygui {
@@ -1190,7 +1181,6 @@ declare module fairygui {
         setTarget(label: string, newTarget: GObject): void;
         setDuration(label: String, value: number):void;
         updateFromRelations(targetId: string, dx: number, dy: number): void;
-        __shakeItem(item: TransitionItem): void;
         setup(xml: Object): void;
     }
     class TransitionActionType {
@@ -1230,7 +1220,6 @@ declare module fairygui {
         completed: boolean;
         target: fairygui.GObject;
         TransitionItem(): any;
-        __shake(trans: any): void;
     }
     class TransitionValue {
         f1: number;
@@ -1254,7 +1243,8 @@ declare module fairygui {
         static buttonSoundVolumeScale: number;
         static horizontalScrollBar: string;
         static verticalScrollBar: string;
-        static defaultScrollSpeed: number;
+        static defaultScrollStep: number;
+        static defaultScrollDecelerationRate: number;
         static defaultScrollBarDisplay: number;
         static defaultScrollTouchEffect: boolean;
         static defaultScrollBounceEffect: boolean;
@@ -1267,6 +1257,7 @@ declare module fairygui {
         static touchDragSensitivity: number;
         static clickDragSensitivity: number;
         static bringWindowToFrontOnClick: boolean;
+        static textureLinearSampling: boolean;
     }
 }
 declare module fairygui {
@@ -1282,14 +1273,14 @@ declare module fairygui {
 }
 declare module fairygui {
     class UIPackage {
-        static _ructing: number;
+        static _constructing: number;
         private static _packageInstById;
         private static _packageInstByName;
         private static _bitmapFonts;
         constructor();
         static getById(id: string): UIPackage;
         static getByName(name: string): UIPackage;
-        static addPackage(resKey: string): UIPackage;
+        static addPackage(resKey: string, descData?: any): UIPackage;
         static removePackage(packageId: string): void;
         static createObject(pkgName: string, resName: string, userClass?: any): GObject;
         static createObjectFromURL(url: string, userClass?: any): GObject;

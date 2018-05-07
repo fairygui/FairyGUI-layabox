@@ -45,6 +45,8 @@ package fairygui {
 		private var _virtualListChanged: int = 0; //1-content changed, 2-size changed
 		private var _virtualItems:Vector.<ItemInfo>;
 		private var _eventLocked: Boolean;
+		private var itemInfoVer:uint = 0; //用来标志item是否在本次处理中已经被重用了
+		private var enterCounter:uint = 0; //因为HandleScroll是会重入的，这个用来避免极端情况下的死锁
 		
 		public function GList() {
 			super();
@@ -359,13 +361,14 @@ package fairygui {
 					if ((ii.obj is GButton) && GButton(ii.obj).selected
 						|| ii.obj == null && ii.selected)
 					{
+						var j:int = i;
 						if (_loop)
 						{
-							i = i % _numItems;
-							if (ret.indexOf(i)!=-1)
+							j = i % _numItems;
+							if (ret.indexOf(j)!=-1)
 								continue;
 						}
-						ret.push(i);
+						ret.push(j);
 					}
 				}
 			}
@@ -958,13 +961,13 @@ package fairygui {
 				
 				setFirst = true;//因为在可变item大小的情况下，只有设置在最顶端，位置才不会因为高度变化而改变，所以只能支持setFirst=true
 				if (_scrollPane != null)
-					scrollPane.scrollToView(rect, ani, setFirst);
+					_scrollPane.scrollToView(rect, ani, setFirst);
 			}
 			else
 			{
 				var obj:GObject = getChildAt(index);
 				if (_scrollPane != null)
-					scrollPane.scrollToView(obj, ani, setFirst);
+					_scrollPane.scrollToView(obj, ani, setFirst);
 				else if (parent != null && parent.scrollPane != null)
 					parent.scrollPane.scrollToView(obj, ani, setFirst);
 			}
@@ -1077,9 +1080,17 @@ package fairygui {
 				}
 				
 				if(this._layout == ListLayoutType.SingleColumn || this._layout == ListLayoutType.FlowHorizontal)
-					this._scrollPane.scrollSpeed = this._itemSize.y;
+				{
+					this._scrollPane.scrollStep = this._itemSize.y;
+					if(_loop)
+						this._scrollPane._loop = 2;
+				}
 				else
-					this._scrollPane.scrollSpeed = this._itemSize.x;
+				{
+					this._scrollPane.scrollStep = this._itemSize.x;
+					if(_loop)
+						this._scrollPane._loop = 1;
+				}
 				
 				this.on(Events.SCROLL, this, this.__scrolled);
 				this.setVirtualListChangedFlag(true);
@@ -1110,7 +1121,7 @@ package fairygui {
 				
 				_numItems = value;
 				if (_loop)
-					_realNumItems = _numItems * 5;//设置5倍数量，用于循环滚动
+					_realNumItems = _numItems * 6;//设置6倍数量，用于循环滚动
 				else
 					_realNumItems = _numItems;
 				
@@ -1255,7 +1266,7 @@ package fairygui {
 						ch -= _lineGap;
 					
 					if (_autoResizeItem)
-						cw = scrollPane.viewWidth;
+						cw = _scrollPane.viewWidth;
 					else
 					{
 						for (i = 0; i < len2; i++)
@@ -1272,7 +1283,7 @@ package fairygui {
 						cw -= _columnGap;
 					
 					if (_autoResizeItem)
-						ch = this.scrollPane.viewHeight;
+						ch = _scrollPane.viewHeight;
 					else
 					{
 						for (i = 0; i < len2; i++)
@@ -1468,81 +1479,46 @@ package fairygui {
 			if (_eventLocked)
 				return;
 			
-			var pos:Number;
-			var roundSize:int;
-			
+			enterCounter = 0;
 			if (_layout == ListLayoutType.SingleColumn || _layout == ListLayoutType.FlowHorizontal)
 			{
-				if (_loop)
-				{
-					pos = scrollPane.scrollingPosY;
-					//循环列表的核心实现，滚动到头尾时重新定位
-					roundSize = _numItems * (_itemSize.y + _lineGap);
-					if (pos == 0)
-						scrollPane.posY = roundSize;
-					else if (pos == scrollPane.contentHeight - scrollPane.viewHeight)
-						scrollPane.posY = scrollPane.contentHeight - roundSize - this.viewHeight;
-				}
-				
 				handleScroll1(forceUpdate);
+				handleArchOrder1();
 			}
 			else if (_layout == ListLayoutType.SingleRow || _layout == ListLayoutType.FlowVertical)
 			{
-				if (_loop)
-				{
-					pos = scrollPane.scrollingPosX;
-					//循环列表的核心实现，滚动到头尾时重新定位
-					roundSize = _numItems * (_itemSize.x + _columnGap);
-					if (pos == 0)
-						scrollPane.posX = roundSize;
-					else if (pos == scrollPane.contentWidth - scrollPane.viewWidth)
-						scrollPane.posX = scrollPane.contentWidth - roundSize - this.viewWidth;
-				}
-				
 				handleScroll2(forceUpdate);
+				handleArchOrder2();
 			}
 			else
 			{
-				if (_loop)
-				{
-					pos = scrollPane.scrollingPosX;
-					//循环列表的核心实现，滚动到头尾时重新定位
-					roundSize = Math.floor(_numItems / (_curLineItemCount * _curLineItemCount2)) * viewWidth;
-					if (pos == 0)
-						scrollPane.posX = roundSize;
-					else if (pos == scrollPane.contentWidth - scrollPane.viewWidth)
-						scrollPane.posX = scrollPane.contentWidth - roundSize - this.viewWidth;
-				}
-				
 				handleScroll3(forceUpdate);
 			}
 			
 			_boundsChanged = false;
 		}
-		
-		private static var itemInfoVer:uint = 0; //用来标志item是否在本次处理中已经被重用了
-		private static var enterCounter:uint = 0; //因为HandleScroll是会重入的，这个用来避免极端情况下的死锁
+
 		private static var pos_param:Number;
 		
 		private function handleScroll1(forceUpdate:Boolean):void
 		{
 			enterCounter++;
 			if (enterCounter > 3)
+			{
+				trace("FairyGUI: list will never be filled as the item renderer function always returns a different size.");
 				return;
+			}
 			
-			var pos:Number = scrollPane.scrollingPosY;
-			var max:Number = pos + scrollPane.viewHeight;
-			var end:Boolean = max == scrollPane.contentHeight;//这个标志表示当前需要滚动到最末，无论内容变化大小
+			var pos:Number = _scrollPane.scrollingPosY;
+			var max:Number = pos + _scrollPane.viewHeight;
+			var end:Boolean = max == _scrollPane.contentHeight;//这个标志表示当前需要滚动到最末，无论内容变化大小
 			
 			//寻找当前位置的第一条项目
 			GList.pos_param = pos;
 			var newFirstIndex:int = getIndexOnPos1(forceUpdate);
 			pos = GList.pos_param;
 			if (newFirstIndex == _firstIndex && !forceUpdate)
-			{
-				enterCounter--;
 				return;
-			}
 			
 			var oldFirstIndex:int = _firstIndex;
 			_firstIndex = newFirstIndex;
@@ -1558,7 +1534,7 @@ package fairygui {
 			var url:String = defaultItem;
 			var ii:ItemInfo, ii2:ItemInfo;
 			var i:int,j:int;
-			var partSize:int = (scrollPane.viewWidth - _columnGap * (_curLineItemCount - 1)) / _curLineItemCount;
+			var partSize:int = (_scrollPane.viewWidth - _columnGap * (_curLineItemCount - 1)) / _curLineItemCount;
 
 			itemInfoVer++;
 			
@@ -1694,30 +1670,28 @@ package fairygui {
 			
 			if (curIndex > 0 && this.numChildren > 0 && _container.y < 0 && getChildAt(0).y > -_container.y)//最后一页没填满！
 				handleScroll1(false);
-			
-			enterCounter--;
 		}
 		
 		private function handleScroll2(forceUpdate:Boolean):void
 		{
 			enterCounter++;
 			if (enterCounter > 3)
+			{
+				trace("FairyGUI: list will never be filled as the item renderer function always returns a different size.");
 				return;
+			}
 			
-			var pos:Number = scrollPane.scrollingPosX;
-			var max:Number = pos + scrollPane.viewWidth;
-			var end:Boolean = pos == scrollPane.contentWidth;//这个标志表示当前需要滚动到最末，无论内容变化大小
+			var pos:Number = _scrollPane.scrollingPosX;
+			var max:Number = pos + _scrollPane.viewWidth;
+			var end:Boolean = pos == _scrollPane.contentWidth;//这个标志表示当前需要滚动到最末，无论内容变化大小
 			
 			//寻找当前位置的第一条项目
 			GList.pos_param = pos;
 			var newFirstIndex:int = getIndexOnPos2(forceUpdate);
 			pos = GList.pos_param;
 			if (newFirstIndex == _firstIndex && !forceUpdate)
-			{
-				enterCounter--;
 				return;
-			}
-			
+
 			var oldFirstIndex:int = _firstIndex;
 			_firstIndex = newFirstIndex;
 			var curIndex:int = newFirstIndex;
@@ -1732,7 +1706,7 @@ package fairygui {
 			var url:String = defaultItem;
 			var ii:ItemInfo, ii2:ItemInfo;
 			var i:int,j:int;
-			var partSize:int = (scrollPane.viewHeight - _lineGap * (_curLineItemCount - 1)) / _curLineItemCount;
+			var partSize:int = (_scrollPane.viewHeight - _lineGap * (_curLineItemCount - 1)) / _curLineItemCount;
 
 			itemInfoVer++;
 			
@@ -1867,13 +1841,11 @@ package fairygui {
 			
 			if (curIndex > 0 && this.numChildren > 0 && _container.x < 0 && getChildAt(0).x > - _container.x)//最后一页没填满！
 				handleScroll2(false);
-			
-			enterCounter--;
 		}
 		
 		private function handleScroll3(forceUpdate:Boolean):void
 		{
-			var pos:Number = scrollPane.scrollingPosX;
+			var pos:Number = _scrollPane.scrollingPosX;
 			
 			//寻找当前位置的第一条项目
 			GList.pos_param = pos;
@@ -1900,8 +1872,8 @@ package fairygui {
 			var ii:ItemInfo, ii2:ItemInfo;
 			var col:int;
 			var url:String = _defaultItem;
-			var partWidth:int = (scrollPane.viewWidth - _columnGap * (_curLineItemCount - 1)) / _curLineItemCount;
-			var partHeight:int = (scrollPane.viewHeight - _lineGap * (_curLineItemCount2 - 1)) / _curLineItemCount2;
+			var partWidth:int = (_scrollPane.viewWidth - _columnGap * (_curLineItemCount - 1)) / _curLineItemCount;
+			var partHeight:int = (_scrollPane.viewHeight - _lineGap * (_curLineItemCount2 - 1)) / _curLineItemCount2;
 			
 			itemInfoVer++;
 			
@@ -2054,6 +2026,58 @@ package fairygui {
 			}
 		}
 		
+		private function handleArchOrder1():void
+		{
+			if (this.childrenRenderOrder == ChildrenRenderOrder.Arch)
+			{
+				var mid:Number = _scrollPane.posY + this.viewHeight / 2;
+				var minDist:Number = Number.POSITIVE_INFINITY;
+				var dist:Number = 0;
+				var apexIndex:int = 0;
+				var cnt:int = this.numChildren;
+				for (var i:int = 0; i < cnt; i++)
+				{
+					var obj:GObject = getChildAt(i);
+					if (!foldInvisibleItems || obj.visible)
+					{
+						dist = Math.abs(mid - obj.y - obj.height / 2);
+						if (dist < minDist)
+						{
+							minDist = dist;
+							apexIndex = i;
+						}
+					}
+				}
+				this.apexIndex = apexIndex;
+			}
+		}
+		
+		private function handleArchOrder2():void
+		{
+			if (this.childrenRenderOrder == ChildrenRenderOrder.Arch)
+			{
+				var mid:Number = _scrollPane.posX + this.viewWidth / 2;
+				var minDist:Number = Number.POSITIVE_INFINITY;
+				var dist:Number = 0;
+				var apexIndex:int = 0;
+				var cnt:int = this.numChildren;
+				for (var i:int = 0; i < cnt; i++)
+				{
+					var obj:GObject = getChildAt(i);
+					if (!foldInvisibleItems || obj.visible)
+					{
+						dist = Math.abs(mid - obj.x - obj.width / 2);
+						if (dist < minDist)
+						{
+							minDist = dist;
+							apexIndex = i;
+						}
+					}
+				}
+				this.apexIndex = apexIndex;
+			}
+		}
+
 		private function handleAlign(contentWidth:Number, contentHeight:Number):void
 		{
 			var newOffsetX:Number = 0;
@@ -2078,8 +2102,8 @@ package fairygui {
 			if (newOffsetX!=_alignOffset.x || newOffsetY!=_alignOffset.y)
 			{
 				_alignOffset.setTo(newOffsetX, newOffsetY);
-				if (scrollPane != null)
-					scrollPane.adjustMaskContainer();
+				if (_scrollPane != null)
+					_scrollPane.adjustMaskContainer();
 				else
 					_container.pos(_margin.left + _alignOffset.x, _margin.top + _alignOffset.y);
 			}
@@ -2479,7 +2503,18 @@ package fairygui {
 					hzScrollBarRes = arr[1];
 				}
 				
-				this.setupScroll(scrollBarMargin,scroll,scrollBarDisplay,scrollBarFlags,vtScrollBarRes,hzScrollBarRes);
+				var headerRes:String;
+				var footerRes:String;
+				str = xml.@ptrRes;
+				if(str)
+				{
+					arr = str.split(",");
+					headerRes = arr[0];
+					footerRes = arr[1];
+				}
+				
+				this.setupScroll(scrollBarMargin,scroll,scrollBarDisplay,scrollBarFlags,
+					vtScrollBarRes,hzScrollBarRes, headerRes, footerRes);
 			}
 			else
 				this.setupOverflow(overflow);
@@ -2556,6 +2591,9 @@ package fairygui {
 					str = cxml.getAttribute("name");
 					if(str)
 						obj.name = str;
+					str = cxml.getAttribute("selectedIcon");
+					if(str && (obj is GButton))
+						GButton(obj).selectedIcon = str;
 				}
 			}
 		}

@@ -6,7 +6,7 @@ package fairygui {
 		}
 		
 		//Default font name
-		public static var defaultFont: String = "宋体";
+		public static var defaultFont: String = "SimSun";
 		
 		//Resource using in Window.ShowModalWait for locking the window.
 		public static var windowModalWaiting: String;
@@ -24,9 +24,10 @@ package fairygui {
 		public static var horizontalScrollBar: String;
 		public static var verticalScrollBar: String;
 		//Scrolling step in pixels
-		public static var defaultScrollSpeed: Number = 25;
-		// Speed ratio of scrollpane when its touch dragging.
-		public static var defaultTouchScrollSpeedRatio:Number = 1;
+		public static var defaultScrollStep:int = 25;
+		//Deceleration ratio of scrollpane when its in touch dragging.
+		public static var defaultScrollDecelerationRate:Number = 0.967;
+
 		//Default scrollbar display mode. Recommened visible for Desktop and Auto for mobile.
 		public static var defaultScrollBarDisplay: Number = ScrollBarDisplayType.Visible;
 		//Allow dragging the content to scroll. Recommeded true for mobile.
@@ -59,5 +60,9 @@ package fairygui {
 		public static var bringWindowToFrontOnClick:Boolean = true;
 		
 		public static var frameTimeForAsyncUIConstruction:int = 2;
+		
+		public static var textureLinearSampling:Boolean = true; 
+		
+		public static var packageFileExtension:String = "fui";
 	}
 }

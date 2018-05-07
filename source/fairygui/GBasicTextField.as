@@ -183,6 +183,7 @@ package fairygui {
 		
 		override public function set singleLine(value: Boolean):void {
 			this._singleLine = value;
+			this.textField.wordWrap = !this._widthAutoSize && !this._singleLine;
 		}
 		
 		override public function get stroke(): Number {
@@ -225,7 +226,7 @@ package fairygui {
 			this.textField.overflow = Text.VISIBLE;
 			else
 			this.textField.overflow = Text.HIDDEN;*/
-			this.textField.wordWrap = !this._widthAutoSize;
+			this.textField.wordWrap = !this._widthAutoSize && !this._singleLine;
 			if(!this._underConstruct)
 			{
 				if(!this._heightAutoSize)

@@ -398,10 +398,8 @@ package fairygui
 			_updating &= 1;
 		}
 		
-		override protected function updateAlpha():void
+		override protected function handleAlphaChanged():void
 		{
-			super.updateAlpha();
-			
 			if(this._underConstruct)
 				return;
 			
@@ -411,6 +409,20 @@ package fairygui
 				var child:GObject = _parent.getChildAt(i);
 				if(child.group==this)
 					child.alpha = this.alpha;
+			}
+		}
+		
+		override public function handleVisibleChanged():void
+		{
+			if(!_parent)
+				return;
+			
+			var cnt:int = _parent.numChildren;
+			for(var i:int =0;i<cnt;i++)
+			{
+				var child:GObject = _parent.getChildAt(i);
+				if(child.group==this)
+					child.handleVisibleChanged();
 			}
 		}
 		
@@ -431,6 +443,14 @@ package fairygui
 				if(str)
 					_columnGap = parseInt(str);
 			}
+		}
+		
+		override public function setup_afterAdd(xml:Object):void
+		{
+			super.setup_afterAdd(xml);
+			
+			if(!this.visible)
+				handleVisibleChanged();
 		}
 	}
 }

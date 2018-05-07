@@ -432,16 +432,10 @@ package fairygui {
 		public function set alpha(value: Number):void {
 			if(this._alpha!=value) {
 				this._alpha = value;
-				this.updateAlpha();
+				this.handleAlphaChanged();
+				this.updateGear(3);
 			}
-		}
-		
-		protected function updateAlpha():void {
-			if(this._displayObject)
-				this._displayObject.alpha = this._alpha;
-			
-			this.updateGear(3);
-		}
+		}		
 		
 		public function get visible(): Boolean {
 			return this._visible;
@@ -450,19 +444,19 @@ package fairygui {
 		public function set visible(value: Boolean):void {
 			if (this._visible != value) {
 				this._visible = value;
-				if (this._displayObject)
-					this._displayObject.visible = this._visible;
+				handleVisibleChanged();
 				if (this._parent)
-				{
-					this._parent.childStateChanged(this);
 					this._parent.setBoundsChangedFlag();
-				}
 			}
 		}
 		
-		public function get finalVisible(): Boolean {
-			return this._visible && this._internalVisible && (!this._group || this._group.finalVisible)
+		public function get internalVisible(): Boolean {
+			return this._internalVisible && (!this._group || this._group.internalVisible)
 				&& !this._displayObject._$P["maskParent"];
+		}
+		
+		public function get internalVisible2(): Boolean {
+			return this._visible && (!this._group || this._group.internalVisible2);
 		}
 		
 		public function get sortingOrder(): Number {
@@ -505,7 +499,36 @@ package fairygui {
 		}
 		
 		public function set tooltips(value: String):void {
-			this._tooltips = value;
+			if(_tooltips)
+			{
+				this.off(Event.ROLL_OVER, this, this.__rollOver);
+				this.off(Event.ROLL_OUT, this, this.__rollOut);
+			}
+			
+			_tooltips = value;
+			if(_tooltips)
+			{
+				this.on(Event.ROLL_OVER, this, this.__rollOver);
+				this.on(Event.ROLL_OUT, this, this.__rollOut);
+			}
+		}
+		
+		private function __rollOver(evt:Event):void
+		{
+			Laya.timer.once(100, this, this.__doShowTooltips);
+		}
+		
+		private function __doShowTooltips():void
+		{
+			var r:GRoot = this.root;
+			if(r)
+				this.root.showTooltips(_tooltips);
+		}
+		
+		private function __rollOut(evt:Event):void
+		{		
+			Laya.timer.clear(this, this.__doShowTooltips);
+			this.root.hideTooltips();
 		}
 		
 		public function get blendMode():String
@@ -1006,6 +1029,16 @@ package fairygui {
 			}
 		}
 		
+		protected function handleAlphaChanged():void {
+			if(this._displayObject)
+				this._displayObject.alpha = this._alpha;
+		}
+		
+		public function handleVisibleChanged():void {
+			if(this._displayObject)
+				this._displayObject.visible = this.internalVisible2;
+		}
+		
 		public function constructFromResource(): void {
 			
 		}
@@ -1078,13 +1111,13 @@ package fairygui {
 			if (str)
 				this.blendMode = str;
 			
-			str = xml.@filter;
+			str = xml.getAttribute("filter");
 			if (str)
 			{
 				switch (str)
 				{
 					case "color":
-						str = xml.@filterData;
+						str = xml.getAttribute("filterData");
 						arr = str.split(",");
 						var cm:ColorMatrix = new ColorMatrix();
 						cm.adjustBrightness(parseFloat(arr[0]));
@@ -1096,6 +1129,10 @@ package fairygui {
 						break;
 				}
 			}
+			
+			str = xml.getAttribute("customData");
+			if (str)
+				this.data = str;
 		}
 		
 		private static var GearXMLKeys:Object = {

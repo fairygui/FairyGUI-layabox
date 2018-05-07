@@ -1,4 +1,6 @@
 package fairygui {
+	import fairygui.utils.ToolSet;
+	
 	import laya.display.Node;
 	import laya.display.Sprite;
 	import laya.events.Event;
@@ -154,6 +156,23 @@ package fairygui {
 				}
 			}
 			this._popupStack.push(popup);
+			
+			if (target != null)
+			{
+				var p:GObject = target;
+				while (p != null)
+				{
+					if (p.parent == this)
+					{
+						if (popup.sortingOrder < p.sortingOrder)
+						{
+							popup.sortingOrder = p.sortingOrder;
+						}
+						break;
+					}
+					p = p.parent;
+				}
+			}
 			
 			this.addChild(popup);
 			this.adjustModalLayer();
@@ -320,6 +339,9 @@ package fairygui {
 		}
 		
 		public function playOneShotSound(url:String, volumeScale: Number = 1):void {
+			if(ToolSet.startsWith(url,"ui://"))
+				return;
+			
 			SoundManager.playSound(url);
 		}
 		
