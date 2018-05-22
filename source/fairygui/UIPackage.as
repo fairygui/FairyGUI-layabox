@@ -195,7 +195,11 @@ package fairygui {
 			var arr: Array;
 			
 			if(!descData)
+			{
 				descData = AssetProxy.inst.getRes(this._resKey+"."+fairygui.UIConfig.packageFileExtension);
+				if(!descData)
+					throw new Error("package resource not ready: " + this._resKey);
+			}
 			
 			this.decompressPackage(descData);
 			

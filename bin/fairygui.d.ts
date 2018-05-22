@@ -629,14 +629,14 @@ declare module fairygui {
         _id: string;
         _name: string;
         _underConstruct: boolean;
-        _ructingData: Object;
-        _gearLocked: boolean;
         static _gInstanceCounter: number;
         constructor();
         id: string;
         name: string;
         x: number;
         y: number;
+        minX: number;
+        minY: number;
         pixelSnapping: boolean;
         setXY(xv: number, yv: number): void;
         center(restraint?: boolean): void;
@@ -662,6 +662,7 @@ declare module fairygui {
         setSkew(sx: number, sy: number): void;
         pivotX: number;
         pivotY: number;
+        pivotAsAnchor: boolean;
         setPivot(xv: number, yv?: number, asAnchor?: boolean): void;
         touchable: boolean;
         grayed: boolean;
@@ -1064,7 +1065,6 @@ declare module fairygui {
         clearAll(): void;
         copyFrom(source: Relations): void;
         dispose(): void;
-        onOwnerSizeChanged(dWidth: number, dHeight: number): void;
         ensureRelationsSizeCorrect(): void;
         empty: boolean;
         setup(xml: Object): void;

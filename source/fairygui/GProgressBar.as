@@ -99,7 +99,7 @@ package fairygui {
 		}
 		
 		public function update(newValue:Number): void {
-			var percent: Number = Math.min(newValue / this._max,1);
+			var percent: Number = _max!=0?Math.min(newValue / this._max,1):0;
 			if(this._titleObject) {
 				switch(this._titleType) {
 					case ProgressTitleType.Percent:

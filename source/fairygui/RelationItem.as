@@ -1,55 +1,62 @@
-package fairygui {
-	
-	public class RelationItem {
-		private var _owner: GObject;
-		private var _target: GObject;
-		private var _defs: Vector.<RelationDef>;
-		private var _targetX: Number;
-		private var _targetY: Number;
-		private var _targetWidth: Number;
-		private var _targetHeight: Number;		
+package fairygui
+{
+	public class RelationItem
+	{
+		private var _owner:GObject;
+		private var _target:GObject;
+		private var _defs:Vector.<RelationDef>;
+		private var _targetX:Number;
+		private var _targetY:Number;
+		private var _targetWidth:Number;
+		private var _targetHeight:Number;
 		
-		public function RelationItem(owner: GObject) {
-			this._owner = owner;
-			this._defs = new Vector.<RelationDef>();
+		public function RelationItem(owner:GObject)
+		{
+			_owner = owner;
+			_defs =  new Vector.<RelationDef>();
 		}
 		
-		public function get owner(): GObject {
-			return this._owner;
+		final public function get owner():GObject
+		{
+			return _owner;
 		}
 		
-		public function set target(value: GObject):void {
-			if (this._target != value) {
-				if (this._target)
-					this.releaseRefTarget(this._target);
-				this._target = value;
-				if (this._target)
-					this.addRefTarget(this._target);
+		public function set target(value:GObject):void
+		{
+			if(_target!=value)
+			{
+				if(_target)
+					releaseRefTarget(_target);
+				_target = value;
+				if(_target)
+					addRefTarget(_target);
 			}
 		}
 		
-		public function get target(): GObject {
-			return this._target;
+		final public function get target():GObject
+		{
+			return _target;
 		}
 		
-		public function add(relationType: Number, usePercent: Boolean): void {
-			if (relationType == RelationType.Size) {
-				this.add(RelationType.Width, usePercent);
-				this.add(RelationType.Height, usePercent);
+		public function add(relationType:int, usePercent:Boolean):void
+		{
+			if (relationType == RelationType.Size)
+			{
+				add(RelationType.Width, usePercent);
+				add(RelationType.Height, usePercent);
 				return;
 			}
 			
-			var length: Number = this._defs.length;
-			for (var i: Number = 0; i < length; i++) {
-				var def: RelationDef = this._defs[i];
+			for each (var def:RelationDef in _defs)
+			{
 				if (def.type == relationType)
 					return;
 			}
 			
-			this.internalAdd(relationType, usePercent);
+			internalAdd(relationType, usePercent);
 		}
 		
-		public function internalAdd(relationType:Number, usePercent:Boolean):void
+		public function internalAdd(relationType:int, usePercent:Boolean):void
 		{
 			if (relationType == RelationType.Size)
 			{
@@ -61,6 +68,7 @@ package fairygui {
 			var info:RelationDef = new RelationDef();
 			info.percent = usePercent;
 			info.type = relationType;
+			info.axis = (relationType <= RelationType.Right_Right || relationType == RelationType.Width || relationType >= RelationType.LeftExt_Left && relationType <= RelationType.RightExt_Right) ? 0 : 1;
 			_defs.push(info);
 			
 			//当使用中线关联时，因为需要除以2，很容易因为奇数宽度/高度造成小数点坐标；当使用百分比时，也会造成小数坐标；
@@ -70,94 +78,111 @@ package fairygui {
 				_owner.pixelSnapping = true;
 		}
 		
-		public function remove(relationType: Number = 0): void {
-			if (relationType == RelationType.Size) {
-				this.remove(RelationType.Width);
-				this.remove(RelationType.Height);
+		public function remove(relationType:int):void
+		{
+			if (relationType == RelationType.Size)
+			{
+				remove(RelationType.Width);
+				remove(RelationType.Height);
 				return;
 			}
 			
-			var dc: Number = this._defs.length;
-			for (var k: Number = 0; k < dc; k++) {
-				if (this._defs[k].type == relationType) {
-					this._defs.splice(k, 1);
+			var dc:int = _defs.length;
+			for (var k:int = 0; k < dc; k++)
+			{
+				if (_defs[k].type == relationType)
+				{
+					_defs.splice(k, 1);
 					break;
 				}
 			}
 		}
 		
-		public function copyFrom(source: RelationItem): void {
+		public function copyFrom(source:RelationItem):void
+		{
 			this.target = source.target;
 			
-			this._defs.length = 0;
-			var length: Number = source._defs.length;
-			for (var i: Number = 0; i < length; i++) {
-				var info: RelationDef = source._defs[i];
-				var info2: RelationDef = new RelationDef();
+			_defs.length = 0;
+			for each (var info:RelationDef in source._defs)
+			{
+				var info2:RelationDef = new RelationDef();
 				info2.copyFrom(info);
-				this._defs.push(info2);
+				_defs.push(info2);
 			}
 		}
 		
-		public function dispose(): void {
-			if (this._target != null) {
-				this.releaseRefTarget(this._target);
-				this._target = null;
+		public function dispose():void
+		{
+			if (_target != null)
+			{
+				releaseRefTarget(_target);
+				_target = null;
 			}
 		}
 		
-		public function get isEmpty(): Boolean {
-			return this._defs.length == 0;
+		final public function get isEmpty():Boolean
+		{
+			return _defs.length == 0;
 		}
 		
-		public function applyOnSelfResized(dWidth: Number, dHeight: Number): void {
-			var ox: Number = this._owner.x;
-			var oy: Number = this._owner.y;
+		public function applyOnSelfResized(dWidth:Number, dHeight:Number, applyPivot:Boolean):void
+		{
+			var cnt:int = _defs.length;
+			if(cnt==0)
+				return;
 			
-			var length: Number = this._defs.length;
-			for (var i: Number = 0; i < length; i++) {
-				var info: RelationDef = this._defs[i];
-				switch (info.type) {
+			var ox:Number = _owner.x;
+			var oy:Number = _owner.y;
+			
+			for (var i:int = 0; i < cnt; i++)
+			{
+				var info:RelationDef = _defs[i];
+				switch (info.type)
+				{
 					case RelationType.Center_Center:
-					case RelationType.Right_Center:
-						this._owner.x -= dWidth / 2;
+						_owner.x -= (0.5 - (applyPivot ? _owner.pivotX : 0)) * dWidth;
 						break;
 					
+					case RelationType.Right_Center:
 					case RelationType.Right_Left:
 					case RelationType.Right_Right:
-						this._owner.x -= dWidth;
+						_owner.x -= (1 - (applyPivot ? _owner.pivotX : 0)) * dWidth;
 						break;
 					
 					case RelationType.Middle_Middle:
-					case RelationType.Bottom_Middle:
-						this._owner.y -= dHeight / 2;
+						_owner.y -= (0.5 - (applyPivot ? _owner.pivotY : 0)) * dHeight;
 						break;
+					
+					case RelationType.Bottom_Middle:
 					case RelationType.Bottom_Top:
 					case RelationType.Bottom_Bottom:
-						this._owner.y -= dHeight;
+						_owner.y -= (1 - (applyPivot ? _owner.pivotY : 0)) * dHeight;
 						break;
 				}
 			}
 			
-			if (ox != this._owner.x || oy != this._owner.y) {
-				ox = this._owner.x - ox;
-				oy = this._owner.y - oy;
+			if (ox!=_owner.x || oy!=_owner.y)
+			{
+				ox = _owner.x - ox;
+				oy = _owner.y - oy;
 				
-				this._owner.updateGearFromRelations(1, ox, oy);
+				_owner.updateGearFromRelations(1, ox, oy);
 				
-				if(this._owner.parent != null) {
-					var len: Number = this._owner.parent._transitions.length;
-					if(len > 0) {
-						for(i = 0;i < len;++i) {
-							this._owner.parent._transitions[i].updateFromRelations(this._owner.id,ox,oy);
-						}
+				if (_owner.parent != null && _owner.parent._transitions.length > 0)
+				{
+					for each (var trans:Transition in _owner.parent._transitions)
+					{
+						trans.updateFromRelations(_owner.id, ox, oy);
 					}
 				}
 			}
 		}
 		
-		private function applyOnXYChanged(info: RelationDef, dx: Number, dy: Number): void {
-			switch (info.type) {
+		private function applyOnXYChanged(info:RelationDef, dx:Number, dy:Number):void
+		{
+			var tmp:Number;
+			switch (info.type)
+			{
 				case RelationType.Left_Left:
 				case RelationType.Left_Center:
 				case RelationType.Left_Right:
@@ -165,7 +190,7 @@ package fairygui {
 				case RelationType.Right_Left:
 				case RelationType.Right_Center:
 				case RelationType.Right_Right:
-					this._owner.x += dx;
+					_owner.x += dx;
 					break;
 				
 				case RelationType.Top_Top:
@@ -175,7 +200,7 @@ package fairygui {
 				case RelationType.Bottom_Top:
 				case RelationType.Bottom_Middle:
 				case RelationType.Bottom_Bottom:
-					this._owner.y += dy;
+					_owner.y += dy;
 					break;
 				
 				case RelationType.Width:
@@ -184,331 +209,465 @@ package fairygui {
 				
 				case RelationType.LeftExt_Left:
 				case RelationType.LeftExt_Right:
-					this._owner.x += dx;
-					this._owner.width = this._owner._rawWidth - dx;
+					tmp = _owner.xMin;
+					_owner.width = _owner._rawWidth - dx;
+					_owner.xMin = tmp + dx;
 					break;
 				
 				case RelationType.RightExt_Left:
 				case RelationType.RightExt_Right:
-					this._owner.width = this._owner._rawWidth + dx;
+					tmp = _owner.xMin;
+					_owner.width = _owner._rawWidth + dx;
+					_owner.xMin = tmp;
 					break;
 				
 				case RelationType.TopExt_Top:
 				case RelationType.TopExt_Bottom:
-					this._owner.y += dy;
-					this._owner.height = this._owner._rawHeight - dy;
+					tmp = _owner.yMin;
+					_owner.height = _owner._rawHeight - dy;
+					_owner.yMin = tmp + dy;
 					break;
 				
 				case RelationType.BottomExt_Top:
 				case RelationType.BottomExt_Bottom:
-					this._owner.height = this._owner._rawHeight + dy;
+					tmp = _owner.yMin;
+					_owner.height = _owner._rawHeight + dy;
+					_owner.yMin = tmp;
 					break;
 			}
 		}
 		
-		private function applyOnSizeChanged(info: RelationDef): void {
-			var targetX: Number, targetY: Number;
-			if (this._target != this._owner.parent) {
-				targetX = this._target.x;
-				targetY = this._target.y;
-			}
-			else {
-				targetX = 0;
-				targetY = 0;
-			}
-			var v: Number, tmp: Number;
+		private function applyOnSizeChanged(info:RelationDef):void
+		{
+			var pos:Number = 0, pivot:Number = 0, delta:Number = 0;
+			var v:Number, tmp:Number;
 			
-			switch (info.type) {
+			if (info.axis == 0)
+			{
+				if (_target != _owner.parent)
+				{
+					pos = _target.x;
+					if (_target.pivotAsAnchor)
+						pivot = _target.pivotX;
+				}
+				
+				if (info.percent)
+				{
+					if (_targetWidth != 0)
+						delta = _target._width / _targetWidth;
+				}
+				else
+					delta = _target._width - _targetWidth;
+			}
+			else
+			{
+				if (_target != _owner.parent)
+				{
+					pos = _target.y;
+					if (_target.pivotAsAnchor)
+						pivot = _target.pivotY;
+				}
+				
+				if (info.percent)
+				{
+					if (_targetHeight != 0)
+						delta = _target._height / _targetHeight;
+				}
+				else
+					delta = _target._height - _targetHeight;
+			}
+			
+			switch (info.type)
+			{
 				case RelationType.Left_Left:
-					if(info.percent && _target==_owner.parent)
-					{
-						v = _owner.x - targetX;
-						if (info.percent)
-							v = v / _targetWidth * _target._width;
-						_owner.x = targetX + v;
-					}
+					if (info.percent)
+						_owner.xMin = pos + (_owner.xMin - pos) * delta;
+					else if (pivot != 0)
+						_owner.x += delta * (-pivot);
 					break;
 				case RelationType.Left_Center:
-					v = this._owner.x - (targetX + this._targetWidth / 2);
 					if (info.percent)
-						v = v / this._targetWidth * this._target._width;
-					this._owner.x = targetX + this._target._width / 2 + v;
+						_owner.xMin = pos + (_owner.xMin - pos) * delta;
+					else
+						_owner.x += delta * (0.5 - pivot);
 					break;
 				case RelationType.Left_Right:
-					v = this._owner.x - (targetX + this._targetWidth);
 					if (info.percent)
-						v = v / this._targetWidth * this._target._width;
-					this._owner.x = targetX + this._target._width + v;
+						_owner.xMin = pos + (_owner.xMin - pos) * delta;
+					else
+						_owner.x += delta * (1 - pivot);
 					break;
 				case RelationType.Center_Center:
-					v = this._owner.x + this._owner._rawWidth / 2 - (targetX + this._targetWidth / 2);
 					if (info.percent)
-						v = v / this._targetWidth * this._target._width;
-					this._owner.x = targetX + this._target._width / 2 + v - this._owner._rawWidth / 2;
+						_owner.xMin = pos + (_owner.xMin + _owner._rawWidth * 0.5 - pos) * delta - _owner._rawWidth * 0.5;
+					else
+						_owner.x += delta * (0.5 - pivot);
 					break;
 				case RelationType.Right_Left:
-					v = this._owner.x + this._owner._rawWidth - targetX;
 					if (info.percent)
-						v = v / this._targetWidth * this._target._width;
-					this._owner.x = targetX + v - this._owner._rawWidth;
+						_owner.xMin = pos + (_owner.xMin + _owner._rawWidth - pos) * delta - _owner._rawWidth;
+					else if (pivot != 0)
+						_owner.x += delta * (-pivot);
 					break;
 				case RelationType.Right_Center:
-					v = this._owner.x + this._owner._rawWidth - (targetX + this._targetWidth / 2);
 					if (info.percent)
-						v = v / this._targetWidth * this._target._width;
-					this._owner.x = targetX + this._target._width / 2 + v - this._owner._rawWidth;
+						_owner.xMin = pos + (_owner.xMin + _owner._rawWidth - pos) * delta - _owner._rawWidth;
+					else
+						_owner.x += delta * (0.5 - pivot);
 					break;
 				case RelationType.Right_Right:
-					v = this._owner.x + this._owner._rawWidth - (targetX + this._targetWidth);
 					if (info.percent)
-						v = v / this._targetWidth * this._target._width;
-					this._owner.x = targetX + this._target._width + v - this._owner._rawWidth;
+						_owner.xMin = pos + (_owner.xMin + _owner._rawWidth - pos) * delta - _owner._rawWidth;
+					else
+						_owner.x += delta * (1 - pivot);
 					break;
 				
 				case RelationType.Top_Top:
-					if(info.percent && _target==_owner.parent)
-					{
-						v = _owner.y - targetY;
-						if (info.percent)
-							v = v / _targetHeight * _target._height;
-						_owner.y = targetY + v;
-					}
+					if (info.percent)
+						_owner.yMin = pos + (_owner.yMin - pos) * delta;
+					else if (pivot != 0)
+						_owner.y += delta * (-pivot);
 					break;
 				case RelationType.Top_Middle:
-					v = this._owner.y - (targetY + this._targetHeight / 2);
 					if (info.percent)
-						v = v / this._targetHeight * this._target._height;
-					this._owner.y = targetY + this._target._height / 2 + v;
+						_owner.yMin = pos + (_owner.yMin - pos) * delta;
+					else
+						_owner.y += delta * (0.5 - pivot);
 					break;
 				case RelationType.Top_Bottom:
-					v = this._owner.y - (targetY + this._targetHeight);
 					if (info.percent)
-						v = v / this._targetHeight * this._target._height;
-					this._owner.y = targetY + this._target._height + v;
+						_owner.yMin = pos + (_owner.yMin - pos) * delta;
+					else
+						_owner.y += delta * (1 - pivot);
 					break;
 				case RelationType.Middle_Middle:
-					v = this._owner.y + this._owner._rawHeight / 2 - (targetY + this._targetHeight / 2);
 					if (info.percent)
-						v = v / this._targetHeight * this._target._height;
-					this._owner.y = targetY + this._target._height / 2 + v - this._owner._rawHeight / 2;
+						_owner.yMin = pos + (_owner.yMin + _owner._rawHeight * 0.5 - pos) * delta - _owner._rawHeight * 0.5;
+					else
+						_owner.y += delta * (0.5 - pivot);
 					break;
 				case RelationType.Bottom_Top:
-					v = this._owner.y + this._owner._rawHeight - targetY;
 					if (info.percent)
-						v = v / this._targetHeight * this._target._height;
-					this._owner.y = targetY + v - this._owner._rawHeight;
+						_owner.yMin = pos + (_owner.yMin + _owner._rawHeight - pos) * delta - _owner._rawHeight;
+					else if (pivot != 0)
+						_owner.y += delta * (-pivot);
 					break;
 				case RelationType.Bottom_Middle:
-					v = this._owner.y + this._owner._rawHeight - (targetY + this._targetHeight / 2);
 					if (info.percent)
-						v = v / this._targetHeight * this._target._height;
-					this._owner.y = targetY + this._target._height / 2 + v - this._owner._rawHeight;
+						_owner.yMin = pos + (_owner.yMin + _owner._rawHeight - pos) * delta - _owner._rawHeight;
+					else
+						_owner.y += delta * (0.5 - pivot);
 					break;
 				case RelationType.Bottom_Bottom:
-					v = this._owner.y + this._owner._rawHeight - (targetY + this._targetHeight);
 					if (info.percent)
-						v = v / this._targetHeight * this._target._height;
-					this._owner.y = targetY + this._target._height + v - this._owner._rawHeight;
+						_owner.yMin = pos + (_owner.yMin + _owner._rawHeight - pos) * delta - _owner._rawHeight;
+					else
+						_owner.y += delta * (1 - pivot);
 					break;
 				
 				case RelationType.Width:
-					if(this._owner._underConstruct && this._owner==this._target.parent)
-						v = this._owner.sourceWidth - this._target.initWidth;
+					if (_owner._underConstruct && _owner == _target.parent)
+						v = _owner.sourceWidth - _target.initWidth;
 					else
-						v = this._owner._rawWidth - this._targetWidth;
+						v = _owner._rawWidth - _targetWidth;
 					if (info.percent)
-						v = v / this._targetWidth * this._target._width;
-					if(this._target == this._owner.parent)
-						this._owner.setSize(this._target._width + v,this._owner._rawHeight,true);
+						v = v * delta;
+					if (_target == _owner.parent)
+					{
+						if (_owner.pivotAsAnchor)
+						{
+							tmp = _owner.xMin;
+							_owner.setSize(_target._width + v, _owner._rawHeight, true);
+							_owner.xMin = tmp;
+						}
+						else
+							_owner.setSize(_target._width + v, _owner._rawHeight, true);
+					}
 					else
-						this._owner.width = this._target._width + v;
+						_owner.width = _target._width + v;
 					break;
 				case RelationType.Height:
-					if(this._owner._underConstruct && this._owner==this._target.parent)
-						v = this._owner.sourceHeight - this._target.initHeight;
+					if (_owner._underConstruct && _owner == _target.parent)
+						v = _owner.sourceHeight - _target.initHeight;
 					else
-						v = this._owner._rawHeight - this._targetHeight;
+						v = _owner._rawHeight - _targetHeight;
 					if (info.percent)
-						v = v / this._targetHeight * this._target._height;
-					if(this._target == this._owner.parent)
-						this._owner.setSize(this._owner._rawWidth,this._target._height + v,true);
+						v = v * delta;
+					if (_target == _owner.parent)
+					{
+						if (_owner.pivotAsAnchor)
+						{
+							tmp = _owner.yMin;
+							_owner.setSize(_owner._rawWidth, _target._height + v, true);
+							_owner.yMin = tmp;
+						}
+						else
+							_owner.setSize(_owner._rawWidth, _target._height + v, true);
+					}
 					else
-						this._owner.height = this._target._height + v;
+						_owner.height = _target._height + v;
 					break;
 				
 				case RelationType.LeftExt_Left:
+					tmp = _owner.xMin;
+					if (info.percent)
+						v = pos + (tmp - pos) * delta - tmp;
+					else
+						v = delta * (-pivot);
+					_owner.width = _owner._rawWidth - v;
+					_owner.xMin = tmp + v;
 					break;
 				case RelationType.LeftExt_Right:
-					v = this._owner.x - (targetX + this._targetWidth);
+					tmp = _owner.xMin;
 					if (info.percent)
-						v = v / this._targetWidth * this._target._width;
-					tmp = this._owner.x;
-					this._owner.x = targetX + this._target._width + v;
-					this._owner.width = this._owner._rawWidth - (this._owner.x - tmp);
+						v = pos + (tmp - pos) * delta - tmp;
+					else
+						v = delta * (1 - pivot);
+					_owner.width = _owner._rawWidth - v;
+					_owner.xMin = tmp + v;
 					break;
 				case RelationType.RightExt_Left:
+					tmp = _owner.xMin;
+					if (info.percent)
+						v = pos + (tmp + _owner._rawWidth - pos) * delta - (tmp + _owner._rawWidth);
+					else
+						v = delta * (-pivot);
+					_owner.width = _owner._rawWidth + v;
+					_owner.xMin = tmp;
 					break;
 				case RelationType.RightExt_Right:
-					if(this._owner._underConstruct && this._owner==this._target.parent)
-						v = this._owner.sourceWidth - (targetX + this._target.initWidth);
-					else
-						v = this._owner.width - (targetX + this._targetWidth);
-					if (this._owner != this._target.parent)
-						v += this._owner.x;
+					tmp = _owner.xMin;
 					if (info.percent)
-						v = v / this._targetWidth * this._target._width;
-					if (this._owner != this._target.parent)
-						this._owner.width = targetX + this._target._width + v - this._owner.x;
+					{
+						if (_owner == _target.parent)
+						{
+							if (_owner._underConstruct)
+								_owner.width = pos + _target._width - _target._width * pivot +
+									(_owner.sourceWidth - pos - _target.initWidth + _target.initWidth * pivot) * delta;
+							else
+								_owner.width = pos + (_owner._rawWidth - pos) * delta;
+						}
+						else
+						{
+							v = pos + (tmp + _owner._rawWidth - pos) * delta - (tmp + _owner._rawWidth);
+							_owner.width = _owner._rawWidth + v;
+							_owner.xMin = tmp;
+						}
+					}
 					else
-						this._owner.width = targetX + this._target._width + v;
+					{
+						if (_owner == _target.parent)
+						{
+							if (_owner._underConstruct)
+								_owner.width = _owner.sourceWidth + (_target._width - _target.initWidth) * (1 - pivot);
+							else
+								_owner.width = _owner._rawWidth + delta * (1 - pivot);
+						}
+						else
+						{
+							v = delta * (1 - pivot);
+							_owner.width = _owner._rawWidth + v;
+							_owner.xMin = tmp;
+						}
+					}
 					break;
 				case RelationType.TopExt_Top:
+					tmp = _owner.yMin;
+					if (info.percent)
+						v = pos + (tmp - pos) * delta - tmp;
+					else
+						v = delta * (-pivot);
+					_owner.height = _owner._rawHeight - v;
+					_owner.yMin = tmp + v;
 					break;
 				case RelationType.TopExt_Bottom:
-					v = this._owner.y - (targetY + this._targetHeight);
+					tmp = _owner.yMin;
 					if (info.percent)
-						v = v / this._targetHeight * this._target._height;
-					tmp = this._owner.y;
-					this._owner.y = targetY + this._target._height + v;
-					this._owner.height = this._owner._rawHeight - (this._owner.y - tmp);
+						v = pos + (tmp - pos) * delta - tmp;
+					else
+						v = delta * (1 - pivot);
+					_owner.height = _owner._rawHeight - v;
+					_owner.yMin = tmp + v;
 					break;
 				case RelationType.BottomExt_Top:
+					tmp = _owner.yMin;
+					if (info.percent)
+						v = pos + (tmp + _owner._rawHeight - pos) * delta - (tmp + _owner._rawHeight);
+					else
+						v = delta * (-pivot);
+					_owner.height = _owner._rawHeight + v;
+					_owner.yMin = tmp;
 					break;
 				case RelationType.BottomExt_Bottom:
-					if(this._owner._underConstruct && this._owner==this._target.parent)
-						v = this._owner.sourceHeight - (targetY + this._target.initHeight);
-					else
-						v = this._owner._rawHeight - (targetY + this._targetHeight);
-					if (this._owner != this._target.parent)
-						v += this._owner.y;
+					tmp = _owner.yMin;
 					if (info.percent)
-						v = v / this._targetHeight * this._target._height;
-					if (this._owner != this._target.parent)
-						this._owner.height = targetY + this._target._height + v - this._owner.y;
+					{
+						if (_owner == _target.parent)
+						{
+							if (_owner._underConstruct)
+								_owner.height = pos + _target._height - _target._height * pivot +
+									(_owner.sourceHeight - pos - _target.initHeight + _target.initHeight * pivot) * delta;
+							else
+								_owner.height = pos + (_owner._rawHeight - pos) * delta;
+						}
+						else
+						{
+							v = pos + (tmp + _owner._rawHeight - pos) * delta - (tmp + _owner._rawHeight);
+							_owner.height = _owner._rawHeight + v;
+							_owner.yMin = tmp;
+						}
+					}
 					else
-						this._owner.height = targetY + this._target._height + v;
+					{
+						if (_owner == _target.parent)
+						{
+							if (_owner._underConstruct)
+								_owner.height = _owner.sourceHeight + (_target._height - _target.initHeight) * (1 - pivot);
+							else
+								_owner.height = _owner._rawHeight + delta * (1 - pivot);
+						}
+						else
+						{
+							v = delta * (1 - pivot);
+							_owner.height = _owner._rawHeight + v;
+							_owner.yMin = tmp;
+						}
+					}
 					break;
 			}
 		}
 		
-		private function addRefTarget(target: GObject): void {
+		private function addRefTarget(target:GObject):void
+		{
 			if (target != this._owner.parent)
 				target.on(Events.XY_CHANGED, this, this.__targetXYChanged);
 			target.on(Events.SIZE_CHANGED, this, this.__targetSizeChanged);
 			target.on(Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
 			
-			this._targetX = this._target.x;
-			this._targetY = this._target.y;
-			this._targetWidth = this._target._width;
-			this._targetHeight = this._target._height;
+			_targetX = _target.x;
+			_targetY = _target.y;
+			_targetWidth = _target._width;
+			_targetHeight = _target._height;
 		}
 		
-		private function releaseRefTarget(target: GObject): void {
+		private function releaseRefTarget(target:GObject):void
+		{
 			target.off(Events.XY_CHANGED, this, this.__targetXYChanged);
 			target.off(Events.SIZE_CHANGED, this, this.__targetSizeChanged);
 			target.off(Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
 		}
 		
-		private function __targetXYChanged(): void {
-			if (this._owner.relations.handling != null || this._owner.group!=null && this._owner.group._updating)
+		private function __targetXYChanged(target:GObject):void
+		{
+			if (_owner.relations.handling!=null || _owner.group!=null && _owner.group._updating)
 			{
-				this._targetX = this._target.x;
-				this._targetY = this._target.y;
+				_targetX = _target.x;
+				_targetY = _target.y;
 				return;
 			}
 			
-			this._owner.relations.handling = this._target;
+			_owner.relations.handling = target;
 			
-			var ox: Number = this._owner.x;
-			var oy: Number = this._owner.y;
-			var dx: Number = this._target.x - this._targetX;
-			var dy: Number = this._target.y - this._targetY;
-			var length: Number = this._defs.length;
-			for (var i: Number = 0; i < length; i++) {
-				var info: RelationDef = this._defs[i];
-				this.applyOnXYChanged(info, dx, dy);
+			var ox:Number = _owner.x;
+			var oy:Number = _owner.y;
+			var dx:Number = _target.x-_targetX;
+			var dy:Number = _target.y-_targetY;
+			for each(var info:RelationDef in _defs)
+			{
+				applyOnXYChanged(info, dx, dy);
 			}
-			this._targetX = this._target.x;
-			this._targetY = this._target.y;
+			_targetX = _target.x;
+			_targetY = _target.y;
 			
-			if (ox != this._owner.x || oy != this._owner.y) {
-				ox = this._owner.x - ox;
-				oy = this._owner.y - oy;
+			if (ox!=_owner.x || oy!=_owner.y)
+			{
+				ox = _owner.x - ox;
+				oy = _owner.y - oy;
 				
-				this._owner.updateGearFromRelations(1, ox, oy);
+				_owner.updateGearFromRelations(1, ox, oy);
 				
-				if(this._owner.parent != null) {
-					var len: Number = this._owner.parent._transitions.length;
-					if(len > 0) {
-						for(i = 0;i < len;++i) {
-							this._owner.parent._transitions[i].updateFromRelations(this._owner.id,ox,oy);
-						}
-					}
-				}
-			}
-			this._owner.relations.handling = null;
-		}
-		
-		private function __targetSizeChanged(): void {
-			if (this._owner.relations.handling != null)
-				return;
-			
-			this._owner.relations.handling = this._target;
-			
-			var ox: Number = this._owner.x;
-			var oy: Number = this._owner.y;
-			var ow: Number = this._owner._rawWidth;
-			var oh: Number = this._owner._rawHeight;
-			var length: Number = this._defs.length;
-			for (var i: Number = 0; i < length; i++) {
-				var info: RelationDef = this._defs[i];
-				this.applyOnSizeChanged(info);
-			}
-			this._targetWidth = this._target._width;
-			this._targetHeight = this._target._height;
-			
-			if (ox != this._owner.x || oy != this._owner.y) {
-				ox = this._owner.x - ox;
-				oy = this._owner.y - oy;
-				
-				this._owner.updateGearFromRelations(1, ox, oy);
-				
-				if(this._owner.parent != null) {
-					var len: Number = this._owner.parent._transitions.length;
-					if(len > 0) {
-						for(i = 0;i < len;++i) {
-							this._owner.parent._transitions[i].updateFromRelations(this._owner.id,ox,oy);
-						}
+				if (_owner.parent != null && _owner.parent._transitions.length > 0)
+				{
+					for each (var trans:Transition in _owner.parent._transitions)
+					{
+						trans.updateFromRelations(_owner.id, ox, oy);
 					}
 				}
 			}
 			
-			if(ow != this._owner._rawWidth || oh != this._owner._rawHeight) {
-				ow = this._owner._rawWidth - ow;
-				oh = this._owner._rawHeight - oh;
-				
-				this._owner.updateGearFromRelations(2, ow, oh);
-			}
-			
-			this._owner.relations.handling = null;
+			_owner.relations.handling = null;
 		}
 		
-		private function __targetSizeWillChange(): void {
-			this._owner.relations.sizeDirty = true;
+		private function __targetSizeChanged(target:GObject):void
+		{
+			if (_owner.relations.handling!=null)
+			{
+				_targetWidth = _target._width;
+				_targetHeight = _target._height;
+				return;
+			}
+			
+			_owner.relations.handling = target;
+			
+			var ox:Number = _owner.x;
+			var oy:Number = _owner.y;
+			var ow:Number = _owner._rawWidth;
+			var oh:Number = _owner._rawHeight;
+			for each(var info:RelationDef in _defs)
+			{
+				applyOnSizeChanged(info);
+			}
+			_targetWidth = _target._width;
+			_targetHeight = _target._height;
+			
+			if (ox!=_owner.x || oy!=_owner.y)
+			{
+				ox = _owner.x - ox;
+				oy = _owner.y - oy;
+				
+				_owner.updateGearFromRelations(1, ox, oy);
+				
+				if (_owner.parent != null && _owner.parent._transitions.length > 0)
+				{
+					for each (var trans:Transition in _owner.parent._transitions)
+					{
+						trans.updateFromRelations(_owner.id, ox, oy);
+					}
+				}
+			}
+			
+			if (ow!=_owner._rawWidth || oh!=_owner._rawHeight)
+			{
+				ow = _owner._rawWidth - ow;
+				oh = _owner._rawHeight - oh;
+				
+				_owner.updateGearFromRelations(2, ow, oh);
+			}
+			
+			_owner.relations.handling = null;
+		}
+		
+		private function __targetSizeWillChange(target:GObject):void
+		{
+			_owner.relations.sizeDirty = true;
 		}
 	}
 }
 
-
-class RelationDef {
-	public var percent: Boolean;
-	public var type: Number;
+class RelationDef
+{
+	public var percent:Boolean;
+	public var type:int;
+	public var axis:int;
 	
-	public function RelationDef() {
+	public function RelationDef()
+	{
 	}
 	
-	public function copyFrom(source: RelationDef): void {
+	public function copyFrom(source:RelationDef):void
+	{
 		this.percent = source.percent;
 		this.type = source.type;
+		this.axis = source.axis;
 	}
 }

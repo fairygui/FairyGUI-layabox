@@ -737,7 +737,7 @@ var GObject=(function(){
 				(this).resizeChildren(dWidth,dHeight);
 			this.updateGear(2);
 			if(this._parent){
-				this._relations.onOwnerSizeChanged(dWidth,dHeight);
+				this._relations.onOwnerSizeChanged(dWidth,dHeight,this._pivotAsAnchor || !ignorePivot);
 				this._parent.setBoundsChangedFlag();
 				if (this._group !=null)
 					this._group.setBoundsChangedFlag(true);
@@ -1306,8 +1306,13 @@ var GObject=(function(){
 		}
 	}
 
-	__getset(0,__proto,'actualHeight',function(){
-		return this.height *Math.abs(this._scaleY);
+	__getset(0,__proto,'yMin',function(){
+		return this._pivotAsAnchor ? (this._y-this._height *this._pivotY):this._y;
+		},function(value){
+		if (this._pivotAsAnchor)
+			this.setXY(this._x,value+this._height *this._pivotY);
+		else
+		this.setXY(this._x,value);
 	});
 
 	__getset(0,__proto,'id',function(){
@@ -1363,6 +1368,19 @@ var GObject=(function(){
 		this.setXY(this._x,value);
 	});
 
+	__getset(0,__proto,'gearXY',function(){
+		return (this.getGear(1));
+	});
+
+	__getset(0,__proto,'xMin',function(){
+		return this._pivotAsAnchor ? (this._x-this._width *this._pivotX):this._x;
+		},function(value){
+		if (this._pivotAsAnchor)
+			this.setXY(value+this._width *this._pivotX,this._y);
+		else
+		this.setXY(value,this._y);
+	});
+
 	__getset(0,__proto,'pixelSnapping',function(){
 		return this._pixelSnapping;
 		},function(value){
@@ -1389,6 +1407,10 @@ var GObject=(function(){
 		return this.width *Math.abs(this._scaleX);
 	});
 
+	__getset(0,__proto,'actualHeight',function(){
+		return this.height *Math.abs(this._scaleY);
+	});
+
 	__getset(0,__proto,'blendMode',function(){
 		return this._displayObject.blendMode;
 		},function(value){
@@ -1411,6 +1433,10 @@ var GObject=(function(){
 		return this._skewX;
 		},function(value){
 		this.setScale(value,this._skewY);
+	});
+
+	__getset(0,__proto,'pivotAsAnchor',function(){
+		return this._pivotAsAnchor;
 	});
 
 	__getset(0,__proto,'skewY',function(){
@@ -1608,10 +1634,6 @@ var GObject=(function(){
 
 	__getset(0,__proto,'onStage',function(){
 		return this._displayObject !=null && this._displayObject.stage !=null;
-	});
-
-	__getset(0,__proto,'gearXY',function(){
-		return (this.getGear(1));
 	});
 
 	__getset(0,__proto,'root',function(){
@@ -2415,10 +2437,10 @@ var RelationItem=(function(){
 			this.add(14,usePercent);
 			this.add(15,usePercent);
 			return;
-		};
-		var length=this._defs.length;
-		for (var i=0;i < length;i++){
-			var def=this._defs[i];
+		}
+		var def;
+		for(var $each_def in this._defs){
+			def=this._defs[$each_def];
 			if (def.type==relationType)
 				return;
 		}
@@ -2434,6 +2456,7 @@ var RelationItem=(function(){
 		var info=new RelationDef();
 		info.percent=usePercent;
 		info.type=relationType;
+		info.axis=(relationType <=6 || relationType==14 || relationType >=16 && relationType <=19)? 0 :1;
 		this._defs.push(info);
 		if (usePercent || relationType==1 || relationType==3 || relationType==5
 			|| relationType==8 || relationType==10 || relationType==12)
@@ -2441,7 +2464,6 @@ var RelationItem=(function(){
 	}
 
 	__proto.remove=function(relationType){
-		(relationType===void 0)&& (relationType=0);
 		if (relationType==24){
 			this.remove(14);
 			this.remove(15);
@@ -2459,9 +2481,9 @@ var RelationItem=(function(){
 	__proto.copyFrom=function(source){
 		this.target=source.target;
 		this._defs.length=0;
-		var length=source._defs.length;
-		for (var i=0;i < length;i++){
-			var info=source._defs[i];
+		var info;
+		for(var $each_info in source._defs){
+			info=source._defs[$each_info];
 			var info2=new RelationDef();
 			info2.copyFrom(info);
 			this._defs.push(info2);
@@ -2475,47 +2497,49 @@ var RelationItem=(function(){
 		}
 	}
 
-	__proto.applyOnSelfResized=function(dWidth,dHeight){
+	__proto.applyOnSelfResized=function(dWidth,dHeight,applyPivot){
+		var cnt=this._defs.length;
+		if(cnt==0)
+			return;
 		var ox=this._owner.x;
 		var oy=this._owner.y;
-		var length=this._defs.length;
-		for (var i=0;i < length;i++){
+		for (var i=0;i < cnt;i++){
 			var info=this._defs[i];
 			switch (info.type){
 				case 3:
-				case 5:
-					this._owner.x-=dWidth / 2;
+					this._owner.x-=(0.5-(applyPivot ? this._owner.pivotX :0))*dWidth;
 					break ;
+				case 5:
 				case 4:
 				case 6:
-					this._owner.x-=dWidth;
+					this._owner.x-=(1-(applyPivot ? this._owner.pivotX :0))*dWidth;
 					break ;
 				case 10:
-				case 12:
-					this._owner.y-=dHeight / 2;
+					this._owner.y-=(0.5-(applyPivot ? this._owner.pivotY :0))*dHeight;
 					break ;
+				case 12:
 				case 11:
 				case 13:
-					this._owner.y-=dHeight;
+					this._owner.y-=(1-(applyPivot ? this._owner.pivotY :0))*dHeight;
 					break ;
 				}
 		}
-		if (ox !=this._owner.x || oy !=this._owner.y){
+		if (ox!=this._owner.x || oy!=this._owner.y){
 			ox=this._owner.x-ox;
 			oy=this._owner.y-oy;
 			this._owner.updateGearFromRelations(1,ox,oy);
-			if(this._owner.parent !=null){
-				var len=this._owner.parent._transitions.length;
-				if(len > 0){
-					for(i=0;i < len;++i){
-						this._owner.parent._transitions[i].updateFromRelations(this._owner.id,ox,oy);
-					}
+			if (this._owner.parent !=null && this._owner.parent._transitions.length > 0){
+				var trans;
+				for(var $each_trans in this._owner.parent._transitions){
+					trans=this._owner.parent._transitions[$each_trans];
+					trans.updateFromRelations(this._owner.id,ox,oy);
 				}
 			}
 		}
 	}
 
 	__proto.applyOnXYChanged=function(info,dx,dy){
+		var tmp=NaN;
 		switch (info.type){
 			case 0:
 			case 1:
@@ -2540,200 +2564,296 @@ var RelationItem=(function(){
 				break ;
 			case 16:
 			case 17:
-				this._owner.x+=dx;
+				tmp=this._owner.xMin;
 				this._owner.width=this._owner._rawWidth-dx;
+				this._owner.xMin=tmp+dx;
 				break ;
 			case 18:
 			case 19:
+				tmp=this._owner.xMin;
 				this._owner.width=this._owner._rawWidth+dx;
+				this._owner.xMin=tmp;
 				break ;
 			case 20:
 			case 21:
-				this._owner.y+=dy;
+				tmp=this._owner.yMin;
 				this._owner.height=this._owner._rawHeight-dy;
+				this._owner.yMin=tmp+dy;
 				break ;
 			case 22:
 			case 23:
+				tmp=this._owner.yMin;
 				this._owner.height=this._owner._rawHeight+dy;
+				this._owner.yMin=tmp;
 				break ;
 			}
 	}
 
 	__proto.applyOnSizeChanged=function(info){
-		var targetX=NaN,targetY=NaN;
-		if (this._target !=this._owner.parent){
-			targetX=this._target.x;
-			targetY=this._target.y;
-		}
-		else {
-			targetX=0;
-			targetY=0;
-		};
+		var pos=0,pivot=0,delta=0;
 		var v=NaN,tmp=NaN;
+		if (info.axis==0){
+			if (this._target !=this._owner.parent){
+				pos=this._target.x;
+				if (this._target.pivotAsAnchor)
+					pivot=this._target.pivotX;
+			}
+			if (info.percent){
+				if (this._targetWidth !=0)
+					delta=this._target._width / this._targetWidth;
+			}
+			else
+			delta=this._target._width-this._targetWidth;
+		}
+		else{
+			if (this._target !=this._owner.parent){
+				pos=this._target.y;
+				if (this._target.pivotAsAnchor)
+					pivot=this._target.pivotY;
+			}
+			if (info.percent){
+				if (this._targetHeight !=0)
+					delta=this._target._height / this._targetHeight;
+			}
+			else
+			delta=this._target._height-this._targetHeight;
+		}
 		switch (info.type){
 			case 0:
-				if(info.percent && this._target==this._owner.parent){
-					v=this._owner.x-targetX;
-					if (info.percent)
-						v=v / this._targetWidth *this._target._width;
-					this._owner.x=targetX+v;
-				}
+				if (info.percent)
+					this._owner.xMin=pos+(this._owner.xMin-pos)*delta;
+				else if (pivot !=0)
+				this._owner.x+=delta *(-pivot);
 				break ;
 			case 1:
-				v=this._owner.x-(targetX+this._targetWidth / 2);
 				if (info.percent)
-					v=v / this._targetWidth *this._target._width;
-				this._owner.x=targetX+this._target._width / 2+v;
+					this._owner.xMin=pos+(this._owner.xMin-pos)*delta;
+				else
+				this._owner.x+=delta *(0.5-pivot);
 				break ;
 			case 2:
-				v=this._owner.x-(targetX+this._targetWidth);
 				if (info.percent)
-					v=v / this._targetWidth *this._target._width;
-				this._owner.x=targetX+this._target._width+v;
+					this._owner.xMin=pos+(this._owner.xMin-pos)*delta;
+				else
+				this._owner.x+=delta *(1-pivot);
 				break ;
 			case 3:
-				v=this._owner.x+this._owner._rawWidth / 2-(targetX+this._targetWidth / 2);
 				if (info.percent)
-					v=v / this._targetWidth *this._target._width;
-				this._owner.x=targetX+this._target._width / 2+v-this._owner._rawWidth / 2;
+					this._owner.xMin=pos+(this._owner.xMin+this._owner._rawWidth *0.5-pos)*delta-this._owner._rawWidth *0.5;
+				else
+				this._owner.x+=delta *(0.5-pivot);
 				break ;
 			case 4:
-				v=this._owner.x+this._owner._rawWidth-targetX;
 				if (info.percent)
-					v=v / this._targetWidth *this._target._width;
-				this._owner.x=targetX+v-this._owner._rawWidth;
+					this._owner.xMin=pos+(this._owner.xMin+this._owner._rawWidth-pos)*delta-this._owner._rawWidth;
+				else if (pivot !=0)
+				this._owner.x+=delta *(-pivot);
 				break ;
 			case 5:
-				v=this._owner.x+this._owner._rawWidth-(targetX+this._targetWidth / 2);
 				if (info.percent)
-					v=v / this._targetWidth *this._target._width;
-				this._owner.x=targetX+this._target._width / 2+v-this._owner._rawWidth;
+					this._owner.xMin=pos+(this._owner.xMin+this._owner._rawWidth-pos)*delta-this._owner._rawWidth;
+				else
+				this._owner.x+=delta *(0.5-pivot);
 				break ;
 			case 6:
-				v=this._owner.x+this._owner._rawWidth-(targetX+this._targetWidth);
 				if (info.percent)
-					v=v / this._targetWidth *this._target._width;
-				this._owner.x=targetX+this._target._width+v-this._owner._rawWidth;
+					this._owner.xMin=pos+(this._owner.xMin+this._owner._rawWidth-pos)*delta-this._owner._rawWidth;
+				else
+				this._owner.x+=delta *(1-pivot);
 				break ;
 			case 7:
-				if(info.percent && this._target==this._owner.parent){
-					v=this._owner.y-targetY;
-					if (info.percent)
-						v=v / this._targetHeight *this._target._height;
-					this._owner.y=targetY+v;
-				}
+				if (info.percent)
+					this._owner.yMin=pos+(this._owner.yMin-pos)*delta;
+				else if (pivot !=0)
+				this._owner.y+=delta *(-pivot);
 				break ;
 			case 8:
-				v=this._owner.y-(targetY+this._targetHeight / 2);
 				if (info.percent)
-					v=v / this._targetHeight *this._target._height;
-				this._owner.y=targetY+this._target._height / 2+v;
+					this._owner.yMin=pos+(this._owner.yMin-pos)*delta;
+				else
+				this._owner.y+=delta *(0.5-pivot);
 				break ;
 			case 9:
-				v=this._owner.y-(targetY+this._targetHeight);
 				if (info.percent)
-					v=v / this._targetHeight *this._target._height;
-				this._owner.y=targetY+this._target._height+v;
+					this._owner.yMin=pos+(this._owner.yMin-pos)*delta;
+				else
+				this._owner.y+=delta *(1-pivot);
 				break ;
 			case 10:
-				v=this._owner.y+this._owner._rawHeight / 2-(targetY+this._targetHeight / 2);
 				if (info.percent)
-					v=v / this._targetHeight *this._target._height;
-				this._owner.y=targetY+this._target._height / 2+v-this._owner._rawHeight / 2;
+					this._owner.yMin=pos+(this._owner.yMin+this._owner._rawHeight *0.5-pos)*delta-this._owner._rawHeight *0.5;
+				else
+				this._owner.y+=delta *(0.5-pivot);
 				break ;
 			case 11:
-				v=this._owner.y+this._owner._rawHeight-targetY;
 				if (info.percent)
-					v=v / this._targetHeight *this._target._height;
-				this._owner.y=targetY+v-this._owner._rawHeight;
+					this._owner.yMin=pos+(this._owner.yMin+this._owner._rawHeight-pos)*delta-this._owner._rawHeight;
+				else if (pivot !=0)
+				this._owner.y+=delta *(-pivot);
 				break ;
 			case 12:
-				v=this._owner.y+this._owner._rawHeight-(targetY+this._targetHeight / 2);
 				if (info.percent)
-					v=v / this._targetHeight *this._target._height;
-				this._owner.y=targetY+this._target._height / 2+v-this._owner._rawHeight;
+					this._owner.yMin=pos+(this._owner.yMin+this._owner._rawHeight-pos)*delta-this._owner._rawHeight;
+				else
+				this._owner.y+=delta *(0.5-pivot);
 				break ;
 			case 13:
-				v=this._owner.y+this._owner._rawHeight-(targetY+this._targetHeight);
 				if (info.percent)
-					v=v / this._targetHeight *this._target._height;
-				this._owner.y=targetY+this._target._height+v-this._owner._rawHeight;
+					this._owner.yMin=pos+(this._owner.yMin+this._owner._rawHeight-pos)*delta-this._owner._rawHeight;
+				else
+				this._owner.y+=delta *(1-pivot);
 				break ;
 			case 14:
-				if(this._owner._underConstruct && this._owner==this._target.parent)
+				if (this._owner._underConstruct && this._owner==this._target.parent)
 					v=this._owner.sourceWidth-this._target.initWidth;
 				else
 				v=this._owner._rawWidth-this._targetWidth;
 				if (info.percent)
-					v=v / this._targetWidth *this._target._width;
-				if(this._target==this._owner.parent)
+					v=v *delta;
+				if (this._target==this._owner.parent){
+					if (this._owner.pivotAsAnchor){
+						tmp=this._owner.xMin;
+						this._owner.setSize(this._target._width+v,this._owner._rawHeight,true);
+						this._owner.xMin=tmp;
+					}
+					else
 					this._owner.setSize(this._target._width+v,this._owner._rawHeight,true);
+				}
 				else
 				this._owner.width=this._target._width+v;
 				break ;
 			case 15:
-				if(this._owner._underConstruct && this._owner==this._target.parent)
+				if (this._owner._underConstruct && this._owner==this._target.parent)
 					v=this._owner.sourceHeight-this._target.initHeight;
 				else
 				v=this._owner._rawHeight-this._targetHeight;
 				if (info.percent)
-					v=v / this._targetHeight *this._target._height;
-				if(this._target==this._owner.parent)
+					v=v *delta;
+				if (this._target==this._owner.parent){
+					if (this._owner.pivotAsAnchor){
+						tmp=this._owner.yMin;
+						this._owner.setSize(this._owner._rawWidth,this._target._height+v,true);
+						this._owner.yMin=tmp;
+					}
+					else
 					this._owner.setSize(this._owner._rawWidth,this._target._height+v,true);
+				}
 				else
 				this._owner.height=this._target._height+v;
 				break ;
 			case 16:
+				tmp=this._owner.xMin;
+				if (info.percent)
+					v=pos+(tmp-pos)*delta-tmp;
+				else
+				v=delta *(-pivot);
+				this._owner.width=this._owner._rawWidth-v;
+				this._owner.xMin=tmp+v;
 				break ;
 			case 17:
-				v=this._owner.x-(targetX+this._targetWidth);
+				tmp=this._owner.xMin;
 				if (info.percent)
-					v=v / this._targetWidth *this._target._width;
-				tmp=this._owner.x;
-				this._owner.x=targetX+this._target._width+v;
-				this._owner.width=this._owner._rawWidth-(this._owner.x-tmp);
+					v=pos+(tmp-pos)*delta-tmp;
+				else
+				v=delta *(1-pivot);
+				this._owner.width=this._owner._rawWidth-v;
+				this._owner.xMin=tmp+v;
 				break ;
 			case 18:
+				tmp=this._owner.xMin;
+				if (info.percent)
+					v=pos+(tmp+this._owner._rawWidth-pos)*delta-(tmp+this._owner._rawWidth);
+				else
+				v=delta *(-pivot);
+				this._owner.width=this._owner._rawWidth+v;
+				this._owner.xMin=tmp;
 				break ;
 			case 19:
-				if(this._owner._underConstruct && this._owner==this._target.parent)
-					v=this._owner.sourceWidth-(targetX+this._target.initWidth);
-				else
-				v=this._owner.width-(targetX+this._targetWidth);
-				if (this._owner !=this._target.parent)
-					v+=this._owner.x;
-				if (info.percent)
-					v=v / this._targetWidth *this._target._width;
-				if (this._owner !=this._target.parent)
-					this._owner.width=targetX+this._target._width+v-this._owner.x;
-				else
-				this._owner.width=targetX+this._target._width+v;
+				tmp=this._owner.xMin;
+				if (info.percent){
+					if (this._owner==this._target.parent){
+						if (this._owner._underConstruct)
+							this._owner.width=pos+this._target._width-this._target._width *pivot+
+						(this._owner.sourceWidth-pos-this._target.initWidth+this._target.initWidth *pivot)*delta;
+						else
+						this._owner.width=pos+(this._owner._rawWidth-pos)*delta;
+					}
+					else{
+						v=pos+(tmp+this._owner._rawWidth-pos)*delta-(tmp+this._owner._rawWidth);
+						this._owner.width=this._owner._rawWidth+v;
+						this._owner.xMin=tmp;
+					}
+				}
+				else{
+					if (this._owner==this._target.parent){
+						if (this._owner._underConstruct)
+							this._owner.width=this._owner.sourceWidth+(this._target._width-this._target.initWidth)*(1-pivot);
+						else
+						this._owner.width=this._owner._rawWidth+delta *(1-pivot);
+					}
+					else{
+						v=delta *(1-pivot);
+						this._owner.width=this._owner._rawWidth+v;
+						this._owner.xMin=tmp;
+					}
+				}
 				break ;
 			case 20:
+				tmp=this._owner.yMin;
+				if (info.percent)
+					v=pos+(tmp-pos)*delta-tmp;
+				else
+				v=delta *(-pivot);
+				this._owner.height=this._owner._rawHeight-v;
+				this._owner.yMin=tmp+v;
 				break ;
 			case 21:
-				v=this._owner.y-(targetY+this._targetHeight);
+				tmp=this._owner.yMin;
 				if (info.percent)
-					v=v / this._targetHeight *this._target._height;
-				tmp=this._owner.y;
-				this._owner.y=targetY+this._target._height+v;
-				this._owner.height=this._owner._rawHeight-(this._owner.y-tmp);
+					v=pos+(tmp-pos)*delta-tmp;
+				else
+				v=delta *(1-pivot);
+				this._owner.height=this._owner._rawHeight-v;
+				this._owner.yMin=tmp+v;
 				break ;
 			case 22:
+				tmp=this._owner.yMin;
+				if (info.percent)
+					v=pos+(tmp+this._owner._rawHeight-pos)*delta-(tmp+this._owner._rawHeight);
+				else
+				v=delta *(-pivot);
+				this._owner.height=this._owner._rawHeight+v;
+				this._owner.yMin=tmp;
 				break ;
 			case 23:
-				if(this._owner._underConstruct && this._owner==this._target.parent)
-					v=this._owner.sourceHeight-(targetY+this._target.initHeight);
-				else
-				v=this._owner._rawHeight-(targetY+this._targetHeight);
-				if (this._owner !=this._target.parent)
-					v+=this._owner.y;
-				if (info.percent)
-					v=v / this._targetHeight *this._target._height;
-				if (this._owner !=this._target.parent)
-					this._owner.height=targetY+this._target._height+v-this._owner.y;
-				else
-				this._owner.height=targetY+this._target._height+v;
+				tmp=this._owner.yMin;
+				if (info.percent){
+					if (this._owner==this._target.parent){
+						if (this._owner._underConstruct)
+							this._owner.height=pos+this._target._height-this._target._height *pivot+
+						(this._owner.sourceHeight-pos-this._target.initHeight+this._target.initHeight *pivot)*delta;
+						else
+						this._owner.height=pos+(this._owner._rawHeight-pos)*delta;
+					}
+					else{
+						v=pos+(tmp+this._owner._rawHeight-pos)*delta-(tmp+this._owner._rawHeight);
+						this._owner.height=this._owner._rawHeight+v;
+						this._owner.yMin=tmp;
+					}
+				}
+				else{
+					if (this._owner==this._target.parent){
+						if (this._owner._underConstruct)
+							this._owner.height=this._owner.sourceHeight+(this._target._height-this._target.initHeight)*(1-pivot);
+						else
+						this._owner.height=this._owner._rawHeight+delta *(1-pivot);
+					}
+					else{
+						v=delta *(1-pivot);
+						this._owner.height=this._owner._rawHeight+v;
+						this._owner.yMin=tmp;
+					}
+				}
 				break ;
 			}
 	}
@@ -2755,69 +2875,70 @@ var RelationItem=(function(){
 		target.off("fui_size_delay_change",this,this.__targetSizeWillChange);
 	}
 
-	__proto.__targetXYChanged=function(){
-		if (this._owner.relations.handling !=null || this._owner.group!=null && this._owner.group._updating){
+	__proto.__targetXYChanged=function(target){
+		if (this._owner.relations.handling!=null || this._owner.group!=null && this._owner.group._updating){
 			this._targetX=this._target.x;
 			this._targetY=this._target.y;
 			return;
 		}
-		this._owner.relations.handling=this._target;
+		this._owner.relations.handling=target;
 		var ox=this._owner.x;
 		var oy=this._owner.y;
 		var dx=this._target.x-this._targetX;
 		var dy=this._target.y-this._targetY;
-		var length=this._defs.length;
-		for (var i=0;i < length;i++){
-			var info=this._defs[i];
+		var info;
+		for(var $each_info in this._defs){
+			info=this._defs[$each_info];
 			this.applyOnXYChanged(info,dx,dy);
 		}
 		this._targetX=this._target.x;
 		this._targetY=this._target.y;
-		if (ox !=this._owner.x || oy !=this._owner.y){
+		if (ox!=this._owner.x || oy!=this._owner.y){
 			ox=this._owner.x-ox;
 			oy=this._owner.y-oy;
 			this._owner.updateGearFromRelations(1,ox,oy);
-			if(this._owner.parent !=null){
-				var len=this._owner.parent._transitions.length;
-				if(len > 0){
-					for(i=0;i < len;++i){
-						this._owner.parent._transitions[i].updateFromRelations(this._owner.id,ox,oy);
-					}
+			if (this._owner.parent !=null && this._owner.parent._transitions.length > 0){
+				var trans;
+				for(var $each_trans in this._owner.parent._transitions){
+					trans=this._owner.parent._transitions[$each_trans];
+					trans.updateFromRelations(this._owner.id,ox,oy);
 				}
 			}
 		}
 		this._owner.relations.handling=null;
 	}
 
-	__proto.__targetSizeChanged=function(){
-		if (this._owner.relations.handling !=null)
+	__proto.__targetSizeChanged=function(target){
+		if (this._owner.relations.handling!=null){
+			this._targetWidth=this._target._width;
+			this._targetHeight=this._target._height;
 			return;
-		this._owner.relations.handling=this._target;
+		}
+		this._owner.relations.handling=target;
 		var ox=this._owner.x;
 		var oy=this._owner.y;
 		var ow=this._owner._rawWidth;
 		var oh=this._owner._rawHeight;
-		var length=this._defs.length;
-		for (var i=0;i < length;i++){
-			var info=this._defs[i];
+		var info;
+		for(var $each_info in this._defs){
+			info=this._defs[$each_info];
 			this.applyOnSizeChanged(info);
 		}
 		this._targetWidth=this._target._width;
 		this._targetHeight=this._target._height;
-		if (ox !=this._owner.x || oy !=this._owner.y){
+		if (ox!=this._owner.x || oy!=this._owner.y){
 			ox=this._owner.x-ox;
 			oy=this._owner.y-oy;
 			this._owner.updateGearFromRelations(1,ox,oy);
-			if(this._owner.parent !=null){
-				var len=this._owner.parent._transitions.length;
-				if(len > 0){
-					for(i=0;i < len;++i){
-						this._owner.parent._transitions[i].updateFromRelations(this._owner.id,ox,oy);
-					}
+			if (this._owner.parent !=null && this._owner.parent._transitions.length > 0){
+				var trans;
+				for(var $each_trans in this._owner.parent._transitions){
+					trans=this._owner.parent._transitions[$each_trans];
+					trans.updateFromRelations(this._owner.id,ox,oy);
 				}
 			}
 		}
-		if(ow !=this._owner._rawWidth || oh !=this._owner._rawHeight){
+		if (ow!=this._owner._rawWidth || oh!=this._owner._rawHeight){
 			ow=this._owner._rawWidth-ow;
 			oh=this._owner._rawHeight-oh;
 			this._owner.updateGearFromRelations(2,ow,oh);
@@ -2825,7 +2946,7 @@ var RelationItem=(function(){
 		this._owner.relations.handling=null;
 	}
 
-	__proto.__targetSizeWillChange=function(){
+	__proto.__targetSizeWillChange=function(target){
 		this._owner.relations.sizeDirty=true;
 	}
 
@@ -2836,11 +2957,11 @@ var RelationItem=(function(){
 	__getset(0,__proto,'target',function(){
 		return this._target;
 		},function(value){
-		if (this._target !=value){
-			if (this._target)
+		if(this._target!=value){
+			if(this._target)
 				this.releaseRefTarget(this._target);
 			this._target=value;
-			if (this._target)
+			if(this._target)
 				this.addRefTarget(this._target);
 		}
 	});
@@ -2854,13 +2975,15 @@ var RelationItem=(function(){
 		RelationDef=(function(){
 			function RelationDef(){
 				this.percent=false;
-				this.type=NaN;
+				this.type=0;
+				this.axis=0;
 			}
 			__class(RelationDef,'');
 			var __proto=RelationDef.prototype;
 			__proto.copyFrom=function(source){
 				this.percent=source.percent;
 				this.type=source.type;
+				this.axis=source.axis;
 			}
 			return RelationDef;
 		})()
@@ -2998,13 +3121,13 @@ var Relations=(function(){
 		this.clearAll();
 	}
 
-	__proto.onOwnerSizeChanged=function(dWidth,dHeight){
+	__proto.onOwnerSizeChanged=function(dWidth,dHeight,applyPivot){
 		if (this._items.length==0)
 			return;
 		var length=this._items.length;
 		for (var i=0;i < length;i++){
 			var item=this._items[i];
-			item.applyOnSelfResized(dWidth,dHeight);
+			item.applyOnSelfResized(dWidth,dHeight,applyPivot);
 		}
 	}
 
@@ -6364,8 +6487,11 @@ var UIPackage=(function(){
 	__proto.loadPackage=function(descData){
 		var str;
 		var arr;
-		if(!descData)
+		if(!descData){
 			descData=AssetProxy.inst.getRes(this._resKey+"."+UIConfig$1.packageFileExtension);
+			if(!descData)
+				throw new Error("package resource not ready: "+this._resKey);
+		}
 		this.decompressPackage(descData);
 		str=this.getDesc("sprites.bytes");
 		arr=str.split("\n");

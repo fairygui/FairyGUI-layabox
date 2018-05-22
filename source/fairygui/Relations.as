@@ -159,14 +159,14 @@ package fairygui {
 			this.clearAll();
 		}
 		
-		public function onOwnerSizeChanged(dWidth:Number, dHeight:Number): void {
+		public function onOwnerSizeChanged(dWidth:Number, dHeight:Number, applyPivot:Boolean): void {
 			if (this._items.length == 0)
 				return;
 			
 			var length: Number = this._items.length;
 			for (var i: Number = 0; i < length; i++) {
 				var item: RelationItem = this._items[i];
-				item.applyOnSelfResized(dWidth, dHeight);
+				item.applyOnSelfResized(dWidth, dHeight, applyPivot);
 			}
 		}
 		
