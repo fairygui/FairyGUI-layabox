@@ -15,6 +15,7 @@ package fairygui {
 		private var _valign: String;
 		private var _autoSize: Boolean;
 		private var _fill: int;
+		private var _shrinkOnly:Boolean;
 		private var _showErrorSign: Boolean;
 		private var _playing: Boolean;
 		private var _frame: Number = 0;
@@ -28,6 +29,7 @@ package fairygui {
 		
 		private var _content:Sprite;
 		private var _errorSign: GObject;
+		private var _content2:GComponent;
 		
 		private var _updatingLayout: Boolean;
 		
@@ -56,6 +58,9 @@ package fairygui {
 				if(texture != null)
 					this.freeExternal(texture);
 			}
+			
+			if(_content2!=null)
+				_content2.dispose();
 			
 			super.dispose();
 		}
@@ -113,6 +118,20 @@ package fairygui {
 			if (this._fill != value) {
 				this._fill = value;
 				this.updateLayout();
+			}
+		}
+		
+		public function get shrinkOnly():Boolean
+		{
+			return _shrinkOnly;
+		}
+		
+		public function set shrinkOnly(value:Boolean):void
+		{
+			if(_shrinkOnly!=value)
+			{
+				_shrinkOnly = value;
+				updateLayout();
 			}
 		}
 		
@@ -181,6 +200,11 @@ package fairygui {
 			return this._content;
 		}
 		
+		public function get component():GComponent
+		{
+			return _content2;
+		}
+		
 		protected function loadContent(): void {
 			this.clearContent();
 			
@@ -236,6 +260,25 @@ package fairygui {
 					MovieClip(this._content).frames = this._contentItem.frames;
 					MovieClip(this._content).boundsRect = new Rectangle(0,0,this._contentSourceWidth,this._contentSourceHeight);
 					this.updateLayout();
+				}
+				else if(_contentItem.type==PackageItemType.Component)
+				{
+					var obj:GObject = UIPackage.createObjectFromURL(itemURL);
+					if(!obj)
+						setErrorState();
+					else if(!(obj is GComponent))
+					{
+						obj.dispose();
+						setErrorState();
+					}
+					else
+					{
+						_content2 = obj.asCom;
+						this._displayObject.addChild(_content2.displayObject);
+						_contentSourceWidth = _contentItem.width;
+						_contentSourceHeight = _contentItem.height;
+						updateLayout();
+					}
 				}
 				else
 					this.setErrorState();
@@ -302,7 +345,7 @@ package fairygui {
 		}
 		
 		private function updateLayout(): void {
-			if (this._content == null) {
+			if (_content2==null && this._content == null) {
 				if (this._autoSize) {
 					this._updatingLayout = true;
 					this.setSize(50, 30);
@@ -311,10 +354,6 @@ package fairygui {
 				return;
 			}
 			
-			this._content.x = 0;
-			this._content.y = 0;
-			this._content.scaleX = 1;
-			this._content.scaleY = 1;
 			this._contentWidth = this._contentSourceWidth;
 			this._contentHeight = this._contentSourceHeight;
 			
@@ -328,7 +367,21 @@ package fairygui {
 				this._updatingLayout = false;
 				
 				if(_contentWidth==_width && _contentHeight==_height)
+				{
+					if(_content2!=null)
+					{
+						_content2.setXY(0, 0);
+						_content2.setScale(1, 1);
+					}
+					else
+					{
+						_content.x = 0;
+						_content.y = 0;
+						_content.scaleX = 1;
+						_content.scaleY = 1;
+					}
 					return;
+				}
 			}
 
 			var sx: Number = 1, sy: Number = 1;
@@ -357,24 +410,43 @@ package fairygui {
 						else
 							sx = sy;
 					}
+					
+					if (_shrinkOnly && sx >= 1 && sy >= 1)
+						sx = sy = 1;
+					
 					_contentWidth = _contentSourceWidth * sx;
 					_contentHeight = _contentSourceHeight * sy;
 				}
 			}
 			
-			if (this._content is Image)
+			if(_content2!=null)
+				_content2.setScale(sx, sy);
+			else if (this._content is Image)
 				Image(this._content).scaleTexture(sx, sy);
 			else
 				this._content.scale(sx, sy);
 			
+			var nx:Number, ny:Number;
 			if (this._align == "center")
-				this._content.x = Math.floor((this.width - this._contentWidth) / 2);
+				nx = Math.floor((this.width - this._contentWidth) / 2);
 			else if (this._align == "right")
-				this._content.x = this.width - this._contentWidth;
+				nx = this.width - this._contentWidth;
+			else
+				nx = 0;
 			if (this._valign == "middle")
-				this._content.y = Math.floor((this.height - this._contentHeight) / 2);
+				ny = Math.floor((this.height - this._contentHeight) / 2);
 			else if (this._valign == "bottom")
-				this._content.y = this.height - this._contentHeight;
+				ny = this.height - this._contentHeight;
+			else
+				ny = 0;
+			
+			if(_content2!=null)
+				_content2.setXY(nx, ny);
+			else
+			{
+				_content.x = nx;
+				_content.y = ny;
+			}
 		}
 		
 		private function clearContent(): void {
@@ -387,6 +459,12 @@ package fairygui {
 				var texture: Texture = Image(this._content).tex;
 				if(texture != null)
 					this.freeExternal(texture);
+			}
+			
+			if(_content2!=null)
+			{
+				_content2.dispose();
+				_content2 = null;
 			}
 			
 			this._contentItem = null;
@@ -419,6 +497,7 @@ package fairygui {
 			if (str)
 				this._fill = LoaderFillType.parse(str);
 			
+			_shrinkOnly = xml.getAttribute("shrinkOnly") == "true";
 			this._autoSize = xml.getAttribute("autoSize") == "true";
 			
 			str = xml.getAttribute("errorSign");
