@@ -215,7 +215,7 @@ declare module fairygui {
         ensureSizeCorrect(): void;
         protected handleSizeChanged(): void;
         protected handleGrayedChanged(): void;
-        setup_beforeAdd(xml: Object): void;
+        setup_beforeAdd(xml: Object): void;        
     }
 }
 declare module fairygui {
@@ -575,12 +575,14 @@ declare module fairygui {
         align: string;
         verticalAlign: string;
         fill: number;
+        shrinkOnly: boolean;
         autoSize: boolean;
         playing: boolean;
         frame: number;
         color: string;
         showErrorSign: boolean;
         content: laya.display.Node;
+        component: GComponent;
         protected loadContent(): void;
         protected loadFromPackage(itemURL: string): void;
         protected loadExternal(): void;
@@ -864,6 +866,9 @@ declare module fairygui {
         handleControllerChanged(c: Controller): void;
         setup_beforeAdd(xml: Object): void;
         setup_afterAdd(xml: Object): void;
+        templateVars: any;
+        setVar(name: string, value: string): GTextField;
+        flushVars(): void;
     }
 }
 declare module fairygui {
@@ -1135,6 +1140,8 @@ declare module fairygui {
         isRightMost: boolean;
         currentPageX: number;
         currentPageY: number;
+        setCurrentPageX(sc: number, ani?: boolean): void;
+        setPercX(sc: number, ani?: boolean): void;
         contentWidth: number;
         contentHeight: number;
         viewWidth: number;
@@ -1258,6 +1265,7 @@ declare module fairygui {
         static clickDragSensitivity: number;
         static bringWindowToFrontOnClick: boolean;
         static textureLinearSampling: boolean;
+        static packageFileExtension: string;
     }
 }
 declare module fairygui {

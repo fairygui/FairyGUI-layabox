@@ -1156,7 +1156,7 @@ var GObject=(function(){
 		}
 		str=xml.getAttribute("rotation");
 		if (str)
-			this.rotation=parseInt(str);
+			this.rotation=parseFloat(str);
 		str=xml.getAttribute("pivot");
 		if (str){
 			arr=str.split(",");
@@ -3472,6 +3472,16 @@ var ScrollPane=(function(){
 		}
 	}
 
+	__proto.setCurrentPageX=function(value,ani){
+		if (this._pageMode && this._overlapSize.x>0)
+			this.setPosX(value *this._pageSize.x,ani);
+	}
+
+	__proto.setCurrentPageY=function(value,ani){
+		if (this._pageMode && this._overlapSize.y>0)
+			this.setPosY(value *this._pageSize.y,ani);
+	}
+
 	__proto.scrollTop=function(ani){
 		(ani===void 0)&& (ani=false);
 		this.setPercY(0,ani);
@@ -3645,9 +3655,9 @@ var ScrollPane=(function(){
 	__proto.handleControllerChanged=function(c){
 		if (this._pageController==c){
 			if (this._scrollType==0)
-				this.currentPageX=c.selectedIndex;
+				this.setCurrentPageX(c.selectedIndex,true);
 			else
-			this.currentPageY=c.selectedIndex;
+			this.setCurrentPageY(c.selectedIndex,true);
 		}
 	}
 
@@ -4752,8 +4762,7 @@ var ScrollPane=(function(){
 			page++;
 		return page;
 		},function(value){
-		if (this._pageMode && this._overlapSize.x>0)
-			this.setPosX(value *this._pageSize.x,false);
+		this.setCurrentPageX(value,false);
 	});
 
 	__getset(0,__proto,'currentPageY',function(){
@@ -4764,8 +4773,7 @@ var ScrollPane=(function(){
 			page++;
 		return page;
 		},function(value){
-		if (this._pageMode && this._overlapSize.y>0)
-			this.setPosY(value *this._pageSize.y,false);
+		this.setCurrentPageY(value,false);
 	});
 
 	__getset(0,__proto,'isRightMost',function(){
@@ -5026,7 +5034,7 @@ var Transition=(function(){
 					value.f1=parseFloat(args[0]);
 					break ;
 				case 5:
-					value.i=parseInt(args[0]);
+					value.i=parseFloat(args[0]);
 					break ;
 				case 6:
 					value.s=args[0];
@@ -5167,8 +5175,11 @@ var Transition=(function(){
 					startTime=delay+this._maxTime-item.time;
 				else
 				startTime=delay+item.time;
-				if(startTime==0)
+				if(startTime==0){
 					this.applyValue(item,item.value);
+					if(item.hook !=null)
+						item.hook.run();
+				}
 				else {
 					item.completed=false;
 					this._totalTasks++;
@@ -7616,57 +7627,75 @@ var UBBParser=(function(){
 
 	__proto.getTagText=function(remove){
 		(remove===void 0)&& (remove=false);
-		var pos=this._text.indexOf("[",this._readPos);
-		if (pos==-1)
+		var pos1=this._readPos;
+		var pos2=0;
+		var result="";
+		while ((pos2=this._text.indexOf("[",pos1))!=-1){
+			if (this._text.charCodeAt(pos2-1)==92){
+				result+=this._text.substring(pos1,pos2-1);
+				result+="[";
+				pos1=pos2+1;
+			}
+			else{
+				result+=this._text.substring(pos1,pos2);
+				break ;
+			}
+		}
+		if (pos2==-1)
 			return null;
-		var ret=this._text.substring(this._readPos,pos);
 		if (remove)
-			this._readPos=pos;
-		return ret;
+			this._readPos=pos2;
+		return result;
 	}
 
 	__proto.parse=function(text,remove){
 		(remove===void 0)&& (remove=false);
 		this._text=text;
-		var pos1=0,pos2=NaN,pos3=0;
+		var pos1=0,pos2=0,pos3=0;
 		var end=false;
 		var tag,attr;
 		var repl;
 		var func;
-		while ((pos2=this._text.indexOf("[",pos1))!=-1){
+		var result="";
+		while((pos2=this._text.indexOf("[",pos1))!=-1){
+			if (pos2 > 0 && this._text.charCodeAt(pos2-1)==92){
+				result+=this._text.substring(pos1,pos2-1);
+				result+="[";
+				pos1=pos2+1;
+				continue ;
+			}
+			result+=this._text.substring(pos1,pos2);
 			pos1=pos2;
 			pos2=this._text.indexOf("]",pos1);
-			if (pos2==-1)
+			if(pos2==-1)
 				break ;
 			end=this._text.charAt(pos1+1)=='/';
-			tag=this._text.substring(end ? pos1+2 :pos1+1,pos2);
-			pos2++;
-			this._readPos=pos2;
+			tag=this._text.substring(end?pos1+2:pos1+1,pos2);
+			this._readPos=pos2+1;
 			attr=null;
 			repl=null;
 			pos3=tag.indexOf("=");
-			if (pos3 !=-1){
+			if(pos3!=-1){
 				attr=tag.substring(pos3+1);
 				tag=tag.substring(0,pos3);
 			}
 			tag=tag.toLowerCase();
 			func=this._handlers[tag];
-			if (func !=null){
+			if(func!=null){
 				if(!remove){
-					repl=func.call(this,tag,end,attr);
-					if (repl==null)
-						repl="";
+					repl=func(tag,end,attr);
+					if(repl!=null)
+						result+=repl;
 				}
-				else
-				repl="";
 			}
-			else {
-				pos1=pos2;
-				continue ;
-			}
-			this._text=this._text.substring(0,pos1)+repl+this._text.substring(this._readPos);
+			else
+			result+=this._text.substring(pos1,this._readPos);
+			pos1=this._readPos;
 		}
-		return this._text;
+		if (pos1 < this._text.length)
+			result+=this._text.substr(pos1);
+		this._text=null;
+		return result;
 	}
 
 	__static(UBBParser,
@@ -8220,6 +8249,8 @@ var PlayTransitionAction=(function(_super){
 var GTextField=(function(_super){
 	function GTextField(){
 		this._gearColor=null;
+		this._templateVars=null;
+		this._text=null;
 		GTextField.__super.call(this);
 		this._gearColor=new GearColor(this);
 	}
@@ -8227,6 +8258,60 @@ var GTextField=(function(_super){
 	__class(GTextField,'fairygui.GTextField',_super);
 	var __proto=GTextField.prototype;
 	Laya.imps(__proto,{"fairygui.IColorGear":true})
+	__proto.parseTemplate=function(template){
+		var pos1=0,pos2=0,pos3=0;
+		var tag;
+		var value;
+		var result="";
+		while((pos2=template.indexOf("{",pos1))!=-1){
+			if (pos2 > 0 && template.charCodeAt(pos2-1)==92){
+				result+=template.substring(pos1,pos2-1);
+				result+="{";
+				pos1=pos2+1;
+				continue ;
+			}
+			result+=template.substring(pos1,pos2);
+			pos1=pos2;
+			pos2=template.indexOf("}",pos1);
+			if(pos2==-1)
+				break ;
+			if(pos2==pos1+1){
+				result+=template.substr(pos1,2);
+				pos1=pos2+1;
+				continue ;
+			}
+			tag=template.substring(pos1+1,pos2);
+			pos3=tag.indexOf("=");
+			if(pos3!=-1){
+				value=this._templateVars[tag.substring(0,pos3)];
+				if(value==null)
+					result+=tag.substring(pos3+1);
+				else
+				result+=value;
+			}
+			else{
+				value=this._templateVars[tag];
+				if(value!=null)
+					result+=value;
+			}
+			pos1=pos2+1;
+		}
+		if (pos1 < template.length)
+			result+=template.substr(pos1);
+		return result;
+	}
+
+	__proto.setVar=function(name,value){
+		if(!this._templateVars)
+			this._templateVars={};
+		this._templateVars[name]=value;
+		return this;
+	}
+
+	__proto.flushVars=function(){
+		this.text=this._text;
+	}
+
 	__proto.handleControllerChanged=function(c){
 		_super.prototype.handleControllerChanged.call(this,c);
 		if(this._gearColor.controller==c)
@@ -8273,6 +8358,8 @@ var GTextField=(function(_super){
 			else
 			this.stroke=2;
 		}
+		if(xml.getAttribute("vars")=="true")
+			this._templateVars={};
 	}
 
 	__proto.setup_afterAdd=function(xml){
@@ -8290,6 +8377,15 @@ var GTextField=(function(_super){
 	__getset(0,__proto,'font',function(){
 		return null;
 		},function(value){
+	});
+
+	__getset(0,__proto,'templateVars',function(){
+		return this._templateVars;
+		},function(value){
+		if(this._templateVars==null && value==null)
+			return;
+		this._templateVars=value;
+		this.flushVars();
 	});
 
 	__getset(0,__proto,'leading',function(){
@@ -10706,6 +10802,7 @@ var GLoader=(function(_super){
 		this._valign=null;
 		this._autoSize=false;
 		this._fill=0;
+		this._shrinkOnly=false;
 		this._showErrorSign=false;
 		this._playing=false;
 		this._frame=0;
@@ -10717,6 +10814,7 @@ var GLoader=(function(_super){
 		this._contentHeight=0;
 		this._content=null;
 		this._errorSign=null;
+		this._content2=null;
 		this._updatingLayout=false;
 		GLoader.__super.call(this);
 		this._playing=true;
@@ -10742,6 +10840,8 @@ var GLoader=(function(_super){
 			if(texture !=null)
 				this.freeExternal(texture);
 		}
+		if(this._content2!=null)
+			this._content2.dispose();
 		_super.prototype.dispose.call(this);
 	}
 
@@ -10797,6 +10897,22 @@ var GLoader=(function(_super){
 				(this._content).frames=this._contentItem.frames;
 				(this._content).boundsRect=new Rectangle(0,0,this._contentSourceWidth,this._contentSourceHeight);
 				this.updateLayout();
+			}
+			else if(this._contentItem.type==4){
+				var obj=UIPackage.createObjectFromURL(itemURL);
+				if(!obj)
+					this.setErrorState();
+				else if(!((obj instanceof fairygui.GComponent ))){
+					obj.dispose();
+					this.setErrorState();
+				}
+				else{
+					this._content2=obj.asCom;
+					this._displayObject.addChild(this._content2.displayObject);
+					this._contentSourceWidth=this._contentItem.width;
+					this._contentSourceHeight=this._contentItem.height;
+					this.updateLayout();
+				}
 			}
 			else
 			this.setErrorState();
@@ -10859,7 +10975,7 @@ var GLoader=(function(_super){
 	}
 
 	__proto.updateLayout=function(){
-		if (this._content==null){
+		if (this._content2==null && this._content==null){
 			if (this._autoSize){
 				this._updatingLayout=true;
 				this.setSize(50,30);
@@ -10867,10 +10983,6 @@ var GLoader=(function(_super){
 			}
 			return;
 		}
-		this._content.x=0;
-		this._content.y=0;
-		this._content.scaleX=1;
-		this._content.scaleY=1;
 		this._contentWidth=this._contentSourceWidth;
 		this._contentHeight=this._contentSourceHeight;
 		if (this._autoSize){
@@ -10881,8 +10993,19 @@ var GLoader=(function(_super){
 				this._contentHeight=30;
 			this.setSize(this._contentWidth,this._contentHeight);
 			this._updatingLayout=false;
-			if(this._contentWidth==this._width && this._contentHeight==this._height)
+			if(this._contentWidth==this._width && this._contentHeight==this._height){
+				if(this._content2!=null){
+					this._content2.setXY(0,0);
+					this._content2.setScale(1,1);
+				}
+				else{
+					this._content.x=0;
+					this._content.y=0;
+					this._content.scaleX=1;
+					this._content.scaleY=1;
+				}
 				return;
+			}
 		};
 		var sx=1,sy=1;
 		if(this._fill!=0){
@@ -10905,22 +11028,37 @@ var GLoader=(function(_super){
 					else
 					sx=sy;
 				}
+				if (this._shrinkOnly && sx >=1 && sy >=1)
+					sx=sy=1;
 				this._contentWidth=this._contentSourceWidth *sx;
 				this._contentHeight=this._contentSourceHeight *sy;
 			}
 		}
-		if ((this._content instanceof fairygui.display.Image ))
-			(this._content).scaleTexture(sx,sy);
+		if(this._content2!=null)
+			this._content2.setScale(sx,sy);
+		else if ((this._content instanceof fairygui.display.Image ))
+		(this._content).scaleTexture(sx,sy);
 		else
 		this._content.scale(sx,sy);
+		var nx=NaN,ny=NaN;
 		if (this._align=="center")
-			this._content.x=Math.floor((this.width-this._contentWidth)/ 2);
+			nx=Math.floor((this.width-this._contentWidth)/ 2);
 		else if (this._align=="right")
-		this._content.x=this.width-this._contentWidth;
+		nx=this.width-this._contentWidth;
+		else
+		nx=0;
 		if (this._valign=="middle")
-			this._content.y=Math.floor((this.height-this._contentHeight)/ 2);
+			ny=Math.floor((this.height-this._contentHeight)/ 2);
 		else if (this._valign=="bottom")
-		this._content.y=this.height-this._contentHeight;
+		ny=this.height-this._contentHeight;
+		else
+		ny=0;
+		if(this._content2!=null)
+			this._content2.setXY(nx,ny);
+		else{
+			this._content.x=nx;
+			this._content.y=ny;
+		}
 	}
 
 	__proto.clearContent=function(){
@@ -10931,6 +11069,10 @@ var GLoader=(function(_super){
 			var texture=(this._content).tex;
 			if(texture !=null)
 				this.freeExternal(texture);
+		}
+		if(this._content2!=null){
+			this._content2.dispose();
+			this._content2=null;
 		}
 		this._contentItem=null;
 	}
@@ -10956,6 +11098,7 @@ var GLoader=(function(_super){
 		str=xml.getAttribute("fill");
 		if (str)
 			this._fill=LoaderFillType.parse(str);
+		this._shrinkOnly=xml.getAttribute("shrinkOnly")=="true";
 		this._autoSize=xml.getAttribute("autoSize")=="true";
 		str=xml.getAttribute("errorSign");
 		if (str)
@@ -10998,16 +11141,6 @@ var GLoader=(function(_super){
 		}
 	});
 
-	__getset(0,__proto,'color',function(){
-		return this._color;
-		},function(value){
-		if(this._color !=value){
-			this._color=value;
-			this.updateGear(4);
-			this.applyColor();
-		}
-	});
-
 	__getset(0,__proto,'fill',function(){
 		return this._fill;
 		},function(value){
@@ -11030,6 +11163,19 @@ var GLoader=(function(_super){
 		return this._url;
 		},function(value){
 		this.url=value;
+	});
+
+	__getset(0,__proto,'content',function(){
+		return this._content;
+	});
+
+	__getset(0,__proto,'shrinkOnly',function(){
+		return this._shrinkOnly;
+		},function(value){
+		if(this._shrinkOnly!=value){
+			this._shrinkOnly=value;
+			this.updateLayout();
+		}
 	});
 
 	//todo:
@@ -11059,8 +11205,18 @@ var GLoader=(function(_super){
 		}
 	});
 
-	__getset(0,__proto,'content',function(){
-		return this._content;
+	__getset(0,__proto,'color',function(){
+		return this._color;
+		},function(value){
+		if(this._color !=value){
+			this._color=value;
+			this.updateGear(4);
+			this.applyColor();
+		}
+	});
+
+	__getset(0,__proto,'component',function(){
+		return this._content2;
 	});
 
 	__static(GLoader,
@@ -11157,7 +11313,6 @@ var GBasicTextField=(function(_super){
 		this.textField=null;
 		this._font=null;
 		this._color=null;
-		this._text=null;
 		this._ubbEnabled=false;
 		this._singleLine=false;
 		this._letterSpacing=0;
@@ -11267,9 +11422,12 @@ var GBasicTextField=(function(_super){
 		var fontScale=this._bitmapFont.resizable?fontSize/this._bitmapFont.size:1;
 		this._textWidth=0;
 		this._textHeight=0;
-		var textLength=this._text.length;
+		var text2=this._text;
+		if (this._templateVars !=null)
+			text2=this.parseTemplate(text2);
+		var textLength=text2.length;
 		for (var offset=0;offset < textLength;++offset){
-			var ch=this._text.charAt(offset);
+			var ch=text2.charAt(offset);
 			var cc=ch.charCodeAt(0);
 			if (cc==10){
 				lineBuffer+=ch;
@@ -11504,6 +11662,10 @@ var GBasicTextField=(function(_super){
 		this.handleXYChanged();
 	}
 
+	__proto.flushVars=function(){
+		this.text=this._text;
+	}
+
 	__proto.setup_beforeAdd=function(xml){
 		_super.prototype.setup_beforeAdd.call(this,xml);
 		var str;
@@ -11539,10 +11701,13 @@ var GBasicTextField=(function(_super){
 		if(this._bitmapFont==null){
 			if(this._widthAutoSize)
 				this.textField.width=10000;
+			var text2=this._text;
+			if (this._templateVars !=null)
+				text2=this.parseTemplate(text2);
 			if(this._ubbEnabled)
-				this.textField.text=ToolSet.removeUBB(ToolSet.encodeHTML(this._text));
+				this.textField.text=ToolSet.removeUBB(ToolSet.encodeHTML(text2));
 			else
-			this.textField.text=this._text;
+			this.textField.text=text2;
 		}
 		else{
 			this.textField.text="";
@@ -11780,8 +11945,8 @@ var GButton=(function(_super){
 		(downEffect===void 0)&& (downEffect=true);
 		if (downEffect && this._mode==0){
 			this.setState("over");
-			Laya.timer.once(100,this,this.setState,["down"]);
-			Laya.timer.once(200,this,this.setState,["up"]);
+			Laya.timer.once(100,this,this.setState,["down"],false);
+			Laya.timer.once(200,this,this.setState,["up"],false);
 		}
 		this.__click(Events.createEvent("click",this.displayObject));
 	}
@@ -14783,7 +14948,6 @@ var GList=(function(_super){
 var GRichTextField=(function(_super){
 	function GRichTextField(){
 		this.div=null;
-		this._text=null;
 		this._ubbEnabled=false;
 		this._color=null;
 		GRichTextField.__super.call(this);
@@ -14818,10 +14982,13 @@ var GRichTextField=(function(_super){
 		return this._text;
 		},function(value){
 		this._text=value;
+		var text2=this._text;
+		if (this._templateVars !=null)
+			text2=this.parseTemplate(text2);
 		if(this._ubbEnabled)
-			this.div.innerHTML=ToolSet.parseUBB(this._text);
+			this.div.innerHTML=ToolSet.parseUBB(text2);
 		else
-		this.div.innerHTML=this._text;
+		this.div.innerHTML=text2;
 	});
 
 	__getset(0,__proto,'color',function(){
@@ -14939,7 +15106,7 @@ var GProgressBar=(function(_super){
 	}
 
 	__proto.update=function(newValue){
-		var percent=Math.min(newValue / this._max,1);
+		var percent=this._max!=0?Math.min(newValue / this._max,1):0;
 		if(this._titleObject){
 			switch(this._titleType){
 				case 0:
