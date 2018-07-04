@@ -11028,8 +11028,12 @@ var GLoader=(function(_super){
 					else
 					sx=sy;
 				}
-				if (this._shrinkOnly && sx >=1 && sy >=1)
-					sx=sy=1;
+				if(this._shrinkOnly){
+					if(sx>1)
+						sx=1;
+					if(sy>1)
+						sy=1;
+				}
 				this._contentWidth=this._contentSourceWidth *sx;
 				this._contentHeight=this._contentSourceHeight *sy;
 			}

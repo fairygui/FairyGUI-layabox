@@ -411,8 +411,13 @@ package fairygui {
 							sx = sy;
 					}
 					
-					if (_shrinkOnly && sx >= 1 && sy >= 1)
-						sx = sy = 1;
+					if(_shrinkOnly)
+					{
+						if(sx>1)
+							sx = 1;
+						if(sy>1)
+							sy = 1;
+					}
 					
 					_contentWidth = _contentSourceWidth * sx;
 					_contentHeight = _contentSourceHeight * sy;
