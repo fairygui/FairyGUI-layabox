@@ -249,8 +249,8 @@ package fairygui {
 		public function fireClick(downEffect: Boolean= true): void {
 			if (downEffect && this._mode == ButtonMode.Common) {
 				this.setState(GButton.OVER);
-				Laya.timer.once(100, this, this.setState, [GButton.DOWN]);
-				Laya.timer.once(200, this, this.setState, [GButton.UP]);
+				Laya.timer.once(100, this, this.setState, [GButton.DOWN], false);
+				Laya.timer.once(200, this, this.setState, [GButton.UP], false);
 			}
 			this.__click(Events.createEvent(Event.CLICK, this.displayObject));
 		}
