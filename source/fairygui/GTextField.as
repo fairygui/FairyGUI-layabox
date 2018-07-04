@@ -4,6 +4,8 @@ package fairygui {
 	
 	public class GTextField extends GObject implements IColorGear {
 		protected var _gearColor:GearColor;
+		protected var _templateVars:Object;
+		protected var _text: String;
 		
 		public function GTextField() {
 			super();
@@ -117,6 +119,87 @@ package fairygui {
 			return this._gearColor;
 		}
 		
+		protected function parseTemplate(template:String):String
+		{
+			var pos1:int = 0, pos2:int, pos3:int;
+			var tag:String;
+			var value:String;
+			var result:String = "";
+			while((pos2=template.indexOf("{", pos1))!=-1) {
+				if (pos2 > 0 && template.charCodeAt(pos2 - 1) == 92 )//\
+				{
+					result += template.substring(pos1, pos2 - 1);
+					result += "{";
+					pos1 = pos2 + 1;
+					continue;
+				}
+				
+				result += template.substring(pos1, pos2);				
+				pos1 = pos2;
+				pos2 = template.indexOf("}", pos1);
+				if(pos2==-1)
+					break;
+				
+				if(pos2==pos1+1)
+				{
+					result += template.substr(pos1, 2);
+					pos1 = pos2+1;
+					continue;
+				}
+				
+				tag = template.substring(pos1+1, pos2);
+				pos3 = tag.indexOf("=");
+				if(pos3!=-1)
+				{
+					value = _templateVars[tag.substring(0, pos3)];
+					if(value==null)
+						result += tag.substring(pos3+1);
+					else
+						result += value;
+				}
+				else
+				{
+					value = _templateVars[tag];
+					if(value!=null)
+						result += value;
+				}
+				pos1 = pos2+1;
+			}
+			
+			if (pos1 < template.length)
+				result += template.substr(pos1);
+			
+			return result;
+		}
+		
+		public function get templateVars():Object
+		{
+			return _templateVars;
+		}
+		
+		public function set templateVars(value:Object):void
+		{
+			if(_templateVars==null && value==null)
+				return;
+			
+			_templateVars = value;
+			flushVars();			
+		}
+		
+		public function setVar(name:String, value:String):GTextField
+		{
+			if(!_templateVars)
+				_templateVars = {};
+			_templateVars[name] = value;
+			
+			return this;
+		}
+		
+		public function flushVars():void
+		{
+			this.text = _text;
+		}
+		
 		override public function handleControllerChanged(c: Controller): void {
 			super.handleControllerChanged(c);
 			
@@ -173,6 +256,8 @@ package fairygui {
 				else
 					this.stroke = 2;
 			}
+			if(xml.getAttribute("vars")=="true")
+				_templateVars = {};
 		}
 		
 		override public function setup_afterAdd(xml: Object): void {

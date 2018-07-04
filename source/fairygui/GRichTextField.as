@@ -6,7 +6,6 @@ package fairygui {
 	public class GRichTextField extends GTextField {
 		public var div:laya.html.dom.HTMLDivElement;
 		
-		private var _text:String;
 		private var _ubbEnabled: Boolean;
 		private var _color:String;
 		
@@ -23,10 +22,13 @@ package fairygui {
 		
 		override public function set text(value: String):void {
 			this._text = value;
+			var text2:String = _text;
+			if (_templateVars != null)
+				text2 = parseTemplate(text2);
 			if(this._ubbEnabled)
-				this.div.innerHTML = ToolSet.parseUBB(this._text);
+				this.div.innerHTML = ToolSet.parseUBB(text2);
 			else
-				this.div.innerHTML = this._text;
+				this.div.innerHTML = text2;
 		}
 		
 		override public function get text():String {

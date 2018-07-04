@@ -10,8 +10,7 @@ package fairygui {
 		public var textField: Text;
 		
 		private var _font:String;
-		private var _color: String;           
-		private var _text: String;
+		private var _color: String;
 		private var _ubbEnabled: Boolean;
 		private var _singleLine:Boolean;
 		private var _letterSpacing:Number = 0;
@@ -56,10 +55,13 @@ package fairygui {
 			if(this._bitmapFont == null) {
 				if(this._widthAutoSize)
 					this.textField.width = 10000;
+				var text2:String = _text;
+				if (_templateVars != null)
+					text2 = parseTemplate(text2);
 				if(this._ubbEnabled) //laya还不支持同一个文本不同样式
-					this.textField.text = ToolSet.removeUBB(ToolSet.encodeHTML(this._text));
+					this.textField.text = ToolSet.removeUBB(ToolSet.encodeHTML(text2));
 				else
-					this.textField.text = this._text;
+					this.textField.text = text2;
 			}
 			else
 			{
@@ -321,9 +323,12 @@ package fairygui {
 			this._textWidth = 0;
 			this._textHeight = 0;
 			
-			var textLength: Number = this._text.length;
+			var text2:String = _text;
+			if (_templateVars != null)
+				text2 = parseTemplate(text2);
+			var textLength: Number = text2.length;
 			for (var offset: Number = 0; offset < textLength; ++offset) {
-				var ch: String = this._text.charAt(offset);
+				var ch: String = text2.charAt(offset);
 				var cc: Number = ch.charCodeAt(0);
 				
 				if (cc == 10) {
@@ -583,6 +588,10 @@ package fairygui {
 					this._yOffset = Math.floor(dh);
 			}
 			this.handleXYChanged();
+		}
+		
+		override public function flushVars():void {
+			this.text = _text;
 		}
 		
 		override public function setup_beforeAdd(xml: Object): void {
