@@ -1117,7 +1117,7 @@ package fairygui {
 			
 			str = xml.getAttribute("rotation");
 			if (str)
-				this.rotation = parseInt(str);
+				this.rotation = parseFloat(str);
 			
 			str = xml.getAttribute("pivot");
 			if (str) {

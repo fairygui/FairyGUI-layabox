@@ -242,7 +242,7 @@ package fairygui {
 						value.f1 = parseFloat(args[0]);
 						break;
 					case TransitionActionType.Rotation:
-						value.i = parseInt(args[0]);
+						value.i = parseFloat(args[0]);
 						break;
 					case TransitionActionType.Color:
 						value.s = args[0];
@@ -394,7 +394,11 @@ package fairygui {
 					else
 						startTime = delay + item.time;
 					if(startTime == 0)
+					{
 						this.applyValue(item,item.value);
+						if(item.hook != null)
+							item.hook.run();							
+					}
 					else {
 						item.completed = false;
 						this._totalTasks++;
