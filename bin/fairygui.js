@@ -14705,6 +14705,20 @@ var GList=(function(_super){
 				str=cxml.getAttribute("selectedIcon");
 				if(str && ((obj instanceof fairygui.GButton )))
 					(obj).selectedIcon=str;
+				str=cxml.getAttribute("selectedTitle");
+				if(str && ((obj instanceof fairygui.GButton )))
+					(obj).selectedTitle=str;
+				if((obj instanceof fairygui.GComponent )){
+					str=cxml.getAttribute("controllers");
+					if(str){
+						arr=str.split(",");
+						for(var j=0;j<arr.length;j+=2){
+							var cc=(obj).getController(arr[j]);
+							if(cc!=null)
+								cc.selectedPageId=arr[j+1];
+						}
+					}
+				}
 			}
 		}
 	}
