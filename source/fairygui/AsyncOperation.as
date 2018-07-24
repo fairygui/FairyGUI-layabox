@@ -51,9 +51,10 @@ package fairygui
 			_itemList.length = 0;
 			if(_objectPool.length>0)
 			{
-				for each(var obj:GObject in _objectPool)
+				var cnt:int = _objectPool.length;
+				for(var i:int=0;i<cnt;i++)
 				{
-					obj.dispose();
+					_objectPool[i].dispose();
 				}
 				_objectPool.length = 0;
 			}

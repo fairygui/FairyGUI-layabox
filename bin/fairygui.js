@@ -128,10 +128,9 @@ var AsyncOperation=(function(){
 		Laya.timer.clear(this,this.run);
 		this._itemList.length=0;
 		if(this._objectPool.length>0){
-			var obj;
-			for(var $each_obj in this._objectPool){
-				obj=this._objectPool[$each_obj];
-				obj.dispose();
+			var cnt=this._objectPool.length;
+			for(var i=0;i<cnt;i++){
+				this._objectPool[i].dispose();
 			}
 			this._objectPool.length=0;
 		}
@@ -2437,11 +2436,10 @@ var RelationItem=(function(){
 			this.add(14,usePercent);
 			this.add(15,usePercent);
 			return;
-		}
-		var def;
-		for(var $each_def in this._defs){
-			def=this._defs[$each_def];
-			if (def.type==relationType)
+		};
+		var cnt=this._defs.length;
+		for(var i=0;i<cnt;i++){
+			if (this._defs[i].type==relationType)
 				return;
 		}
 		this.internalAdd(relationType,usePercent);
@@ -2481,9 +2479,9 @@ var RelationItem=(function(){
 	__proto.copyFrom=function(source){
 		this.target=source.target;
 		this._defs.length=0;
-		var info;
-		for(var $each_info in source._defs){
-			info=source._defs[$each_info];
+		var cnt=source._defs.length;
+		for(var i=0;i<cnt;i++){
+			var info=source._defs[i];
 			var info2=new RelationDef();
 			info2.copyFrom(info);
 			this._defs.push(info2);
@@ -2529,9 +2527,9 @@ var RelationItem=(function(){
 			oy=this._owner.y-oy;
 			this._owner.updateGearFromRelations(1,ox,oy);
 			if (this._owner.parent !=null && this._owner.parent._transitions.length > 0){
-				var trans;
-				for(var $each_trans in this._owner.parent._transitions){
-					trans=this._owner.parent._transitions[$each_trans];
+				cnt=this._owner.parent._transitions.length;
+				for(var j=0;j<cnt;j++){
+					var trans=this._owner.parent._transitions[j];
 					trans.updateFromRelations(this._owner.id,ox,oy);
 				}
 			}
@@ -2886,10 +2884,9 @@ var RelationItem=(function(){
 		var oy=this._owner.y;
 		var dx=this._target.x-this._targetX;
 		var dy=this._target.y-this._targetY;
-		var info;
-		for(var $each_info in this._defs){
-			info=this._defs[$each_info];
-			this.applyOnXYChanged(info,dx,dy);
+		var cnt=this._defs.length;
+		for(var i=0;i<cnt;i++){
+			this.applyOnXYChanged(this._defs[i],dx,dy);
 		}
 		this._targetX=this._target.x;
 		this._targetY=this._target.y;
@@ -2898,9 +2895,9 @@ var RelationItem=(function(){
 			oy=this._owner.y-oy;
 			this._owner.updateGearFromRelations(1,ox,oy);
 			if (this._owner.parent !=null && this._owner.parent._transitions.length > 0){
-				var trans;
-				for(var $each_trans in this._owner.parent._transitions){
-					trans=this._owner.parent._transitions[$each_trans];
+				cnt=this._owner.parent._transitions.length;
+				for(var j=0;j<cnt;j++){
+					var trans=this._owner.parent._transitions[j];
 					trans.updateFromRelations(this._owner.id,ox,oy);
 				}
 			}
@@ -2919,10 +2916,9 @@ var RelationItem=(function(){
 		var oy=this._owner.y;
 		var ow=this._owner._rawWidth;
 		var oh=this._owner._rawHeight;
-		var info;
-		for(var $each_info in this._defs){
-			info=this._defs[$each_info];
-			this.applyOnSizeChanged(info);
+		var cnt=this._defs.length;
+		for(var i=0;i<cnt;i++){
+			this.applyOnSizeChanged(this._defs[i]);
 		}
 		this._targetWidth=this._target._width;
 		this._targetHeight=this._target._height;
@@ -2931,9 +2927,9 @@ var RelationItem=(function(){
 			oy=this._owner.y-oy;
 			this._owner.updateGearFromRelations(1,ox,oy);
 			if (this._owner.parent !=null && this._owner.parent._transitions.length > 0){
-				var trans;
-				for(var $each_trans in this._owner.parent._transitions){
-					trans=this._owner.parent._transitions[$each_trans];
+				cnt=this._owner.parent._transitions.length;
+				for(var j=0;j<cnt;j++){
+					var trans=this._owner.parent._transitions[j];
 					trans.updateFromRelations(this._owner.id,ox,oy);
 				}
 			}
@@ -3901,7 +3897,7 @@ var ScrollPane=(function(){
 			this._container.pos(ToolSet.clamp(this._container.x,-this._overlapSize.x,0),
 			ToolSet.clamp(this._container.y,-this._overlapSize.y,0));
 		}
-		this.syncScrollBar();
+		this.syncScrollBar(true);
 		this.checkRefreshBar();
 		if (this._pageMode)
 			this.updatePageController();
@@ -9728,147 +9724,6 @@ var GearIcon=(function(_super){
 })(GearBase)
 
 
-//class fairygui.GearLook extends fairygui.GearBase
-var GearLook=(function(_super){
-	var GearLookValue;
-	function GearLook(owner){
-		this.tweener=null;
-		this._storage=null;
-		this._default=null;
-		this._tweenValue=null;
-		this._tweenTarget=null;
-		GearLook.__super.call(this,owner);
-	}
-
-	__class(GearLook,'fairygui.GearLook',_super);
-	var __proto=GearLook.prototype;
-	__proto.init=function(){
-		this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed,this._owner.touchable);
-		this._storage={};
-	}
-
-	__proto.addStatus=function(pageId,value){
-		if(value=="-"|| value.length==0)
-			return;
-		var arr=value.split(",");
-		var gv;
-		if(pageId==null)
-			gv=this._default;
-		else {
-			gv=new GearLookValue();
-			this._storage[pageId]=gv;
-		}
-		gv.alpha=parseFloat(arr[0]);
-		gv.rotation=parseInt(arr[1]);
-		gv.grayed=arr[2]=="1" ? true :false;
-		if(arr.length<4)
-			gv.touchable=this._owner.touchable;
-		else
-		gv.touchable=arr[3]=="1"?true:false;
-	}
-
-	__proto.apply=function(){
-		var gv=this._storage[this._controller.selectedPageId];
-		if(!gv)
-			gv=this._default;
-		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-			this._owner._gearLocked=true;
-			this._owner.grayed=gv.grayed;
-			this._owner.touchable=gv.touchable;
-			this._owner._gearLocked=false;
-			if (this.tweener !=null){
-				if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
-					this.tweener.complete();
-					this.tweener=null;
-				}
-				else
-				return;
-			};
-			var a=gv.alpha !=this._owner.alpha;
-			var b=gv.rotation !=this._owner.rotation;
-			if(a || b){
-				if(this._owner.checkGearController(0,this._controller))
-					this._displayLockToken=this._owner.addDisplayLock();
-				this._tweenTarget=gv;
-				if(this._tweenValue==null)
-					this._tweenValue=new Point();
-				this._tweenValue.x=this._owner.alpha;
-				this._tweenValue.y=this._owner.rotation;
-				this.tweener=Tween.to(this._tweenValue,
-				{x:gv.alpha,y:gv.rotation },
-				this._tweenTime*1000,
-				this._easeType,
-				Handler.create(this,this.__tweenComplete),
-				this._delay*1000);
-				this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
-			}
-		}
-		else {
-			this._owner._gearLocked=true;
-			this._owner.grayed=gv.grayed;
-			this._owner.alpha=gv.alpha;
-			this._owner.rotation=gv.rotation;
-			this._owner.touchable=gv.touchable;
-			this._owner._gearLocked=false;
-		}
-	}
-
-	__proto.__tweenUpdate=function(a,b){
-		this._owner._gearLocked=true;
-		if(a)
-			this._owner.alpha=this._tweenValue.x;
-		if(b)
-			this._owner.rotation=this._tweenValue.y;
-		this._owner._gearLocked=false;
-	}
-
-	__proto.__tweenComplete=function(){
-		if(this._displayLockToken!=0){
-			this._owner.releaseDisplayLock(this._displayLockToken);
-			this._displayLockToken=0;
-		}
-		this.tweener=null;
-		this._owner.displayObject.event("fui_gear_stop");
-	}
-
-	__proto.updateState=function(){
-		var gv=this._storage[this._controller.selectedPageId];
-		if(!gv){
-			gv=new GearLookValue();
-			this._storage[this._controller.selectedPageId]=gv;
-		}
-		gv.alpha=this._owner.alpha;
-		gv.rotation=this._owner.rotation;
-		gv.grayed=this._owner.grayed;
-		gv.touchable=this._owner.touchable;
-	}
-
-	GearLook.__init$=function(){
-		//class GearLookValue
-		GearLookValue=(function(){
-			function GearLookValue(alpha,rotation,grayed,touchable){
-				this.alpha=NaN;
-				this.rotation=NaN;
-				this.grayed=false;
-				this.touchable=false;
-				(alpha===void 0)&& (alpha=0);
-				(rotation===void 0)&& (rotation=0);
-				(grayed===void 0)&& (grayed=false);
-				(touchable===void 0)&& (touchable=true);
-				this.alpha=alpha;
-				this.rotation=rotation;
-				this.grayed=grayed;
-				this.touchable=touchable;
-			}
-			__class(GearLookValue,'');
-			return GearLookValue;
-		})()
-	}
-
-	return GearLook;
-})(GearBase)
-
-
 //class fairygui.GGraph extends fairygui.GObject
 var GGraph=(function(_super){
 	function GGraph(){
@@ -10042,6 +9897,147 @@ var GGraph=(function(_super){
 
 	return GGraph;
 })(GObject)
+
+
+//class fairygui.GearLook extends fairygui.GearBase
+var GearLook=(function(_super){
+	var GearLookValue;
+	function GearLook(owner){
+		this.tweener=null;
+		this._storage=null;
+		this._default=null;
+		this._tweenValue=null;
+		this._tweenTarget=null;
+		GearLook.__super.call(this,owner);
+	}
+
+	__class(GearLook,'fairygui.GearLook',_super);
+	var __proto=GearLook.prototype;
+	__proto.init=function(){
+		this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed,this._owner.touchable);
+		this._storage={};
+	}
+
+	__proto.addStatus=function(pageId,value){
+		if(value=="-"|| value.length==0)
+			return;
+		var arr=value.split(",");
+		var gv;
+		if(pageId==null)
+			gv=this._default;
+		else {
+			gv=new GearLookValue();
+			this._storage[pageId]=gv;
+		}
+		gv.alpha=parseFloat(arr[0]);
+		gv.rotation=parseInt(arr[1]);
+		gv.grayed=arr[2]=="1" ? true :false;
+		if(arr.length<4)
+			gv.touchable=this._owner.touchable;
+		else
+		gv.touchable=arr[3]=="1"?true:false;
+	}
+
+	__proto.apply=function(){
+		var gv=this._storage[this._controller.selectedPageId];
+		if(!gv)
+			gv=this._default;
+		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+			this._owner._gearLocked=true;
+			this._owner.grayed=gv.grayed;
+			this._owner.touchable=gv.touchable;
+			this._owner._gearLocked=false;
+			if (this.tweener !=null){
+				if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
+					this.tweener.complete();
+					this.tweener=null;
+				}
+				else
+				return;
+			};
+			var a=gv.alpha !=this._owner.alpha;
+			var b=gv.rotation !=this._owner.rotation;
+			if(a || b){
+				if(this._owner.checkGearController(0,this._controller))
+					this._displayLockToken=this._owner.addDisplayLock();
+				this._tweenTarget=gv;
+				if(this._tweenValue==null)
+					this._tweenValue=new Point();
+				this._tweenValue.x=this._owner.alpha;
+				this._tweenValue.y=this._owner.rotation;
+				this.tweener=Tween.to(this._tweenValue,
+				{x:gv.alpha,y:gv.rotation },
+				this._tweenTime*1000,
+				this._easeType,
+				Handler.create(this,this.__tweenComplete),
+				this._delay*1000);
+				this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
+			}
+		}
+		else {
+			this._owner._gearLocked=true;
+			this._owner.grayed=gv.grayed;
+			this._owner.alpha=gv.alpha;
+			this._owner.rotation=gv.rotation;
+			this._owner.touchable=gv.touchable;
+			this._owner._gearLocked=false;
+		}
+	}
+
+	__proto.__tweenUpdate=function(a,b){
+		this._owner._gearLocked=true;
+		if(a)
+			this._owner.alpha=this._tweenValue.x;
+		if(b)
+			this._owner.rotation=this._tweenValue.y;
+		this._owner._gearLocked=false;
+	}
+
+	__proto.__tweenComplete=function(){
+		if(this._displayLockToken!=0){
+			this._owner.releaseDisplayLock(this._displayLockToken);
+			this._displayLockToken=0;
+		}
+		this.tweener=null;
+		this._owner.displayObject.event("fui_gear_stop");
+	}
+
+	__proto.updateState=function(){
+		var gv=this._storage[this._controller.selectedPageId];
+		if(!gv){
+			gv=new GearLookValue();
+			this._storage[this._controller.selectedPageId]=gv;
+		}
+		gv.alpha=this._owner.alpha;
+		gv.rotation=this._owner.rotation;
+		gv.grayed=this._owner.grayed;
+		gv.touchable=this._owner.touchable;
+	}
+
+	GearLook.__init$=function(){
+		//class GearLookValue
+		GearLookValue=(function(){
+			function GearLookValue(alpha,rotation,grayed,touchable){
+				this.alpha=NaN;
+				this.rotation=NaN;
+				this.grayed=false;
+				this.touchable=false;
+				(alpha===void 0)&& (alpha=0);
+				(rotation===void 0)&& (rotation=0);
+				(grayed===void 0)&& (grayed=false);
+				(touchable===void 0)&& (touchable=true);
+				this.alpha=alpha;
+				this.rotation=rotation;
+				this.grayed=grayed;
+				this.touchable=touchable;
+			}
+			__class(GearLookValue,'');
+			return GearLookValue;
+		})()
+	}
+
+	return GearLook;
+})(GearBase)
 
 
 //class fairygui.GGroup extends fairygui.GObject
@@ -14502,6 +14498,12 @@ var GList=(function(_super){
 					child=this.getChildAt(i);
 					if (this.foldInvisibleItems && !child.visible)
 						continue ;
+					if (j==0 && (this._lineCount !=0 && k >=this._lineCount
+						|| this._lineCount==0 && curY+child.height > viewHeight)){
+						page++;
+						curY=0;
+						k=0;
+					}
 					lineSize+=child.sourceWidth;
 					j++;
 					if (j==this._columnCount || i==cnt-1){
@@ -14529,12 +14531,6 @@ var GList=(function(_super){
 						lineStart=i+1;
 						lineSize=0;
 						k++;
-						if (this._lineCount !=0 && k >=this._lineCount
-							|| this._lineCount==0 && curY+child.height > viewHeight){
-							page++;
-							curY=0;
-							k=0;
-						}
 					}
 				}
 			}

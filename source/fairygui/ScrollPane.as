@@ -1017,7 +1017,7 @@ package fairygui {
 					ToolSet.clamp(_container.y, -_overlapSize.y, 0));
 			}
 			
-			syncScrollBar();
+			syncScrollBar(true);
 			checkRefreshBar();
 			if (_pageMode)
 				updatePageController();

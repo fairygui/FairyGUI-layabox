@@ -95,7 +95,7 @@ package fairygui.utils {
 		
 		protected function getTagText(remove:Boolean=false):String {
 			var pos1:int = _readPos;
-			var pos2:int
+			var pos2:int;
 			var result:String = "";
 			while ((pos2 = _text.indexOf("[", pos1)) != -1)
 			{

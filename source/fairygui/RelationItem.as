@@ -47,9 +47,10 @@ package fairygui
 				return;
 			}
 			
-			for each (var def:RelationDef in _defs)
+			var cnt:int = _defs.length;
+			for(var i:int=0;i<cnt;i++)
 			{
-				if (def.type == relationType)
+				if (_defs[i].type == relationType)
 					return;
 			}
 			
@@ -103,8 +104,10 @@ package fairygui
 			this.target = source.target;
 			
 			_defs.length = 0;
-			for each (var info:RelationDef in source._defs)
+			var cnt:int = source._defs.length;
+			for(var i:int=0;i<cnt;i++)
 			{
+				var info:RelationDef = source._defs[i];
 				var info2:RelationDef = new RelationDef();
 				info2.copyFrom(info);
 				_defs.push(info2);
@@ -170,8 +173,10 @@ package fairygui
 				
 				if (_owner.parent != null && _owner.parent._transitions.length > 0)
 				{
-					for each (var trans:Transition in _owner.parent._transitions)
+					cnt = _owner.parent._transitions.length;
+					for(var j:int=0;j<cnt;j++)
 					{
+						var trans:Transition = _owner.parent._transitions[j];
 						trans.updateFromRelations(_owner.id, ox, oy);
 					}
 				}
@@ -572,9 +577,10 @@ package fairygui
 			var oy:Number = _owner.y;
 			var dx:Number = _target.x-_targetX;
 			var dy:Number = _target.y-_targetY;
-			for each(var info:RelationDef in _defs)
+			var cnt:int = _defs.length;
+			for(var i:int=0;i<cnt;i++)
 			{
-				applyOnXYChanged(info, dx, dy);
+				applyOnXYChanged(_defs[i], dx, dy);
 			}
 			_targetX = _target.x;
 			_targetY = _target.y;
@@ -588,8 +594,10 @@ package fairygui
 				
 				if (_owner.parent != null && _owner.parent._transitions.length > 0)
 				{
-					for each (var trans:Transition in _owner.parent._transitions)
+					cnt = _owner.parent._transitions.length;
+					for(var j:int=0;j<cnt;j++)
 					{
+						var trans:Transition = _owner.parent._transitions[j];
 						trans.updateFromRelations(_owner.id, ox, oy);
 					}
 				}
@@ -613,9 +621,10 @@ package fairygui
 			var oy:Number = _owner.y;
 			var ow:Number = _owner._rawWidth;
 			var oh:Number = _owner._rawHeight;
-			for each(var info:RelationDef in _defs)
+			var cnt:int = _defs.length;
+			for(var i:int=0;i<cnt;i++)
 			{
-				applyOnSizeChanged(info);
+				applyOnSizeChanged(_defs[i]);
 			}
 			_targetWidth = _target._width;
 			_targetHeight = _target._height;
@@ -629,8 +638,10 @@ package fairygui
 				
 				if (_owner.parent != null && _owner.parent._transitions.length > 0)
 				{
-					for each (var trans:Transition in _owner.parent._transitions)
+					cnt = _owner.parent._transitions.length;
+					for(var j:int=0;j<cnt;j++)
 					{
+						var trans:Transition = _owner.parent._transitions[j];
 						trans.updateFromRelations(_owner.id, ox, oy);
 					}
 				}
