@@ -1,10 +1,9 @@
 package fairygui {
+	import fairygui.tween.EaseType;
+	import fairygui.tween.GTween;
+	import fairygui.tween.GTweener;
 	import fairygui.utils.ToolSet;
-	
-	import laya.utils.Ease;
-	import laya.utils.Handler;
-	import laya.utils.Tween;
-	
+
 	public class GProgressBar extends GComponent {
 		private var _max: Number = 0;
 		private var _value: Number = 0;
@@ -22,10 +21,7 @@ package fairygui {
 		private var _barStartX: Number = 0;
 		private var _barStartY: Number = 0;
 		
-		private var _tweener: Tween;
-		private var _tweenValue: Number = 0;
-		
-		private static var easeLinear: Function = Ease.linearNone;
+		private var _tweening:Boolean;
 		
 		public function GProgressBar() {
 			super();
@@ -62,9 +58,10 @@ package fairygui {
 		}
 		
 		public function set value(value: Number):void {
-			if(this._tweener != null) {
-				this._tweener.clear();
-				this._tweener = null;
+			if(_tweening)
+			{
+				GTween.kill(this, true, this.update);
+				_tweening = false;
 			}
 			
 			if(this._value != value) {
@@ -73,29 +70,24 @@ package fairygui {
 			}
 		}
 		
-		public function tweenValue(value:Number, duration:Number):Tween
+		public function tweenValue(value:Number, duration:Number):GTweener
 		{
 			if(this._value != value) {
-				if(this._tweener)
-					this._tweener.clear();
+				if(_tweening)
+				{
+					GTween.kill(this, false, this.update);
+					_tweening = false;
+				}
 				
-				this._tweenValue = this._value;
-				this._value = value;
-				this._tweener = Tween.to(this, { _tweenValue: value }, duration * 1000, GProgressBar.easeLinear, 
-					Handler.create(this, this.onTweenComplete, null, true)); 
-				this._tweener.update = Handler.create(this, this.onUpdateTween, null, false);
-				return this._tweener;
+				var oldValule:Number = _value;
+				_value = value;
+				
+				_tweening = true;
+				return GTween.to(oldValule, _value, duration).setTarget(this, this.update).setEase(EaseType.Linear)
+					.onComplete(function():void { _tweening = false; }, this);
 			}
 			else
 				return null;
-		}
-		
-		private function onUpdateTween(): void {
-			this.update(this._tweenValue);
-		}
-		
-		private function onTweenComplete():void {
-			this._tweener = null;
 		}
 		
 		public function update(newValue:Number): void {
@@ -195,8 +187,8 @@ package fairygui {
 		}
 		
 		override public function dispose(): void {
-			if(this._tweener)
-				this._tweener.clear();
+			if(_tweening)
+				GTween.kill(this);
 			super.dispose();
 		}
 	}

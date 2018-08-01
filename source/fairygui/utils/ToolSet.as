@@ -155,48 +155,6 @@ package fairygui.utils {
 			return ToolSet.defaultUBBParser.parse(text, true);
 		}
 		
-		private static var EaseMap: Object =
-			{
-				"Linear": Ease.linearNone,
-					"Elastic.In": Ease.elasticIn,
-					"Elastic.Out": Ease.elasticOut,
-					"Elastic.InOut": Ease.elasticInOut,
-					"Quad.In": Ease.quadIn,
-					"Quad.Out": Ease.quadOut,
-					"Quad.InOut": Ease.quadInOut,
-					"Cube.In": Ease.cubicIn,
-					"Cube.Out": Ease.cubicOut,
-					"Cube.InOut": Ease.cubicInOut,
-					"Quart.In": Ease.quartIn,
-					"Quart.Out": Ease.quartOut,
-					"Quart.InOut": Ease.quartInOut,
-					"Quint.In": Ease.quintIn,
-					"Quint.Out": Ease.quintOut,
-					"Quint.InOut": Ease.quintInOut,
-					"Sine.In": Ease.sineIn,
-					"Sine.Out": Ease.sineOut,
-					"Sine.InOut": Ease.sineInOut,
-					"Bounce.In": Ease.bounceIn,
-					"Bounce.Out": Ease.bounceOut,
-					"Bounce.InOut": Ease.bounceInOut,
-					"Circ.In": Ease.circIn,
-					"Circ.Out": Ease.circOut,
-					"Circ.InOut": Ease.circInOut,
-					"Expo.In": Ease.quartIn,
-					"Expo.Out": Ease.quartOut,
-					"Expo.InOut": Ease.quartInOut,
-					"Back.In": Ease.backIn,
-					"Back.Out": Ease.backOut,
-					"Back.InOut": Ease.backInOut
-			};
-		
-		public static function parseEaseType(value: String): Function {
-			var ret: Function = EaseMap[value];
-			if (!ret)
-				ret = Ease.quartOut;
-			return ret;
-		}
-		
 		public static function clamp(value:Number, min:Number, max:Number):Number
 		{
 			if(value<min)

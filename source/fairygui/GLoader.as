@@ -167,9 +167,29 @@ package fairygui {
 			if (this._frame != value) {
 				this._frame = value;
 				if (this._content is MovieClip)
-					MovieClip(this._content).currentFrame = value;
+					MovieClip(this._content).frame = value;
 				this.updateGear(5);
 			}
+		}
+		
+		final public function get timeScale():Number
+		{
+			if(_content is MovieClip)
+				return MovieClip(_content).timeScale;
+			else
+				return 1;
+		}
+		
+		public function set timeScale(value:Number):void
+		{
+			if(_content is MovieClip)
+				MovieClip(_content).timeScale = value;
+		}
+		
+		public function advance(timeInMiniseconds:int):void
+		{
+			if(_content is MovieClip)
+				MovieClip(_content).advance(timeInMiniseconds);
 		}
 		
 		public function get color(): String {

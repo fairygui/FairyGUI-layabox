@@ -6,7 +6,7 @@ package fairygui.action
 	public class PlayTransitionAction extends ControllerAction
 	{
 		public var transitionName:String;
-		public var repeat:int = 1;
+		public var playTimes:int = 1;
 		public var delay:Number = 0;
 		public var stopOnExit:Boolean = false;
 		
@@ -22,9 +22,9 @@ package fairygui.action
 			if(trans)
 			{
 				if(_currentTransition && _currentTransition.playing)
-					trans.changeRepeat(repeat);
+					trans.changePlayTimes(playTimes);
 				else
-					trans.play(null, repeat, delay);	
+					trans.play(null, playTimes, delay);	
 				_currentTransition = trans;
 			}
 		}
@@ -48,7 +48,7 @@ package fairygui.action
 			
 			str = xml.getAttribute("repeat");
 			if(str)
-				repeat = parseInt(str);
+				playTimes = parseInt(str);
 			
 			str = xml.getAttribute("delay");
 			if(str)

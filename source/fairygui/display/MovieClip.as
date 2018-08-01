@@ -8,30 +8,32 @@ package fairygui.display {
 	
 	public class MovieClip extends Sprite {
 		public var interval: Number = 0;
-		public var swing: Boolean;
+		public var swing: Boolean = false;
 		public var repeatDelay: Number = 0;
-		private var playState: PlayState;
+		public var timeScale:Number = 1;
 		
-		private var _texture: Texture;
-		private var _needRebuild: Boolean;
+		private var _texture: Texture = null;
+		private var _needRebuild: Boolean = false;
 		
-		private var _playing: Boolean;
+		private var _playing: Boolean = true;
 		private var _frameCount: Number = 0;
 		private var _frames: Array;
-		private var _currentFrame: Number = 0;
+		private var _frame: Number = 0;
 		private var _boundsRect: Rectangle;
 		private var _start: Number = 0;
 		private var _end: Number = 0;
 		private var _times: Number = 0;
 		private var _endAt: Number = 0;
 		private var _status: Number = 0; //0-none, 1-next loop, 2-ending, 3-ended
-		private var _endHandler: Handler;
+		private var _endHandler: Handler = null;
+		
+		private var _frameElapsed:Number = 0; //当前帧延迟
+		private var _reversed:Boolean = false;
+		private var _repeatedCount:int = 0;
 		
 		public function MovieClip() {
 			super();
 			
-			this.playState = new PlayState();
-			this._playing = true;
 			this.mouseEnabled = false;
 			
 			this.setPlaySettings();
@@ -56,37 +58,42 @@ package fairygui.display {
 			if(this._endAt == -1 || this._endAt > this._frameCount - 1)
 				this._endAt = this._frameCount - 1;
 			
-			if(this._currentFrame < 0 || this._currentFrame > this._frameCount - 1)
-				this._currentFrame = this._frameCount - 1;
+			if(this._frame < 0 || this._frame > this._frameCount - 1)
+				this._frame = this._frameCount - 1;
 			
-			if(this._frameCount > 0)
-				this.setFrame(this._frames[this._currentFrame]);
-			else
-				this.setFrame(null);  
-			this.playState.rewind();
+			drawFrame();
+			
+			_frameElapsed = 0;
+			_repeatedCount = 0;
+			_reversed = false;
+			
+			checkTimer();
 		}
 		
 		public function get frameCount(): Number {
-			return this._frameCount;
+			return _frameCount;
 		}
 		
 		public function get boundsRect(): Rectangle {
-			return this._boundsRect;
+			return _boundsRect;
 		}
 		
 		public function set boundsRect(value: Rectangle):void {
 			this._boundsRect = value;
 		}
 		
-		public function get currentFrame(): Number {
-			return this._currentFrame;
+		public function get frame(): Number {
+			return _frame;
 		}
 		
-		public function set currentFrame(value: Number):void {
-			if (this._currentFrame != value) {
-				this._currentFrame = value;
-				this.playState.currentFrame = value;
-				this.setFrame(this._currentFrame < this._frameCount ? this._frames[this._currentFrame] : null);
+		public function set frame(value: Number):void {
+			if (_frame != value) {
+				if(_frames!=null && value>=_frameCount)
+					value = _frameCount-1;
+				
+				_frame = value;
+				_frameElapsed = 0;
+				drawFrame();
 			}
 		}
 		
@@ -95,87 +102,228 @@ package fairygui.display {
 		}
 		
 		public function set playing(value: Boolean):void {
-			this._playing = value;
-			
-			if(value && this.stage!=null) {
-				Laya.timer.frameLoop(1, this, this.update);
-			} else {
-				Laya.timer.clear(this, this.update);
+			if(_playing!=value)
+			{
+				_playing = value;
+				checkTimer();
 			}
 		}
 		
 		//从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
-		public function setPlaySettings(start: Number = 0, end: Number = -1,
-										times: Number = 0, endAt: Number = -1,
-										endHandler: Handler = null): void {
-			this._start = start;
-			this._end = end;
-			if(this._end == -1 || this._end > this._frameCount - 1)
-				this._end = this._frameCount - 1;
-			this._times = times;
-			this._endAt = endAt;
-			if(this._endAt == -1)
-				this._endAt = this._end;
-			this._status = 0;
-			this._endHandler = endHandler;
+		public function rewind():void
+		{
+			_frame = 0;
+			_frameElapsed = 0;
+			_reversed = false;
+			_repeatedCount = 0;
 			
-			this.currentFrame = start;
+			drawFrame();
 		}
 		
-		private function update(): void {
-			if (this._playing && this._frameCount != 0 && this._status != 3) {
-				this.playState.update(this);
-				if (this._currentFrame != this.playState.currentFrame) {
-					if (this._status == 1) {
-						this._currentFrame = this._start;
-						this.playState.currentFrame = this._currentFrame;
-						this._status = 0;
-					}
-					else if (this._status == 2) {
-						this._currentFrame = this._endAt;
-						this.playState.currentFrame = this._currentFrame;
-						this._status = 3;
-						
-						//play end
-						if (this._endHandler != null) {
-							this._endHandler.run();
-						}
-					}
-					else {
-						this._currentFrame = this.playState.currentFrame;
-						if (this._currentFrame == this._end) {
-							if (this._times > 0) {
-								this._times--;
-								if (this._times == 0)
-									this._status = 2;
-								else
-									this._status = 1;
-							}
-							else if(_start!=0)
-								this._status = 1;
-						}
-					}
-					
-					//draw
-					this.setFrame(this._frames[this._currentFrame]);
+		public function syncStatus(anotherMc:MovieClip):void
+		{
+			_frame = anotherMc._frame;
+			_frameElapsed = anotherMc._frameElapsed;
+			_reversed = anotherMc._reversed;
+			_repeatedCount = anotherMc._repeatedCount;
+			
+			drawFrame();
+		}
+		
+		public function advance(timeInMiniseconds:Number):void
+		{
+			var beginFrame:int = _frame;
+			var beginReversed:Boolean = _reversed;
+			var backupTime:int = timeInMiniseconds;
+			while (true)
+			{
+				var tt:int = interval + _frames[_frame].addDelay;
+				if (_frame == 0 && _repeatedCount > 0)
+					tt += repeatDelay;
+				if (timeInMiniseconds < tt)
+				{
+					_frameElapsed = 0;
+					break;
 				}
+				
+				timeInMiniseconds -= tt;
+				
+				if (swing)
+				{
+					if (_reversed)
+					{
+						_frame--;
+						if (_frame <= 0)
+						{
+							_frame = 0;
+							_repeatedCount++;
+							_reversed = !_reversed;
+						}
+					}
+					else
+					{
+						_frame++;
+						if (_frame > _frameCount - 1)
+						{
+							_frame = Math.max(0, _frameCount - 2);
+							_repeatedCount++;
+							_reversed = !_reversed;
+						}
+					}
+				}
+				else
+				{
+					_frame++;
+					if (_frame > _frameCount - 1)
+					{
+						_frame = 0;
+						_repeatedCount++;
+					}
+				}
+				
+				if (_frame == beginFrame && _reversed == beginReversed) //走了一轮了
+				{
+					var roundTime:int = backupTime - timeInMiniseconds; //这就是一轮需要的时间
+					timeInMiniseconds -= Math.floor(timeInMiniseconds / roundTime) * roundTime; //跳过
+				}
+			}
+			
+			drawFrame();
+		}
+		
+		//从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
+		public function setPlaySettings(start:int = 0, end:int = -1, times:int = 0, endAt:int = -1, endHandler:Handler = null):void
+		{
+			_start = start;
+			_end = end;
+			if(_end==-1 || _end>_frameCount - 1)
+				_end = _frameCount - 1;
+			_times = times;
+			_endAt = endAt;
+			if (_endAt == -1)
+				_endAt = _end;
+			_status = 0;
+			_endHandler = endHandler;
+			this.frame = start;
+		}
+		
+		private function update():void
+		{
+			if (!_playing || _frameCount == 0 || _status == 3)
+				return;
+			
+			var dt:int = Laya.timer.delta;
+			if(timeScale!=1)
+				dt *= timeScale;
+			
+			_frameElapsed += dt;
+			var tt:int = interval + _frames[_frame].addDelay;
+			if (_frame == 0 && _repeatedCount > 0)
+				tt += repeatDelay;
+			if (_frameElapsed < tt)
+				return;
+			
+			_frameElapsed -= tt;
+			if (_frameElapsed > interval)
+				_frameElapsed = interval;
+			
+			if (swing)
+			{
+				if (_reversed)
+				{
+					_frame--;
+					if (_frame <= 0)
+					{
+						_frame = 0;
+						_repeatedCount++;
+						_reversed = !_reversed;
+					}
+				}
+				else
+				{
+					_frame++;
+					if (_frame > _frameCount - 1)
+					{
+						_frame = Math.max(0, _frameCount - 2);
+						_repeatedCount++;
+						_reversed = !_reversed;
+					}
+				}
+			}
+			else
+			{
+				_frame++;
+				if (_frame > _frameCount - 1)
+				{
+					_frame = 0;
+					_repeatedCount++;
+				}
+			}
+			
+			if (_status == 1) //new loop
+			{
+				_frame = _start;
+				_frameElapsed = 0;
+				_status = 0;
+			}
+			else if (_status == 2) //ending
+			{
+				_frame = _endAt;
+				_frameElapsed = 0;
+				_status = 3; //ended
+				
+				//play end
+				if(_endHandler!=null)
+				{
+					var handler:Handler = _endHandler;
+					_endHandler = null;
+					handler.run();
+				}
+			}
+			else
+			{
+				if (_frame == _end)
+				{
+					if (_times > 0)
+					{
+						_times--;
+						if (_times == 0)
+							_status = 2;  //ending
+						else
+							_status = 1; //new loop
+					}
+					else if (_start != 0)
+						_status = 1; //new loop
+				}
+			}
+			
+			drawFrame();
+		}
+		
+		private function drawFrame(): void {
+			this.graphics.clear();
+			if (_frameCount>0 && _frame < _frames.length)
+			{
+				var frame:Frame = _frames[_frame];
+				this.graphics.drawTexture(frame.texture, frame.rect.x, frame.rect.y);
 			}
 		}
 		
-		private function setFrame(frame: Frame): void {
-			this.graphics.clear();
-			if (frame != null)
-				this.graphics.drawTexture(frame.texture, frame.rect.x, frame.rect.y);
+		private function checkTimer():void
+		{
+			if (_playing && _frameCount>0 && this.stage!=null)
+				Laya.timer.frameLoop(1, this, this.update);
+			else
+				Laya.timer.clear(this, this.update);			
 		}
 		
 		private function __addToStage(): void {
-			if(this._playing)
+			if(this._playing && _frameCount>0)
 				Laya.timer.frameLoop(1, this, this.update);
 		}
 		
 		private function __removeFromStage(): void {
-			if(this._playing)
-				Laya.timer.clear(this, this.update);
+			Laya.timer.clear(this, this.update);
 		}
 	}
 }

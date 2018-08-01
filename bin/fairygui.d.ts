@@ -111,12 +111,17 @@ declare module fairygui.display {
         interval: number;
         swing: boolean;
         repeatDelay: number;
+        timeScale: number;
         constructor();
         frames: Array<any>;
         frameCount: number;
         boundsRect: laya.maths.Rectangle;
-        currentFrame: number;
+        frame: number;
         playing: boolean;
+        smoothing: boolean;
+        rewind(): void;
+        syncStatus(anotherMc: fairygui.display.MovieClip): void;
+        advance(timeInMiniseconds: number): void;
         setPlaySettings(start?: number, end?: number, times?: number, endAt?: number, endHandler?: laya.utils.Handler): void;
     }
 }
@@ -361,7 +366,7 @@ declare module fairygui {
     class GearBase {
         static disableAllTweenEffect: boolean;
         protected _tween: boolean;
-        protected _easeType: Function;
+        protected _easeType: number;
         protected _tweenTime: number;
         protected _tweenDelay: number;
         protected _owner: GObject;
@@ -397,7 +402,6 @@ declare module fairygui {
 }
 declare module fairygui {
     class GearLook extends GearBase {
-    		tweener: laya.utils.Tween;
         constructor(owner: GObject);
         protected init(): void;
         protected addStatus(pageId: string, value: string): void;
@@ -413,7 +417,6 @@ declare module fairygui {
 }
 declare module fairygui {
     class GearSize extends GearBase {
-    		tweener: laya.utils.Tween;
         constructor(owner: GObject);
         protected init(): void;
         protected addStatus(pageId: string, value: string): void;
@@ -431,7 +434,6 @@ declare module fairygui {
 }
 declare module fairygui {
     class GearXY extends GearBase {
-    		tweener: laya.utils.Tween;
         constructor(owner: GObject);
         protected init(): void;
         protected addStatus(pageId: string, value: string): void;
@@ -599,12 +601,15 @@ declare module fairygui {
 }
 declare module fairygui {
     class GMovieClip extends GObject implements IAnimationGear, IColorGear {
-        movieClip: fairygui.display.MovieClip;
         constructor();
         color: string;
         protected createDisplayObject(): void;
         playing: boolean;
         frame: number;
+        timeScale: number;
+        rewind(): void;
+        syncStatus(anotherMc: fairygui.GMovieClip): void;
+        advance(timeInMiniseconds: number): void;
         setPlaySettings(start?: number, end?: number, times?: number, endAt?: number, endHandler?: laya.utils.Handler): void;
         gearAnimation: GearAnimation;
         gearColor: GearColor;
@@ -760,7 +765,7 @@ declare module fairygui {
         titleType: number;
         max: number;
         value: number;
-        tweenValue(value: number, duration: number): laya.utils.Tween;
+        tweenValue(value: number, duration: number): fairygui.tween.GTweener;
         update(newValue: number): void;
         protected constructFromXML(xml: Object): void;
         protected handleSizeChanged(): void;
@@ -1174,69 +1179,20 @@ declare module fairygui {
 declare module fairygui {
     class Transition {
         name: string;
-        autoPlay: boolean;
-        autoPlayRepeat: number;
-        autoPlayDelay: number;
         constructor(owner: GComponent);
-        play(onComplete?: laya.utils.Handler, times?: number, delay?: number): void;
+        play(onComplete?: laya.utils.Handler, times?: number, delay?: number, startTime?: number, endTime?: number): void;
         playReverse(onComplete?: laya.utils.Handler, times?: number, delay?: number): void;
         stop(setToComplete?: boolean, processCallback?: boolean): void;
         playing: boolean;
+        changePlayTimes(value: number): void;
+        setAutoPlay(value: boolean, times?: number, delay?: number):void;
+        setPaused(paused: boolean);
         setValue(label: string, ...args: any[]): void;
         setHook(label: string, callback: laya.utils.Handler): void;
         clearHooks(): void;
         setTarget(label: string, newTarget: GObject): void;
         setDuration(label: String, value: number):void;
-        updateFromRelations(targetId: string, dx: number, dy: number): void;
         setup(xml: Object): void;
-    }
-    class TransitionActionType {
-        static XY: number;
-        static Size: number;
-        static Scale: number;
-        static Pivot: number;
-        static Alpha: number;
-        static Rotation: number;
-        static Color: number;
-        static Animation: number;
-        static Visible: number;
-        static Controller: number;
-        static Sound: number;
-        static Transition: number;
-        static Shake: number;
-        static Unknown: number;
-    }
-    class TransitionItem {
-        time: number;
-        targetId: string;
-        type: number;
-        duration: number;
-        value: TransitionValue;
-        startValue: TransitionValue;
-        endValue: TransitionValue;
-        easeType: Function;
-        repeat: number;
-        yoyo: boolean;
-        tween: boolean;
-        label: string;
-        label2: string;
-        hook: laya.utils.Handler;
-        hook2: laya.utils.Handler;
-        tweenTimes: number;
-        tweener: laya.utils.Tween;
-        completed: boolean;
-        target: fairygui.GObject;
-        TransitionItem(): any;
-    }
-    class TransitionValue {
-        f1: number;
-        f2: number;
-        f3: number;
-        i: number;
-        b: boolean;
-        s: string;
-        b1: boolean;
-        b2: boolean;
     }
 }
 declare module fairygui {
@@ -1471,5 +1427,153 @@ declare module fairygui.tree {
         updateNodes(nodes: Array<fairygui.tree.TreeNode>): void;
         expandAll(folderNode: fairygui.tree.TreeNode): void;
         collapseAll(folderNode: fairygui.tree.TreeNode): void;
+    }
+}
+
+declare module fairygui.tween {
+    class EaseType {
+        static Linear: number;
+        static SineIn: number;
+        static SineOut: number;
+        static SineInOut: number;
+        static QuadIn: number;
+        static QuadOut: number;
+        static QuadInOut: number;
+        static CubicIn: number;
+        static CubicOut: number;
+        static CubicInOut: number;
+        static QuartIn: number;
+        static QuartOut: number;
+        static QuartInOut: number;
+        static QuintIn: number;
+        static QuintOut: number;
+        static QuintInOut: number;
+        static ExpoIn: number;
+        static ExpoOut: number;
+        static ExpoInOut: number;
+        static CircIn: number;
+        static CircOut: number;
+        static CircInOut: number;
+        static ElasticIn: number;
+        static ElasticOut: number;
+        static ElasticInOut: number;
+        static BackIn: number;
+        static BackOut: number;
+        static BackInOut: number;
+        static BounceIn: number;
+        static BounceOut: number;
+        static BounceInOut: number;
+        static Custom: number;
+        private static easeTypeMap;
+        static parseEaseType(value: string): number;
+    }
+}
+declare module fairygui.tween {
+    class GTween {
+        static safeMode: boolean;
+        static to(start: number, end: number, duration: number): GTweener;
+        static to2(start: number, start2: number, end: number, end2: number, duration: number): GTweener;
+        static to3(start: number, start2: number, start3: number, end: number, end2: number, end3: number, duration: number): GTweener;
+        static to4(start: number, start2: number, start3: number, start4: number, end: number, end2: number, end3: number, end4: number, duration: number): GTweener;
+        static toColor(start: number, end: number, duration: number): GTweener;
+        static delayedCall(delay: number): GTweener;
+        static shake(startX: number, startY: number, amplitude: number, duration: number): GTweener;
+        static isTweening(target: Object, propType: Object): Boolean;
+        static kill(target: Object, complete?: Boolean, propType?: Object): void;
+        static getTween(target: Object, propType?: Object): GTweener;
+    }
+}
+declare module fairygui.tween {
+    class GTweener {
+        _target: any;
+        _propType: any;
+        _killed: boolean;
+        _paused: boolean;
+        private _delay;
+        private _duration;
+        private _breakpoint;
+        private _easeType;
+        private _easeOvershootOrAmplitude;
+        private _easePeriod;
+        private _repeat;
+        private _yoyo;
+        private _timeScale;
+        private _snapping;
+        private _userData;
+        private _onUpdate;
+        private _onStart;
+        private _onComplete;
+        private _onUpdateCaller;
+        private _onStartCaller;
+        private _onCompleteCaller;
+        private _startValue;
+        private _endValue;
+        private _value;
+        private _deltaValue;
+        private _valueSize;
+        private _started;
+        private _ended;
+        private _elapsedTime;
+        private _normalizedTime;
+        constructor();
+        setDelay(value: number): GTweener;
+        readonly delay: number;
+        setDuration(value: number): GTweener;
+        readonly duration: number;
+        setBreakpoint(value: number): GTweener;
+        setEase(value: number): GTweener;
+        setEasePeriod(value: number): GTweener;
+        setEaseOvershootOrAmplitude(value: number): GTweener;
+        setRepeat(repeat: number, yoyo?: boolean): GTweener;
+        readonly repeat: number;
+        setTimeScale(value: number): GTweener;
+        setSnapping(value: boolean): GTweener;
+        setTarget(value: Object, propType?: Object): GTweener;
+        readonly target: Object;
+        setUserData(value: any): GTweener;
+        readonly userData: any;
+        onUpdate(callback: Function, caller: any): GTweener;
+        onStart(callback: Function, caller: any): GTweener;
+        onComplete(callback: Function, caller: any): GTweener;
+        readonly startValue: TweenValue;
+        readonly endValue: TweenValue;
+        readonly value: TweenValue;
+        readonly deltaValue: TweenValue;
+        readonly normalizedTime: number;
+        readonly completed: boolean;
+        readonly allCompleted: boolean;
+        setPaused(paused: boolean): GTweener;
+        /**
+         * seek position of the tween, in seconds.
+         */
+        seek(time: number): void;
+        kill(complete?: boolean): void;
+        _to(start: number, end: number, duration: number): GTweener;
+        _to2(start: number, start2: number, end: number, end2: number, duration: number): GTweener;
+        _to3(start: number, start2: number, start3: number, end: number, end2: number, end3: number, duration: number): GTweener;
+        _to4(start: number, start2: number, start3: number, start4: number, end: number, end2: number, end3: number, end4: number, duration: number): GTweener;
+        _toColor(start: number, end: number, duration: number): GTweener;
+        _shake(startX: number, startY: number, amplitude: number, duration: number): GTweener;
+        _init(): void;
+        _reset(): void;
+        _update(dt: number): void;
+        private update();
+        private callStartCallback();
+        private callUpdateCallback();
+        private callCompleteCallback();
+    }
+}
+
+declare module fairygui.tween {
+    class TweenValue {
+        x: number;
+        y: number;
+        z: number;
+        w: number;
+        constructor();
+        color: number;
+        getField(index: number): number;
+        setField(index: number, value: number): void;
+        setZero(): void;
     }
 }

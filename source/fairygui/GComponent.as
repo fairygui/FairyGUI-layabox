@@ -1204,18 +1204,16 @@ package fairygui {
 		}
 		
 		private function ___added():void {
-			var cnt: Number = this._transitions.length;
-			for(var i: Number = 0;i < cnt;++i) {
-				var trans: Transition = this._transitions[i];
-				if(trans.autoPlay)
-					trans.play(null, trans.autoPlayRepeat, trans.autoPlayDelay);
+			var cnt: int = this._transitions.length;
+			for(var i: int = 0;i < cnt;++i) {
+				_transitions[i].onOwnerAddedToStage();
 			}
 		}
 		
 		private function ___removed(): void {
-			var cnt: Number = this._transitions.length;
-			for(var i: Number = 0;i < cnt;++i) {
-				this._transitions[i].OnOwnerRemovedFromStage();
+			var cnt: int = this._transitions.length;
+			for(var i: int = 0;i < cnt;++i) {
+				_transitions[i].onOwnerRemovedFromStage();
 			}
 		}
 	}

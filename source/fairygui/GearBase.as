@@ -1,23 +1,23 @@
 package fairygui {
-	import fairygui.utils.ToolSet;
-	
-	import laya.utils.Ease;
+	import fairygui.tween.EaseType;
 	
 	public class GearBase {
 		public static var disableAllTweenEffect:Boolean = false;
 		
 		protected var _tween: Boolean;
-		protected var _easeType: Function;
-		protected var _tweenTime: Number = 0.3;
-		protected var _delay: Number = 0;
-		protected var _displayLockToken:Number = 0;
+		protected var _easeType: int;
+		protected var _tweenTime: Number;
+		protected var _delay: Number;
+		protected var _displayLockToken:Number;
 		
 		protected var _owner: GObject;
 		protected var _controller: Controller;
 		
 		public function GearBase(owner: GObject) {
-			this._owner = owner;
-			this._easeType = Ease.quadOut;
+			_owner = owner;
+			_easeType = EaseType.QuadOut;
+			_tweenTime = 0.3;
+			_delay = 0;
 		}
 		
 		public function get controller(): Controller {
@@ -56,11 +56,11 @@ package fairygui {
 			this._tweenTime = value;
 		}
 		
-		public function get easeType(): Function {
+		public function get easeType(): int {
 			return this._easeType;
 		}
 		
-		public function set easeType(value: Function):void {
+		public function set easeType(value: int):void {
 			this._easeType = value;
 		}
 		
@@ -79,7 +79,7 @@ package fairygui {
 			
 			str = xml.getAttribute("ease");
 			if (str)
-				this._easeType = ToolSet.parseEaseType(str);
+				this._easeType = EaseType.parseEaseType(str);
 			
 			str = xml.getAttribute("duration");
 			if (str)

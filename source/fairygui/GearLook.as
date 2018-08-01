@@ -1,15 +1,11 @@
 package fairygui {
-	import laya.maths.Point;
-	import laya.utils.Handler;
-	import laya.utils.Tween;
+	import fairygui.tween.GTween;
+	import fairygui.tween.GTweener;
 	
 	public class GearLook extends GearBase {
-		public var tweener: Tween;
-		
 		private var _storage: Object;
 		private var _default: GearLookValue;
-		private var _tweenValue: Point;
-		private var _tweenTarget: GearLookValue;
+		private var _tweener:GTweener;
 		
 		public function GearLook(owner: GObject) {
 			super(owner);
@@ -52,33 +48,31 @@ package fairygui {
 				this._owner.touchable = gv.touchable;
 				this._owner._gearLocked = false;
 				
-				if (this.tweener != null) {
-					if (this._tweenTarget.alpha != gv.alpha || this._tweenTarget.rotation != gv.rotation) {
-						this.tweener.complete();
-						this.tweener = null;
+				if (_tweener != null)
+				{
+					if (_tweener.endValue.x != gv.alpha || _tweener.endValue.y != gv.rotation)
+					{
+						_tweener.kill(true);
+						_tweener = null;
 					}
 					else
 						return;
 				}
 				
-				var a: Boolean = gv.alpha != this._owner.alpha;
-				var b: Boolean = gv.rotation != this._owner.rotation;
-				if(a || b) {
+				var a:Boolean = gv.alpha!=_owner.alpha;
+				var b:Boolean = gv.rotation!=_owner.rotation;
+				if(a || b)
+				{
 					if(_owner.checkGearController(0, _controller))
 						_displayLockToken = _owner.addDisplayLock();
-					this._tweenTarget = gv;
 					
-					if(this._tweenValue == null)
-						this._tweenValue = new Point();
-					this._tweenValue.x = this._owner.alpha;
-					this._tweenValue.y = this._owner.rotation;
-					this.tweener = Tween.to(this._tweenValue, 
-						{ x: gv.alpha, y: gv.rotation }, 
-						this._tweenTime*1000, 
-						this._easeType,
-						Handler.create(this, this.__tweenComplete),
-						this._delay*1000);
-					this.tweener.update = Handler.create(this, this.__tweenUpdate, [a,b], false);
+					_tweener = GTween.to2(_owner.alpha, _owner.rotation, gv.alpha, gv.rotation, _tweenTime)
+						.setDelay(_delay)
+						.setEase(_easeType)
+						.setUserData((a ? 1 : 0) + (b ? 2 : 0))
+						.setTarget(this)
+						.onUpdate(__tweenUpdate, this)
+						.onComplete(__tweenComplete, this);
 				}
 			}
 			else {
@@ -91,23 +85,25 @@ package fairygui {
 			}            
 		}
 		
-		private function __tweenUpdate(a:Boolean, b:Boolean):void {
-			this._owner._gearLocked = true;
-			if(a)
-				this._owner.alpha = this._tweenValue.x;
-			if(b)
-				this._owner.rotation = this._tweenValue.y;
-			this._owner._gearLocked = false;
+		private function __tweenUpdate(tweener:GTweener):void
+		{
+			var flag:int = tweener.userData;
+			_owner._gearLocked = true;
+			if ((flag & 1) != 0)
+				_owner.alpha = tweener.value.x;
+			if ((flag & 2) != 0)
+				_owner.rotation = tweener.value.y;
+			_owner._gearLocked = false;		
 		}
 		
-		private function __tweenComplete():void {
+		private function __tweenComplete():void
+		{
 			if(_displayLockToken!=0)
 			{
 				_owner.releaseDisplayLock(_displayLockToken);
 				_displayLockToken = 0;
 			}
-			this.tweener = null;
-			this._owner.displayObject.event(Events.GEAR_STOP);
+			_tweener = null;
 		}
 		
 		override public function updateState(): void {

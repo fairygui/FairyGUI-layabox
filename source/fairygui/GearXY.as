@@ -1,15 +1,15 @@
 package fairygui {
+	import fairygui.tween.GTween;
+	import fairygui.tween.GTweener;
+	
 	import laya.maths.Point;
 	import laya.utils.Handler;
 	import laya.utils.Tween;
 	
 	public class GearXY extends GearBase {
-		public var tweener: Tween;
-		
 		private var _storage: Object;
 		private var _default: Point;
-		private var _tweenValue: Point;
-		private var _tweenTarget: Point;
+		private var _tweener:GTweener;
 		
 		public function GearXY (owner: GObject) {
 			super(owner);
@@ -42,31 +42,28 @@ package fairygui {
 				pt = this._default;
 			
 			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect) {
-				if(this.tweener) {
-					if(this._tweenTarget.x!=pt.x || this._tweenTarget.y!=pt.y) {
-						this.tweener.complete();
-						this.tweener = null;
+				if (_tweener != null)
+				{
+					if (_tweener.endValue.x != pt.x || _tweener.endValue.y != pt.y)
+					{
+						_tweener.kill(true);
+						_tweener = null;
 					}
 					else
 						return;
 				}
 				
-				if(this._owner.x != pt.x || this._owner.y != pt.y) {
+				if (_owner.x != pt.x || _owner.y != pt.y)
+				{
 					if(_owner.checkGearController(0, _controller))
 						_displayLockToken = _owner.addDisplayLock();
-					this._tweenTarget = pt;
 					
-					if(this._tweenValue == null)
-						this._tweenValue = new Point();
-					this._tweenValue.x = this._owner.x;
-					this._tweenValue.y = this._owner.y;
-					this.tweener = Tween.to(this._tweenValue, 
-						{ x: pt.x,y: pt.y },
-						this._tweenTime*1000, 
-						this._easeType,
-						Handler.create(this, this.__tweenComplete),
-						this._delay*1000);
-					this.tweener.update = Handler.create(this, this.__tweenUpdate, null, false);
+					_tweener = GTween.to2(_owner.x, _owner.y, pt.x, pt.y, _tweenTime)
+						.setDelay(_delay)
+						.setEase(_easeType)
+						.setTarget(this)
+						.onUpdate(__tweenUpdate, this)
+						.onComplete(__tweenComplete, this);
 				}
 			}
 			else {
@@ -76,20 +73,21 @@ package fairygui {
 			}
 		}
 		
-		private function __tweenUpdate():void {
-			this._owner._gearLocked = true;
-			this._owner.setXY(this._tweenValue.x,this._tweenValue.y);
-			this._owner._gearLocked = false;
+		private function __tweenUpdate(tweener:GTweener):void
+		{
+			_owner._gearLocked = true;
+			_owner.setXY(tweener.value.x, tweener.value.y);
+			_owner._gearLocked = false;
 		}
 		
-		private function __tweenComplete():void {
+		private function __tweenComplete():void
+		{
 			if(_displayLockToken!=0)
 			{
 				_owner.releaseDisplayLock(_displayLockToken);
 				_displayLockToken = 0;
 			}
-			this.tweener = null;
-			this._owner.displayObject.event(Events.GEAR_STOP);
+			_tweener = null;
 		}
 		
 		override public function updateState(): void {

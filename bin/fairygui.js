@@ -355,98 +355,6 @@ var Frame=(function(){
 })()
 
 
-//class fairygui.display.PlayState
-var PlayState=(function(){
-	function PlayState(){
-		this.reachEnding=false;
-		this.reversed=false;
-		this.repeatedCount=0;
-		this._curFrame=0;
-		this._curFrameDelay=0;
-		this._lastUpdateSeq=0;
-	}
-
-	__class(PlayState,'fairygui.display.PlayState');
-	var __proto=PlayState.prototype;
-	__proto.update=function(mc){
-		var elapsed=NaN;
-		var frameId=Laya.timer.currFrame;
-		if (frameId-this._lastUpdateSeq !=1)
-			elapsed=0;
-		else
-		elapsed=Laya.timer.delta;
-		this._lastUpdateSeq=frameId;
-		this.reachEnding=false;
-		this._curFrameDelay+=elapsed;
-		var interval=mc.interval+mc.frames[this._curFrame].addDelay+((this._curFrame==0 && this.repeatedCount > 0)? mc.repeatDelay :0);
-		if (this._curFrameDelay < interval)
-			return;
-		this._curFrameDelay-=interval;
-		if(this._curFrameDelay>mc.interval)
-			this._curFrameDelay=mc.interval;
-		if (mc.swing){
-			if(this.reversed){
-				this._curFrame--;
-				if(this._curFrame<=0){
-					this._curFrame=0;
-					this.repeatedCount++;
-					this.reversed=!this.reversed;
-				}
-			}
-			else{
-				this._curFrame++;
-				if (this._curFrame > mc.frameCount-1){
-					this._curFrame=Math.max(0,mc.frameCount-2);
-					this.repeatedCount++;
-					this.reachEnding=true;
-					this.reversed=!this.reversed;
-				}
-			}
-		}
-		else{
-			this._curFrame++;
-			if (this._curFrame > mc.frameCount-1){
-				this._curFrame=0;
-				this.repeatedCount++;
-				this.reachEnding=true;
-			}
-		}
-	}
-
-	__proto.rewind=function(){
-		this._curFrame=0;
-		this._curFrameDelay=0;
-		this.reversed=false;
-		this.reachEnding=false;
-	}
-
-	__proto.reset=function(){
-		this._curFrame=0;
-		this._curFrameDelay=0;
-		this.repeatedCount=0;
-		this.reachEnding=false;
-		this.reversed=false;
-	}
-
-	__proto.copy=function(src){
-		this._curFrame=src._curFrame;
-		this._curFrameDelay=src._curFrameDelay;
-		this.repeatedCount=src.repeatedCount;
-		this.reachEnding=src.reachEnding;
-		this.reversed=src.reversed;
-	}
-
-	__getset(0,__proto,'currentFrame',function(){
-		return this._curFrame;
-		},function(value){
-		this._curFrame=value;
-		this._curFrameDelay=0;
-	});
-
-	return PlayState;
-})()
-
-
 //class fairygui.DisplayListItem
 var DisplayListItem=(function(){
 	function DisplayListItem(packageItem,type){
@@ -1736,14 +1644,16 @@ var GObject=(function(){
 var GearBase=(function(){
 	function GearBase(owner){
 		this._tween=false;
-		this._easeType=null;
-		this._tweenTime=0.3;
-		this._delay=0;
-		this._displayLockToken=0;
+		this._easeType=0;
+		this._tweenTime=NaN;
+		this._delay=NaN;
+		this._displayLockToken=NaN;
 		this._owner=null;
 		this._controller=null;
 		this._owner=owner;
-		this._easeType=Ease.quadOut;
+		this._easeType=5;
+		this._tweenTime=0.3;
+		this._delay=0;
 	}
 
 	__class(GearBase,'fairygui.GearBase');
@@ -1759,7 +1669,7 @@ var GearBase=(function(){
 			this._tween=true;
 		str=xml.getAttribute("ease");
 		if (str)
-			this._easeType=ToolSet.parseEaseType(str);
+			this._easeType=EaseType.parseEaseType(str);
 		str=xml.getAttribute("duration");
 		if (str)
 			this._tweenTime=parseFloat(str);
@@ -4832,105 +4742,168 @@ var ScrollType=(function(){
 
 //class fairygui.Transition
 var Transition=(function(){
-	var TransitionActionType,TransitionItem,TransitionValue;
+	var TransitionActionType,TransitionItem,TweenConfig,TValue_Visible,TValue_Animation,TValue_Sound,TValue_Transition,TValue_Shake,TValue;
 	function Transition(owner){
 		this.name=null;
-		this.autoPlayRepeat=1;
-		this.autoPlayDelay=0;
 		this._owner=null;
-		this._ownerBaseX=0;
-		this._ownerBaseY=0;
+		this._ownerBaseX=NaN;
+		this._ownerBaseY=NaN;
 		this._items=null;
 		this._totalTimes=0;
 		this._totalTasks=0;
 		this._playing=false;
+		this._paused=false;
 		this._onComplete=null;
 		this._options=0;
 		this._reversed=false;
-		this._maxTime=0;
+		this._totalDuration=NaN;
 		this._autoPlay=false;
+		this._autoPlayTimes=0;
+		this._autoPlayDelay=NaN;
+		this._timeScale=NaN;
+		this._startTime=NaN;
+		this._endTime=NaN;
 		this.OPTION_IGNORE_DISPLAY_CONTROLLER=1;
 		this.OPTION_AUTO_STOP_DISABLED=2;
 		this.OPTION_AUTO_STOP_AT_END=4;
-		this.FRAME_RATE=24;
 		this._owner=owner;
 		this._items=[];
+		this._totalDuration=0;
+		this._autoPlayTimes=1;
+		this._autoPlayDelay=0;
+		this._timeScale=1;
+		this._startTime=0;
+		this._endTime=0;
 	}
 
 	__class(Transition,'fairygui.Transition');
 	var __proto=Transition.prototype;
-	__proto.play=function(onComplete,times,delay){
+	__proto.play=function(onComplete,times,delay,startTime,endTime){
 		(times===void 0)&& (times=1);
 		(delay===void 0)&& (delay=0);
-		this._play(onComplete,times,delay,false);
+		(startTime===void 0)&& (startTime=0);
+		(endTime===void 0)&& (endTime=-1);
+		this._play(onComplete,times,delay,startTime,endTime,false);
 	}
 
-	__proto.playReverse=function(onComplete,times,delay){
+	__proto.playReverse=function(onComplete,times,delay,startTime,endTime){
 		(times===void 0)&& (times=1);
 		(delay===void 0)&& (delay=0);
-		this._play(onComplete,times,delay,true);
+		(startTime===void 0)&& (startTime=0);
+		(endTime===void 0)&& (endTime=-1);
+		this._play(onComplete,1,delay,startTime,endTime,true);
 	}
 
-	__proto.changeRepeat=function(value){
+	__proto.changePlayTimes=function(value){
 		this._totalTimes=value;
 	}
 
-	__proto._play=function(onComplete,times,delay,reversed){
+	__proto.setAutoPlay=function(value,times,delay){
 		(times===void 0)&& (times=1);
 		(delay===void 0)&& (delay=0);
-		(reversed===void 0)&& (reversed=false);
-		this.stop();
-		this._totalTimes=times;
-		this._reversed=reversed;
-		this.internalPlay(delay);
-		this._playing=this._totalTasks > 0;
-		if(this._playing){
-			this._onComplete=onComplete;
-			if((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER)!=0){
-				var cnt=this._items.length;
-				for(var i=0;i < cnt;i++){
-					var item=this._items[i];
-					if(item.target !=null && item.target !=this._owner)
-						item.displayLockToken=item.target.addDisplayLock();
-				}
+		if (this._autoPlay !=value){
+			this._autoPlay=value;
+			this._autoPlayTimes=times;
+			this._autoPlayDelay=delay;
+			if (this._autoPlay){
+				if (this._owner.onStage)
+					this.play(null,null,this._autoPlayTimes,this._autoPlayDelay);
+			}
+			else{
+				if (!this._owner.onStage)
+					this.stop(false,true);
 			}
 		}
-		else if(onComplete !=null){
-			onComplete.run();
+	}
+
+	__proto._play=function(onComplete,times,delay,startTime,endTime,reversed){
+		(times===void 0)&& (times=1);
+		(delay===void 0)&& (delay=0);
+		(startTime===void 0)&& (startTime=0);
+		(endTime===void 0)&& (endTime=-1);
+		(reversed===void 0)&& (reversed=false);
+		this.stop(true,true);
+		this._totalTimes=times;
+		this._reversed=reversed;
+		this._startTime=startTime;
+		this._endTime=endTime;
+		this._playing=true;
+		this._paused=false;
+		this._onComplete=onComplete;
+		var cnt=this._items.length;
+		for (var i=0;i < cnt;i++){
+			var item=this._items[i];
+			if(item.target==null){
+				if (item.targetId)
+					item.target=this._owner.getChildById(item.targetId);
+				else
+				item.target=this._owner;
+			}
+			else if (item.target !=this._owner && item.target.parent !=this._owner)
+			item.target=null;
+			if (item.target !=null && item.type==10){
+				var trans=(item.target).getTransition(item.value.transName);
+				if(trans==this)
+					trans=null;
+				if (trans !=null){
+					if (item.value.playTimes==0){
+						var j=0;
+						for (j=i-1;j >=0;j--){
+							var item2=this._items[j];
+							if (item2.type==10){
+								if (item2.value.trans==trans){
+									item2.value.stopTime=item.time-item2.time;
+									break ;
+								}
+							}
+						}
+						if(j<0)
+							item.value.stopTime=0;
+						else
+						trans=null;
+					}
+					else
+					item.value.stopTime=-1;
+				}
+				item.value.trans=trans;
+			}
 		}
+		if(delay==0)
+			this.onDelayedPlay();
+		else
+		GTween.delayedCall(delay).onComplete(this.onDelayedPlay,this);
 	}
 
 	__proto.stop=function(setToComplete,processCallback){
 		(setToComplete===void 0)&& (setToComplete=true);
 		(processCallback===void 0)&& (processCallback=false);
-		if(this._playing){
-			this._playing=false;
-			this._totalTasks=0;
-			this._totalTimes=0;
-			var handler=this._onComplete;
-			this._onComplete=null;
-			var cnt=this._items.length;
-			var i=NaN;
-			var item;
-			if(this._reversed){
-				for(i=cnt-1;i>=0;i--){
-					item=this._items[i];
-					if(item.target==null)
-						continue ;
-					this.stopItem(item,setToComplete);
-				}
+		if (!this._playing)
+			return;
+		this._playing=false;
+		this._totalTasks=0;
+		this._totalTimes=0;
+		var handler=this._onComplete;
+		this._onComplete=null;
+		GTween.kill(this);
+		var cnt=this._items.length;
+		if(this._reversed){
+			for (var i=cnt-1;i >=0;i--){
+				var item=this._items[i];
+				if(item.target==null)
+					continue ;
+				this.stopItem(item,setToComplete);
 			}
-			else {
-				for(i=0;i < cnt;i++){
-					item=this._items[i];
-					if(item.target==null)
-						continue ;
-					this.stopItem(item,setToComplete);
-				}
+		}
+		else{
+			for (i=0;i < cnt;i++){
+				item=this._items[i];
+				if(item.target==null)
+					continue ;
+				this.stopItem(item,setToComplete);
 			}
-			if(processCallback && handler !=null){
-				handler.run();
-			}
+		}
+		if (processCallback && handler !=null){
+			handler.run();
 		}
 	}
 
@@ -4939,83 +4912,89 @@ var Transition=(function(){
 			item.target.releaseDisplayLock(item.displayLockToken);
 			item.displayLockToken=0;
 		}
-		if (item.type==12 && item.filterCreated)
-			item.target.filters=null;
-		if(item.completed)
-			return;
-		if(item.tweener !=null){
-			item.tweener.clear();
+		if (item.tweener !=null){
+			item.tweener.kill(setToComplete);
 			item.tweener=null;
+			if (item.type==11 && !setToComplete){
+				item.target._gearLocked=true;
+				item.target.setXY(item.target.x-item.value.lastOffsetX,item.target.y-item.value.lastOffsetY);
+				item.target._gearLocked=false;
+			}
 		}
-		if(item.type==10){
-			var trans=(item.target).getTransition(item.value.s);
-			if(trans !=null)
+		if (item.type==10){
+			var trans=item.value.trans;
+			if (trans !=null)
 				trans.stop(setToComplete,false);
 		}
-		else if(item.type==11){
-			Laya.timer.clear(item,item.__shake);
-			item.target._gearLocked=true;
-			item.target.setXY(item.target.x-item.startValue.f1,item.target.y-item.startValue.f2);
-			item.target._gearLocked=false;
-		}
-		else {
-			if(setToComplete){
-				if(item.tween){
-					if(!item.yoyo || item.repeat % 2==0)
-						this.applyValue(item,this._reversed?item.startValue:item.endValue);
-					else
-					this.applyValue(item,this._reversed?item.endValue:item.startValue);
-				}
-				else if(item.type !=9)
-				this.applyValue(item,item.value);
+	}
+
+	__proto.setPaused=function(paused){
+		if (!this._playing || this._paused==paused)
+			return;
+		this._paused=paused;
+		var tweener=GTween.getTween(this);
+		if (tweener !=null)
+			tweener.setPaused(paused);
+		var cnt=this._items.length;
+		for (var i=0;i < cnt;i++){
+			var item=this._items[i];
+			if (item.target==null)
+				continue ;
+			if (item.type==10){
+				if (item.value.trans !=null)
+					item.value.trans.setPaused(paused);
 			}
+			else if (item.type==7){
+				if (paused){
+					item.value.flag=(item.target).playing;
+					(item.target).playing=false;
+				}
+				else
+				(item.target).playing=item.value.flag;
+			}
+			if (item.tweener !=null)
+				item.tweener.setPaused(paused);
 		}
 	}
 
 	__proto.dispose=function(){
-		if (!this._playing)
-			return;
-		this._playing=false;
+		if(this._playing)
+			GTween.kill(this);
 		var cnt=this._items.length;
 		for (var i=0;i < cnt;i++){
 			var item=this._items[i];
-			if (item.target==null || item.completed)
-				continue ;
 			if (item.tweener !=null){
-				item.tweener.clear();
+				item.tweener.kill();
 				item.tweener=null;
 			}
-			if (item.type==10){
-				var trans=(item.target).getTransition(item.value.s);
-				if (trans !=null)
-					trans.dispose();
-			}
-			else if (item.type==11){
-				Laya.timer.clear(item,item.__shake);
-			}
+			item.target=null;
+			item.hook=null;
+			if (item.tweenConfig !=null)
+				item.tweenConfig.endHook=null;
 		}
+		this._items.length=0;
+		this._playing=false;
+		this._onComplete=null;
 	}
 
 	__proto.setValue=function(label,__args){
 		var args=[];for(var i=1,sz=arguments.length;i<sz;i++)args.push(arguments[i]);
 		var cnt=this._items.length;
 		var value;
-		for(var i=0;i < cnt;i++){
+		for (var i=0;i < cnt;i++){
 			var item=this._items[i];
-			if(item.label==null && item.label2==null)
-				continue ;
-			if(item.label==label){
-				if(item.tween)
-					value=item.startValue;
+			if (item.label==label){
+				if (item.tweenConfig !=null)
+					value=item.tweenConfig.startValue;
 				else
 				value=item.value;
 			}
-			else if(item.label2==label){
-				value=item.endValue;
+			else if (item.tweenConfig !=null && item.tweenConfig.endLabel==label){
+				value=item.tweenConfig.endValue;
 			}
 			else
 			continue ;
-			switch(item.type){
+			switch (item.type){
 				case 0:
 				case 1:
 				case 3:
@@ -5030,33 +5009,33 @@ var Transition=(function(){
 					value.f1=parseFloat(args[0]);
 					break ;
 				case 5:
-					value.i=parseFloat(args[0]);
+					value.f1=parseFloat(args[0]);
 					break ;
 				case 6:
-					value.s=args[0];
+					value.f1=parseFloat(args[0]);
 					break ;
 				case 7:
-					value.i=parseInt(args[0]);
-					if(args.length > 1)
-						value.b=args[1];
+					value.frame=parseInt(args[0]);
+					if (args.length > 1)
+						value.playing=args[1];
 					break ;
 				case 8:
-					value.b=args[0];
+					value.visible=args[0];
 					break ;
 				case 9:
-					value.s=args[0];
+					value.sound=args[0];
 					if(args.length > 1)
-						value.f1=parseFloat(args[1]);
+						value.volume=parseFloat(args[1]);
 					break ;
 				case 10:
-					value.s=args[0];
-					if(args.length > 1)
-						value.i=parseInt(args[1]);
+					value.transName=args[0];
+					if (args.length > 1)
+						value.playTimes=parseInt(args[1]);
 					break ;
 				case 11:
-					value.f1=parseFloat(args[0]);
-					if(args.length > 1)
-						value.f2=parseFloat(args[1]);
+					value.amplitude=parseFloat(args[0]);
+					if (args.length > 1)
+						value.duration=parseFloat(args[1]);
 					break ;
 				case 12:
 					value.f1=parseFloat(args[0]);
@@ -5070,14 +5049,14 @@ var Transition=(function(){
 
 	__proto.setHook=function(label,callback){
 		var cnt=this._items.length;
-		for(var i=0;i < cnt;i++){
+		for (var i=0;i < cnt;i++){
 			var item=this._items[i];
-			if(item.label==label){
+			if (item.label==label){
 				item.hook=callback;
 				break ;
 			}
-			else if(item.label2==label){
-				item.hook2=callback;
+			else if (item.tweenConfig !=null && item.tweenConfig.endLabel==label){
+				item.tweenConfig.endHook=callback;
 				break ;
 			}
 		}
@@ -5085,10 +5064,11 @@ var Transition=(function(){
 
 	__proto.clearHooks=function(){
 		var cnt=this._items.length;
-		for(var i=0;i < cnt;i++){
+		for (var i=0;i < cnt;i++){
 			var item=this._items[i];
 			item.hook=null;
-			item.hook2=null;
+			if (item.tweenConfig !=null)
+				item.tweenConfig.endHook=null;
 		}
 	}
 
@@ -5105,25 +5085,37 @@ var Transition=(function(){
 		var cnt=this._items.length;
 		for (var i=0;i < cnt;i++){
 			var item=this._items[i];
-			if (item.tween && item.label==label)
-				item.duration=value;
+			if (item.tweenConfig !=null && item.label==label)
+				item.tweenConfig.duration=value;
 		}
+	}
+
+	__proto.getLabelTime=function(label){
+		var cnt=this._items.length;
+		for (var i=0;i < cnt;i++){
+			var item=this._items[i];
+			if (item.label==label)
+				return item.time;
+			else if (item.tweenConfig !=null && item.tweenConfig.endLabel==label)
+			return item.time+item.tweenConfig.duration;
+		}
+		return Number.NaN;
 	}
 
 	__proto.updateFromRelations=function(targetId,dx,dy){
 		var cnt=this._items.length;
-		if(cnt==0)
+		if (cnt==0)
 			return;
-		for(var i=0;i < cnt;i++){
+		for (var i=0;i < cnt;i++){
 			var item=this._items[i];
-			if(item.type==0 && item.targetId==targetId){
-				if(item.tween){
-					item.startValue.f1+=dx;
-					item.startValue.f2+=dy;
-					item.endValue.f1+=dx;
-					item.endValue.f2+=dy;
+			if (item.type==0 && item.targetId==targetId){
+				if (item.tweenConfig!=null){
+					item.tweenConfig.startValue.f1+=dx;
+					item.tweenConfig.startValue.f2+=dy;
+					item.tweenConfig.endValue.f1+=dx;
+					item.tweenConfig.endValue.f2+=dy;
 				}
-				else {
+				else{
 					item.value.f1+=dx;
 					item.value.f2+=dy;
 				}
@@ -5131,245 +5123,337 @@ var Transition=(function(){
 		}
 	}
 
-	__proto.OnOwnerRemovedFromStage=function(){
+	__proto.onOwnerAddedToStage=function(){
+		if (this._autoPlay && !this._playing)
+			this.play(null,null,this._autoPlayTimes,this._autoPlayDelay);
+	}
+
+	__proto.onOwnerRemovedFromStage=function(){
 		if ((this._options & this.OPTION_AUTO_STOP_DISABLED)==0)
 			this.stop((this._options & this.OPTION_AUTO_STOP_AT_END)!=0 ? true :false,false);
 	}
 
-	__proto.internalPlay=function(delay){
-		(delay===void 0)&& (delay=0);
+	__proto.onDelayedPlay=function(){
+		this.internalPlay();
+		this._playing=this._totalTasks>0;
+		if (this._playing){
+			if ((this._options & this.OPTION_IGNORE_DISPLAY_CONTROLLER)!=0){
+				var cnt=this._items.length;
+				for (var i=0;i < cnt;i++){
+					var item=this._items[i];
+					if (item.target !=null && item.target!=this._owner)
+						item.displayLockToken=item.target.addDisplayLock();
+				}
+			}
+		}
+		else if (this._onComplete !=null){
+			var handler=this._onComplete;
+			this._onComplete=null;
+			handler.run();
+		}
+	}
+
+	__proto.internalPlay=function(){
 		this._ownerBaseX=this._owner.x;
 		this._ownerBaseY=this._owner.y;
 		this._totalTasks=0;
 		var cnt=this._items.length;
-		var startTime=NaN;
 		var item;
-		for(var i=0;i < cnt;i++){
-			item=this._items[i];
-			if(item.targetId)
-				item.target=this._owner.getChildById(item.targetId);
-			else
-			item.target=this._owner;
-			if(item.target==null)
-				continue ;
-			if(item.tween){
-				if(this._reversed)
-					startTime=delay+this._maxTime-item.time-item.duration;
-				else
-				startTime=delay+item.time;
-				if(startTime>0){
-					this._totalTasks++;
-					item.completed=false;
-					item.tweener=Tween.to(item.value,{},startTime*1000,null,Handler.create(this,this.__delayCall,[item]));
-					item.tweener.update=null;
+		var needSkipAnimations=false;
+		if (!this._reversed){
+			for (var i=0;i < cnt;i++){
+				item=this._items[i];
+				if (item.target==null)
+					continue ;
+				if (item.type==7 && this._startTime !=0 && item.time <=this._startTime){
+					needSkipAnimations=true;
+					item.value.flag=false;
 				}
 				else
-				this.startTween(item);
+				this.playItem(item);
 			}
-			else {
-				if(this._reversed)
-					startTime=delay+this._maxTime-item.time;
-				else
-				startTime=delay+item.time;
-				if(startTime==0){
-					this.applyValue(item,item.value);
-					if(item.hook !=null)
-						item.hook.run();
-				}
-				else {
-					item.completed=false;
-					this._totalTasks++;
-					item.tweener=Tween.to(item.value,{},startTime*1000,null,Handler.create(this,this.__delayCall2,[item]));
-					item.tweener.update=null;
-				}
-			}
-		}
-	}
-
-	__proto.prepareValue=function(item,toProps,reversed){
-		(reversed===void 0)&& (reversed=false);
-		var startValue;
-		var endValue;
-		if(reversed){
-			startValue=item.endValue;
-			endValue=item.startValue;
 		}
 		else{
-			startValue=item.startValue;
-			endValue=item.endValue;
+			for (i=0;i < cnt;i++){
+				item=this._items[i];
+				if (item.target==null)
+					continue ;
+				this.playItem(item);
+			}
 		}
-		switch(item.type){
-			case 0:
-			case 1:
-				if(item.type==0){
-					if (item.target==this._owner){
-						if(!startValue.b1)
-							startValue.f1=0;
-						if(!startValue.b2)
-							startValue.f2=0;
-					}
-					else{
-						if(!startValue.b1)
-							startValue.f1=item.target.x;
-						if(!startValue.b2)
-							startValue.f2=item.target.y;
-					}
+		if (needSkipAnimations)
+			this.skipAnimations();
+	}
+
+	__proto.playItem=function(item){
+		var time=NaN;
+		if (item.tweenConfig !=null){
+			if (this._reversed)
+				time=(this._totalDuration-item.time-item.tweenConfig.duration);
+			else
+			time=item.time;
+			if (this._endTime==-1 || time <=this._endTime){
+				var startValue;
+				var endValue;
+				if(this._reversed){
+					startValue=item.tweenConfig.endValue;
+					endValue=item.tweenConfig.startValue;
 				}
 				else{
-					if(!startValue.b1)
-						startValue.f1=item.target.width;
-					if(!startValue.b2)
-						startValue.f2=item.target.height;
+					startValue=item.tweenConfig.startValue;
+					endValue=item.tweenConfig.endValue;
 				}
-				item.value.f1=startValue.f1;
-				item.value.f2=startValue.f2;
-				if(!endValue.b1)
-					endValue.f1=item.value.f1;
-				if(!endValue.b2)
-					endValue.f2=item.value.f2;
 				item.value.b1=startValue.b1 || endValue.b1;
 				item.value.b2=startValue.b2 || endValue.b2;
-				toProps.f1=endValue.f1;
-				toProps.f2=endValue.f2;
-				break ;
+				switch(item.type){
+					case 0:
+					case 1:
+					case 2:
+					case 13:
+						item.tweener=GTween.to2(startValue.f1,startValue.f2,endValue.f1,endValue.f2,item.tweenConfig.duration);
+						break ;
+					case 4:
+					case 5:
+						item.tweener=GTween.to(startValue.f1,endValue.f1,item.tweenConfig.duration);
+						break ;
+					case 6:
+						item.tweener=GTween.toColor(startValue.f1,endValue.f1,item.tweenConfig.duration);
+						break ;
+					case 12:
+						item.tweener=GTween.to4(startValue.f1,startValue.f2,startValue.f3,startValue.f4,
+						endValue.f1,endValue.f2,endValue.f3,endValue.f4,item.tweenConfig.duration);
+						break ;
+					}
+				item.tweener.setDelay(time)
+				.setEase(item.tweenConfig.easeType)
+				.setRepeat(item.tweenConfig.repeat,item.tweenConfig.yoyo)
+				.setTimeScale(this._timeScale)
+				.setTarget(item)
+				.onStart(this.onTweenStart,this)
+				.onUpdate(this.onTweenUpdate,this)
+				.onComplete(this.onTweenComplete,this);
+				if (this._endTime >=0)
+					item.tweener.setBreakpoint(this._endTime-time);
+				this._totalTasks++;
+			}
+		}
+		else if(item.type==11){
+			if (this._reversed)
+				time=(this._totalDuration-item.time-item.value.duration);
+			else
+			time=item.time;
+			item.value.offsetX=item.value.offsetY=0;
+			item.value.lastOffsetX=item.value.lastOffsetY=0;
+			item.tweener=GTween.shake(0,0,item.value.amplitude,item.value.duration)
+			.setDelay(time)
+			.setTimeScale(this._timeScale)
+			.setTarget(item)
+			.onUpdate(this.onTweenUpdate,this)
+			.onComplete(this.onTweenComplete,this);
+			if (this._endTime >=0)
+				item.tweener.setBreakpoint(this._endTime-item.time);
+			this._totalTasks++;
+		}
+		else{
+			if (this._reversed)
+				time=(this._totalDuration-item.time);
+			else
+			time=item.time;
+			if (time <=this._startTime){
+				this.applyValue(item);
+				this.callHook(item,false);
+			}
+			else if (this._endTime==-1 || time <=this._endTime){
+				this._totalTasks++;
+				item.tweener=GTween.delayedCall(time)
+				.setTimeScale(this._timeScale)
+				.setTarget(item)
+				.onComplete(this.onDelayedPlayItem,this);
+			}
+		}
+		if (item.tweener !=null)
+			item.tweener.seek(this._startTime);
+	}
+
+	__proto.skipAnimations=function(){
+		var frame=0;
+		var playStartTime=NaN;
+		var playTotalTime=NaN;
+		var value;
+		var target;
+		var item;
+		var cnt=this._items.length;
+		for (var i=0;i < cnt;i++){
+			item=this._items[i];
+			if (item.type !=7 || item.time > this._startTime)
+				continue ;
+			value=item.value;
+			if (value.flag)
+				continue ;
+			target=(item.target);
+			frame=target.frame;
+			playStartTime=target.playing ? 0 :-1;
+			playTotalTime=0;
+			for (var j=i;j < cnt;j++){
+				item=this._items[j];
+				if (item.type !=7 || item.target !=target || item.time > this._startTime)
+					continue ;
+				value=item.value;
+				value.flag=true;
+				if (value.frame !=-1){
+					frame=value.frame;
+					if (value.playing)
+						playStartTime=item.time;
+					else
+					playStartTime=-1;
+					playTotalTime=0;
+				}
+				else{
+					if (value.playing){
+						if (playStartTime < 0)
+							playStartTime=item.time;
+					}
+					else{
+						if (playStartTime >=0)
+							playTotalTime+=(item.time-playStartTime);
+						playStartTime=-1;
+					}
+				}
+				this.callHook(item,false);
+			}
+			if (playStartTime >=0)
+				playTotalTime+=(this._startTime-playStartTime);
+			target.playing=playStartTime>=0;
+			target.frame=frame;
+			if (playTotalTime > 0)
+				target.advance(playTotalTime*1000);
+		}
+	}
+
+	__proto.onDelayedPlayItem=function(tweener){
+		var item=tweener.target;
+		item.tweener=null;
+		this._totalTasks--;
+		this.applyValue(item);
+		this.callHook(item,false);
+		this.checkAllComplete();
+	}
+
+	__proto.onTweenStart=function(tweener){
+		var item=tweener.target;
+		if (item.type==0 || item.type==1){
+			var startValue;
+			var endValue;
+			if (this._reversed){
+				startValue=item.tweenConfig.endValue;
+				endValue=item.tweenConfig.startValue;
+			}
+			else{
+				startValue=item.tweenConfig.startValue;
+				endValue=item.tweenConfig.endValue;
+			}
+			if (item.type==0){
+				if (item.target !=this._owner){
+					if (!startValue.b1)
+						startValue.f1=item.target.x;
+					if (!startValue.b2)
+						startValue.f2=item.target.y;
+				}
+			}
+			else{
+				if (!startValue.b1)
+					startValue.f1=item.target.width;
+				if (!startValue.b2)
+					startValue.f2=item.target.height;
+			}
+			if (!endValue.b1)
+				endValue.f1=startValue.f1;
+			if (!endValue.b2)
+				endValue.f2=startValue.f2;
+			tweener.startValue.x=startValue.f1;
+			tweener.startValue.y=startValue.f2;
+			tweener.endValue.x=endValue.f1;
+			tweener.endValue.y=endValue.f2;
+		}
+		this.callHook(item,false);
+	}
+
+	__proto.onTweenUpdate=function(tweener){
+		var item=tweener.target;
+		switch (item.type){
+			case 0:
+			case 1:
 			case 2:
 			case 13:
-				item.value.f1=startValue.f1;
-				item.value.f2=startValue.f2;
-				toProps.f1=endValue.f1;
-				toProps.f2=endValue.f2;
+				item.value.f1=tweener.value.x;
+				item.value.f2=tweener.value.y;
 				break ;
 			case 4:
-				item.value.f1=startValue.f1;
-				toProps.f1=endValue.f1;
-				break ;
 			case 5:
-				item.value.i=startValue.i;
-				toProps.i=endValue.i;
+				item.value.f1=tweener.value.x;
+				break ;
+			case 6:
+				item.value.f1=tweener.value.color;
 				break ;
 			case 12:
-				item.value.f1=startValue.f1;
-				item.value.f2=startValue.f2;
-				item.value.f3=startValue.f3;
-				item.value.f4=startValue.f4;
-				toProps.f1=endValue.f1;
-				toProps.f2=endValue.f2;
-				toProps.f3=endValue.f3;
-				toProps.f4=endValue.f4;
+				item.value.f1=tweener.value.x;
+				item.value.f2=tweener.value.y;
+				item.value.f3=tweener.value.z;
+				item.value.f4=tweener.value.w;
+				break ;
+			case 11:
+				item.value.offsetX=tweener.deltaValue.x;
+				item.value.offsetY=tweener.deltaValue.y;
 				break ;
 			}
-		toProps.dummy=0;
+		this.applyValue(item);
 	}
 
-	__proto.startTween=function(item){
-		var toProps={};
-		this.prepareValue(item,toProps,this._reversed);
-		this.applyValue(item,item.value);
-		var completeHandler;
-		if(item.repeat!=0){
-			item.tweenTimes=0;
-			completeHandler=Handler.create(this,this.__tweenRepeatComplete,[item]);
+	__proto.onTweenComplete=function(tweener){
+		var item=tweener.target;
+		item.tweener=null;
+		this._totalTasks--;
+		if (tweener.allCompleted)
+			this.callHook(item,true);
+		this.checkAllComplete();
+	}
+
+	__proto.onPlayTransCompleted=function(item){
+		this._totalTasks--;
+		this.checkAllComplete();
+	}
+
+	__proto.callHook=function(item,tweenEnd){
+		if (tweenEnd){
+			if (item.tweenConfig!=null && item.tweenConfig.endHook !=null)
+				item.tweenConfig.endHook.run();
 		}
-		else
-		completeHandler=Handler.create(this,this.__tweenComplete,[item]);
-		this._totalTasks++;
-		item.completed=false;
-		item.tweener=Tween.to(item.value,
-		toProps,
-		item.duration*1000,
-		item.easeType,
-		completeHandler);
-		item.tweener.update=Handler.create(this,this.__tweenUpdate,[item],false);
-		if(item.hook !=null)
-			item.hook.run();
-	}
-
-	__proto.__delayCall=function(item){
-		item.tweener=null;
-		this._totalTasks--;
-		this.startTween(item);
-	}
-
-	__proto.__delayCall2=function(item){
-		item.tweener=null;
-		this._totalTasks--;
-		item.completed=true;
-		this.applyValue(item,item.value);
-		if(item.hook !=null)
-			item.hook.run();
-		this.checkAllComplete();
-	}
-
-	__proto.__tweenUpdate=function(item){
-		this.applyValue(item,item.value);
-	}
-
-	__proto.__tweenComplete=function(item){
-		item.tweener=null;
-		this._totalTasks--;
-		item.completed=true;
-		if(item.hook2 !=null)
-			item.hook2.run();
-		this.checkAllComplete();
-	}
-
-	__proto.__tweenRepeatComplete=function(item){
-		item.tweenTimes++;
-		if(item.repeat==-1 || item.tweenTimes < item.repeat+1){
-			var toProps={};
-			var reversed=false;
-			if(item.yoyo){
-				if(this._reversed)
-					reversed=item.tweenTimes % 2==0;
-				else
-				reversed=item.tweenTimes % 2==1;
-			}
-			else
-			reversed=this._reversed;
-			this.prepareValue(item,toProps,reversed);
-			item.tweener=Tween.to(item.value,
-			toProps,
-			item.duration *1000,
-			item.easeType,
-			Handler.create(this,this.__tweenRepeatComplete,[item]));
-			item.tweener.update=Handler.create(this,this.__tweenUpdate,[item],false);
+		else{
+			if (item.time >=this._startTime && item.hook !=null)
+				item.hook.run();
 		}
-		else
-		this.__tweenComplete(item);
-	}
-
-	__proto.__playTransComplete=function(item){
-		this._totalTasks--;
-		item.completed=true;
-		this.checkAllComplete();
 	}
 
 	__proto.checkAllComplete=function(){
-		if(this._playing && this._totalTasks==0){
-			if(this._totalTimes < 0){
-				Laya.timer.callLater(this,this.internalPlay);
+		if (this._playing && this._totalTasks==0){
+			if (this._totalTimes < 0){
+				this.internalPlay();
 			}
-			else {
+			else{
 				this._totalTimes--;
-				if(this._totalTimes > 0)
-					Laya.timer.callLater(this,this.internalPlay);
-				else {
+				if (this._totalTimes > 0)
+					this.internalPlay();
+				else{
 					this._playing=false;
 					var cnt=this._items.length;
 					for (var i=0;i < cnt;i++){
 						var item=this._items[i];
-						if (item.target !=null){
-							if (item.displayLockToken!=0){
-								item.target.releaseDisplayLock(item.displayLockToken);
-								item.displayLockToken=0;
-							}
-							if (item.filterCreated){
-								item.filterCreated=false;
-								item.target.filters=null;
-							}
+						if (item.target !=null && item.displayLockToken!=0){
+							item.target.releaseDisplayLock(item.displayLockToken);
+							item.displayLockToken=0;
 						}
 					}
-					if(this._onComplete !=null){
+					if (this._onComplete !=null){
 						var handler=this._onComplete;
 						this._onComplete=null;
 						handler.run();
@@ -5379,136 +5463,108 @@ var Transition=(function(){
 		}
 	}
 
-	__proto.applyValue=function(item,value){
+	__proto.applyValue=function(item){
 		item.target._gearLocked=true;
-		switch(item.type){
+		switch (item.type){
 			case 0:
 				if(item.target==this._owner){
-					var f1=0,f2=0;
-					if(!value.b1)
+					var f1=NaN,f2=NaN;
+					if (!item.value.b1)
 						f1=item.target.x;
 					else
-					f1=value.f1+this._ownerBaseX;
-					if(!value.b2)
+					f1=item.value.f1+this._ownerBaseX;
+					if (!item.value.b2)
 						f2=item.target.y;
 					else
-					f2=value.f2+this._ownerBaseY;
+					f2=item.value.f2+this._ownerBaseY;
 					item.target.setXY(f1,f2);
 				}
-				else {
-					if(!value.b1)
-						value.f1=item.target.x;
-					if(!value.b2)
-						value.f2=item.target.y;
-					item.target.setXY(value.f1,value.f2);
+				else{
+					if (!item.value.b1)
+						item.value.f1=item.target.x;
+					if (!item.value.b2)
+						item.value.f2=item.target.y;
+					item.target.setXY(item.value.f1,item.value.f2);
 				}
 				break ;
 			case 1:
-				if(!value.b1)
-					value.f1=item.target.width;
-				if(!value.b2)
-					value.f2=item.target.height;
-				item.target.setSize(value.f1,value.f2);
+				if (!item.value.b1)
+					item.value.f1=item.target.width;
+				if (!item.value.b2)
+					item.value.f2=item.target.height;
+				item.target.setSize(item.value.f1,item.value.f2);
 				break ;
 			case 3:
-				item.target.setPivot(value.f1,value.f2);
+				item.target.setPivot(item.value.f1,item.value.f2,item.target.pivotAsAnchor);
 				break ;
 			case 4:
-				item.target.alpha=value.f1;
+				item.target.alpha=item.value.f1;
 				break ;
 			case 5:
-				item.target.rotation=value.i;
+				item.target.rotation=item.value.f1;
 				break ;
 			case 2:
-				item.target.setScale(value.f1,value.f2);
+				item.target.setScale(item.value.f1,item.value.f2);
 				break ;
 			case 13:
-				item.target.setSkew(value.f1,value.f2);
 				break ;
 			case 6:
-				(item.target).color=value.s;
+				(item.target).color=item.value.f1;
 				break ;
 			case 7:
-				if(!value.b1)
-					value.i=(item.target).frame;
-				(item.target).frame=value.i;
-				(item.target).playing=value.b;
+				if (item.value.frame>=0)
+					(item.target).frame=item.value.frame;
+				(item.target).playing=item.value.playing;
+				(item.target).timeScale=this._timeScale;
 				break ;
 			case 8:
-				item.target.visible=value.b;
+				item.target.visible=item.value.visible;
 				break ;
-			case 10:;
-				var trans=(item.target).getTransition(value.s);
-				if(trans !=null){
-					if(value.i==0)
-						trans.stop(false,true);
-					else if(trans.playing)
-					trans._totalTimes=value.i;
-					else {
-						item.completed=false;
+			case 10:
+				if (this._playing){
+					var trans=item.value.trans;
+					if (trans !=null){
 						this._totalTasks++;
-						if(this._reversed)
-							trans.playReverse(Handler.create(this,this.__playTransComplete,[item]),item.value.i);
-						else
-						trans.play(Handler.create(this,this.__playTransComplete,[item]),item.value.i);
+						var startTime=this._startTime > item.time ? (this._startTime-item.time):0;
+						var endTime=this._endTime >=0 ? (this._endTime-item.time):-1;
+						if (item.value.stopTime >=0 && (endTime < 0 || endTime > item.value.stopTime))
+							endTime=item.value.stopTime;
+						trans.timeScale=this._timeScale;
+						trans._play(Handler.create(this,this.onPlayTransCompleted,[item]),item.value.playTimes,0,startTime,endTime,this._reversed);
 					}
 				}
 				break ;
-			case 9:;
-				var pi=UIPackage.getItemByURL(value.s);
-				if(pi)
-					GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
-				else
-				GRoot.inst.playOneShotSound(value.s);
+			case 9:
+				if (this._playing && item.time >=this._startTime){
+					if(item.value.audioClip==null){
+						var pi=UIPackage.getItemByURL(item.value.sound);
+						if(pi)
+							item.value.audioClip=pi.owner.getItemAssetURL(pi);
+						else
+						item.value.audioClip=item.value.sound;
+					}
+					if(item.value.audioClip)
+						GRoot.inst.playOneShotSound(item.value.audioClip,item.value.volume);
+				}
 				break ;
 			case 11:
-				item.startValue.f1=0;
-				item.startValue.f2=0;
-				item.startValue.f3=item.value.f2;
-				item.startValue.i=Laya.timer.currTimer;
-				Laya.timer.frameLoop(1,item,item.__shake,[this]);
-				this._totalTasks++;
-				item.completed=false;
+				item.target.setXY(item.target.x-item.value.lastOffsetX+item.value.offsetX,item.target.y-item.value.lastOffsetY+item.value.offsetY);
+				item.value.lastOffsetX=item.value.offsetX;
+				item.value.lastOffsetY=item.value.offsetY;
 				break ;
-			case 12:;
-				var arr=item.target.filters;
-				if(!arr || !(((arr[0])instanceof laya.filters.ColorFilter )))
-					item.filterCreated=true;
-				var cm=new ColorMatrix();
-				cm.adjustBrightness(value.f1);
-				cm.adjustContrast(value.f2);
-				cm.adjustSaturation(value.f3);
-				cm.adjustHue(value.f4);
-				arr=[new ColorFilter(cm)];
-				item.target.filters=arr;
-				break ;
+			case 12:{
+					var arr=item.target.filters;
+					var cm=new ColorMatrix();
+					cm.adjustBrightness(item.value.f1);
+					cm.adjustContrast(item.value.f2);
+					cm.adjustSaturation(item.value.f3);
+					cm.adjustHue(item.value.f4);
+					arr=[new ColorFilter(cm)];
+					item.target.filters=arr;
+					break ;
+				}
 			}
 		item.target._gearLocked=false;
-	}
-
-	__proto.__shakeItem=function(item){
-		var r=Math.ceil(item.value.f1 *item.startValue.f3 / item.value.f2);
-		var rx=(Math.random()*2-1)*r;
-		var ry=(Math.random()*2-1)*r;
-		rx=rx > 0 ? Math.ceil(rx):Math.floor(rx);
-		ry=ry > 0 ? Math.ceil(ry):Math.floor(ry);
-		item.target._gearLocked=true;
-		item.target.setXY(item.target.x-item.startValue.f1+rx,item.target.y-item.startValue.f2+ry);
-		item.target._gearLocked=false;
-		item.startValue.f1=rx;
-		item.startValue.f2=ry;
-		var t=Laya.timer.currTimer;
-		item.startValue.f3-=(t-item.startValue.i)/ 1000;
-		item.startValue.i=t;
-		if(item.startValue.f3 <=0){
-			item.target._gearLocked=true;
-			item.target.setXY(item.target.x-item.startValue.f1,item.target.y-item.startValue.f2);
-			item.target._gearLocked=false;
-			item.completed=true;
-			this._totalTasks--;
-			Laya.timer.clear(item,item.__shake);
-			this.checkAllComplete();
-		}
 	}
 
 	__proto.setup=function(xml){
@@ -5522,120 +5578,130 @@ var Transition=(function(){
 		if(this._autoPlay){
 			str=xml.getAttribute("autoPlayRepeat");
 			if(str)
-				this.autoPlayRepeat=parseInt(str);
+				this._autoPlayTimes=parseInt(str);
 			str=xml.getAttribute("autoPlayDelay");
 			if(str)
-				this.autoPlayDelay=parseFloat(str);
-		};
+				this._autoPlayDelay=parseFloat(str);
+		}
+		str=xml.getAttribute("fps");
+		var frameInterval=NaN;
+		if(str)
+			frameInterval=1/parseInt(str);
+		else
+		frameInterval=1/24;
 		var col=xml.childNodes;
 		var length1=col.length;
 		for(var i1=0;i1 < length1;i1++){
 			var cxml=col[i1];
 			if(cxml.nodeName!="item")
 				continue ;
-			var item=new TransitionItem();
+			var item=new TransitionItem(this.parseItemType(cxml.getAttribute("type")));
 			this._items.push(item);
-			item.time=parseInt(cxml.getAttribute("time"))/ this.FRAME_RATE;
+			item.time=parseInt(cxml.getAttribute("time"))*frameInterval;
 			item.targetId=cxml.getAttribute("target");
-			str=cxml.getAttribute("type");
-			switch(str){
-				case "XY":
-					item.type=0;
-					break ;
-				case "Size":
-					item.type=1;
-					break ;
-				case "Scale":
-					item.type=2;
-					break ;
-				case "Pivot":
-					item.type=3;
-					break ;
-				case "Alpha":
-					item.type=4;
-					break ;
-				case "Rotation":
-					item.type=5;
-					break ;
-				case "Color":
-					item.type=6;
-					break ;
-				case "Animation":
-					item.type=7;
-					break ;
-				case "Visible":
-					item.type=8;
-					break ;
-				case "Sound":
-					item.type=9;
-					break ;
-				case "Transition":
-					item.type=10;
-					break ;
-				case "Shake":
-					item.type=11;
-					break ;
-				case "ColorFilter":
-					item.type=12;
-					break ;
-				case "Skew":
-					item.type=13;
-					break ;
-				default :
-					item.type=14;
-					break ;
-				}
-			item.tween=cxml.getAttribute("tween")=="true";
+			if(cxml.getAttribute("tween")=="true")
+				item.tweenConfig=new TweenConfig();
 			item.label=cxml.getAttribute("label");
-			if(item.tween){
-				item.duration=parseInt(cxml.getAttribute("duration"))/ this.FRAME_RATE;
-				if(item.time+item.duration > this._maxTime)
-					this._maxTime=item.time+item.duration;
+			if (item.tweenConfig !=null){
+				item.tweenConfig.duration=parseInt(cxml.getAttribute("duration"))*frameInterval;
+				if(item.time+item.tweenConfig.duration > this._totalDuration)
+					this._totalDuration=item.time+item.tweenConfig.duration;
 				str=cxml.getAttribute("ease");
 				if(str)
-					item.easeType=ToolSet.parseEaseType(str);
+					item.tweenConfig.easeType=EaseType.parseEaseType(str);
 				str=cxml.getAttribute("repeat");
 				if(str)
-					item.repeat=parseInt(str);
-				item.yoyo=cxml.getAttribute("yoyo")=="true";
-				item.label2=cxml.getAttribute("label2");
+					item.tweenConfig.repeat=parseInt(str);
+				item.tweenConfig.yoyo=cxml.getAttribute("yoyo")=="true";
+				item.tweenConfig.endLabel=cxml.getAttribute("label2");
 				var v=cxml.getAttribute("endValue");
 				if(v){
-					this.decodeValue(item.type,cxml.getAttribute("startValue"),item.startValue);
-					this.decodeValue(item.type,v,item.endValue);
+					this.decodeValue(item,cxml.getAttribute("startValue"),item.tweenConfig.startValue);
+					this.decodeValue(item,v,item.tweenConfig.endValue);
 				}
 				else {
-					item.tween=false;
-					this.decodeValue(item.type,cxml.getAttribute("startValue"),item.value);
+					this.decodeValue(item,cxml.getAttribute("startValue"),item.value);
 				}
 			}
 			else {
-				if(item.time > this._maxTime)
-					this._maxTime=item.time;
-				this.decodeValue(item.type,cxml.getAttribute("value"),item.value);
+				if(item.time > this._totalDuration)
+					this._totalDuration=item.time;
+				this.decodeValue(item,cxml.getAttribute("value"),item.value);
 			}
 		}
 	}
 
-	__proto.decodeValue=function(type,str,value){
+	__proto.parseItemType=function(str){
+		var type=0;
+		switch(str){
+			case "XY":
+				type=0;
+				break ;
+			case "Size":
+				type=1;
+				break ;
+			case "Scale":
+				type=2;
+				break ;
+			case "Pivot":
+				type=3;
+				break ;
+			case "Alpha":
+				type=4;
+				break ;
+			case "Rotation":
+				type=5;
+				break ;
+			case "Color":
+				type=6;
+				break ;
+			case "Animation":
+				type=7;
+				break ;
+			case "Visible":
+				type=8;
+				break ;
+			case "Sound":
+				type=9;
+				break ;
+			case "Transition":
+				type=10;
+				break ;
+			case "Shake":
+				type=11;
+				break ;
+			case "ColorFilter":
+				type=12;
+				break ;
+			case "Skew":
+				type=13;
+				break ;
+			default :
+				type=14;
+				break ;
+			}
+		return type;
+	}
+
+	__proto.decodeValue=function(item,str,value){
 		var arr;
-		switch(type){
+		switch(item.type){
 			case 0:
 			case 1:
 			case 3:
 			case 13:
 				arr=str.split(",");
-				if(arr[0]=="-"){
+				if (arr[0]=="-"){
 					value.b1=false;
 				}
-				else {
+				else{
 					value.f1=parseFloat(arr[0]);
 					value.b1=true;
 				}
 				if(arr[1]=="-"){
 					value.b2=false;
 				}
-				else {
+				else{
 					value.f2=parseFloat(arr[1]);
 					value.b2=true;
 				}
@@ -5644,7 +5710,7 @@ var Transition=(function(){
 				value.f1=parseFloat(str);
 				break ;
 			case 5:
-				value.i=parseInt(str);
+				value.f1=parseFloat(str);
 				break ;
 			case 2:
 				arr=str.split(",");
@@ -5652,47 +5718,44 @@ var Transition=(function(){
 				value.f2=parseFloat(arr[1]);
 				break ;
 			case 6:
-				value.s=str;
+				value.f1=ToolSet.convertFromHtmlColor(str);
 				break ;
 			case 7:
 				arr=str.split(",");
-				if(arr[0]=="-"){
-					value.b1=false;
-				}
-				else {
-					value.i=parseInt(arr[0]);
-					value.b1=true;
-				}
-				value.b=arr[1]=="p";
+				if(arr[0]=="-")
+					value.frame=-1;
+				else
+				value.frame=parseInt(arr[0]);
+				value.playing=arr[1]=="p";
 				break ;
 			case 8:
-				value.b=str=="true";
+				value.visible=str=="true";
 				break ;
 			case 9:
 				arr=str.split(",");
-				value.s=arr[0];
-				if(arr.length > 1){
+				value.sound=arr[0];
+				if(arr.length>1){
 					var intv=parseInt(arr[1]);
 					if(intv==0 || intv==100)
-						value.f1=1;
+						value.volume=1;
 					else
-					value.f1=intv / 100;
+					value.volume=intv/100;
 				}
 				else
-				value.f1=1;
+				value.volume=1;
 				break ;
 			case 10:
 				arr=str.split(",");
-				value.s=arr[0];
-				if(arr.length > 1)
-					value.i=parseInt(arr[1]);
+				value.transName=arr[0];
+				if (arr.length > 1)
+					value.playTimes=parseInt(arr[1]);
 				else
-				value.i=1;
+				value.playTimes=1;
 				break ;
 			case 11:
 				arr=str.split(",");
-				value.f1=parseFloat(arr[0]);
-				value.f2=parseFloat(arr[1]);
+				value.amplitude=parseFloat(arr[0]);
+				value.duration=parseFloat(arr[1]);
 				break ;
 			case 12:
 				arr=str.split(",");
@@ -5704,24 +5767,32 @@ var Transition=(function(){
 			}
 	}
 
-	__getset(0,__proto,'autoPlay',function(){
-		return this._autoPlay;
-		},function(value){
-		if (this._autoPlay !=value){
-			this._autoPlay=value;
-			if (this._autoPlay){
-				if (this._owner.onStage)
-					this.play(null,this.autoPlayRepeat,this.autoPlayDelay);
-			}
-			else{
-				if (!this._owner.onStage)
-					this.stop(false,true);
-			}
-		}
-	});
-
 	__getset(0,__proto,'playing',function(){
 		return this._playing;
+	});
+
+	__getset(0,__proto,'timeScale',function(){
+		return this._timeScale;
+		},function(value){
+		this._timeScale=value;
+		if(this._timeScale !=value){
+			if (this._playing){
+				var cnt=this._items.length;
+				for (var i=0;i < cnt;i++){
+					var item=this._items[i];
+					if (item.tweener !=null)
+						item.tweener.setTimeScale(value);
+					else if (item.type==10){
+						if(item.value.trans !=null)
+							item.value.trans.timeScale=value;
+					}
+					else if(item.type==7){
+						if(item.target !=null)
+							(item.target).timeScale=value;
+					}
+				}
+			}
+		}
 	});
 
 	Transition.__init$=function(){
@@ -5748,55 +5819,133 @@ var Transition=(function(){
 		})()
 		//class TransitionItem
 		TransitionItem=(function(){
-			function TransitionItem(){
-				this.time=0;
+			function TransitionItem(type){
+				this.time=NaN;
 				this.targetId=null;
 				this.type=0;
-				this.duration=0;
-				this.value=null;
-				this.startValue=null;
-				this.endValue=null;
-				this.easeType=null;
-				this.repeat=0;
-				this.yoyo=false;
-				this.tween=false;
+				this.tweenConfig=null;
 				this.label=null;
-				this.label2=null;
+				this.value=null;
 				this.hook=null;
-				this.hook2=null;
-				this.tweenTimes=0;
 				this.tweener=null;
-				this.completed=false;
 				this.target=null;
-				this.filterCreated=false;
 				this.displayLockToken=0;
-				this.easeType=Ease.quadOut;
-				this.value=new TransitionValue();
-				this.startValue=new TransitionValue();
-				this.endValue=new TransitionValue();
+				this.type=type;
+				switch (type){
+					case 0:
+					case 1:
+					case 2:
+					case 3:
+					case 13:
+					case 4:
+					case 5:
+					case 6:
+					case 12:
+						this.value=new TValue();
+						break ;
+					case 7:
+						this.value=new TValue_Animation();
+						break ;
+					case 11:
+						this.value=new TValue_Shake();
+						break ;
+					case 9:
+						this.value=new TValue_Sound();
+						break ;
+					case 10:
+						this.value=new TValue_Transition();
+						break ;
+					case 8:
+						this.value=new TValue_Visible();
+						break ;
+					}
 			}
 			__class(TransitionItem,'');
-			var __proto=TransitionItem.prototype;
-			__proto.__shake=function(trans){
-				trans.__shakeItem(this);
-			}
 			return TransitionItem;
 		})()
-		//class TransitionValue
-		TransitionValue=(function(){
-			function TransitionValue(){
-				this.f1=0;
-				this.f2=0;
-				this.f3=0;
-				this.f4=NaN;
-				this.i=0;
-				this.b=false;
-				this.s=null;
-				this.b1=true;
-				this.b2=true;
+		//class TweenConfig
+		TweenConfig=(function(){
+			function TweenConfig(){
+				this.duration=NaN;
+				this.easeType=0;
+				this.repeat=0;
+				this.yoyo=false;
+				this.startValue=null;
+				this.endValue=null;
+				this.endLabel=null;
+				this.endHook=null;
+				this.easeType=5;
+				this.startValue=new TValue();
+				this.endValue=new TValue();
 			}
-			__class(TransitionValue,'');
-			return TransitionValue;
+			__class(TweenConfig,'');
+			return TweenConfig;
+		})()
+		//class TValue_Visible
+		TValue_Visible=(function(){
+			function TValue_Visible(){
+				this.visible=false;
+			}
+			__class(TValue_Visible,'');
+			return TValue_Visible;
+		})()
+		//class TValue_Animation
+		TValue_Animation=(function(){
+			function TValue_Animation(){
+				this.frame=0;
+				this.playing=false;
+				this.flag=false;
+			}
+			__class(TValue_Animation,'');
+			return TValue_Animation;
+		})()
+		//class TValue_Sound
+		TValue_Sound=(function(){
+			function TValue_Sound(){
+				this.sound=null;
+				this.volume=NaN;
+				this.audioClip=null;
+			}
+			__class(TValue_Sound,'');
+			return TValue_Sound;
+		})()
+		//class TValue_Transition
+		TValue_Transition=(function(){
+			function TValue_Transition(){
+				this.transName=null;
+				this.playTimes=0;
+				this.trans=null;
+				this.stopTime=NaN;
+			}
+			__class(TValue_Transition,'');
+			return TValue_Transition;
+		})()
+		//class TValue_Shake
+		TValue_Shake=(function(){
+			function TValue_Shake(){
+				this.amplitude=NaN;
+				this.duration=NaN;
+				this.offsetX=NaN;
+				this.offsetY=NaN;
+				this.lastOffsetX=NaN;
+				this.lastOffsetY=NaN;
+			}
+			__class(TValue_Shake,'');
+			return TValue_Shake;
+		})()
+		//class TValue
+		TValue=(function(){
+			function TValue(){
+				this.f1=NaN;
+				this.f2=NaN;
+				this.f3=NaN;
+				this.f4=NaN;
+				this.b1=false;
+				this.b2=false;
+				this.b1=this.b2=true;
+			}
+			__class(TValue,'');
+			return TValue;
 		})()
 	}
 
@@ -6333,6 +6482,938 @@ var TreeView=(function(){
 	});
 
 	return TreeView;
+})()
+
+
+//class fairygui.tween.EaseManager
+var EaseManager=(function(){
+	var Bounce;
+	function EaseManager(){}
+	__class(EaseManager,'fairygui.tween.EaseManager');
+	EaseManager.evaluate=function(easeType,time,duration,overshootOrAmplitude,period){
+		switch (easeType){
+			case 0:
+				return time / duration;
+			case 1:
+				return-Math.cos(time / duration *EaseManager._PiOver2)+1;
+			case 2:
+				return Math.sin(time / duration *EaseManager._PiOver2);
+			case 3:
+				return-0.5 *(Math.cos(Math.PI *time / duration)-1);
+			case 4:
+				return (time /=duration)*time;
+			case 5:
+				return-(time /=duration)*(time-2);
+			case 6:
+				if ((time /=duration *0.5)< 1)return 0.5 *time *time;
+				return-0.5 *((--time)*(time-2)-1);
+			case 7:
+				return (time /=duration)*time *time;
+			case 8:
+				return ((time=time / duration-1)*time *time+1);
+			case 9:
+				if ((time /=duration *0.5)< 1)return 0.5 *time *time *time;
+				return 0.5 *((time-=2)*time *time+2);
+			case 10:
+				return (time /=duration)*time *time *time;
+			case 11:
+				return-((time=time / duration-1)*time *time *time-1);
+			case 12:
+				if ((time /=duration *0.5)< 1)return 0.5 *time *time *time *time;
+				return-0.5 *((time-=2)*time *time *time-2);
+			case 13:
+				return (time /=duration)*time *time *time *time;
+			case 14:
+				return ((time=time / duration-1)*time *time *time *time+1);
+			case 15:
+				if ((time /=duration *0.5)< 1)return 0.5 *time *time *time *time *time;
+				return 0.5 *((time-=2)*time *time *time *time+2);
+			case 16:
+				return (time==0)? 0 :Math.pow(2,10 *(time / duration-1));
+			case 17:
+				if (time==duration)return 1;
+				return (-Math.pow(2,-10 *time / duration)+1);
+			case 18:
+				if (time==0)return 0;
+				if (time==duration)return 1;
+				if ((time /=duration *0.5)< 1)return 0.5 *Math.pow(2,10 *(time-1));
+				return 0.5 *(-Math.pow(2,-10 *--time)+2);
+			case 19:
+				return-(Math.sqrt(1-(time /=duration)*time)-1);
+			case 20:
+				return Math.sqrt(1-(time=time / duration-1)*time);
+			case 21:
+				if ((time /=duration *0.5)< 1)return-0.5 *(Math.sqrt(1-time *time)-1);
+				return 0.5 *(Math.sqrt(1-(time-=2)*time)+1);
+			case 22:;
+				var s0=NaN;
+				if (time==0)return 0;
+				if ((time /=duration)==1)return 1;
+				if (period==0)period=duration *0.3;
+				if (overshootOrAmplitude < 1){
+					overshootOrAmplitude=1;
+					s0=period / 4;
+				}
+				else s0=period / EaseManager._TwoPi *Math.asin(1 / overshootOrAmplitude);
+				return-(overshootOrAmplitude *Math.pow(2,10 *(time-=1))*Math.sin((time *duration-s0)*EaseManager._TwoPi / period));
+			case 23:;
+				var s1=NaN;
+				if (time==0)return 0;
+				if ((time /=duration)==1)return 1;
+				if (period==0)period=duration *0.3;
+				if (overshootOrAmplitude < 1){
+					overshootOrAmplitude=1;
+					s1=period / 4;
+				}
+				else s1=period / EaseManager._TwoPi *Math.asin(1 / overshootOrAmplitude);
+				return (overshootOrAmplitude *Math.pow(2,-10 *time)*Math.sin((time *duration-s1)*EaseManager._TwoPi / period)+1);
+			case 24:;
+				var s=NaN;
+				if (time==0)return 0;
+				if ((time /=duration *0.5)==2)return 1;
+				if (period==0)period=duration *(0.3 *1.5);
+				if (overshootOrAmplitude < 1){
+					overshootOrAmplitude=1;
+					s=period / 4;
+				}
+				else s=period / EaseManager._TwoPi *Math.asin(1 / overshootOrAmplitude);
+				if (time < 1)return-0.5 *(overshootOrAmplitude *Math.pow(2,10 *(time-=1))*Math.sin((time *duration-s)*EaseManager._TwoPi / period));
+				return overshootOrAmplitude *Math.pow(2,-10 *(time-=1))*Math.sin((time *duration-s)*EaseManager._TwoPi / period)*0.5+1;
+			case 25:
+				return (time /=duration)*time *((overshootOrAmplitude+1)*time-overshootOrAmplitude);
+			case 26:
+				return ((time=time / duration-1)*time *((overshootOrAmplitude+1)*time+overshootOrAmplitude)+1);
+			case 27:
+				if ((time /=duration *0.5)< 1)return 0.5 *(time *time *(((overshootOrAmplitude *=(1.525))+1)*time-overshootOrAmplitude));
+				return 0.5 *((time-=2)*time *(((overshootOrAmplitude *=(1.525))+1)*time+overshootOrAmplitude)+2);
+			case 28:
+				return Bounce.easeIn(time,duration);
+			case 29:
+				return Bounce.easeOut(time,duration);
+			case 30:
+				return Bounce.easeInOut(time,duration);
+			default :
+				return-(time /=duration)*(time-2);
+			}
+	}
+
+	__static(EaseManager,
+	['_PiOver2',function(){return this._PiOver2=Math.PI *0.5;},'_TwoPi',function(){return this._TwoPi=Math.PI *2;}
+	]);
+	EaseManager.__init$=function(){
+		/// This class contains a C# port of the easing equations created by Robert Penner (http://robertpenner.com/easing).
+		//class Bounce
+		Bounce=(function(){
+			function Bounce(){}
+			__class(Bounce,'');
+			Bounce.easeIn=function(time,duration){
+				return 1-Bounce.easeOut(duration-time,duration);
+			}
+			Bounce.easeOut=function(time,duration){
+				if ((time /=duration)< (1 / 2.75)){
+					return (7.5625 *time *time);
+				}
+				if (time < (2 / 2.75)){
+					return (7.5625 *(time-=(1.5 / 2.75))*time+0.75);
+				}
+				if (time < (2.5 / 2.75)){
+					return (7.5625 *(time-=(2.25 / 2.75))*time+0.9375);
+				}
+				return (7.5625 *(time-=(2.625 / 2.75))*time+0.984375);
+			}
+			Bounce.easeInOut=function(time,duration){
+				if (time < duration *0.5){
+					return Bounce.easeIn(time *2,duration)*0.5;
+				}
+				return Bounce.easeOut(time *2-duration,duration)*0.5+0.5;
+			}
+			return Bounce;
+		})()
+	}
+
+	return EaseManager;
+})()
+
+
+//class fairygui.tween.EaseType
+var EaseType=(function(){
+	function EaseType(){}
+	__class(EaseType,'fairygui.tween.EaseType');
+	EaseType.parseEaseType=function(value){
+		var type=EaseType.easeTypeMap[value];
+		if(type==undefined)
+			return 17;
+		else
+		return type;
+	}
+
+	EaseType.Linear=0;
+	EaseType.SineIn=1;
+	EaseType.SineOut=2;
+	EaseType.SineInOut=3;
+	EaseType.QuadIn=4;
+	EaseType.QuadOut=5;
+	EaseType.QuadInOut=6;
+	EaseType.CubicIn=7;
+	EaseType.CubicOut=8;
+	EaseType.CubicInOut=9;
+	EaseType.QuartIn=10;
+	EaseType.QuartOut=11;
+	EaseType.QuartInOut=12;
+	EaseType.QuintIn=13;
+	EaseType.QuintOut=14;
+	EaseType.QuintInOut=15;
+	EaseType.ExpoIn=16;
+	EaseType.ExpoOut=17;
+	EaseType.ExpoInOut=18;
+	EaseType.CircIn=19;
+	EaseType.CircOut=20;
+	EaseType.CircInOut=21;
+	EaseType.ElasticIn=22;
+	EaseType.ElasticOut=23;
+	EaseType.ElasticInOut=24;
+	EaseType.BackIn=25;
+	EaseType.BackOut=26;
+	EaseType.BackInOut=27;
+	EaseType.BounceIn=28;
+	EaseType.BounceOut=29;
+	EaseType.BounceInOut=30;
+	EaseType.Custom=31;
+	__static(EaseType,
+	['easeTypeMap',function(){return this.easeTypeMap={
+			"Linear" :0 ,
+			"Elastic.In" :22 ,
+			"Elastic.Out" :24 ,
+			"Elastic.InOut" :24 ,
+			"Quad.In" :4 ,
+			"Quad.Out" :5 ,
+			"Quad.InOut" :6 ,
+			"Cube.In" :7 ,
+			"Cube.Out" :8 ,
+			"Cube.InOut" :9 ,
+			"Quart.In" :10 ,
+			"Quart.Out" :11 ,
+			"Quart.InOut" :12 ,
+			"Quint.In" :13 ,
+			"Quint.Out" :14 ,
+			"Quint.InOut" :15 ,
+			"Sine.In" :1 ,
+			"Sine.Out" :2 ,
+			"Sine.InOut" :3 ,
+			"Bounce.In" :28 ,
+			"Bounce.Out" :29 ,
+			"Bounce.InOut" :30 ,
+			"Circ.In" :19 ,
+			"Circ.Out" :20 ,
+			"Circ.InOut" :21 ,
+			"Expo.In" :16 ,
+			"Expo.Out" :17 ,
+			"Expo.InOut" :18 ,
+			"Back.In" :25 ,
+			"Back.Out" :26 ,
+			"Back.InOut" :27
+	};}
+
+	]);
+	return EaseType;
+})()
+
+
+//class fairygui.tween.GTween
+var GTween=(function(){
+	function GTween(){}
+	__class(GTween,'fairygui.tween.GTween');
+	GTween.to=function(start,end,duration){
+		return TweenManager.createTween()._to(start,end,duration);
+	}
+
+	GTween.to2=function(start,start2,end,end2,duration){
+		return TweenManager.createTween()._to2(start,start2,end,end2,duration);
+	}
+
+	GTween.to3=function(start,start2,start3,end,end2,end3,duration){
+		return TweenManager.createTween()._to3(start,start2,start3,end,end2,end3,duration);
+	}
+
+	GTween.to4=function(start,start2,start3,start4,end,end2,end3,end4,duration){
+		return TweenManager.createTween()._to4(start,start2,start3,start4,end,end2,end3,end4,duration);
+	}
+
+	GTween.toColor=function(start,end,duration){
+		return TweenManager.createTween()._toColor(start,end,duration);
+	}
+
+	GTween.delayedCall=function(delay){
+		return TweenManager.createTween().setDelay(delay);
+	}
+
+	GTween.shake=function(startX,startY,amplitude,duration){
+		return TweenManager.createTween()._shake(startX,startY,amplitude,duration);
+	}
+
+	GTween.isTweening=function(target,propType){
+		return TweenManager.isTweening(target,propType);
+	}
+
+	GTween.kill=function(target,complete,propType){
+		(complete===void 0)&& (complete=false);
+		TweenManager.killTweens(target,false,null);
+	}
+
+	GTween.getTween=function(target,propType){
+		return TweenManager.getTween(target,propType);
+	}
+
+	GTween.safeMode=true;
+	return GTween;
+})()
+
+
+//class fairygui.tween.GTweener
+var GTweener=(function(){
+	function GTweener(){
+		this._target=null;
+		this._propType=null;
+		this._killed=false;
+		this._paused=false;
+		this._delay=NaN;
+		this._duration=NaN;
+		this._breakpoint=NaN;
+		this._easeType=0;
+		this._easeOvershootOrAmplitude=NaN;
+		this._easePeriod=NaN;
+		this._repeat=0;
+		this._yoyo=false;
+		this._timeScale=NaN;
+		this._snapping=false;
+		this._userData=null;
+		this._onUpdate=null;
+		this._onUpdateCaller=null;
+		this._onStart=null;
+		this._onStartCaller=null;
+		this._onComplete=null;
+		this._onCompleteCaller=null;
+		this._startValue=null;
+		this._endValue=null;
+		this._value=null;
+		this._deltaValue=null;
+		this._valueSize=0;
+		this._started=false;
+		this._ended=0;
+		this._elapsedTime=NaN;
+		this._normalizedTime=NaN;
+		this._startValue=new TweenValue();
+		this._endValue=new TweenValue();
+		this._value=new TweenValue();
+		this._deltaValue=new TweenValue();
+		this._reset();
+	}
+
+	__class(GTweener,'fairygui.tween.GTweener');
+	var __proto=GTweener.prototype;
+	__proto.setDelay=function(value){
+		this._delay=value;
+		return this;
+	}
+
+	__proto.setDuration=function(value){
+		this._duration=value;
+		return this;
+	}
+
+	__proto.setBreakpoint=function(value){
+		this._breakpoint=value;
+		return this;
+	}
+
+	__proto.setEase=function(value){
+		this._easeType=value;
+		return this;
+	}
+
+	__proto.setEasePeriod=function(value){
+		this._easePeriod=value;
+		return this;
+	}
+
+	__proto.setEaseOvershootOrAmplitude=function(value){
+		this._easeOvershootOrAmplitude=value;
+		return this;
+	}
+
+	__proto.setRepeat=function(repeat,yoyo){
+		(yoyo===void 0)&& (yoyo=false);
+		this._repeat=repeat;
+		this._yoyo=yoyo;
+		return this;
+	}
+
+	__proto.setTimeScale=function(value){
+		this._timeScale=value;
+		return this;
+	}
+
+	__proto.setSnapping=function(value){
+		this._snapping=value;
+		return this;
+	}
+
+	__proto.setTarget=function(value,propType){
+		this._target=value;
+		this._propType=propType;
+		return this;
+	}
+
+	__proto.setUserData=function(value){
+		this._userData=value;
+		return this;
+	}
+
+	__proto.onUpdate=function(callback,caller){
+		this._onUpdate=callback;
+		this._onUpdateCaller=caller;
+		return this;
+	}
+
+	__proto.onStart=function(callback,caller){
+		this._onStart=callback;
+		this._onStartCaller=caller;
+		return this;
+	}
+
+	__proto.onComplete=function(callback,caller){
+		this._onComplete=callback;
+		this._onCompleteCaller=caller;
+		return this;
+	}
+
+	__proto.setPaused=function(paused){
+		this._paused=paused;
+		return this;
+	}
+
+	/**
+	*seek position of the tween,in seconds.
+	*/
+	__proto.seek=function(time){
+		if (this._killed)
+			return;
+		this._elapsedTime=time;
+		if (this._elapsedTime < this._delay){
+			if (this._started)
+				this._elapsedTime=this._delay;
+			else
+			return;
+		}
+		this.update();
+	}
+
+	__proto.kill=function(complete){
+		(complete===void 0)&& (complete=false);
+		if (this._killed)
+			return;
+		if (complete){
+			if (this._ended==0){
+				if (this._breakpoint >=0)
+					this._elapsedTime=this._delay+this._breakpoint;
+				else if (this._repeat >=0)
+				this._elapsedTime=this._delay+this._duration *(this._repeat+1);
+				else
+				this._elapsedTime=this._delay+this._duration *3;
+				this.update();
+			}
+			this.callCompleteCallback();
+		}
+		this._killed=true;
+	}
+
+	__proto._to=function(start,end,duration){
+		this._valueSize=1;
+		this._startValue.x=start;
+		this._endValue.x=end;
+		this._duration=duration;
+		return this;
+	}
+
+	__proto._to2=function(start,start2,end,end2,duration){
+		this._valueSize=2;
+		this._startValue.x=start;
+		this._endValue.x=end;
+		this._startValue.y=start2;
+		this._endValue.y=end2;
+		this._duration=duration;
+		return this;
+	}
+
+	__proto._to3=function(start,start2,start3,end,end2,end3,duration){
+		this._valueSize=3;
+		this._startValue.x=start;
+		this._endValue.x=end;
+		this._startValue.y=start2;
+		this._endValue.y=end2;
+		this._startValue.z=start3;
+		this._endValue.z=end3;
+		this._duration=duration;
+		return this;
+	}
+
+	__proto._to4=function(start,start2,start3,start4,end,end2,end3,end4,duration){
+		this._valueSize=4;
+		this._startValue.x=start;
+		this._endValue.x=end;
+		this._startValue.y=start2;
+		this._endValue.y=end2;
+		this._startValue.z=start3;
+		this._endValue.z=end3;
+		this._startValue.w=start4;
+		this._endValue.w=end4;
+		this._duration=duration;
+		return this;
+	}
+
+	__proto._toColor=function(start,end,duration){
+		this._valueSize=4;
+		this._startValue.color=start;
+		this._endValue.color=end;
+		this._duration=duration;
+		return this;
+	}
+
+	__proto._shake=function(startX,startY,amplitude,duration){
+		this._valueSize=5;
+		this._startValue.x=startX;
+		this._startValue.y=startY;
+		this._startValue.w=amplitude;
+		this._duration=duration;
+		this._easeType=0;
+		return this;
+	}
+
+	__proto._init=function(){
+		this._delay=0;
+		this._duration=0;
+		this._breakpoint=-1;
+		this._easeType=5;
+		this._timeScale=1;
+		this._easePeriod=0;
+		this._easeOvershootOrAmplitude=1.70158;
+		this._snapping=false;
+		this._repeat=0;
+		this._yoyo=false;
+		this._valueSize=0;
+		this._started=false;
+		this._paused=false;
+		this._killed=false;
+		this._elapsedTime=0;
+		this._normalizedTime=0;
+		this._ended=0;
+	}
+
+	__proto._reset=function(){
+		this._target=null;
+		this._userData=null;
+		this._onStart=this._onUpdate=this._onComplete=null;
+		this._onStartCaller=this._onUpdateCaller=this._onCompleteCaller=null;
+	}
+
+	__proto._update=function(dt){
+		if (this._timeScale !=1)
+			dt *=this._timeScale;
+		if (dt==0)
+			return;
+		if (this._ended !=0){
+			this.callCompleteCallback();
+			this._killed=true;
+			return;
+		}
+		this._elapsedTime+=dt;
+		this.update();
+		if (this._ended !=0){
+			if (!this._killed){
+				this.callCompleteCallback();
+				this._killed=true;
+			}
+		}
+	}
+
+	__proto.update=function(){
+		this._ended=0;
+		if (this._valueSize==0){
+			if (this._elapsedTime >=this._delay+this._duration)
+				this._ended=1;
+			return;
+		}
+		if (!this._started){
+			if (this._elapsedTime < this._delay)
+				return;
+			this._started=true;
+			this.callStartCallback();
+			if (this._killed)
+				return;
+		};
+		var reversed=false;
+		var tt=this._elapsedTime-this._delay;
+		if (this._breakpoint >=0 && tt >=this._breakpoint){
+			tt=this._breakpoint;
+			this._ended=2;
+		}
+		if (this._repeat !=0){
+			var round=Math.floor(tt / this._duration);
+			tt-=this._duration *round;
+			if (this._yoyo)
+				reversed=round % 2==1;
+			if (this._repeat > 0 && this._repeat-round < 0){
+				if (this._yoyo)
+					reversed=this._repeat % 2==1;
+				tt=this._duration;
+				this._ended=1;
+			}
+		}
+		else if (tt >=this._duration){
+			tt=this._duration;
+			this._ended=1;
+		}
+		this._normalizedTime=EaseManager.evaluate(this._easeType,reversed ? (this._duration-tt):tt,this._duration,
+		this._easeOvershootOrAmplitude,this._easePeriod);
+		this._value.setZero();
+		this._deltaValue.setZero();
+		if (this._valueSize==5){
+			if (this._ended==0){
+				var r=this._startValue.w*(1-this._normalizedTime);
+				var rx=(Math.random()*2-1)*r;
+				var ry=(Math.random()*2-1)*r;
+				rx=rx > 0 ? Math.ceil(rx):Math.floor(rx);
+				ry=ry > 0 ? Math.ceil(ry):Math.floor(ry);
+				this._deltaValue.x=rx;
+				this._deltaValue.y=ry;
+				this._value.x=this._startValue.x+rx;
+				this._value.y=this._startValue.y+ry;
+			}
+			else{
+				this._value.x=this._startValue.x;
+				this._value.y=this._startValue.y;
+			}
+		}
+		else{
+			for (var i=0;i < this._valueSize;i++){
+				var n1=this._startValue.getField(i);
+				var n2=this._endValue.getField(i);
+				var f=n1+(n2-n1)*this._normalizedTime;
+				if (this._snapping)
+					f=Math.round(f);
+				this._deltaValue.setField(i,f-this._value.getField(i));
+				this._value.setField(i,f);
+			}
+		}
+		if (this._target !=null && this._propType !=null){
+			if((typeof this._propType=='function')){
+				switch(this._valueSize){
+					case 1:
+						this._propType.call(this._target,this._value.x);
+						break ;
+					case 2:
+						this._propType.call(this._target,this._value.x,this._value.y);
+						break ;
+					case 3:
+						this._propType.call(this._target,this._value.x,this._value.y,this._value.z);
+						break ;
+					case 4:
+						this._propType.call(this._target,this._value.x,this._value.y,this._value.z,this._value.w);
+						break ;
+					case 5:
+						this._propType.call(this._target,this._value.color);
+						break ;
+					case 6:
+						this._propType.call(this._target,this._value.x,this._value.y);
+						break ;
+					}
+			}
+			else{
+				if(this._valueSize==5)
+					this._target[this._propType]=this._value.color;
+				else
+				this._target[this._propType]=this._value.x;
+			}
+		}
+		this.callUpdateCallback();
+	}
+
+	__proto.callStartCallback=function(){
+		if (this._onStart !=null){
+			if(GTween.safeMode){
+				try{
+					this._onStart.call(this._onStartCaller,this);
+				}
+				catch(err){
+					console.log("FairyGUI: error in start callback > "+err.message);
+				}
+			}
+			else
+			this._onStart.call(this._onStartCaller,this);
+		}
+	}
+
+	__proto.callUpdateCallback=function(){
+		if (this._onUpdate !=null){
+			if(GTween.safeMode){
+				try{
+					this._onUpdate.call(this._onUpdateCaller,this);
+				}
+				catch(err){
+					console.log("FairyGUI: error in update callback > "+err.message);
+				}
+			}
+			else
+			this._onUpdate.call(this._onUpdateCaller,this);
+		}
+	}
+
+	__proto.callCompleteCallback=function(){
+		if (this._onComplete !=null){
+			if(GTween.safeMode){
+				try{
+					this._onComplete.call(this._onCompleteCaller,this);
+				}
+				catch(err){
+					console.log("FairyGUI: error in complete callback > "+err.message);
+				}
+			}
+			else
+			this._onComplete.call(this._onCompleteCaller,this);
+		}
+	}
+
+	__getset(0,__proto,'target',function(){
+		return this._target;
+	});
+
+	__getset(0,__proto,'delay',function(){
+		return this._delay;
+	});
+
+	__getset(0,__proto,'duration',function(){
+		return this._duration;
+	});
+
+	__getset(0,__proto,'value',function(){
+		return this._value;
+	});
+
+	__getset(0,__proto,'userData',function(){
+		return this._userData;
+	});
+
+	__getset(0,__proto,'repeat',function(){
+		return this._repeat;
+	});
+
+	__getset(0,__proto,'startValue',function(){
+		return this._startValue;
+	});
+
+	__getset(0,__proto,'endValue',function(){
+		return this._endValue;
+	});
+
+	__getset(0,__proto,'deltaValue',function(){
+		return this._deltaValue;
+	});
+
+	__getset(0,__proto,'normalizedTime',function(){
+		return this._normalizedTime;
+	});
+
+	__getset(0,__proto,'completed',function(){
+		return this._ended !=0;
+	});
+
+	__getset(0,__proto,'allCompleted',function(){
+		return this._ended==1;
+	});
+
+	return GTweener;
+})()
+
+
+//class fairygui.tween.TweenManager
+var TweenManager=(function(){
+	function TweenManager(){}
+	__class(TweenManager,'fairygui.tween.TweenManager');
+	TweenManager.createTween=function(){
+		if (!TweenManager._inited){
+			Laya.timer.frameLoop(1,null,TweenManager.update);
+			TweenManager._inited=true;
+		};
+		var tweener;
+		var cnt=TweenManager._tweenerPool.length;
+		if (cnt > 0){
+			tweener=TweenManager._tweenerPool.pop();
+		}
+		else
+		tweener=new GTweener();
+		tweener._init();
+		TweenManager._activeTweens[TweenManager._totalActiveTweens++]=tweener;
+		if (TweenManager._totalActiveTweens==TweenManager._activeTweens.length)
+			TweenManager._activeTweens.length=TweenManager._activeTweens.length+Math.ceil(TweenManager._activeTweens.length *0.5);
+		return tweener;
+	}
+
+	TweenManager.isTweening=function(target,propType){
+		if (target==null)
+			return false;
+		var anyType=propType==null;
+		for (var i=0;i < TweenManager._totalActiveTweens;i++){
+			var tweener=TweenManager._activeTweens[i];
+			if (tweener !=null && tweener.target==target && !tweener._killed
+				&& (anyType || tweener._propType==propType))
+			return true;
+		}
+		return false;
+	}
+
+	TweenManager.killTweens=function(target,completed,propType){
+		if (target==null)
+			return false;
+		var flag=false;
+		var cnt=TweenManager._totalActiveTweens;
+		var anyType=propType==null;
+		for (var i=0;i < cnt;i++){
+			var tweener=TweenManager._activeTweens[i];
+			if (tweener !=null && tweener.target==target && !tweener._killed
+				&& (anyType || tweener._propType==propType)){
+				tweener.kill(completed);
+				flag=true;
+			}
+		}
+		return flag;
+	}
+
+	TweenManager.getTween=function(target,propType){
+		if (target==null)
+			return null;
+		var cnt=TweenManager._totalActiveTweens;
+		var anyType=propType==null;
+		for (var i=0;i < cnt;i++){
+			var tweener=TweenManager._activeTweens[i];
+			if (tweener !=null && tweener.target==target && !tweener._killed
+				&& (anyType || tweener._propType==propType)){
+				return tweener;
+			}
+		}
+		return null;
+	}
+
+	TweenManager.update=function(){
+		var dt=Laya.timer.delta/1000;
+		var cnt=TweenManager._totalActiveTweens;
+		var freePosStart=-1;
+		var freePosCount=0;
+		for (var i=0;i < cnt;i++){
+			var tweener=TweenManager._activeTweens[i];
+			if (tweener==null){
+				if (freePosStart==-1)
+					freePosStart=i;
+				freePosCount++;
+			}
+			else if (tweener._killed){
+				tweener._reset();
+				TweenManager._tweenerPool.push(tweener);
+				TweenManager._activeTweens[i]=null;
+				if (freePosStart==-1)
+					freePosStart=i;
+				freePosCount++;
+			}
+			else{
+				if(!tweener._paused)
+					tweener._update(dt);
+				if (freePosStart !=-1){
+					TweenManager._activeTweens[freePosStart]=tweener;
+					TweenManager._activeTweens[i]=null;
+					freePosStart++;
+				}
+			}
+		}
+		if (freePosStart >=0){
+			if (TweenManager._totalActiveTweens !=cnt){
+				var j=cnt;
+				cnt=TweenManager._totalActiveTweens-cnt;
+				for (i=0;i < cnt;i++)
+				TweenManager._activeTweens[freePosStart++]=TweenManager._activeTweens[j++];
+			}
+			TweenManager._totalActiveTweens=freePosStart;
+		}
+	}
+
+	TweenManager._tweenerPool=[];
+	TweenManager._totalActiveTweens=0;
+	TweenManager._inited=false;
+	__static(TweenManager,
+	['_activeTweens',function(){return this._activeTweens=new Array(30);}
+	]);
+	return TweenManager;
+})()
+
+
+//class fairygui.tween.TweenValue
+var TweenValue=(function(){
+	function TweenValue(){
+		this.x=NaN;
+		this.y=NaN;
+		this.z=NaN;
+		this.w=NaN;
+		this.x=this.y=this.z=this.w=0;
+	}
+
+	__class(TweenValue,'fairygui.tween.TweenValue');
+	var __proto=TweenValue.prototype;
+	__proto.getField=function(index){
+		switch (index){
+			case 0:
+				return this.x;
+			case 1:
+				return this.y;
+			case 2:
+				return this.z;
+			case 3:
+				return this.w;
+			default :
+				throw new Error("Index out of bounds: "+index);
+			}
+	}
+
+	__proto.setField=function(index,value){
+		switch (index){
+			case 0:
+				this.x=value;
+				break ;
+			case 1:
+				this.y=value;
+				break ;
+			case 2:
+				this.z=value;
+				break ;
+			case 3:
+				this.w=value;
+				break ;
+			default :
+				throw new Error("Index out of bounds: "+index);
+			}
+	}
+
+	__proto.setZero=function(){
+		this.x=this.y=this.z=this.w=0;
+	}
+
+	__getset(0,__proto,'color',function(){
+		return (this.w<<24)+(this.x<<16)+(this.y<<8)+this.z;
+		},function(value){
+		this.x=(value & 0xFF0000)>>16;
+		this.y=(value & 0x00FF00)>>8;
+		this.z=(value & 0x0000FF);
+		this.w=(value & 0xFF000000)>>24;
+	});
+
+	return TweenValue;
 })()
 
 
@@ -7443,13 +8524,6 @@ var ToolSet=(function(){
 		return fairygui.utils.ToolSet.defaultUBBParser.parse(text,true);
 	}
 
-	ToolSet.parseEaseType=function(value){
-		var ret=ToolSet.EaseMap[value];
-		if (!ret)
-			ret=Ease.quartOut;
-		return ret;
-	}
-
 	ToolSet.clamp=function(value,min,max){
 		if(value<min)
 			value=min;
@@ -7493,40 +8567,7 @@ var ToolSet=(function(){
 
 	ToolSet.BASE64_CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 	__static(ToolSet,
-	['defaultUBBParser',function(){return this.defaultUBBParser=new UBBParser();},'EaseMap',function(){return this.EaseMap={
-			"Linear":Ease.linearNone,
-			"Elastic.In":Ease.elasticIn,
-			"Elastic.Out":Ease.elasticOut,
-			"Elastic.InOut":Ease.elasticInOut,
-			"Quad.In":Ease.quadIn,
-			"Quad.Out":Ease.quadOut,
-			"Quad.InOut":Ease.quadInOut,
-			"Cube.In":Ease.cubicIn,
-			"Cube.Out":Ease.cubicOut,
-			"Cube.InOut":Ease.cubicInOut,
-			"Quart.In":Ease.quartIn,
-			"Quart.Out":Ease.quartOut,
-			"Quart.InOut":Ease.quartInOut,
-			"Quint.In":Ease.quintIn,
-			"Quint.Out":Ease.quintOut,
-			"Quint.InOut":Ease.quintInOut,
-			"Sine.In":Ease.sineIn,
-			"Sine.Out":Ease.sineOut,
-			"Sine.InOut":Ease.sineInOut,
-			"Bounce.In":Ease.bounceIn,
-			"Bounce.Out":Ease.bounceOut,
-			"Bounce.InOut":Ease.bounceInOut,
-			"Circ.In":Ease.circIn,
-			"Circ.Out":Ease.circOut,
-			"Circ.InOut":Ease.circInOut,
-			"Expo.In":Ease.quartIn,
-			"Expo.Out":Ease.quartOut,
-			"Expo.InOut":Ease.quartInOut,
-			"Back.In":Ease.backIn,
-			"Back.Out":Ease.backOut,
-			"Back.InOut":Ease.backInOut
-	};}
-
+	['defaultUBBParser',function(){return this.defaultUBBParser=new UBBParser();}
 	]);
 	return ToolSet;
 })()
@@ -8197,7 +9238,7 @@ var ChangePageAction=(function(_super){
 var PlayTransitionAction=(function(_super){
 	function PlayTransitionAction(){
 		this.transitionName=null;
-		this.repeat=1;
+		this.playTimes=1;
 		this.delay=0;
 		this.stopOnExit=false;
 		this._currentTransition=null;
@@ -8210,9 +9251,9 @@ var PlayTransitionAction=(function(_super){
 		var trans=controller.parent.getTransition(this.transitionName);
 		if(trans){
 			if(this._currentTransition && this._currentTransition.playing)
-				trans.changeRepeat(this.repeat);
+				trans.changePlayTimes(this.playTimes);
 			else
-			trans.play(null,this.repeat,this.delay);
+			trans.play(null,this.playTimes,this.delay);
 			this._currentTransition=trans;
 		}
 	}
@@ -8230,7 +9271,7 @@ var PlayTransitionAction=(function(_super){
 		var str;
 		str=xml.getAttribute("repeat");
 		if(str)
-			this.repeat=parseInt(str);
+			this.playTimes=parseInt(str);
 		str=xml.getAttribute("delay");
 		if(str)
 			this.delay=parseFloat(str);
@@ -9381,16 +10422,14 @@ var GComponent=(function(_super){
 	__proto.___added=function(){
 		var cnt=this._transitions.length;
 		for(var i=0;i < cnt;++i){
-			var trans=this._transitions[i];
-			if(trans.autoPlay)
-				trans.play(null,trans.autoPlayRepeat,trans.autoPlayDelay);
+			this._transitions[i].onOwnerAddedToStage();
 		}
 	}
 
 	__proto.___removed=function(){
 		var cnt=this._transitions.length;
 		for(var i=0;i < cnt;++i){
-			this._transitions[i].OnOwnerRemovedFromStage();
+			this._transitions[i].onOwnerRemovedFromStage();
 		}
 	}
 
@@ -9724,6 +10763,140 @@ var GearIcon=(function(_super){
 })(GearBase)
 
 
+//class fairygui.GearLook extends fairygui.GearBase
+var GearLook=(function(_super){
+	var GearLookValue;
+	function GearLook(owner){
+		this._storage=null;
+		this._default=null;
+		this._tweener=null;
+		GearLook.__super.call(this,owner);
+	}
+
+	__class(GearLook,'fairygui.GearLook',_super);
+	var __proto=GearLook.prototype;
+	__proto.init=function(){
+		this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed,this._owner.touchable);
+		this._storage={};
+	}
+
+	__proto.addStatus=function(pageId,value){
+		if(value=="-"|| value.length==0)
+			return;
+		var arr=value.split(",");
+		var gv;
+		if(pageId==null)
+			gv=this._default;
+		else {
+			gv=new GearLookValue();
+			this._storage[pageId]=gv;
+		}
+		gv.alpha=parseFloat(arr[0]);
+		gv.rotation=parseInt(arr[1]);
+		gv.grayed=arr[2]=="1" ? true :false;
+		if(arr.length<4)
+			gv.touchable=this._owner.touchable;
+		else
+		gv.touchable=arr[3]=="1"?true:false;
+	}
+
+	__proto.apply=function(){
+		var gv=this._storage[this._controller.selectedPageId];
+		if(!gv)
+			gv=this._default;
+		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+			this._owner._gearLocked=true;
+			this._owner.grayed=gv.grayed;
+			this._owner.touchable=gv.touchable;
+			this._owner._gearLocked=false;
+			if (this._tweener !=null){
+				if (this._tweener.endValue.x !=gv.alpha || this._tweener.endValue.y !=gv.rotation){
+					this._tweener.kill(true);
+					this._tweener=null;
+				}
+				else
+				return;
+			};
+			var a=gv.alpha!=this._owner.alpha;
+			var b=gv.rotation!=this._owner.rotation;
+			if(a || b){
+				if(this._owner.checkGearController(0,this._controller))
+					this._displayLockToken=this._owner.addDisplayLock();
+				this._tweener=GTween.to2(this._owner.alpha,this._owner.rotation,gv.alpha,gv.rotation,this._tweenTime)
+				.setDelay(this._delay)
+				.setEase(this._easeType)
+				.setUserData((a ? 1 :0)+(b ? 2 :0))
+				.setTarget(this)
+				.onUpdate(this.__tweenUpdate,this)
+				.onComplete(this.__tweenComplete,this);
+			}
+		}
+		else {
+			this._owner._gearLocked=true;
+			this._owner.grayed=gv.grayed;
+			this._owner.alpha=gv.alpha;
+			this._owner.rotation=gv.rotation;
+			this._owner.touchable=gv.touchable;
+			this._owner._gearLocked=false;
+		}
+	}
+
+	__proto.__tweenUpdate=function(tweener){
+		var flag=tweener.userData;
+		this._owner._gearLocked=true;
+		if ((flag & 1)!=0)
+			this._owner.alpha=tweener.value.x;
+		if ((flag & 2)!=0)
+			this._owner.rotation=tweener.value.y;
+		this._owner._gearLocked=false;
+	}
+
+	__proto.__tweenComplete=function(){
+		if(this._displayLockToken!=0){
+			this._owner.releaseDisplayLock(this._displayLockToken);
+			this._displayLockToken=0;
+		}
+		this._tweener=null;
+	}
+
+	__proto.updateState=function(){
+		var gv=this._storage[this._controller.selectedPageId];
+		if(!gv){
+			gv=new GearLookValue();
+			this._storage[this._controller.selectedPageId]=gv;
+		}
+		gv.alpha=this._owner.alpha;
+		gv.rotation=this._owner.rotation;
+		gv.grayed=this._owner.grayed;
+		gv.touchable=this._owner.touchable;
+	}
+
+	GearLook.__init$=function(){
+		//class GearLookValue
+		GearLookValue=(function(){
+			function GearLookValue(alpha,rotation,grayed,touchable){
+				this.alpha=NaN;
+				this.rotation=NaN;
+				this.grayed=false;
+				this.touchable=false;
+				(alpha===void 0)&& (alpha=0);
+				(rotation===void 0)&& (rotation=0);
+				(grayed===void 0)&& (grayed=false);
+				(touchable===void 0)&& (touchable=true);
+				this.alpha=alpha;
+				this.rotation=rotation;
+				this.grayed=grayed;
+				this.touchable=touchable;
+			}
+			__class(GearLookValue,'');
+			return GearLookValue;
+		})()
+	}
+
+	return GearLook;
+})(GearBase)
+
+
 //class fairygui.GGraph extends fairygui.GObject
 var GGraph=(function(_super){
 	function GGraph(){
@@ -9897,147 +11070,6 @@ var GGraph=(function(_super){
 
 	return GGraph;
 })(GObject)
-
-
-//class fairygui.GearLook extends fairygui.GearBase
-var GearLook=(function(_super){
-	var GearLookValue;
-	function GearLook(owner){
-		this.tweener=null;
-		this._storage=null;
-		this._default=null;
-		this._tweenValue=null;
-		this._tweenTarget=null;
-		GearLook.__super.call(this,owner);
-	}
-
-	__class(GearLook,'fairygui.GearLook',_super);
-	var __proto=GearLook.prototype;
-	__proto.init=function(){
-		this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed,this._owner.touchable);
-		this._storage={};
-	}
-
-	__proto.addStatus=function(pageId,value){
-		if(value=="-"|| value.length==0)
-			return;
-		var arr=value.split(",");
-		var gv;
-		if(pageId==null)
-			gv=this._default;
-		else {
-			gv=new GearLookValue();
-			this._storage[pageId]=gv;
-		}
-		gv.alpha=parseFloat(arr[0]);
-		gv.rotation=parseInt(arr[1]);
-		gv.grayed=arr[2]=="1" ? true :false;
-		if(arr.length<4)
-			gv.touchable=this._owner.touchable;
-		else
-		gv.touchable=arr[3]=="1"?true:false;
-	}
-
-	__proto.apply=function(){
-		var gv=this._storage[this._controller.selectedPageId];
-		if(!gv)
-			gv=this._default;
-		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-			this._owner._gearLocked=true;
-			this._owner.grayed=gv.grayed;
-			this._owner.touchable=gv.touchable;
-			this._owner._gearLocked=false;
-			if (this.tweener !=null){
-				if (this._tweenTarget.alpha !=gv.alpha || this._tweenTarget.rotation !=gv.rotation){
-					this.tweener.complete();
-					this.tweener=null;
-				}
-				else
-				return;
-			};
-			var a=gv.alpha !=this._owner.alpha;
-			var b=gv.rotation !=this._owner.rotation;
-			if(a || b){
-				if(this._owner.checkGearController(0,this._controller))
-					this._displayLockToken=this._owner.addDisplayLock();
-				this._tweenTarget=gv;
-				if(this._tweenValue==null)
-					this._tweenValue=new Point();
-				this._tweenValue.x=this._owner.alpha;
-				this._tweenValue.y=this._owner.rotation;
-				this.tweener=Tween.to(this._tweenValue,
-				{x:gv.alpha,y:gv.rotation },
-				this._tweenTime*1000,
-				this._easeType,
-				Handler.create(this,this.__tweenComplete),
-				this._delay*1000);
-				this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
-			}
-		}
-		else {
-			this._owner._gearLocked=true;
-			this._owner.grayed=gv.grayed;
-			this._owner.alpha=gv.alpha;
-			this._owner.rotation=gv.rotation;
-			this._owner.touchable=gv.touchable;
-			this._owner._gearLocked=false;
-		}
-	}
-
-	__proto.__tweenUpdate=function(a,b){
-		this._owner._gearLocked=true;
-		if(a)
-			this._owner.alpha=this._tweenValue.x;
-		if(b)
-			this._owner.rotation=this._tweenValue.y;
-		this._owner._gearLocked=false;
-	}
-
-	__proto.__tweenComplete=function(){
-		if(this._displayLockToken!=0){
-			this._owner.releaseDisplayLock(this._displayLockToken);
-			this._displayLockToken=0;
-		}
-		this.tweener=null;
-		this._owner.displayObject.event("fui_gear_stop");
-	}
-
-	__proto.updateState=function(){
-		var gv=this._storage[this._controller.selectedPageId];
-		if(!gv){
-			gv=new GearLookValue();
-			this._storage[this._controller.selectedPageId]=gv;
-		}
-		gv.alpha=this._owner.alpha;
-		gv.rotation=this._owner.rotation;
-		gv.grayed=this._owner.grayed;
-		gv.touchable=this._owner.touchable;
-	}
-
-	GearLook.__init$=function(){
-		//class GearLookValue
-		GearLookValue=(function(){
-			function GearLookValue(alpha,rotation,grayed,touchable){
-				this.alpha=NaN;
-				this.rotation=NaN;
-				this.grayed=false;
-				this.touchable=false;
-				(alpha===void 0)&& (alpha=0);
-				(rotation===void 0)&& (rotation=0);
-				(grayed===void 0)&& (grayed=false);
-				(touchable===void 0)&& (touchable=true);
-				this.alpha=alpha;
-				this.rotation=rotation;
-				this.grayed=grayed;
-				this.touchable=touchable;
-			}
-			__class(GearLookValue,'');
-			return GearLookValue;
-		})()
-	}
-
-	return GearLook;
-})(GearBase)
 
 
 //class fairygui.GGroup extends fairygui.GObject
@@ -10397,157 +11429,6 @@ var GGroup=(function(_super){
 })(GObject)
 
 
-//class fairygui.GearSize extends fairygui.GearBase
-var GearSize=(function(_super){
-	var GearSizeValue;
-	function GearSize(owner){
-		this.tweener=null;
-		this._storage=null;
-		this._default=null;
-		this._tweenValue=null;
-		this._tweenTarget=null;
-		GearSize.__super.call(this,owner);
-	}
-
-	__class(GearSize,'fairygui.GearSize',_super);
-	var __proto=GearSize.prototype;
-	__proto.init=function(){
-		this._default=new GearSizeValue(this._owner.width,this._owner.height,
-		this._owner.scaleX,this._owner.scaleY);
-		this._storage={};
-	}
-
-	__proto.addStatus=function(pageId,value){
-		if(value=="-"|| value.length==0)
-			return;
-		var arr=value.split(",");
-		var gv;
-		if (pageId==null)
-			gv=this._default;
-		else {
-			gv=new GearSizeValue();
-			this._storage[pageId]=gv;
-		}
-		gv.width=parseInt(arr[0]);
-		gv.height=parseInt(arr[1]);
-		if(arr.length>2){
-			gv.scaleX=parseFloat(arr[2]);
-			gv.scaleY=parseFloat(arr[3]);
-		}
-	}
-
-	__proto.apply=function(){
-		var gv=this._storage[this._controller.selectedPageId];
-		if (!gv)
-			gv=this._default;
-		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-			if(this.tweener!=null){
-				if (this._tweenTarget.width !=gv.width || this._tweenTarget.height !=gv.height
-					|| this._tweenTarget.scaleX !=gv.scaleX || this._tweenTarget.scaleY !=gv.scaleY){
-					this.tweener.complete();
-					this.tweener=null;
-				}
-				else
-				return;
-			};
-			var a=gv.width !=this._owner.width || gv.height !=this._owner.height;
-			var b=gv.scaleX !=this._owner.scaleX || gv.scaleY !=this._owner.scaleY;
-			if(a || b){
-				if(this._owner.checkGearController(0,this._controller))
-					this._displayLockToken=this._owner.addDisplayLock();
-				this._tweenTarget=gv;
-				if(this._tweenValue==null)
-					this._tweenValue=new GearSizeValue();
-				this._tweenValue.width=this._owner.width;
-				this._tweenValue.height=this._owner.height;
-				this._tweenValue.scaleX=this._owner.scaleX;
-				this._tweenValue.scaleY=this._owner.scaleY;
-				this.tweener=Tween.to(this._tweenValue,
-				{width:gv.width,height:gv.height,scaleX:gv.scaleX,scaleY:gv.scaleY },
-				this._tweenTime*1000,
-				this._easeType,
-				Handler.create(this,this.__tweenComplete),
-				this._delay*1000);
-				this.tweener.update=Handler.create(this,this.__tweenUpdate,[a,b],false);
-			}
-		}
-		else {
-			this._owner._gearLocked=true;
-			this._owner.setSize(gv.width,gv.height,this._owner.checkGearController(1,this._controller));
-			this._owner.setScale(gv.scaleX,gv.scaleY);
-			this._owner._gearLocked=false;
-		}
-	}
-
-	__proto.__tweenUpdate=function(a,b){
-		this._owner._gearLocked=true;
-		if(a)
-			this._owner.setSize(this._tweenValue.width,this._tweenValue.height,this._owner.checkGearController(1,this._controller));
-		if(b)
-			this._owner.setScale(this._tweenValue.scaleX,this._tweenValue.scaleY);
-		this._owner._gearLocked=false;
-	}
-
-	__proto.__tweenComplete=function(){
-		if(this._displayLockToken!=0){
-			this._owner.releaseDisplayLock(this._displayLockToken);
-			this._displayLockToken=0;
-		}
-		this.tweener=null;
-		this._owner.displayObject.event("fui_gear_stop");
-	}
-
-	__proto.updateState=function(){
-		var gv=this._storage[this._controller.selectedPageId];
-		if(!gv){
-			gv=new GearSizeValue();
-			this._storage[this._controller.selectedPageId]=gv;
-		}
-		gv.width=this._owner.width;
-		gv.height=this._owner.height;
-		gv.scaleX=this._owner.scaleX;
-		gv.scaleY=this._owner.scaleY;
-	}
-
-	__proto.updateFromRelations=function(dx,dy){
-		if(this._controller==null || this._storage==null)
-			return;
-		for(var key in this._storage){
-			var gv=this._storage[key];
-			gv.width+=dx;
-			gv.height+=dy;
-		}
-		this._default.width+=dx;
-		this._default.height+=dy;
-		this.updateState();
-	}
-
-	GearSize.__init$=function(){
-		//class GearSizeValue
-		GearSizeValue=(function(){
-			function GearSizeValue(width,height,scaleX,scaleY){
-				this.width=NaN;
-				this.height=NaN;
-				this.scaleX=NaN;
-				this.scaleY=NaN;
-				(width===void 0)&& (width=0);
-				(height===void 0)&& (height=0);
-				(scaleX===void 0)&& (scaleX=0);
-				(scaleY===void 0)&& (scaleY=0);
-				this.width=width;
-				this.height=height;
-				this.scaleX=scaleX;
-				this.scaleY=scaleY;
-			}
-			__class(GearSizeValue,'');
-			return GearSizeValue;
-		})()
-	}
-
-	return GearSize;
-})(GearBase)
-
-
 //class fairygui.GImage extends fairygui.GObject
 var GImage=(function(_super){
 	function GImage(){
@@ -10638,6 +11519,148 @@ var GImage=(function(_super){
 })(GObject)
 
 
+//class fairygui.GearSize extends fairygui.GearBase
+var GearSize=(function(_super){
+	var GearSizeValue;
+	function GearSize(owner){
+		this._storage=null;
+		this._default=null;
+		this._tweener=null;
+		GearSize.__super.call(this,owner);
+	}
+
+	__class(GearSize,'fairygui.GearSize',_super);
+	var __proto=GearSize.prototype;
+	__proto.init=function(){
+		this._default=new GearSizeValue(this._owner.width,this._owner.height,
+		this._owner.scaleX,this._owner.scaleY);
+		this._storage={};
+	}
+
+	__proto.addStatus=function(pageId,value){
+		if(value=="-"|| value.length==0)
+			return;
+		var arr=value.split(",");
+		var gv;
+		if (pageId==null)
+			gv=this._default;
+		else {
+			gv=new GearSizeValue();
+			this._storage[pageId]=gv;
+		}
+		gv.width=parseInt(arr[0]);
+		gv.height=parseInt(arr[1]);
+		if(arr.length>2){
+			gv.scaleX=parseFloat(arr[2]);
+			gv.scaleY=parseFloat(arr[3]);
+		}
+	}
+
+	__proto.apply=function(){
+		var gv=this._storage[this._controller.selectedPageId];
+		if (!gv)
+			gv=this._default;
+		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+			if (this._tweener !=null){
+				if (this._tweener.endValue.x !=gv.width || this._tweener.endValue.y !=gv.height
+					|| this._tweener.endValue.z !=gv.scaleX || this._tweener.endValue.w !=gv.scaleY){
+					this._tweener.kill(true);
+					this._tweener=null;
+				}
+				else
+				return;
+			};
+			var a=gv.width !=this._owner.width || gv.height !=this._owner.height;
+			var b=gv.scaleX !=this._owner.scaleX || gv.scaleY !=this._owner.scaleY;
+			if(a || b){
+				if(this._owner.checkGearController(0,this._controller))
+					this._displayLockToken=this._owner.addDisplayLock();
+				this._tweener=GTween.to4(this._owner.width,this._owner.height,this._owner.scaleX,this._owner.scaleY,gv.width,gv.height,gv.scaleX,gv.scaleY,this._tweenTime)
+				.setDelay(this._delay)
+				.setEase(this._easeType)
+				.setUserData((a ? 1 :0)+(b ? 2 :0))
+				.setTarget(this)
+				.onUpdate(this.__tweenUpdate,this)
+				.onComplete(this.__tweenComplete,this);
+			}
+		}
+		else {
+			this._owner._gearLocked=true;
+			this._owner.setSize(gv.width,gv.height,this._owner.checkGearController(1,this._controller));
+			this._owner.setScale(gv.scaleX,gv.scaleY);
+			this._owner._gearLocked=false;
+		}
+	}
+
+	__proto.__tweenUpdate=function(tweener){
+		var flag=tweener.userData;
+		this._owner._gearLocked=true;
+		if ((flag & 1)!=0)
+			this._owner.setSize(tweener.value.x,tweener.value.y,this._owner.checkGearController(1,this._controller));
+		if ((flag & 2)!=0)
+			this._owner.setScale(tweener.value.z,tweener.value.w);
+		this._owner._gearLocked=false;
+	}
+
+	__proto.__tweenComplete=function(){
+		if(this._displayLockToken!=0){
+			this._owner.releaseDisplayLock(this._displayLockToken);
+			this._displayLockToken=0;
+		}
+		this._tweener=null;
+	}
+
+	__proto.updateState=function(){
+		var gv=this._storage[this._controller.selectedPageId];
+		if(!gv){
+			gv=new GearSizeValue();
+			this._storage[this._controller.selectedPageId]=gv;
+		}
+		gv.width=this._owner.width;
+		gv.height=this._owner.height;
+		gv.scaleX=this._owner.scaleX;
+		gv.scaleY=this._owner.scaleY;
+	}
+
+	__proto.updateFromRelations=function(dx,dy){
+		if(this._controller==null || this._storage==null)
+			return;
+		for(var key in this._storage){
+			var gv=this._storage[key];
+			gv.width+=dx;
+			gv.height+=dy;
+		}
+		this._default.width+=dx;
+		this._default.height+=dy;
+		this.updateState();
+	}
+
+	GearSize.__init$=function(){
+		//class GearSizeValue
+		GearSizeValue=(function(){
+			function GearSizeValue(width,height,scaleX,scaleY){
+				this.width=NaN;
+				this.height=NaN;
+				this.scaleX=NaN;
+				this.scaleY=NaN;
+				(width===void 0)&& (width=0);
+				(height===void 0)&& (height=0);
+				(scaleX===void 0)&& (scaleX=0);
+				(scaleY===void 0)&& (scaleY=0);
+				this.width=width;
+				this.height=height;
+				this.scaleX=scaleX;
+				this.scaleY=scaleY;
+			}
+			__class(GearSizeValue,'');
+			return GearSizeValue;
+		})()
+	}
+
+	return GearSize;
+})(GearBase)
+
+
 //class fairygui.GearText extends fairygui.GearBase
 var GearText=(function(_super){
 	function GearText(owner){
@@ -10681,11 +11704,9 @@ var GearText=(function(_super){
 //class fairygui.GearXY extends fairygui.GearBase
 var GearXY=(function(_super){
 	function GearXY(owner){
-		this.tweener=null;
 		this._storage=null;
 		this._default=null;
-		this._tweenValue=null;
-		this._tweenTarget=null;
+		this._tweener=null;
 		GearXY.__super.call(this,owner);
 	}
 
@@ -10716,29 +11737,23 @@ var GearXY=(function(_super){
 		if (!pt)
 			pt=this._default;
 		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-			if(this.tweener){
-				if(this._tweenTarget.x!=pt.x || this._tweenTarget.y!=pt.y){
-					this.tweener.complete();
-					this.tweener=null;
+			if (this._tweener !=null){
+				if (this._tweener.endValue.x !=pt.x || this._tweener.endValue.y !=pt.y){
+					this._tweener.kill(true);
+					this._tweener=null;
 				}
 				else
 				return;
 			}
-			if(this._owner.x !=pt.x || this._owner.y !=pt.y){
+			if (this._owner.x !=pt.x || this._owner.y !=pt.y){
 				if(this._owner.checkGearController(0,this._controller))
 					this._displayLockToken=this._owner.addDisplayLock();
-				this._tweenTarget=pt;
-				if(this._tweenValue==null)
-					this._tweenValue=new Point();
-				this._tweenValue.x=this._owner.x;
-				this._tweenValue.y=this._owner.y;
-				this.tweener=Tween.to(this._tweenValue,
-				{x:pt.x,y:pt.y },
-				this._tweenTime*1000,
-				this._easeType,
-				Handler.create(this,this.__tweenComplete),
-				this._delay*1000);
-				this.tweener.update=Handler.create(this,this.__tweenUpdate,null,false);
+				this._tweener=GTween.to2(this._owner.x,this._owner.y,pt.x,pt.y,this._tweenTime)
+				.setDelay(this._delay)
+				.setEase(this._easeType)
+				.setTarget(this)
+				.onUpdate(this.__tweenUpdate,this)
+				.onComplete(this.__tweenComplete,this);
 			}
 		}
 		else {
@@ -10748,9 +11763,9 @@ var GearXY=(function(_super){
 		}
 	}
 
-	__proto.__tweenUpdate=function(){
+	__proto.__tweenUpdate=function(tweener){
 		this._owner._gearLocked=true;
-		this._owner.setXY(this._tweenValue.x,this._tweenValue.y);
+		this._owner.setXY(tweener.value.x,tweener.value.y);
 		this._owner._gearLocked=false;
 	}
 
@@ -10759,8 +11774,7 @@ var GearXY=(function(_super){
 			this._owner.releaseDisplayLock(this._displayLockToken);
 			this._displayLockToken=0;
 		}
-		this.tweener=null;
-		this._owner.displayObject.event("fui_gear_stop");
+		this._tweener=null;
 	}
 
 	__proto.updateState=function(){
@@ -10839,6 +11853,11 @@ var GLoader=(function(_super){
 		if(this._content2!=null)
 			this._content2.dispose();
 		_super.prototype.dispose.call(this);
+	}
+
+	__proto.advance=function(timeInMiniseconds){
+		if((this._content instanceof fairygui.display.MovieClip ))
+			(this._content).advance(timeInMiniseconds);
 	}
 
 	__proto.applyColor=function(){}
@@ -11117,7 +12136,7 @@ var GLoader=(function(_super){
 		if (this._frame !=value){
 			this._frame=value;
 			if ((this._content instanceof fairygui.display.MovieClip ))
-				(this._content).currentFrame=value;
+				(this._content).frame=value;
 			this.updateGear(5);
 		}
 	});
@@ -11205,6 +12224,16 @@ var GLoader=(function(_super){
 		}
 	});
 
+	__getset(0,__proto,'timeScale',function(){
+		if((this._content instanceof fairygui.display.MovieClip ))
+			return (this._content).timeScale;
+		else
+		return 1;
+		},function(value){
+		if((this._content instanceof fairygui.display.MovieClip ))
+			(this._content).timeScale=value;
+	});
+
 	__getset(0,__proto,'color',function(){
 		return this._color;
 		},function(value){
@@ -11229,7 +12258,7 @@ var GLoader=(function(_super){
 //class fairygui.GMovieClip extends fairygui.GObject
 var GMovieClip=(function(_super){
 	function GMovieClip(){
-		this.movieClip=null;
+		this._movieClip=null;
 		GMovieClip.__super.call(this);
 		this._sizeImplType=1;
 	}
@@ -11238,9 +12267,21 @@ var GMovieClip=(function(_super){
 	var __proto=GMovieClip.prototype;
 	Laya.imps(__proto,{"fairygui.IAnimationGear":true,"fairygui.IColorGear":true})
 	__proto.createDisplayObject=function(){
-		this._displayObject=this.movieClip=new MovieClip$1();
-		this.movieClip.mouseEnabled=false;
+		this._displayObject=this._movieClip=new MovieClip$1();
+		this._movieClip.mouseEnabled=false;
 		this._displayObject["$owner"]=this;
+	}
+
+	__proto.rewind=function(){
+		this._movieClip.rewind();
+	}
+
+	__proto.syncStatus=function(anotherMc){
+		this._movieClip.syncStatus(anotherMc._movieClip);
+	}
+
+	__proto.advance=function(timeInMiniseconds){
+		this._movieClip.advance(timeInMiniseconds);
 	}
 
 	//从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
@@ -11249,7 +12290,7 @@ var GMovieClip=(function(_super){
 		(end===void 0)&& (end=-1);
 		(times===void 0)&& (times=0);
 		(endAt===void 0)&& (endAt=-1);
-		this.movieClip.setPlaySettings(start,end,times,endAt,endHandler);
+		this._movieClip.setPlaySettings(start,end,times,endAt,endHandler);
 	}
 
 	__proto.constructFromResource=function(){
@@ -11259,11 +12300,11 @@ var GMovieClip=(function(_super){
 		this.initHeight=this.sourceHeight;
 		this.setSize(this.sourceWidth,this.sourceHeight);
 		this.packageItem.load();
-		this.movieClip.interval=this.packageItem.interval;
-		this.movieClip.swing=this.packageItem.swing;
-		this.movieClip.repeatDelay=this.packageItem.repeatDelay;
-		this.movieClip.frames=this.packageItem.frames;
-		this.movieClip.boundsRect=new Rectangle(0,0,this.sourceWidth,this.sourceHeight);
+		this._movieClip.interval=this.packageItem.interval;
+		this._movieClip.swing=this.packageItem.swing;
+		this._movieClip.repeatDelay=this.packageItem.repeatDelay;
+		this._movieClip.frames=this.packageItem.frames;
+		this._movieClip.boundsRect=new Rectangle(0,0,this.sourceWidth,this.sourceHeight);
 	}
 
 	__proto.setup_beforeAdd=function(xml){
@@ -11271,9 +12312,9 @@ var GMovieClip=(function(_super){
 		var str;
 		str=xml.getAttribute("frame");
 		if (str)
-			this.movieClip.currentFrame=parseInt(str);
+			this._movieClip.frame=parseInt(str);
 		str=xml.getAttribute("playing");
-		this.movieClip.playing=str !="false";
+		this._movieClip.playing=str !="false";
 		str=xml.getAttribute("color");
 		if(str)
 			this.color=str;
@@ -11285,19 +12326,25 @@ var GMovieClip=(function(_super){
 	});
 
 	__getset(0,__proto,'playing',function(){
-		return this.movieClip.playing;
+		return this._movieClip.playing;
 		},function(value){
-		if (this.movieClip.playing !=value){
-			this.movieClip.playing=value;
+		if (this._movieClip.playing !=value){
+			this._movieClip.playing=value;
 			this.updateGear(5);
 		}
 	});
 
-	__getset(0,__proto,'frame',function(){
-		return this.movieClip.currentFrame;
+	__getset(0,__proto,'timeScale',function(){
+		return this._movieClip.timeScale;
 		},function(value){
-		if (this.movieClip.currentFrame !=value){
-			this.movieClip.currentFrame=value;
+		this._movieClip.timeScale=value;
+	});
+
+	__getset(0,__proto,'frame',function(){
+		return this._movieClip.frame;
+		},function(value){
+		if (this._movieClip.frame !=value){
+			this._movieClip.frame=value;
 			this.updateGear(5);
 		}
 	});
@@ -13555,12 +14602,13 @@ var GList=(function(_super){
 		this._setVirtual(false);
 	}
 
-	/// </summary>
+	/**
+	*Set the list to be virtual list,and has loop behavior.
+	*/
 	__proto.setVirtualAndLoop=function(){
 		this._setVirtual(true);
 	}
 
-	/// </summary>
 	__proto._setVirtual=function(loop){
 		if(!this._virtual){
 			if(this._scrollPane==null)
@@ -14885,7 +15933,11 @@ var GList=(function(_super){
 		this.clearSelection();
 	});
 
-	/// </summary>
+	/**
+	*Set the list item count.
+	*If the list is not virtual,specified Number of items will be created.
+	*If the list is virtual,only items in view will be created.
+	*/
 	__getset(0,__proto,'numItems',function(){
 		if(this._virtual)
 			return this._numItems;
@@ -15086,8 +16138,7 @@ var GProgressBar=(function(_super){
 		this._barMaxHeightDelta=0;
 		this._barStartX=0;
 		this._barStartY=0;
-		this._tweener=null;
-		this._tweenValue=0;
+		this._tweening=false;
 		GProgressBar.__super.call(this);
 		this._titleType=0;
 		this._value=50;
@@ -15097,26 +16148,20 @@ var GProgressBar=(function(_super){
 	__class(GProgressBar,'fairygui.GProgressBar',_super);
 	var __proto=GProgressBar.prototype;
 	__proto.tweenValue=function(value,duration){
+		var _$this=this;
 		if(this._value !=value){
-			if(this._tweener)
-				this._tweener.clear();
-			this._tweenValue=this._value;
+			if(this._tweening){
+				GTween.kill(this,false,this.update);
+				this._tweening=false;
+			};
+			var oldValule=this._value;
 			this._value=value;
-			this._tweener=Tween.to(this,{_tweenValue:value },duration *1000,fairygui.GProgressBar.easeLinear,
-			Handler.create(this,this.onTweenComplete,null,true));
-			this._tweener.update=Handler.create(this,this.onUpdateTween,null,false);
-			return this._tweener;
+			this._tweening=true;
+			return GTween.to(oldValule,this._value,duration).setTarget(this,this.update).setEase(0)
+			.onComplete(function(){_$this._tweening=false;},this);
 		}
 		else
 		return null;
-	}
-
-	__proto.onUpdateTween=function(){
-		this.update(this._tweenValue);
-	}
-
-	__proto.onTweenComplete=function(){
-		this._tweener=null;
 	}
 
 	__proto.update=function(newValue){
@@ -15204,8 +16249,8 @@ var GProgressBar=(function(_super){
 	}
 
 	__proto.dispose=function(){
-		if(this._tweener)
-			this._tweener.clear();
+		if(this._tweening)
+			GTween.kill(this);
 		_super.prototype.dispose.call(this);
 	}
 
@@ -15230,9 +16275,9 @@ var GProgressBar=(function(_super){
 	__getset(0,__proto,'value',function(){
 		return this._value;
 		},function(value){
-		if(this._tweener !=null){
-			this._tweener.clear();
-			this._tweener=null;
+		if(this._tweening){
+			GTween.kill(this,true,this.update);
+			this._tweening=false;
 		}
 		if(this._value !=value){
 			this._value=value;
@@ -15240,9 +16285,6 @@ var GProgressBar=(function(_super){
 		}
 	});
 
-	__static(GProgressBar,
-	['easeLinear',function(){return this.easeLinear=Ease.linearNone;}
-	]);
 	return GProgressBar;
 })(GComponent)
 
@@ -16604,13 +17646,13 @@ var MovieClip$1=(function(_super){
 		this.interval=0;
 		this.swing=false;
 		this.repeatDelay=0;
-		this.playState=null;
+		this.timeScale=1;
 		this._$3__texture=null;
 		this._needRebuild=false;
-		this._playing=false;
+		this._playing=true;
 		this._frameCount=0;
 		this._frames=null;
-		this._currentFrame=0;
+		this._frame=0;
 		this._boundsRect=null;
 		this._start=0;
 		this._end=0;
@@ -16619,9 +17661,11 @@ var MovieClip$1=(function(_super){
 		this._status=0;
 		//0-none,1-next loop,2-ending,3-ended
 		this._endHandler=null;
+		this._frameElapsed=0;
+		//当前帧延迟
+		this._reversed=false;
+		this._repeatedCount=0;
 		MovieClip.__super.call(this);
-		this.playState=new PlayState();
-		this._playing=true;
 		this.mouseEnabled=false;
 		this.setPlaySettings();
 		this.on("display",this,this.__addToStage);
@@ -16631,6 +17675,69 @@ var MovieClip$1=(function(_super){
 	__class(MovieClip,'fairygui.display.MovieClip',_super,'MovieClip$1');
 	var __proto=MovieClip.prototype;
 	//从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
+	__proto.rewind=function(){
+		this._frame=0;
+		this._frameElapsed=0;
+		this._reversed=false;
+		this._repeatedCount=0;
+		this.drawFrame();
+	}
+
+	__proto.syncStatus=function(anotherMc){
+		this._frame=anotherMc._frame;
+		this._frameElapsed=anotherMc._frameElapsed;
+		this._reversed=anotherMc._reversed;
+		this._repeatedCount=anotherMc._repeatedCount;
+		this.drawFrame();
+	}
+
+	__proto.advance=function(timeInMiniseconds){
+		var beginFrame=this._frame;
+		var beginReversed=this._reversed;
+		var backupTime=timeInMiniseconds;
+		while (true){
+			var tt=this.interval+this._frames[this._frame].addDelay;
+			if (this._frame==0 && this._repeatedCount > 0)
+				tt+=this.repeatDelay;
+			if (timeInMiniseconds < tt){
+				this._frameElapsed=0;
+				break ;
+			}
+			timeInMiniseconds-=tt;
+			if (this.swing){
+				if (this._reversed){
+					this._frame--;
+					if (this._frame <=0){
+						this._frame=0;
+						this._repeatedCount++;
+						this._reversed=!this._reversed;
+					}
+				}
+				else{
+					this._frame++;
+					if (this._frame > this._frameCount-1){
+						this._frame=Math.max(0,this._frameCount-2);
+						this._repeatedCount++;
+						this._reversed=!this._reversed;
+					}
+				}
+			}
+			else{
+				this._frame++;
+				if (this._frame > this._frameCount-1){
+					this._frame=0;
+					this._repeatedCount++;
+				}
+			}
+			if (this._frame==beginFrame && this._reversed==beginReversed){
+				var roundTime=backupTime-timeInMiniseconds;
+				timeInMiniseconds-=Math.floor(timeInMiniseconds / roundTime)*roundTime;
+			}
+		}
+		this.drawFrame();
+	}
+
+	//从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
 	__proto.setPlaySettings=function(start,end,times,endAt,endHandler){
 		(start===void 0)&& (start=0);
 		(end===void 0)&& (end=-1);
@@ -16638,67 +17745,110 @@ var MovieClip$1=(function(_super){
 		(endAt===void 0)&& (endAt=-1);
 		this._start=start;
 		this._end=end;
-		if(this._end==-1 || this._end > this._frameCount-1)
+		if(this._end==-1 || this._end>this._frameCount-1)
 			this._end=this._frameCount-1;
 		this._times=times;
 		this._endAt=endAt;
-		if(this._endAt==-1)
+		if (this._endAt==-1)
 			this._endAt=this._end;
 		this._status=0;
 		this._endHandler=endHandler;
-		this.currentFrame=start;
+		this.frame=start;
 	}
 
 	__proto.update=function(){
-		if (this._playing && this._frameCount !=0 && this._status !=3){
-			this.playState.update(this);
-			if (this._currentFrame !=this.playState.currentFrame){
-				if (this._status==1){
-					this._currentFrame=this._start;
-					this.playState.currentFrame=this._currentFrame;
-					this._status=0;
+		if (!this._playing || this._frameCount==0 || this._status==3)
+			return;
+		var dt=Laya.timer.delta;
+		if(this.timeScale!=1)
+			dt *=this.timeScale;
+		this._frameElapsed+=dt;
+		var tt=this.interval+this._frames[this._frame].addDelay;
+		if (this._frame==0 && this._repeatedCount > 0)
+			tt+=this.repeatDelay;
+		if (this._frameElapsed < tt)
+			return;
+		this._frameElapsed-=tt;
+		if (this._frameElapsed > this.interval)
+			this._frameElapsed=this.interval;
+		if (this.swing){
+			if (this._reversed){
+				this._frame--;
+				if (this._frame <=0){
+					this._frame=0;
+					this._repeatedCount++;
+					this._reversed=!this._reversed;
 				}
-				else if (this._status==2){
-					this._currentFrame=this._endAt;
-					this.playState.currentFrame=this._currentFrame;
-					this._status=3;
-					if (this._endHandler !=null){
-						this._endHandler.run();
-					}
-				}
-				else {
-					this._currentFrame=this.playState.currentFrame;
-					if (this._currentFrame==this._end){
-						if (this._times > 0){
-							this._times--;
-							if (this._times==0)
-								this._status=2;
-							else
-							this._status=1;
-						}
-						else if(this._start!=0)
-						this._status=1;
-					}
-				}
-				this.setFrame(this._frames[this._currentFrame]);
 			}
+			else{
+				this._frame++;
+				if (this._frame > this._frameCount-1){
+					this._frame=Math.max(0,this._frameCount-2);
+					this._repeatedCount++;
+					this._reversed=!this._reversed;
+				}
+			}
+		}
+		else{
+			this._frame++;
+			if (this._frame > this._frameCount-1){
+				this._frame=0;
+				this._repeatedCount++;
+			}
+		}
+		if (this._status==1){
+			this._frame=this._start;
+			this._frameElapsed=0;
+			this._status=0;
+		}
+		else if (this._status==2){
+			this._frame=this._endAt;
+			this._frameElapsed=0;
+			this._status=3;
+			if(this._endHandler!=null){
+				var handler=this._endHandler;
+				this._endHandler=null;
+				handler.run();
+			}
+		}
+		else{
+			if (this._frame==this._end){
+				if (this._times > 0){
+					this._times--;
+					if (this._times==0)
+						this._status=2;
+					else
+					this._status=1;
+				}
+				else if (this._start !=0)
+				this._status=1;
+			}
+		}
+		this.drawFrame();
+	}
+
+	__proto.drawFrame=function(){
+		this.graphics.clear();
+		if (this._frameCount>0 && this._frame < this._frames.length){
+			var frame=this._frames[this._frame];
+			this.graphics.drawTexture(frame.texture,frame.rect.x,frame.rect.y);
 		}
 	}
 
-	__proto.setFrame=function(frame){
-		this.graphics.clear();
-		if (frame !=null)
-			this.graphics.drawTexture(frame.texture,frame.rect.x,frame.rect.y);
+	__proto.checkTimer=function(){
+		if (this._playing && this._frameCount>0 && this.stage!=null)
+			Laya.timer.frameLoop(1,this,this.update);
+		else
+		Laya.timer.clear(this,this.update);
 	}
 
 	__proto.__addToStage=function(){
-		if(this._playing)
+		if(this._playing && this._frameCount>0)
 			Laya.timer.frameLoop(1,this,this.update);
 	}
 
 	__proto.__removeFromStage=function(){
-		if(this._playing)
-			Laya.timer.clear(this,this.update);
+		Laya.timer.clear(this,this.update);
 	}
 
 	__getset(0,__proto,'frames',function(){
@@ -16713,28 +17863,38 @@ var MovieClip$1=(function(_super){
 			this._end=this._frameCount-1;
 		if(this._endAt==-1 || this._endAt > this._frameCount-1)
 			this._endAt=this._frameCount-1;
-		if(this._currentFrame < 0 || this._currentFrame > this._frameCount-1)
-			this._currentFrame=this._frameCount-1;
-		if(this._frameCount > 0)
-			this.setFrame(this._frames[this._currentFrame]);
-		else
-		this.setFrame(null);
-		this.playState.rewind();
+		if(this._frame < 0 || this._frame > this._frameCount-1)
+			this._frame=this._frameCount-1;
+		this.drawFrame();
+		this._frameElapsed=0;
+		this._repeatedCount=0;
+		this._reversed=false;
+		this.checkTimer();
 	});
 
 	__getset(0,__proto,'playing',function(){
 		return this._playing;
 		},function(value){
-		this._playing=value;
-		if(value && this.stage!=null){
-			Laya.timer.frameLoop(1,this,this.update);
-			}else {
-			Laya.timer.clear(this,this.update);
+		if(this._playing!=value){
+			this._playing=value;
+			this.checkTimer();
 		}
 	});
 
 	__getset(0,__proto,'frameCount',function(){
 		return this._frameCount;
+	});
+
+	__getset(0,__proto,'frame',function(){
+		return this._frame;
+		},function(value){
+		if (this._frame !=value){
+			if(this._frames!=null && value>=this._frameCount)
+				value=this._frameCount-1;
+			this._frame=value;
+			this._frameElapsed=0;
+			this.drawFrame();
+		}
 	});
 
 	__getset(0,__proto,'boundsRect',function(){
@@ -16743,21 +17903,11 @@ var MovieClip$1=(function(_super){
 		this._boundsRect=value;
 	});
 
-	__getset(0,__proto,'currentFrame',function(){
-		return this._currentFrame;
-		},function(value){
-		if (this._currentFrame !=value){
-			this._currentFrame=value;
-			this.playState.currentFrame=value;
-			this.setFrame(this._currentFrame < this._frameCount ? this._frames[this._currentFrame] :null);
-		}
-	});
-
 	return MovieClip;
 })(Sprite)
 
 
-	Laya.__init([GList,GearColor,GearAnimation,Transition,UIPackage,RelationItem,GBasicTextField,GearLook,GearSize]);
+	Laya.__init([GList,GearColor,GearAnimation,Transition,UIPackage,RelationItem,GBasicTextField,EaseManager,GearLook,GearSize]);
 })(window,document,Laya);
 
 if (typeof define === 'function' && define.amd){

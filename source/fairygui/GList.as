@@ -1037,16 +1037,13 @@ package fairygui {
 			this._setVirtual(false);
 		}
 		
-		/// <summary>
-		/// Set the list to be virtual list, and has loop behavior.
-		/// </summary>
+		/**
+		 * Set the list to be virtual list, and has loop behavior.
+		 */
 		public function setVirtualAndLoop(): void {
 			this._setVirtual(true);
 		}
 		
-		/// <summary>
-		/// Set the list to be virtual list.
-		/// </summary>
 		private function _setVirtual(loop: Boolean): void {
 			if(!this._virtual) {
 				if(this._scrollPane == null)
@@ -1097,11 +1094,11 @@ package fairygui {
 			}
 		}
 		
-		/// <summary>
-		/// Set the list item count. 
-		/// If the list is not virtual, specified Number of items will be created. 
-		/// If the list is virtual, only items in view will be created.
-		/// </summary>
+		/**
+		 * Set the list item count. 
+		 * If the list is not virtual, specified Number of items will be created. 
+		 * If the list is virtual, only items in view will be created.
+		 */
 		public function get numItems():int
 		{
 			if(this._virtual)
