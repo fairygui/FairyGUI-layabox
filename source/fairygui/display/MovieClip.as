@@ -213,6 +213,8 @@ package fairygui.display {
 				return;
 			
 			var dt:int = Laya.timer.delta;
+			if(dt>100)
+				dt = 100;
 			if(timeScale!=1)
 				dt *= timeScale;
 			

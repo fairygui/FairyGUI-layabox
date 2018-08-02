@@ -6919,7 +6919,7 @@ var GTweener=(function(){
 				else if (this._repeat >=0)
 				this._elapsedTime=this._delay+this._duration *(this._repeat+1);
 				else
-				this._elapsedTime=this._delay+this._duration *3;
+				this._elapsedTime=this._delay+this._duration *2;
 				this.update();
 			}
 			this.callCompleteCallback();
@@ -7305,6 +7305,8 @@ var TweenManager=(function(){
 
 	TweenManager.update=function(){
 		var dt=Laya.timer.delta/1000;
+		if(dt>0.1)
+			dt=0.1;
 		var cnt=TweenManager._totalActiveTweens;
 		var freePosStart=-1;
 		var freePosCount=0;
@@ -17760,6 +17762,8 @@ var MovieClip$1=(function(_super){
 		if (!this._playing || this._frameCount==0 || this._status==3)
 			return;
 		var dt=Laya.timer.delta;
+		if(dt>100)
+			dt=100;
 		if(this.timeScale!=1)
 			dt *=this.timeScale;
 		this._frameElapsed+=dt;

@@ -236,7 +236,7 @@ package fairygui.tween
 					else if (_repeat >= 0)
 						_elapsedTime = _delay + _duration * (_repeat + 1);
 					else
-						_elapsedTime = _delay + _duration * 3;
+						_elapsedTime = _delay + _duration * 2;
 					update();
 				}
 				
