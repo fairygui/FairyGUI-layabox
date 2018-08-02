@@ -2,8 +2,8 @@
 (function(window,document,Laya){
 	var __un=Laya.un,__uns=Laya.uns,__static=Laya.static,__class=Laya.class,__getset=Laya.getset,__newvec=Laya.__newvec;
 
-	var Browser=laya.utils.Browser,Byte=laya.utils.Byte,ColorFilter=laya.filters.ColorFilter,Ease=laya.utils.Ease;
-	var Event=laya.events.Event,EventDispatcher=laya.events.EventDispatcher,Graphics=laya.display.Graphics,HTMLDivElement=laya.html.dom.HTMLDivElement;
+	var Browser=laya.utils.Browser,Byte=laya.utils.Byte,ColorFilter=laya.filters.ColorFilter,Event=laya.events.Event;
+	var EventDispatcher=laya.events.EventDispatcher,Graphics=laya.display.Graphics,HTMLDivElement=laya.html.dom.HTMLDivElement;
 	var Handler=laya.utils.Handler,HitArea=laya.utils.HitArea,Input=laya.display.Input,Log=laya.utils.Log,Node=laya.display.Node;
 	var Point=laya.maths.Point,Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound;
 	var SoundManager=laya.media.SoundManager,Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text;
@@ -1339,7 +1339,7 @@ var GObject=(function(){
 	__getset(0,__proto,'skewX',function(){
 		return this._skewX;
 		},function(value){
-		this.setScale(value,this._skewY);
+		this.setSkew(value,this._skewY);
 	});
 
 	__getset(0,__proto,'pivotAsAnchor',function(){
@@ -5125,7 +5125,7 @@ var Transition=(function(){
 
 	__proto.onOwnerAddedToStage=function(){
 		if (this._autoPlay && !this._playing)
-			this.play(null,null,this._autoPlayTimes,this._autoPlayDelay);
+			this.play(null,this._autoPlayTimes,this._autoPlayDelay);
 	}
 
 	__proto.onOwnerRemovedFromStage=function(){
@@ -5507,6 +5507,7 @@ var Transition=(function(){
 				item.target.setScale(item.value.f1,item.value.f2);
 				break ;
 			case 13:
+				item.target.setSkew(item.value.f1,item.value.f2);
 				break ;
 			case 6:
 				(item.target).color=item.value.f1;

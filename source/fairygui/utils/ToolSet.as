@@ -4,7 +4,6 @@ package fairygui.utils {
 	import laya.display.Node;
 	import laya.display.Stage;
 	import laya.utils.Byte;
-	import laya.utils.Ease;
 	
 	public class ToolSet {
 		public function ToolSet() {

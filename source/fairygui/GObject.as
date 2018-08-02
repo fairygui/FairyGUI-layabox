@@ -297,7 +297,7 @@ package fairygui {
 		}
 		
 		public function set skewX(value: Number):void {
-			this.setScale(value,this._skewY);
+			this.setSkew(value,this._skewY);
 		}
 		
 		public function get skewY(): Number {

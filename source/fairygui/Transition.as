@@ -511,7 +511,7 @@ package fairygui
 		internal function onOwnerAddedToStage():void
 		{
 			if (_autoPlay && !_playing)
-				play(null, null, _autoPlayTimes, _autoPlayDelay);
+				play(null, _autoPlayTimes, _autoPlayDelay);
 		}
 		
 		internal function onOwnerRemovedFromStage():void
@@ -1003,7 +1003,7 @@ package fairygui
 					break;
 				
 				case TransitionActionType.Skew:
-					//todo
+					item.target.setSkew(item.value.f1, item.value.f2);
 					break;
 				
 				case TransitionActionType.Color:
