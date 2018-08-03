@@ -5622,6 +5622,7 @@ var Transition=(function(){
 				}
 				else {
 					this.decodeValue(item,cxml.getAttribute("startValue"),item.value);
+					item.tweenConfig=null;
 				}
 			}
 			else {

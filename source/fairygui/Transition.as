@@ -1136,6 +1136,7 @@ package fairygui
 					}
 					else {
 						this.decodeValue(item,cxml.getAttribute("startValue"),item.value);
+						item.tweenConfig = null;
 					}
 				}
 				else {
