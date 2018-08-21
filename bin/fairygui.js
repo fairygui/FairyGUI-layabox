@@ -5174,7 +5174,7 @@ var Transition=(function(){
 			}
 		}
 		else{
-			for (i=0;i < cnt;i++){
+			for (i=cnt-1;i >=0;i--){
 				item=this._items[i];
 				if (item.target==null)
 					continue ;
@@ -7307,8 +7307,6 @@ var TweenManager=(function(){
 
 	TweenManager.update=function(){
 		var dt=Laya.timer.delta/1000;
-		if(dt>0.1)
-			dt=0.1;
 		var cnt=TweenManager._totalActiveTweens;
 		var freePosStart=-1;
 		var freePosCount=0;

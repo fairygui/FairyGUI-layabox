@@ -94,9 +94,7 @@ package fairygui.tween
 		internal static function update():void
 		{
 			var dt:Number = Laya.timer.delta/1000;
-			if(dt>0.1)
-				dt = 0.1;
-			
+
 			var cnt:int = _totalActiveTweens;
 			var freePosStart:int = -1;
 			var freePosCount:int = 0;
