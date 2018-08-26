@@ -1470,7 +1470,7 @@ declare module fairygui.tween {
 }
 declare module fairygui.tween {
     class GTween {
-        static safeMode: boolean;
+        static catchCallbackExceptions: boolean;
         static to(start: number, end: number, duration: number): GTweener;
         static to2(start: number, start2: number, end: number, end2: number, duration: number): GTweener;
         static to3(start: number, start2: number, start3: number, end: number, end2: number, end3: number, duration: number): GTweener;
@@ -1485,36 +1485,6 @@ declare module fairygui.tween {
 }
 declare module fairygui.tween {
     class GTweener {
-        _target: any;
-        _propType: any;
-        _killed: boolean;
-        _paused: boolean;
-        private _delay;
-        private _duration;
-        private _breakpoint;
-        private _easeType;
-        private _easeOvershootOrAmplitude;
-        private _easePeriod;
-        private _repeat;
-        private _yoyo;
-        private _timeScale;
-        private _snapping;
-        private _userData;
-        private _onUpdate;
-        private _onStart;
-        private _onComplete;
-        private _onUpdateCaller;
-        private _onStartCaller;
-        private _onCompleteCaller;
-        private _startValue;
-        private _endValue;
-        private _value;
-        private _deltaValue;
-        private _valueSize;
-        private _started;
-        private _ended;
-        private _elapsedTime;
-        private _normalizedTime;
         constructor();
         setDelay(value: number): GTweener;
         readonly delay: number;
@@ -1548,19 +1518,6 @@ declare module fairygui.tween {
          */
         seek(time: number): void;
         kill(complete?: boolean): void;
-        _to(start: number, end: number, duration: number): GTweener;
-        _to2(start: number, start2: number, end: number, end2: number, duration: number): GTweener;
-        _to3(start: number, start2: number, start3: number, end: number, end2: number, end3: number, duration: number): GTweener;
-        _to4(start: number, start2: number, start3: number, start4: number, end: number, end2: number, end3: number, end4: number, duration: number): GTweener;
-        _toColor(start: number, end: number, duration: number): GTweener;
-        _shake(startX: number, startY: number, amplitude: number, duration: number): GTweener;
-        _init(): void;
-        _reset(): void;
-        _update(dt: number): void;
-        private update();
-        private callStartCallback();
-        private callUpdateCallback();
-        private callCompleteCallback();
     }
 }
 

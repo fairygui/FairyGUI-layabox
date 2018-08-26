@@ -418,7 +418,10 @@ package fairygui
 			{
 				var item:TransitionItem = _items[i];
 				if (item.label == label)
+				{
 					item.targetId = newTarget.id;
+					item.target = null;
+				}
 			}
 		}
 		

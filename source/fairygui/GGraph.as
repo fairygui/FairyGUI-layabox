@@ -11,7 +11,7 @@ package fairygui {
 		private var _lineSize: Number;
 		private var _lineColor: String;
 		private var _fillColor: String;
-		private var _corner: int;
+		private var _cornerRadius: Array;
 		
 		public function GGraph () {
 			super();
@@ -20,14 +20,15 @@ package fairygui {
 			this._lineSize = 1;
 			this._lineColor = "#000000"
 			this._fillColor = "#FFFFFF";
-			this._corner = 0;
+			this._cornerRadius = null;
 		}
 		
-		public function drawRect(lineSize: Number, lineColor: String, fillColor: String): void {
+		public function drawRect(lineSize: Number, lineColor: String, fillColor: String, corners:Array = null): void {
 			this._type = 1;
 			this._lineSize = lineSize;
 			this._lineColor = lineColor;
 			this._fillColor = fillColor;
+			this._cornerRadius = corners;
 			this.drawCommon();
 		}
 		
@@ -75,21 +76,21 @@ package fairygui {
 				}
 			}
 			if (this._type == 1) {
-				if(_corner > 0) {
-					var fixCorner:int = w<h?w:h;
-					if(2*_corner > fixCorner)
-						fixCorner = parseInt(fixCorner/2+"");
-					
-					var path:Array =  [
-						["moveTo", fixCorner, 0], 
-						["arcTo", w, 0,    w, h, fixCorner], 
-						["arcTo", w, h,    0, h, fixCorner], 
-						["arcTo", 0, h,    0, 0, fixCorner], 
-						["arcTo", 0, 0,    w, 0, fixCorner],
+				if(_cornerRadius!=null) {
+					var paths:Array =  [
+						["moveTo", _cornerRadius[0], 0],
+						["lineTo", w - _cornerRadius[1], 0],
+						["arcTo", w, 0, w, _cornerRadius[1], _cornerRadius[1]],
+						["lineTo", w, h-_cornerRadius[3]],
+						["arcTo", w, h, w-_cornerRadius[3], h, _cornerRadius[3]], 
+						["lineTo", _cornerRadius[2], h],
+						["arcTo", 0, h, 0, h-_cornerRadius[2], _cornerRadius[2]],
+						["lineTo", 0, _cornerRadius[0]],
+						["arcTo", 0, 0, _cornerRadius[0], 0, _cornerRadius[0]],
 						["closePath"]
 					];
 					
-					gr.drawPath(0, 0, path, {fillStyle: fillColor}, this._lineSize>0?{strokeStyle:lineColor, lineWidth:this._lineSize}:null);
+					gr.drawPath(0, 0, paths, {fillStyle: fillColor}, this._lineSize>0?{strokeStyle:lineColor, lineWidth:this._lineSize}:null);
 				} else
 					gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
 			} else
@@ -188,7 +189,15 @@ package fairygui {
 				
 				str = xml.getAttribute("corner");
 				if (str) {
-					this._corner = parseInt(str);
+					var arr:Array = str.split(",");
+					_cornerRadius = [];
+					for(var i:int=0;i<4;i++)
+					{
+						if(i<arr.length)
+							_cornerRadius[i] = parseInt(arr[i]);
+						else
+							_cornerRadius[i] = _cornerRadius[i-1];
+					}
 				}
 				
 				if (type == "rect")

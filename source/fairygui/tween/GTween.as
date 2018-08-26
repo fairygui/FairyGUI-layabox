@@ -2,7 +2,7 @@ package fairygui.tween
 {
 	public class GTween
 	{
-		public static var safeMode:Boolean = true;
+		public static var catchCallbackExceptions:Boolean = true;
 		
 		public static function to(start:Number, end:Number, duration:Number):GTweener
 		{

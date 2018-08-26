@@ -507,7 +507,7 @@ package fairygui.tween
 		{
 			if (_onStart != null)
 			{
-				if(GTween.safeMode)
+				if(GTween.catchCallbackExceptions)
 				{
 					try
 					{
@@ -527,7 +527,7 @@ package fairygui.tween
 		{
 			if (_onUpdate != null)
 			{
-				if(GTween.safeMode)
+				if(GTween.catchCallbackExceptions)
 				{
 					try
 					{
@@ -547,7 +547,7 @@ package fairygui.tween
 		{
 			if (_onComplete != null)
 			{
-				if(GTween.safeMode)
+				if(GTween.catchCallbackExceptions)
 				{
 					try
 					{

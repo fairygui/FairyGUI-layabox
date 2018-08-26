@@ -1979,10 +1979,6 @@ var OverflowType=(function(){
 				return 1;
 			case "scroll":
 				return 2;
-			case "scale":
-				return 3;
-			case "scaleFree":
-				return 4;
 			default :
 				return 0;
 			}
@@ -1991,8 +1987,6 @@ var OverflowType=(function(){
 	OverflowType.Visible=0;
 	OverflowType.Hidden=1;
 	OverflowType.Scroll=2;
-	OverflowType.Scale=3;
-	OverflowType.ScaleFree=4;
 	return OverflowType;
 })()
 
@@ -5076,8 +5070,10 @@ var Transition=(function(){
 		var cnt=this._items.length;
 		for (var i=0;i < cnt;i++){
 			var item=this._items[i];
-			if (item.label==label)
+			if (item.label==label){
 				item.targetId=newTarget.id;
+				item.target=null;
+			}
 		}
 	}
 
@@ -6766,7 +6762,7 @@ var GTween=(function(){
 		return TweenManager.getTween(target,propType);
 	}
 
-	GTween.safeMode=true;
+	GTween.catchCallbackExceptions=true;
 	return GTween;
 })()
 
@@ -7142,7 +7138,7 @@ var GTweener=(function(){
 
 	__proto.callStartCallback=function(){
 		if (this._onStart !=null){
-			if(GTween.safeMode){
+			if(GTween.catchCallbackExceptions){
 				try{
 					this._onStart.call(this._onStartCaller,this);
 				}
@@ -7157,7 +7153,7 @@ var GTweener=(function(){
 
 	__proto.callUpdateCallback=function(){
 		if (this._onUpdate !=null){
-			if(GTween.safeMode){
+			if(GTween.catchCallbackExceptions){
 				try{
 					this._onUpdate.call(this._onUpdateCaller,this);
 				}
@@ -7172,7 +7168,7 @@ var GTweener=(function(){
 
 	__proto.callCompleteCallback=function(){
 		if (this._onComplete !=null){
-			if(GTween.safeMode){
+			if(GTween.catchCallbackExceptions){
 				try{
 					this._onComplete.call(this._onCompleteCaller,this);
 				}
@@ -10906,23 +10902,24 @@ var GGraph=(function(_super){
 		this._lineSize=NaN;
 		this._lineColor=null;
 		this._fillColor=null;
-		this._corner=0;
+		this._cornerRadius=null;
 		GGraph.__super.call(this);
 		this._type=0;
 		this._lineSize=1;
 		this._lineColor="#000000"
 		this._fillColor="#FFFFFF";
-		this._corner=0;
+		this._cornerRadius=null;
 	}
 
 	__class(GGraph,'fairygui.GGraph',_super);
 	var __proto=GGraph.prototype;
 	Laya.imps(__proto,{"fairygui.IColorGear":true})
-	__proto.drawRect=function(lineSize,lineColor,fillColor){
+	__proto.drawRect=function(lineSize,lineColor,fillColor,corners){
 		this._type=1;
 		this._lineSize=lineSize;
 		this._lineColor=lineColor;
 		this._fillColor=fillColor;
+		this._cornerRadius=corners;
 		this.drawCommon();
 	}
 
@@ -10955,18 +10952,19 @@ var GGraph=(function(_super){
 			}
 		}
 		if (this._type==1){
-			if(this._corner > 0){
-				var fixCorner=w<h?w:h;
-				if(2*this._corner > fixCorner)
-					fixCorner=parseInt(fixCorner/2+"");
-				var path=[
-				["moveTo",fixCorner,0],
-				["arcTo",w,0,w,h,fixCorner],
-				["arcTo",w,h,0,h,fixCorner],
-				["arcTo",0,h,0,0,fixCorner],
-				["arcTo",0,0,w,0,fixCorner],
+			if(this._cornerRadius!=null){
+				var paths=[
+				["moveTo",this._cornerRadius[0],0],
+				["lineTo",w-this._cornerRadius[1],0],
+				["arcTo",w,0,w,this._cornerRadius[1],this._cornerRadius[1]],
+				["lineTo",w,h-this._cornerRadius[3]],
+				["arcTo",w,h,w-this._cornerRadius[3],h,this._cornerRadius[3]],
+				["lineTo",this._cornerRadius[2],h],
+				["arcTo",0,h,0,h-this._cornerRadius[2],this._cornerRadius[2]],
+				["lineTo",0,this._cornerRadius[0]],
+				["arcTo",0,0,this._cornerRadius[0],0,this._cornerRadius[0]],
 				["closePath"]];
-				gr.drawPath(0,0,path,{fillStyle:fillColor},this._lineSize>0?{strokeStyle:lineColor,lineWidth:this._lineSize}:null);
+				gr.drawPath(0,0,paths,{fillStyle:fillColor},this._lineSize>0?{strokeStyle:lineColor,lineWidth:this._lineSize}:null);
 			}else
 			gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
 		}else
@@ -11052,7 +11050,14 @@ var GGraph=(function(_super){
 			}
 			str=xml.getAttribute("corner");
 			if (str){
-				this._corner=parseInt(str);
+				var arr=str.split(",");
+				this._cornerRadius=[];
+				for(var i=0;i<4;i++){
+					if(i<arr.length)
+						this._cornerRadius[i]=parseInt(arr[i]);
+					else
+					this._cornerRadius[i]=this._cornerRadius[i-1];
+				}
 			}
 			if (type=="rect")
 				this._type=1;
