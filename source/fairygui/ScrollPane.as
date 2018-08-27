@@ -1,4 +1,5 @@
 package fairygui {
+	import fairygui.utils.ByteBuffer;
 	import fairygui.utils.ToolSet;
 	
 	import laya.display.Sprite;
@@ -82,15 +83,7 @@ package fairygui {
 		public static const TWEEN_TIME_DEFAULT:Number = 0.3; //惯性滚动的最小缓动时间
 		public static const PULL_RATIO:Number = 0.5; //下拉过顶或者上拉过底时允许超过的距离占显示区域的比例
 		
-		public function ScrollPane(owner: GComponent,
-								   scrollType: int,
-								   scrollBarMargin: Margin,
-								   scrollBarDisplay: int,
-								   flags: int,
-								   vtScrollBarRes: String,
-								   hzScrollBarRes: String,
-								   headerRes:String,
-								   footerRes:String):void
+		public function ScrollPane(owner: GComponent):void
 		{
 			super();
 
@@ -103,12 +96,54 @@ package fairygui {
 			_container.pos(0,0);
 			_maskContainer.addChild(_container);
 			
-			_scrollBarMargin = scrollBarMargin;
-			_scrollType = scrollType;
+			_scrollBarVisible = true;
+			_mouseWheelEnabled = true;
+			_xPos = 0;
+			_yPos = 0;
+			_aniFlag = 0;
+			_footerLockedSize = 0;
+			_headerLockedSize = 0;
+			_scrollBarMargin = new Margin();
+			_viewSize = new Point();
+			_contentSize = new Point();
+			_pageSize = new Point(1,1);
+			_overlapSize = new Point();
+			_tweenTime = new Point();
+			_tweenStart = new Point();
+			_tweenDuration = new Point();
+			_tweenChange = new Point();
+			_velocity = new Point();
+			_containerPos = new Point();
+			_beginTouchPos = new Point();
+			_lastTouchPos = new Point();
+			_lastTouchGlobalPos = new Point();			
 			_scrollStep = fairygui.UIConfig.defaultScrollStep;
 			_mouseWheelStep = _scrollStep*2;
 			_decelerationRate = fairygui.UIConfig.defaultScrollDecelerationRate;
 			
+			this._owner.on(Event.MOUSE_DOWN, this, this.__mouseDown);
+			this._owner.on(Event.MOUSE_WHEEL, this, this.__mouseWheel);
+		}
+		
+		public function setup(buffer:ByteBuffer):void
+		{
+			_scrollType = buffer.readByte();
+			var scrollBarDisplay:int = buffer.readByte();
+			var flags:int = buffer.getInt32();
+			
+			if (buffer.readBool())
+			{
+				_scrollBarMargin.top = buffer.getInt32();
+				_scrollBarMargin.bottom = buffer.getInt32();
+				_scrollBarMargin.left = buffer.getInt32();
+				_scrollBarMargin.right = buffer.getInt32();
+			}
+			
+			var vtScrollBarRes:String = buffer.readS();
+			var hzScrollBarRes:String = buffer.readS();
+			var headerRes:String = buffer.readS();
+			var footerRes:String = buffer.readS();
+					
 			_displayOnLeft = (flags & 1)!=0;
 			_snapToItem = (flags & 2)!=0;
 			_displayInDemand = (flags & 4)!=0;
@@ -129,30 +164,8 @@ package fairygui {
 			if((flags & 512) == 0)
 				_maskContainer.scrollRect = new Rectangle();
 			
-			_scrollBarVisible = true;
-			_mouseWheelEnabled = true;
-			_xPos = 0;
-			_yPos = 0;
-			_aniFlag = 0;
-			_footerLockedSize = 0;
-			_headerLockedSize = 0;
-			
 			if(scrollBarDisplay==ScrollBarDisplayType.Default)
 				scrollBarDisplay = fairygui.UIConfig.defaultScrollBarDisplay;
-			
-			_viewSize = new Point();
-			_contentSize = new Point();
-			_pageSize = new Point(1,1);
-			_overlapSize = new Point();
-			_tweenTime = new Point();
-			_tweenStart = new Point();
-			_tweenDuration = new Point();
-			_tweenChange = new Point();
-			_velocity = new Point();
-			_containerPos = new Point();
-			_beginTouchPos = new Point();
-			_lastTouchPos = new Point();
-			_lastTouchGlobalPos = new Point();
 			
 			if(scrollBarDisplay != ScrollBarDisplayType.Hidden) {
 				if(this._scrollType == ScrollType.Both || this._scrollType == ScrollType.Vertical) {
@@ -206,9 +219,6 @@ package fairygui {
 				_refreshBarAxis = (_scrollType == ScrollType.Both || _scrollType == ScrollType.Vertical) ? "y" : "x";
 			
 			this.setSize(owner.width,owner.height);
-			
-			this._owner.on(Event.MOUSE_DOWN, this, this.__mouseDown);
-			this._owner.on(Event.MOUSE_WHEEL, this, this.__mouseWheel);
 		}
 		
 		public function dispose():void

@@ -2,10 +2,6 @@ package fairygui
 {
 	public class RelationType
 	{
-		public function RelationType()
-		{
-		}
-		
 		public static const Left_Left:int = 0;
 		public static const Left_Center:int = 1;
 		public static const Left_Right:int = 2;

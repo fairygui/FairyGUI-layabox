@@ -83,13 +83,16 @@ package fairygui {
 		
 		override public function set font(value: String):void {
 			this._font = value;
-			if(ToolSet.startsWith(this._font,"ui://")) {
-				this._bitmapFont = UIPackage.getBitmapFontByURL(this._font);
+			if(ToolSet.startsWith(this._font,"ui://")) 
+				this._bitmapFont = UIPackage.getItemAssetByURL(this._font) as BitmapFont;
+			else
+				this._bitmapFont = null;
+			
+			if(this._bitmapFont!=null)
+			{
 				this.textField["setChanged"]();
 			}
 			else {
-				this._bitmapFont = null;
-				
 				if(this._font)
 					this.textField.font = this._font;
 				else
@@ -213,7 +216,7 @@ package fairygui {
 			return this._ubbEnabled;
 		}
 		
-		public function set autoSize(value: int):void {
+		override public function set autoSize(value: int):void {
 			if (this._autoSize != value) {
 				this.setAutoSize(value);
 			}
@@ -238,7 +241,7 @@ package fairygui {
 			}
 		}
 		
-		public function get autoSize(): int {
+		override public function get autoSize(): int {
 			return this._autoSize;
 		}
 		
@@ -592,15 +595,6 @@ package fairygui {
 		
 		override public function flushVars():void {
 			this.text = _text;
-		}
-		
-		override public function setup_beforeAdd(xml: Object): void {
-			super.setup_beforeAdd(xml);
-			
-			var str: String;
-			str = xml.getAttribute("autoSize");
-			if (str)
-				this.setAutoSize(AutoSizeType.parse(str));
 		}
 	}
 }

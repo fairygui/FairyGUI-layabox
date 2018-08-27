@@ -1,4 +1,5 @@
 package fairygui {
+	import fairygui.utils.ByteBuffer;
 	
 	public class Relations {
 		private var _owner: GObject;
@@ -6,34 +7,6 @@ package fairygui {
 		
 		public var handling: GObject;
 		public var sizeDirty: Boolean;
-		
-		private static var RELATION_NAMES: Array =
-			[
-				"left-left",//0
-				"left-center",
-				"left-right",
-				"center-center",
-				"right-left",
-				"right-center",
-				"right-right",
-				"top-top",//7
-				"top-middle",
-				"top-bottom",
-				"middle-middle",
-				"bottom-top",
-				"bottom-middle",
-				"bottom-bottom",
-				"width-width",//14
-				"height-height",//15
-				"leftext-left",//16
-				"leftext-right",
-				"rightext-left",
-				"rightext-right",
-				"topext-top",//20
-				"topext-bottom",
-				"bottomext-top",
-				"bottomext-bottom"//23
-			];
 		
 		public function Relations(owner: GObject) {
 			this._owner = owner;
@@ -53,39 +26,6 @@ package fairygui {
 			newItem.target = target;
 			newItem.add(relationType, usePercent);
 			this._items.push(newItem);
-		}
-		
-		public function addItems(target: GObject, sidePairs: String): void {
-			var arr: Array = sidePairs.split(",");
-			var s: String;
-			var usePercent: Boolean;
-			var i: Number;
-			
-			var newItem:RelationItem = new RelationItem(_owner);
-			newItem.target = target;
-			
-			for (i = 0; i < 2; i++) {
-				s = arr[i];
-				if (!s)
-					continue;
-				
-				if (s.charAt(s.length - 1) == "%") {
-					s = s.substr(0, s.length - 1);
-					usePercent = true;
-				}
-				else
-					usePercent = false;
-				var j: Number = s.indexOf("-");
-				if (j == -1)
-					s = s + "-" + s;
-				
-				var t: Number = Relations.RELATION_NAMES.indexOf(s);
-				if (t == -1)
-					throw "invalid relation type";
-				
-				newItem.internalAdd(t, usePercent);
-			}
-			_items.push(newItem);
 		}
 		
 		public function remove(target: GObject, relationType: Number = 0): void {
@@ -186,29 +126,30 @@ package fairygui {
 			return this._items.length == 0;
 		}
 		
-		public function setup(xml: Object): void {
-			var col: Array = xml.childNodes;
-			var length: Number = col.length;
-			var targetId: String;
-			var target: GObject;
-			for (var i: Number = 0; i < length; i++) {
-				var cxml: Object = col[i];
-				if(cxml.nodeName!="relation")
-					continue;
+		public function setup(buffer:ByteBuffer, parentToChild:Boolean): void {
+			var cnt:int = buffer.readByte();
+			var target:GObject;
+			for (var i:int = 0; i < cnt; i++)
+			{
+				var targetIndex:int = buffer.getInt16();
+				if (targetIndex == -1)
+					target = _owner.parent;
+				else if (parentToChild)
+					target = GComponent(_owner).getChildAt(targetIndex);
+				else
+					target = _owner.parent.getChildAt(targetIndex);
 				
-				targetId = cxml.getAttribute("target");
-				if (this._owner.parent) {
-					if (targetId)
-						target = this._owner.parent.getChildById(targetId);
-					else
-						target = this._owner.parent;
+				var newItem:RelationItem = new RelationItem(_owner);
+				newItem.target = target;
+				_items.push(newItem);
+				
+				var cnt2:int = buffer.readByte();
+				for (var j:int = 0; j < cnt2; j++)
+				{
+					var rt:int = buffer.readByte();
+					var usePercent:Boolean = buffer.readBool();
+					newItem.internalAdd(rt, usePercent);
 				}
-				else {
-					//call from component construction
-					target = GComponent(this._owner).getChildById(targetId);
-				}
-				if (target)
-					this.addItems(target, cxml.getAttribute("sidePair"));
 			}
 		}
 	}

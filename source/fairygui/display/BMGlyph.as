@@ -3,8 +3,6 @@ package fairygui.display {
 	import laya.resource.Texture;
 	
 	public class BMGlyph {
-		public var x: Number = 0;
-		public var y: Number = 0;
 		public var offsetX: Number = 0;
 		public var offsetY: Number = 0;
 		public var width: Number = 0;

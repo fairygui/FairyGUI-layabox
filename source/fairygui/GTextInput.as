@@ -1,4 +1,6 @@
 package fairygui {
+	import fairygui.utils.ByteBuffer;
+	
 	import laya.display.Input;
 	
 	public class GTextInput extends GTextField {
@@ -170,29 +172,33 @@ package fairygui {
 			this.input.size(this.width, this.height);
 		}
 		
-		override public function setup_beforeAdd(xml:Object):void
+		override public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int):void
 		{
-			super.setup_beforeAdd(xml);
+			super.setup_beforeAdd(buffer, beginPos);
 			
-			var str:String = xml.getAttribute("prompt");
-			if(str)
+			buffer.seek(beginPos, 4);
+			
+			var str:String = buffer.readS();
+			if (str != null)
 				this.promptText = str;
-			str = xml.getAttribute("maxLength");
-			if(str)
-				this.input.maxChars = parseInt(str);
-			str = xml.getAttribute("restrict");
-			if(str)
+			
+			str = buffer.readS();
+			if (str != null)
 				this.input.restrict = str;
-			if(xml.getAttribute("password")=="true")
-				this.password = true;
-			else
+			
+			var iv:int = buffer.getInt32();
+			if (iv != 0)
+				this.input.maxChars = iv;
+			iv = buffer.getInt32();
+			if (iv != 0)
 			{
-				str = xml.getAttribute("keyboardType");
-				if(str=="4")
+				if(iv==4)
 					this.keyboardType = Input.TYPE_NUMBER;
-				else if(str=="3")
+				else if(iv==3)
 					this.keyboardType = Input.TYPE_URL;
 			}
+			if (buffer.readBool())
+				this.password = true;
 		}
 	}
 }

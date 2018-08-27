@@ -1,8 +1,9 @@
 package fairygui {
-	import fairygui.utils.ToolSet;
+	import fairygui.utils.ByteBuffer;
 	
 	import laya.events.Event;
 	import laya.utils.Utils;
+	import fairygui.gears.IColorGear;
 	
 	public class GButton extends GComponent {
 		protected var _titleObject: GObject;
@@ -101,45 +102,33 @@ package fairygui {
 		}
 		
 		public function get titleColor(): String {
-			if(this._titleObject is GTextField)
-				return GTextField(this._titleObject).color;
-			else if(this._titleObject is GLabel)
-				return GLabel(this._titleObject).titleColor;
-			else if(this._titleObject is GButton)
-				return GButton(this._titleObject).titleColor;
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				return tf.color;
 			else
 				return "#000000";
 		}
 		
 		public function set titleColor(value: String):void {
-			if(this._titleObject is GTextField)
-				GTextField(this._titleObject).color = value;
-			else if(this._titleObject is GLabel)
-				GLabel(this._titleObject).titleColor = value;
-			else if(this._titleObject is GButton)
-				GButton(this._titleObject).titleColor = value;
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				tf.color = value;
+			this.updateGear(4);
 		}
 		
-		final public function get titleFontSize():int
-		{
-			if(_titleObject is GTextField)
-				return GTextField(_titleObject).fontSize;
-			else if(_titleObject is GLabel)
-				return GLabel(_titleObject).titleFontSize;
-			else if(_titleObject is GButton)
-				return GButton(_titleObject).titleFontSize;
+		public function get titleFontSize():int {
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				return tf.fontSize;
 			else
 				return 0;
 		}
 		
 		public function set titleFontSize(value:int):void
 		{
-			if(_titleObject is GTextField)
-				GTextField(_titleObject).fontSize = value;
-			else if(_titleObject is GLabel)
-				GLabel(_titleObject).titleFontSize = value;
-			else if(_titleObject is GButton)
-				GButton(_titleObject).titleFontSize = value;
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				tf.fontSize = value;
 		}
 		
 		public function get sound(): String {
@@ -189,7 +178,7 @@ package fairygui {
 					if(this._selected)
 					{
 						this._relatedController.selectedPageId = this._pageOption.id;
-						if(this._relatedController._autoRadioGroupDepth)
+						if(this._relatedController.autoRadioGroupDepth)
 							this._parent.adjustRadioGroupDepth(this,this._relatedController);
 					}
 					else if(this._mode == ButtonMode.Check && this._relatedController.selectedPageId == this._pageOption.id)
@@ -202,10 +191,16 @@ package fairygui {
 			return this._selected;
 		}
 		
+		/**
+		 * @see ButtonMode
+		 */
 		public function get mode(): int {
 			return this._mode;
 		}
 		
+		/**
+		 * @see ButtonMode
+		 */
 		public function set mode(value: int):void {
 			if (this._mode != value) {
 				if (value == ButtonMode.Common)
@@ -244,6 +239,18 @@ package fairygui {
 		
 		public function set linkedPopup(value: GObject):void {
 			this._linkedPopup = value;
+		}
+		
+		public function getTextField():GTextField
+		{
+			if (_titleObject is GTextField)
+				return _titleObject as GTextField;
+			else if (_titleObject is GLabel)
+				return (_titleObject as GLabel).getTextField();
+			else if (_titleObject is GButton)
+				return (_titleObject as GButton).getTextField();
+			else
+				return null;
 		}
 		
 		public function fireClick(downEffect: Boolean= true): void {
@@ -324,31 +331,18 @@ package fairygui {
 				super.handleGrayedChanged();
 		}
 		
-		override protected function constructFromXML(xml: Object): void {
-			super.constructFromXML(xml);
+		override protected function constructExtension(buffer:ByteBuffer): void {
+			buffer.seek(0, 6);
 			
-			xml = ToolSet.findChildNode(xml, "Button");
-			
-			var str: String;
-			str = xml.getAttribute("mode");
-			if (str)
-				this._mode = ButtonMode.parse(str);
-			
-			str= xml.getAttribute("sound");
+			_mode = buffer.readByte();
+			var str:String = buffer.readS();
 			if(str)
-				this._sound = str;
-			str = xml.getAttribute("volume");
-			if(str)
-				this._soundVolumeScale = parseInt(str) / 100;
-			str = xml.getAttribute("downEffect");
-			if(str)
-			{
-				this._downEffect = str=="dark"?1:(str=="scale"?2:0);
-				str = xml.getAttribute("downEffectValue");
-				this._downEffectValue = parseFloat(str);
-				if(this._downEffect==2)
-					this.setPivot(0.5, 0.5);
-			}
+				_sound = str;
+			_soundVolumeScale = buffer.getFloat32();
+			_downEffect = buffer.readByte();
+			_downEffectValue = buffer.getFloat32();
+			if(this._downEffect==2)
+				this.setPivot(0.5, 0.5, this.pivotAsAnchor);
 			
 			this._buttonController = this.getController("button");
 			this._titleObject = this.getChild("title");
@@ -367,48 +361,47 @@ package fairygui {
 			this.on(Event.CLICK, this, this.__click);
 		}
 		
-		override public function setup_afterAdd(xml: Object): void {
-			super.setup_afterAdd(xml);
+		override public function setup_afterAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_afterAdd(buffer, beginPos);
 			
-			xml = ToolSet.findChildNode(xml, "Button");
-			if (xml) {
-				var str: String;
-				str = xml.getAttribute("title");
-				if (str)
-					this.title = str;
-				str = xml.getAttribute("icon");
-				if (str)
-					this.icon = str;
-				str = xml.getAttribute("selectedTitle");
-				if (str)
-					this.selectedTitle = str;
-				str = xml.getAttribute("selectedIcon");
-				if (str)
-					this.selectedIcon = str;
-				
-				str = xml.getAttribute("titleColor");
-				if (str)
-					this.titleColor = str;
-				str = xml.getAttribute("titleFontSize");
-				if(str)
-					this.titleFontSize = parseInt(str);
-				
-				str = xml.getAttribute("sound");
-				if (str!=null)
-					this._sound = str;
-				
-				str = xml.getAttribute("volume");
-				if(str)
-					this._soundVolumeScale = parseInt(str)/100;
-				
-				str = xml.getAttribute("controller");
-				if (str)
-					this._relatedController = this._parent.getController(str);
-				else
-					this._relatedController = null;
-				this._pageOption.id = xml.getAttribute("page");
-				this.selected = xml.getAttribute("checked") == "true";
-			}
+			if (!buffer.seek(beginPos, 6))
+				return;
+			
+			if (buffer.readByte() != packageItem.objectType)
+				return;
+			
+			var str:String;
+			var iv:int;
+			
+			str = buffer.readS();
+			if (str != null)
+				this.title = str;
+			str = buffer.readS();
+			if (str != null)
+				this.selectedTitle = str;
+			str = buffer.readS();
+			if (str != null)
+				this.icon = str;
+			str = buffer.readS();
+			if (str != null)
+				this.selectedIcon = str;
+			if (buffer.readBool())
+				this.titleColor = buffer.readColorS();
+			iv = buffer.getInt32();
+			if (iv != 0)
+				this.titleFontSize = iv;
+			iv = buffer.getInt16();
+			if (iv >= 0)
+				_relatedController = parent.getControllerAt(iv);
+			pageOption.id = buffer.readS();
+			
+			str = buffer.readS();
+			if (str != null)
+				_sound = str;
+			if (buffer.readBool())
+				_soundVolumeScale = buffer.getFloat32();
+			
+			this.selected = buffer.readBool();
 		}
 		
 		private function  __rollover(): void {
@@ -480,7 +473,7 @@ package fairygui {
 			if(this._sound) {
 				var pi: PackageItem = UIPackage.getItemByURL(this._sound);
 				if (pi)
-					GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+					GRoot.inst.playOneShotSound(pi.file);
 				else
 					GRoot.inst.playOneShotSound(this._sound);
 			}

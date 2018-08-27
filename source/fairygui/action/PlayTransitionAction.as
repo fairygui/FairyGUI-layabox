@@ -2,6 +2,7 @@ package fairygui.action
 {
 	import fairygui.Controller;
 	import fairygui.Transition;
+	import fairygui.utils.ByteBuffer;
 
 	public class PlayTransitionAction extends ControllerAction
 	{
@@ -38,23 +39,14 @@ package fairygui.action
 			}
 		}
 		
-		override public function setup(xml:Object):void
+		override public function setup(buffer:ByteBuffer):void
 		{
-			super.setup(xml);
+			super.setup(buffer);
 			
-			transitionName = xml.getAttribute("transition");
-			
-			var str:String;
-			
-			str = xml.getAttribute("repeat");
-			if(str)
-				playTimes = parseInt(str);
-			
-			str = xml.getAttribute("delay");
-			if(str)
-				delay = parseFloat(str);
-			
-			stopOnExit = xml.getAttribute("stopOnExit")=="true";
+			transitionName = buffer.readS();
+			playTimes = buffer.getInt32();
+			delay = buffer.getFloat32();
+			stopOnExit = buffer.readBool();
 		}
 	}
 }

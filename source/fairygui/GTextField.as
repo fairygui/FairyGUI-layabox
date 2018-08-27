@@ -1,5 +1,8 @@
 
 package fairygui {
+	import fairygui.gears.GearColor;
+	import fairygui.utils.ByteBuffer;
+	import fairygui.gears.IColorGear;
 	
 	
 	public class GTextField extends GObject implements IColorGear {
@@ -111,12 +114,22 @@ package fairygui {
 			return false;
 		}
 		
-		public function get textWidth(): Number {
-			return 0;
+		/**
+		 * @see AutoSizeType
+		 */
+		public function get autoSize(): int {
+			return AutoSizeType.None;	
 		}
 		
-		public function get gearColor(): GearColor {
-			return this._gearColor;
+		/**
+		 * @see AutoSizeType
+		 */
+		public function set autoSize(value: int):void {
+			
+		}
+		
+		public function get textWidth(): Number {
+			return 0;
 		}
 		
 		protected function parseTemplate(template:String):String
@@ -207,64 +220,48 @@ package fairygui {
 				this._gearColor.apply();
 		}
 		
-		override public function setup_beforeAdd(xml: Object): void {
-			super.setup_beforeAdd(xml);
+		override public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_beforeAdd(buffer, beginPos);
 			
-			var str: String;
+			buffer.seek(beginPos, 5);
 			
-			str = xml.getAttribute("font");
-			if (str)
-				this.font = str;
+			var iv:int;
 			
-			str = xml.getAttribute("fontSize");
-			if (str)
-				this.fontSize = parseInt(str);
-			
-			str = xml.getAttribute("color");
-			if (str)
-				this.color = str;
-			
-			str = xml.getAttribute("align");
-			if (str)
-				this.align = str;
-			
-			str = xml.getAttribute("vAlign");
-			if (str)
-				this.valign = str;
-			
-			str = xml.getAttribute("leading");
-			if (str)
-				this.leading = parseInt(str);
-			else
-				this.leading = 3;
-			
-			str = xml.getAttribute("letterSpacing");
-			if (str)
-				this.letterSpacing = parseInt(str);
-			
-			this.ubbEnabled = xml.getAttribute("ubb") == "true";           
-			this.italic = xml.getAttribute("italic") == "true";
-			this.bold = xml.getAttribute("bold") == "true";
-			this.underline = xml.getAttribute("underline") == "true";
-			this.singleLine = xml.getAttribute("singleLine") == "true";
-			str = xml.getAttribute("strokeColor");
-			if (str) {
-				this.strokeColor = str;
-				str = xml.getAttribute("strokeSize");
-				if(str)
-					this.stroke = parseInt(str) + 1;
-				else
-					this.stroke = 2;
+			this.font = buffer.readS();
+			this.fontSize = buffer.getInt16();
+			this.color = buffer.readColorS();
+			iv = buffer.readByte();
+			this.align = iv==0?"left":(iv==1?"center":"right");
+			iv = buffer.readByte();
+			this.valign = iv==0?"top":(iv==1?"middle":"bottom");
+			this.leading = buffer.getInt16();
+			this.letterSpacing = buffer.getInt16();
+			this.ubbEnabled = buffer.readBool();
+			this.autoSize = buffer.readByte();
+			this.underline = buffer.readBool();
+			this.italic = buffer.readBool();
+			this.bold = buffer.readBool();
+			this.singleLine = buffer.readBool();
+			if (buffer.readBool())
+			{
+				this.strokeColor = buffer.readColorS();
+				this.stroke = buffer.getFloat32()+1;
 			}
-			if(xml.getAttribute("vars")=="true")
+			
+			if (buffer.readBool()) //shadow
+				buffer.skip(12);
+			
+			if (buffer.readBool())
 				_templateVars = {};
 		}
 		
-		override public function setup_afterAdd(xml: Object): void {
-			super.setup_afterAdd(xml);
+		override public function setup_afterAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_afterAdd(buffer, beginPos);
 			
-			var str:String = xml.getAttribute("text");
-			if(str != null && str.length > 0)
+			buffer.seek(beginPos, 6);
+			
+			var str:String = buffer.readS();
+			if (str != null)
 				this.text = str;
 		}
 	}

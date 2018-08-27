@@ -1,5 +1,5 @@
 package fairygui {
-	import fairygui.utils.ToolSet;
+	import fairygui.utils.ByteBuffer;
 	
 	import laya.events.Event;
 	import laya.maths.Point;
@@ -57,13 +57,10 @@ package fairygui {
 				return (this._arrowButton1 != null ? this._arrowButton1.width : 0) + (this._arrowButton2 != null ? this._arrowButton2.width : 0);
 		}
 		
-		override protected function constructFromXML(xml: Object): void {
-			super.constructFromXML(xml);
+		override protected function constructExtension(buffer:ByteBuffer): void {
+			buffer.seek(0, 6);
 			
-			xml = ToolSet.findChildNode(xml, "ScrollBar");
-			if (xml) {
-				this._fixedGripSize = xml.getAttribute("fixedGripSize") == "true";
-			}
+			_fixedGripSize = buffer.readBool();
 			
 			this._grip = this.getChild("grip");
 			if(!this._grip) {

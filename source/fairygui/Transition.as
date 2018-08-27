@@ -1,8 +1,10 @@
 package fairygui
 {
-	import fairygui.tween.EaseType;
+	import fairygui.gears.IAnimationGear;
+	import fairygui.gears.IColorGear;
 	import fairygui.tween.GTween;
 	import fairygui.tween.GTweener;
+	import fairygui.utils.ByteBuffer;
 	import fairygui.utils.ColorMatrix;
 	import fairygui.utils.ToolSet;
 	
@@ -1010,7 +1012,7 @@ package fairygui
 					break;
 				
 				case TransitionActionType.Color:
-					IColorGear(item.target).color = item.value.f1;
+					IColorGear(item.target).color = ToolSet.convertToHtmlColor(item.value.f1, false);
 					break;
 				
 				case TransitionActionType.Animation:
@@ -1048,7 +1050,7 @@ package fairygui
 						{
 							var pi:PackageItem = UIPackage.getItemByURL(item.value.sound);
 							if(pi)
-								item.value.audioClip = pi.owner.getItemAssetURL(pi);
+								item.value.audioClip = pi.file;
 							else
 								item.value.audioClip = item.value.sound;
 						}
@@ -1081,226 +1083,125 @@ package fairygui
 			item.target._gearLocked = false;
 		}
 		
-		public function setup(xml:Object):void
+		public function setup(buffer:ByteBuffer):void
 		{
-			this.name = xml.getAttribute("name");
-			var str: String = xml.getAttribute("options");
-			if(str)
-				this._options = parseInt(str);
-			str = xml.getAttribute("autoPlay");
-			if(str)
-				this._autoPlay = str=="true";
-			if(this._autoPlay) {
-				str = xml.getAttribute("autoPlayRepeat");
-				if(str)
-					this._autoPlayTimes = parseInt(str);
-				str = xml.getAttribute("autoPlayDelay");
-				if(str)
-					this._autoPlayDelay = parseFloat(str);
-			}
-			str = xml.getAttribute("fps");
-			var frameInterval:Number;
-			if(str)
-				frameInterval = 1/parseInt(str);
-			else
-				frameInterval = 1/24;
+			this.name = buffer.readS();
+			_options = buffer.getInt32();
+			_autoPlay = buffer.readBool();
+			_autoPlayTimes = buffer.getInt32();
+			_autoPlayDelay = buffer.getFloat32();
 			
-			var col: Array = xml.childNodes;
-			var length1: Number = col.length;
-			for(var i1: Number = 0;i1 < length1;i1++) {
-				var cxml: Object = col[i1];
-				if(cxml.nodeName!="item")
-					continue;
-				
-				var item: TransitionItem = new TransitionItem(parseItemType(cxml.getAttribute("type")));
-				this._items.push(item);
-				item.time = parseInt(cxml.getAttribute("time")) * frameInterval;
-				item.targetId = cxml.getAttribute("target");
-				if(cxml.getAttribute("tween") == "true")
-					item.tweenConfig = new TweenConfig();
-				item.label = cxml.getAttribute("label");
-				if (item.tweenConfig != null)
-				{
-					item.tweenConfig.duration = parseInt(cxml.getAttribute("duration")) * frameInterval;
-					if(item.time + item.tweenConfig.duration > this._totalDuration)
-						this._totalDuration = item.time + item.tweenConfig.duration;
-					str = cxml.getAttribute("ease");
-					if(str)
-						item.tweenConfig.easeType =  EaseType.parseEaseType(str);
-					str = cxml.getAttribute("repeat");
-					if(str)
-						item.tweenConfig.repeat = parseInt(str);
-					item.tweenConfig.yoyo = cxml.getAttribute("yoyo") == "true";
-					item.tweenConfig.endLabel = cxml.getAttribute("label2");
-					var v: String = cxml.getAttribute("endValue");
-					if(v) {
-						this.decodeValue(item,cxml.getAttribute("startValue"),item.tweenConfig.startValue);
-						this.decodeValue(item,v,item.tweenConfig.endValue);
-					}
-					else {
-						this.decodeValue(item,cxml.getAttribute("startValue"),item.value);
-						item.tweenConfig = null;
-					}
-				}
-				else {
-					if(item.time > this._totalDuration)
-						this._totalDuration = item.time;
-					this.decodeValue(item,cxml.getAttribute("value"),item.value);
-				}
-			}
-		}
-		
-		private function parseItemType(str:String):int
-		{
-			var type:int;
-			switch(str)
+			var cnt:int = buffer.getInt16();
+			for (var i:int = 0; i < cnt; i++)
 			{
-				case "XY":
-					type = TransitionActionType.XY;
-					break;
-				case "Size":
-					type = TransitionActionType.Size;
-					break;
-				case "Scale":
-					type = TransitionActionType.Scale;
-					break;
-				case "Pivot":
-					type = TransitionActionType.Pivot;
-					break;
-				case "Alpha":
-					type = TransitionActionType.Alpha;
-					break;
-				case "Rotation":
-					type = TransitionActionType.Rotation;
-					break;
-				case "Color":
-					type = TransitionActionType.Color;
-					break;
-				case "Animation":
-					type = TransitionActionType.Animation;
-					break;
-				case "Visible":
-					type = TransitionActionType.Visible;
-					break;
-				case "Sound":
-					type = TransitionActionType.Sound;
-					break;
-				case "Transition":
-					type = TransitionActionType.Transition;
-					break;
-				case "Shake":
-					type = TransitionActionType.Shake;
-					break;
-				case "ColorFilter":
-					type = TransitionActionType.ColorFilter;
-					break;
-				case "Skew":
-					type = TransitionActionType.Skew;
-					break;
-				default:
-					type = TransitionActionType.Unknown;
-					break;
+				var dataLen:int = buffer.getInt16();
+				var curPos:int = buffer.pos;
+				
+				buffer.seek(curPos, 0);
+				
+				var item:TransitionItem = new TransitionItem(buffer.readByte());
+				_items[i] = item;
+				
+				item.time = buffer.getFloat32();
+				var targetId:int = buffer.getInt16();
+				if (targetId < 0)
+					item.targetId = "";
+				else
+					item.targetId = _owner.getChildAt(targetId).id;
+				item.label = buffer.readS();
+				
+				if (buffer.readBool())
+				{
+					buffer.seek(curPos, 1);
+					
+					item.tweenConfig = new TweenConfig();
+					item.tweenConfig.duration = buffer.getFloat32();
+					if (item.time + item.tweenConfig.duration > _totalDuration)
+						_totalDuration = item.time + item.tweenConfig.duration;
+					item.tweenConfig.easeType = buffer.readByte();
+					item.tweenConfig.repeat = buffer.getInt32();
+					item.tweenConfig.yoyo = buffer.readBool();
+					item.tweenConfig.endLabel = buffer.readS();
+					
+					buffer.seek(curPos, 2);
+					
+					decodeValue(item, buffer, item.tweenConfig.startValue);
+					
+					buffer.seek(curPos, 3);
+					
+					decodeValue(item, buffer, item.tweenConfig.endValue);
+				}
+				else
+				{
+					if (item.time > _totalDuration)
+						_totalDuration = item.time;
+					
+					buffer.seek(curPos, 2);
+					
+					decodeValue(item, buffer, item.value);
+				}
+				
+				buffer.pos = curPos + dataLen;
 			}
-			return type;
 		}
 		
-		private function decodeValue(item:TransitionItem, str:String, value:Object):void
+		private function decodeValue(item:TransitionItem, buffer:ByteBuffer, value:Object):void
 		{
-			var arr:Array;
 			switch(item.type)
 			{
 				case TransitionActionType.XY:
 				case TransitionActionType.Size:
 				case TransitionActionType.Pivot:
 				case TransitionActionType.Skew:
-					arr = str.split(",");
-					if (arr[0] == "-")
-					{
-						value.b1 = false;
-					}
-					else
-					{
-						value.f1 = parseFloat(arr[0]);
-						value.b1 = true;
-					}
-					if(arr[1]=="-")
-					{
-						value.b2 = false;
-					}
-					else
-					{
-						value.f2 = parseFloat(arr[1]);
-						value.b2 = true;
-					}
+					value.b1 = buffer.readBool();
+					value.b2 = buffer.readBool();
+					value.f1 = buffer.getFloat32();
+					value.f2 = buffer.getFloat32();
 					break;
 				
 				case TransitionActionType.Alpha:
-					value.f1 = parseFloat(str);
-					break;
-				
 				case TransitionActionType.Rotation:
-					value.f1 = parseFloat(str);
+					value.f1 = buffer.getFloat32();
 					break;
-				
+
 				case TransitionActionType.Scale:
-					arr = str.split(",");
-					value.f1 = parseFloat(arr[0]);
-					value.f2 = parseFloat(arr[1]);
+					value.f1 = buffer.getFloat32();
+					value.f2 = buffer.getFloat32();
 					break;
 				
 				case TransitionActionType.Color:
-					value.f1 = ToolSet.convertFromHtmlColor(str);
+					value.f1 = buffer.readColor();
 					break;
 				
 				case TransitionActionType.Animation:
-					arr = str.split(",");
-					if(arr[0]=="-")
-						value.frame = -1;
-					else
-						value.frame = parseInt(arr[0]);
-					value.playing = arr[1]=="p";
+					value.playing = buffer.readBool();
+					value.frame = buffer.getInt32();
 					break;
 				
 				case TransitionActionType.Visible:
-					value.visible = str=="true";
+					value.visible = buffer.readBool();
 					break;
 				
 				case TransitionActionType.Sound:
-					arr = str.split(",");
-					value.sound = arr[0];
-					if(arr.length>1)
-					{
-						var intv:int = parseInt(arr[1]);
-						if(intv==0 || intv==100)
-							value.volume = 1;
-						else
-							value.volume = intv/100;
-					}
-					else
-						value.volume = 1;
+					value.sound = buffer.readS();
+					value.volume = buffer.getFloat32();
 					break;
 				
 				case TransitionActionType.Transition:
-					arr = str.split(",");
-					value.transName = arr[0];
-					if (arr.length > 1)
-						value.playTimes = parseInt(arr[1]);
-					else
-						value.playTimes = 1;
+					value.transName = buffer.readS();
+					value.playTimes = buffer.getInt32();
 					break;
 				
 				case TransitionActionType.Shake:
-					arr = str.split(",");
-					value.amplitude = parseFloat(arr[0]);
-					value.duration = parseFloat(arr[1]);
+					value.amplitude = buffer.getFloat32();
+					value.duration = buffer.getFloat32();
 					break;
 				
 				case TransitionActionType.ColorFilter:
-					arr = str.split(",");
-					value.f1 = parseFloat(arr[0]);
-					value.f2 = parseFloat(arr[1]);
-					value.f3 = parseFloat(arr[2]);
-					value.f4 = parseFloat(arr[3]);
+					value.f1 = buffer.getFloat32();
+					value.f2 = buffer.getFloat32();
+					value.f3 = buffer.getFloat32();
+					value.f4 = buffer.getFloat32();
 					break;
 			}
 		}

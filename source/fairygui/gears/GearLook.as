@@ -1,11 +1,13 @@
-package fairygui {
+package fairygui.gears {
+	import fairygui.GObject;
+	import fairygui.UIPackage;
 	import fairygui.tween.GTween;
 	import fairygui.tween.GTweener;
+	import fairygui.utils.ByteBuffer;
 	
 	public class GearLook extends GearBase {
 		private var _storage: Object;
 		private var _default: GearLookValue;
-		private var _tweener:GTweener;
 		
 		public function GearLook(owner: GObject) {
 			super(owner);
@@ -16,25 +18,19 @@ package fairygui {
 			this._storage = {};
 		}
 		
-		override protected function addStatus(pageId: String,value: String): void {
-			if(value=="-"|| value.length==0)
-				return;
-			
-			var arr: Array = value.split(",");
+		override protected function addStatus(pageId: String, buffer:ByteBuffer): void {
 			var gv: GearLookValue;
-			if(pageId == null)
+			if (pageId == null)
 				gv = this._default;
 			else {
 				gv = new GearLookValue();
 				this._storage[pageId] = gv;
 			}
-			gv.alpha = parseFloat(arr[0]);
-			gv.rotation = parseInt(arr[1]);
-			gv.grayed = arr[2] == "1" ? true : false;
-			if(arr.length<4)
-				gv.touchable = _owner.touchable;
-			else
-				gv.touchable = arr[3]=="1"?true:false;
+			
+			gv.alpha = buffer.getFloat32();
+			gv.rotation = buffer.getFloat32();
+			gv.grayed = buffer.readBool();
+			gv.touchable = buffer.readBool();
 		}
 		
 		override public function apply(): void {
@@ -42,18 +38,18 @@ package fairygui {
 			if(!gv)
 				gv = this._default;
 			
-			if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect) {
+			if(_tweenConfig!=null && _tweenConfig.tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect) {
 				this._owner._gearLocked = true;
 				this._owner.grayed = gv.grayed;
 				this._owner.touchable = gv.touchable;
 				this._owner._gearLocked = false;
 				
-				if (_tweener != null)
+				if (_tweenConfig._tweener != null)
 				{
-					if (_tweener.endValue.x != gv.alpha || _tweener.endValue.y != gv.rotation)
+					if (_tweenConfig._tweener.endValue.x != gv.alpha || _tweenConfig._tweener.endValue.y != gv.rotation)
 					{
-						_tweener.kill(true);
-						_tweener = null;
+						_tweenConfig._tweener.kill(true);
+						_tweenConfig._tweener = null;
 					}
 					else
 						return;
@@ -64,11 +60,11 @@ package fairygui {
 				if(a || b)
 				{
 					if(_owner.checkGearController(0, _controller))
-						_displayLockToken = _owner.addDisplayLock();
+						_tweenConfig._displayLockToken = _owner.addDisplayLock();
 					
-					_tweener = GTween.to2(_owner.alpha, _owner.rotation, gv.alpha, gv.rotation, _tweenTime)
-						.setDelay(_delay)
-						.setEase(_easeType)
+					_tweenConfig._tweener = GTween.to2(_owner.alpha, _owner.rotation, gv.alpha, gv.rotation, _tweenConfig.duration)
+						.setDelay(_tweenConfig.delay)
+						.setEase(_tweenConfig.easeType)
 						.setUserData((a ? 1 : 0) + (b ? 2 : 0))
 						.setTarget(this)
 						.onUpdate(__tweenUpdate, this)
@@ -98,12 +94,12 @@ package fairygui {
 		
 		private function __tweenComplete():void
 		{
-			if(_displayLockToken!=0)
+			if(_tweenConfig._displayLockToken!=0)
 			{
-				_owner.releaseDisplayLock(_displayLockToken);
-				_displayLockToken = 0;
+				_owner.releaseDisplayLock(_tweenConfig._displayLockToken);
+				_tweenConfig._displayLockToken = 0;
 			}
-			_tweener = null;
+			_tweenConfig._tweener = null;
 		}
 		
 		override public function updateState(): void {

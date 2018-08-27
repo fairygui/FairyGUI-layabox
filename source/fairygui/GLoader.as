@@ -1,11 +1,15 @@
 package fairygui {
 	import fairygui.display.Image;
 	import fairygui.display.MovieClip;
+	import fairygui.gears.IAnimationGear;
+	import fairygui.gears.IColorGear;
+	import fairygui.utils.ByteBuffer;
 	import fairygui.utils.ToolSet;
 	
 	import laya.display.Node;
 	import laya.display.Sprite;
 	import laya.maths.Rectangle;
+	import laya.net.Loader;
 	import laya.resource.Texture;
 	import laya.utils.Handler;
 	
@@ -110,10 +114,16 @@ package fairygui {
 			}
 		}
 		
+		/**
+		 * @see LoaderFillType
+		 */
 		public function get fill(): int {
 			return this._fill;
 		}
 		
+		/**
+		 * @see LoaderFillType
+		 */
 		public function set fill(value: int):void {
 			if (this._fill != value) {
 				this._fill = value;
@@ -308,7 +318,7 @@ package fairygui {
 		}
 		
 		protected function loadExternal(): void {
-			AssetProxy.inst.load(this._url, Handler.create(this, this.__getResCompleted));
+			AssetProxy.inst.load(this._url, Handler.create(this, this.__getResCompleted), null, Loader.IMAGE);
 		}
 		
 		protected function freeExternal(texture: Texture): void {
@@ -502,41 +512,33 @@ package fairygui {
 				this.updateLayout();
 		}
 		
-		override public function setup_beforeAdd(xml: Object): void {
-			super.setup_beforeAdd(xml);
+		override public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_beforeAdd(buffer, beginPos);
 			
-			var str: String;
-			str = xml.getAttribute("url");
-			if (str)
-				this._url = str;
+			buffer.seek(beginPos, 5);
 			
-			str = xml.getAttribute("align");
-			if (str)
-				this._align = str;
+			var iv:int;
 			
-			str = xml.getAttribute("vAlign");
-			if (str)
-				this._valign = str;
+			_url = buffer.readS();
+			iv = buffer.readByte();
+			_align = iv==0?"left":(iv==1?"center":"right");
+			iv = buffer.readByte();
+			_valign = iv==0?"top":(iv==1?"middle":"bottom");
+			_fill = buffer.readByte();
+			_shrinkOnly = buffer.readBool();
+			_autoSize = buffer.readBool();
+			_showErrorSign = buffer.readBool();
+			_playing = buffer.readBool();
+			_frame = buffer.getInt32();
 			
-			str = xml.getAttribute("fill");
-			if (str)
-				this._fill = LoaderFillType.parse(str);
+			if (buffer.readBool())
+				this.color = buffer.readColorS();
+			var fillMethod:int = buffer.readByte();
+			if (fillMethod != 0)
+				buffer.skip(6);
 			
-			_shrinkOnly = xml.getAttribute("shrinkOnly") == "true";
-			this._autoSize = xml.getAttribute("autoSize") == "true";
-			
-			str = xml.getAttribute("errorSign");
-			if (str)
-				this._showErrorSign = str == "true";
-			
-			this._playing = xml.getAttribute("playing") != "false";
-			
-			str = xml.getAttribute("color");
-			if(str)
-				this.color = str;
-			
-			if (this._url)
-				this.loadContent();
+			if (_url)
+				loadContent();
 		}
 	}
 }

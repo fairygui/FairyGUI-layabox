@@ -1,5 +1,8 @@
 package fairygui
 {
+	/**
+	 * Use for GList.layout
+	 */
 	public class ListLayoutType
 	{
 		public static const SingleColumn:int = 0;
@@ -7,28 +10,5 @@ package fairygui
 		public static const FlowHorizontal:int = 2;
 		public static const FlowVertical:int = 3;
 		public static const Pagination:int = 4;
-		
-		public function ListLayoutType()
-		{
-		}
-		
-		public static function parse(value:String):int
-		{
-			switch (value)
-			{
-				case "column":
-					return SingleColumn;
-				case "row":
-					return SingleRow;
-				case "flow_hz":
-					return FlowHorizontal;
-				case "flow_vt":
-					return FlowVertical;
-				case "pagination":
-					return Pagination;
-				default:
-					return SingleColumn;
-			}
-		}
 	}
 }

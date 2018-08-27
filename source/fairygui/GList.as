@@ -1,4 +1,6 @@
 package fairygui {
+	import fairygui.utils.ByteBuffer;
+	
 	import laya.display.Sprite;
 	import laya.events.Event;
 	import laya.maths.Point;
@@ -71,10 +73,16 @@ package fairygui {
 			super.dispose();
 		}
 		
+		/**
+		 * @see ListLayoutType
+		 */
 		public function get layout(): int {
 			return this._layout;
 		}
 		
+		/**
+		 * @see ListLayoutType
+		 */
 		public function set layout(value: int):void {
 			if (this._layout != value) {
 				this._layout = value;
@@ -218,10 +226,16 @@ package fairygui {
 			}
 		}
 		
+		/**
+		 * @see ListSelectionMode
+		 */
 		public function get selectionMode(): int {
 			return this._selectionMode;
 		}
 		
+		/**
+		 * @see ListSelectionMode
+		 */
 		public function set selectionMode(value: int):void {
 			this._selectionMode = value;
 		}
@@ -2435,191 +2449,120 @@ package fairygui {
 			setBounds(0,0,cw,ch);
 		}
 		
-		override public function setup_beforeAdd(xml: Object): void {
-			super.setup_beforeAdd(xml);
+		override public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_beforeAdd(buffer, beginPos);
 			
-			var str: String;
-			var arr: Array;
+			buffer.seek(beginPos, 5);
 			
-			str = xml.getAttribute("layout");
-			if (str)
-				this._layout = ListLayoutType.parse(str);
+			var i:int;
+			var j:int;
+			var cnt:int;
+			var i1:int;
+			var i2:int;
+			var nextPos:int;
+			var str:String;
 			
-			var overflow: int;
-			str = xml.getAttribute("overflow");
-			if (str)
-				overflow = OverflowType.parse(str);
-			else
-				overflow = OverflowType.Visible;
+			_layout = buffer.readByte();
+			_selectionMode = buffer.readByte();
+			i1 = buffer.readByte();
+			_align = i1==0?"left":(i1==1?"center":"right");
+			i1 = buffer.readByte();
+			_verticalAlign = i1==0?"top":(i1==1?"middle":"bottom");
+			_lineGap = buffer.getInt16();
+			_columnGap = buffer.getInt16();
+			_lineCount = buffer.getInt16();
+			_columnCount = buffer.getInt16();
+			_autoResizeItem = buffer.readBool();
+			_childrenRenderOrder = buffer.readByte();
+			_apexIndex = buffer.getInt16();
 			
-			str = xml.getAttribute("margin");
-			if(str)
-				this._margin.parse(str);
-			
-			str = xml.getAttribute("align");
-			if(str)
-				_align = str;
-			
-			str = xml.getAttribute("vAlign");
-			if(str)
-				_verticalAlign = str;
-			
-			if(overflow == OverflowType.Scroll) {
-				var scroll: int;
-				str = xml.getAttribute("scroll");
-				if (str)
-					scroll = ScrollType.parse(str);
-				else
-					scroll = ScrollType.Vertical;
-				
-				var scrollBarDisplay: int;
-				str = xml.getAttribute("scrollBar");
-				if (str)
-					scrollBarDisplay = ScrollBarDisplayType.parse(str);
-				else
-					scrollBarDisplay = ScrollBarDisplayType.Default;
-				
-				var scrollBarFlags: Number;
-				str = xml.getAttribute("scrollBarFlags");
-				if(str)
-					scrollBarFlags = parseInt(str);
-				else
-					scrollBarFlags = 0;
-				
-				var scrollBarMargin: Margin = new Margin();
-				str = xml.getAttribute("scrollBarMargin");
-				if(str)
-					scrollBarMargin.parse(str);
-				
-				var vtScrollBarRes: String;
-				var hzScrollBarRes: String;
-				str = xml.getAttribute("scrollBarRes");
-				if(str) {
-					arr = str.split(",");
-					vtScrollBarRes = arr[0];
-					hzScrollBarRes = arr[1];
-				}
-				
-				var headerRes:String;
-				var footerRes:String;
-				str = xml.@ptrRes;
-				if(str)
-				{
-					arr = str.split(",");
-					headerRes = arr[0];
-					footerRes = arr[1];
-				}
-				
-				this.setupScroll(scrollBarMargin,scroll,scrollBarDisplay,scrollBarFlags,
-					vtScrollBarRes,hzScrollBarRes, headerRes, footerRes);
-			}
-			else
-				this.setupOverflow(overflow);
-			
-			str = xml.getAttribute("lineGap");
-			if (str)
-				this._lineGap = parseInt(str);
-			
-			str = xml.getAttribute("colGap");
-			if (str)
-				this._columnGap = parseInt(str);
-			
-			str = xml.getAttribute("lineItemCount");
-			if(str)
+			if (buffer.readBool())
 			{
-				if (_layout == ListLayoutType.FlowHorizontal || _layout == ListLayoutType.Pagination)
-					_columnCount = parseInt(str);
-				else if (_layout == ListLayoutType.FlowVertical)
-					_lineCount = parseInt(str);
+				_margin.top = buffer.getInt32();
+				_margin.bottom = buffer.getInt32();
+				_margin.left = buffer.getInt32();
+				_margin.right = buffer.getInt32();
 			}
 			
-			str = xml.getAttribute("lineItemCount2");
-			if(str)
-				_lineCount = parseInt(str);
-			
-			str = xml.getAttribute("selectionMode");
-			if (str)
-				this._selectionMode = ListSelectionMode.parse(str);
-			
-			str = xml.getAttribute("defaultItem");
-			if (str)
-				this._defaultItem = str;
-			
-			str = xml.getAttribute("autoItemSize");
-			if (_layout == ListLayoutType.SingleRow || _layout == ListLayoutType.SingleColumn)
-				_autoResizeItem = str!="false";
-			else
-				_autoResizeItem = str=="true";
-			
-			str = xml.getAttribute("renderOrder");
-			if(str)
+			var overflow:int = buffer.readByte();
+			if (overflow == OverflowType.Scroll)
 			{
-				_childrenRenderOrder = ChildrenRenderOrder.parse(str);
-				if(_childrenRenderOrder==ChildrenRenderOrder.Arch)
-				{
-					str = xml.getAttribute("apex");
-					if(str)
-						_apexIndex = parseInt(str);
-				}
+				var savedPos:int = buffer.pos;
+				buffer.seek(beginPos, 7);
+				setupScroll(buffer);
+				buffer.pos = savedPos;
 			}
+			else
+				setupOverflow(overflow);
 			
-			var col: Array = xml.childNodes;
-			var length: int = col.length;
-			for (var i: int = 0; i < length; i++) {
-				var cxml: Object = col[i];
-				if(cxml.nodeName != "item")
-					continue;
+			if (buffer.readBool())
+				buffer.skip(8);
+			
+			buffer.seek(beginPos, 8);
+			
+			_defaultItem = buffer.readS();
+			var itemCount:int = buffer.getInt16();
+			for (i = 0; i < itemCount; i++)
+			{
+				nextPos = buffer.getInt16();
+				nextPos += buffer.pos;
 				
-				var url: String = cxml.getAttribute("url");
-				if (!url)
-					url = this._defaultItem;
-				if (!url)
-					continue;
-				
-				var obj: GObject = this.getFromPool(url);
-				if(obj != null) {
-					this.addChild(obj);
-					str = cxml.getAttribute("title");
-					if(str)
-						obj.text = str;
-					str = cxml.getAttribute("icon");
-					if(str)
-						obj.icon = str;
-					str = cxml.getAttribute("name");
-					if(str)
-						obj.name = str;
-					str = cxml.getAttribute("selectedIcon");
-					if(str && (obj is GButton))
-						GButton(obj).selectedIcon = str;
-					str = cxml.getAttribute("selectedTitle");
-					if(str && (obj is GButton))
-						GButton(obj).selectedTitle = str;
-					if(obj is GComponent)
+				str = buffer.readS();
+				if (str == null)
+				{
+					str = defaultItem;
+					if (!str)
 					{
-						str = cxml.getAttribute("controllers");
-						if(str)
+						buffer.pos = nextPos;
+						continue;
+					}
+				}
+				
+				var obj:GObject = getFromPool(str);
+				if (obj != null)
+				{
+					addChild(obj);
+					str = buffer.readS();
+					if (str != null)
+						obj.text = str;
+					str = buffer.readS();
+					if (str != null && (obj is GButton))
+						(obj as GButton).selectedTitle = str;
+					str = buffer.readS();
+					if (str != null)
+						obj.icon = str;
+					str = buffer.readS();
+					if (str != null && (obj is GButton))
+						(obj as GButton).selectedIcon = str;
+					str = buffer.readS();
+					if (str != null)
+						obj.name = str;
+					if (obj is GComponent)
+					{
+						cnt = buffer.getInt16();
+						for (j = 0; j < cnt; j++)
 						{
-							arr = str.split(",");
-							for(var j:int=0;j<arr.length;j+=2)
-							{
-								var cc:Controller = GComponent(obj).getController(arr[j]);
-								if(cc!=null)
-									cc.selectedPageId = arr[j+1];
-							}
+							var cc:Controller = (obj as GComponent).getController(buffer.readS());
+							str = buffer.readS();
+							if (cc != null)
+								cc.selectedPageId = str;
 						}
 					}
 				}
+				
+				buffer.pos = nextPos;
 			}
 		}
 		
-		override public function setup_afterAdd(xml:Object):void
+		override public function setup_afterAdd(buffer:ByteBuffer, beginPos:int):void
 		{
-			super.setup_afterAdd(xml);
+			super.setup_afterAdd(buffer, beginPos);
 			
-			var str:String;
-			str = xml.getAttribute("selectionController");
-			if(str)
-				_selectionController = parent.getController(str);
+			buffer.seek(beginPos, 6);
+			
+			var i:int = buffer.getInt16();
+			if (i != -1)
+				_selectionController = parent.getControllerAt(i);
 		}
 	}
 }

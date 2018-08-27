@@ -1,5 +1,5 @@
 package fairygui {
-	import fairygui.utils.ToolSet;
+	import fairygui.utils.ByteBuffer;
 	
 	import laya.display.Input;
 	import laya.events.Event;
@@ -15,7 +15,7 @@ package fairygui {
 		protected var _items:Array;
 		protected var _icons:Array;
 		protected var _values:Array;
-		protected var _popupDownward:Object;
+		protected var _popupDirection:int;
 		
 		private var _visibleItemCount:int;
 		private var _itemsUpdated:Boolean;
@@ -48,26 +48,34 @@ package fairygui {
 			this.updateGear(6);
 		}
 		
-		final public function get titleColor():String
-		{
-			if(_titleObject is GTextField)
-				return GTextField(_titleObject).color;
-			else if(_titleObject is GLabel)
-				return GLabel(_titleObject).titleColor;
-			else if(_titleObject is GButton)
-				return GButton(_titleObject).titleColor;
+		public function get titleColor(): String {
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				return tf.color;
 			else
 				return "#000000";
 		}
 		
-		public function set titleColor(value:String):void
+		public function set titleColor(value: String):void {
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				tf.color = value;
+			this.updateGear(4);
+		}
+		
+		public function get titleFontSize():int {
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				return tf.fontSize;
+			else
+				return 0;
+		}
+		
+		public function set titleFontSize(value:int):void
 		{
-			if(_titleObject is GTextField)
-				GTextField(_titleObject).color = value;
-			else if(_titleObject is GLabel)
-				GLabel(_titleObject).titleColor = value;
-			else if(_titleObject is GButton)
-				GButton(_titleObject).titleColor = value;
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				tf.fontSize = value;
 		}
 		
 		final override public function get icon():String
@@ -93,14 +101,20 @@ package fairygui {
 			this._visibleItemCount = value;
 		}
 		
-		public function get popupDownward():*
+		/**
+		 * @see PopupDirection
+		 */
+		public function get popupDirection():int
 		{
-			return this._popupDownward;
+			return this._popupDirection;
 		}
 		
-		public function set popupDownward(value:*):void
+		/**
+		 * @see PopupDirection
+		 */
+		public function set popupDirection(value:int):void
 		{
-			this._popupDownward = value;
+			this._popupDirection = value;
 		}
 		
 		public function get items(): Array {
@@ -191,6 +205,18 @@ package fairygui {
 			this.selectedIndex = this._values.indexOf(val);
 		}
 		
+		public function getTextField():GTextField
+		{
+			if (_titleObject is GTextField)
+				return _titleObject as GTextField;
+			else if (_titleObject is GLabel)
+				return (_titleObject as GLabel).getTextField();
+			else if (_titleObject is GButton)
+				return (_titleObject as GButton).getTextField();
+			else
+				return null;
+		}
+		
 		protected function setState(val: String): void {
 			if (this._buttonController)
 				this._buttonController.selectedPage = val;
@@ -239,17 +265,15 @@ package fairygui {
 			super.dispose();
 		}
 		
-		override protected function constructFromXML(xml: Object): void {
-			super.constructFromXML(xml);
+		override protected function constructExtension(buffer:ByteBuffer): void {
 			
-			xml = ToolSet.findChildNode(xml, "ComboBox");
 			var str: String;
 			
 			this._buttonController = this.getController("button");
 			this._titleObject = this.getChild("title");
 			this._iconObject = this.getChild("icon");
 			
-			str = xml.getAttribute("dropdown");
+			str = buffer.readS();
 			if (str) {
 				this.dropdown = GComponent(UIPackage.createObjectFromURL(str));
 				if (!this.dropdown) {
@@ -278,67 +302,66 @@ package fairygui {
 			this.on(Event.MOUSE_DOWN, this, this.__mousedown);
 		}
 		
-		override public function setup_afterAdd(xml: Object): void {
-			super.setup_afterAdd(xml);
+		override public function setup_afterAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_afterAdd(buffer, beginPos);
 			
-			xml = ToolSet.findChildNode(xml, "ComboBox");
-			if (xml) {
-				var str: String;
-				str = xml.getAttribute("titleColor");
-				if (str)
-					this.titleColor = str;
-				str = xml.getAttribute("visibleItemCount");
-				if (str)
-					this._visibleItemCount = parseInt(str);
+			if (!buffer.seek(beginPos, 6))
+				return;
+			
+			if (buffer.readByte() != packageItem.objectType)
+				return;
+			
+			var i:int;
+			var iv:int;
+			var nextPos:int;
+			var str:String;
+			var itemCount:int = buffer.getInt16();
+			for (i = 0; i < itemCount; i++)
+			{
+				nextPos = buffer.getInt16();
+				nextPos += buffer.pos;
 				
-				var col: Array = xml.childNodes;
-				var length: Number = col.length;
-				for (var i: Number = 0; i < length; i++) {
-					var cxml: Object = col[i];
-					if(cxml.nodeName=="item") {
-						this._items.push(cxml.getAttribute("title"));
-						this._values.push(cxml.getAttribute("value"));
-						str = cxml.getAttribute("icon");
-						if (str)
-						{
-							if(!_icons)
-								_icons = new Array(length);
-							_icons[i] = str;
-						}
-					}
-				}
-				
-				str = xml.getAttribute("title");
-				if(str)
+				_items[i] = buffer.readS();
+				_values[i] = buffer.readS();
+				str = buffer.readS();
+				if (str != null)
 				{
-					this.text = str;
-					this._selectedIndex = this._items.indexOf(str);
-				}
-				else if(this._items.length>0)
-				{
-					this._selectedIndex = 0;
-					this.text = this._items[0];
-				}
-				else
-					this._selectedIndex = -1;
-				
-				str = xml.getAttribute("icon");
-				if(str)
-					this.icon = str;
-				
-				str = xml.getAttribute("direction");
-				if(str)
-				{
-					if(str=="up")
-						this._popupDownward = false;
-					else if(str=="auto")
-						this._popupDownward = null;
+					if (_icons == null)
+						_icons = [];
+					_icons[i] = str;
 				}
 				
-				str = xml.getAttribute("selectionController");
-				if (str)
-					_selectionController = parent.getController(str);
+				buffer.pos = nextPos;
 			}
+			
+			str = buffer.readS();
+			if (str != null)
+			{
+				this.text = str;
+				_selectedIndex = _items.indexOf(str);
+			}
+			else if (_items.length > 0)
+			{
+				_selectedIndex = 0;
+				this.text = _items[0];
+			}
+			else
+				_selectedIndex = -1;
+			
+			str = buffer.readS();
+			if (str != null)
+				this.icon = str;
+			
+			if (buffer.readBool())
+				this.titleColor = buffer.readColorS();
+			iv = buffer.getInt32();
+			if (iv > 0)
+				_visibleItemCount = iv;
+			_popupDirection = buffer.readByte();
+			
+			iv = buffer.getInt16();
+			if (iv >= 0)
+				_selectionController = parent.getControllerAt(iv);
 		}
 		
 		protected function showDropdown(): void {
@@ -358,7 +381,13 @@ package fairygui {
 			this._list.selectedIndex = -1;
 			this.dropdown.width = this.width;
 			
-			this.root.togglePopup(this.dropdown, this, this._popupDownward);
+			var downward:* = null;
+			if (_popupDirection == PopupDirection.Down)
+				downward = true;
+			else if (_popupDirection == PopupDirection.Up)
+				downward = false;
+			
+			this.root.togglePopup(this.dropdown, this, downward);
 			if (this.dropdown.parent)
 				this.setState(GButton.DOWN);
 		}

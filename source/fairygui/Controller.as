@@ -1,19 +1,19 @@
 package fairygui {
 	import fairygui.action.ControllerAction;
-	import fairygui.action.PlayTransitionAction;
+	import fairygui.utils.ByteBuffer;
 	
 	import laya.events.EventDispatcher;
 	
 	public class Controller extends EventDispatcher {
-		private var _name: String;
 		private var _selectedIndex: Number = 0;
 		private var _previousIndex: Number = 0;
 		private var _pageIds: Vector.<String>;
 		private var _pageNames: Vector.<String>;
 		private var _actions:Vector.<ControllerAction>;
 		
-		public var _parent: GComponent;
-		public var _autoRadioGroupDepth: Boolean;
+		public var name: String;
+		public var parent: GComponent;
+		public var autoRadioGroupDepth: Boolean;
 		
 		public var changing:Boolean = false;
 		
@@ -30,19 +30,7 @@ package fairygui {
 		public function dispose():void {
 			this.offAll();
 		}
-		
-		public function get name(): String {
-			return this._name;
-		}
-		
-		public function set name(value: String):void {
-			this._name = value;
-		}
-		
-		public function get parent(): GComponent {
-			return this._parent;
-		}
-		
+
 		public function get selectedIndex(): Number {
 			return this._selectedIndex;
 		}
@@ -55,7 +43,7 @@ package fairygui {
 				this.changing = true; 
 				this._previousIndex = this._selectedIndex;
 				this._selectedIndex = value;
-				this._parent.applyController(this);
+				this.parent.applyController(this);
 				
 				this.event(Events.STATE_CHANGED);
 				
@@ -72,7 +60,7 @@ package fairygui {
 				this.changing = true; 
 				this._previousIndex = this._selectedIndex;
 				this._selectedIndex = value;
-				this._parent.applyController(this);
+				this.parent.applyController(this);
 				this.changing = false;
 			}
 		}
@@ -142,7 +130,7 @@ package fairygui {
 				if (this._selectedIndex >= this._pageIds.length)
 					this.selectedIndex = this._selectedIndex - 1;
 				else
-					this._parent.applyController(this);
+					this.parent.applyController(this);
 			}
 		}
 		
@@ -152,7 +140,7 @@ package fairygui {
 			if (this._selectedIndex >= this._pageIds.length)
 				this.selectedIndex = this._selectedIndex - 1;
 			else
-				this._parent.applyController(this);
+				this.parent.applyController(this);
 		}
 		
 		public function clearPages(): void {
@@ -161,7 +149,7 @@ package fairygui {
 			if (this._selectedIndex != -1)
 				this.selectedIndex = -1;
 			else
-				this._parent.applyController(this);
+				this.parent.applyController(this);
 		}
 		
 		public function hasPage(aName:String):Boolean {
@@ -231,74 +219,50 @@ package fairygui {
 			}
 		}
 		
-		public function setup(xml: Object): void {
-			this._name = xml.getAttribute("name");
-			this._autoRadioGroupDepth = xml.getAttribute("autoRadioGroupDepth") == "true";
+		public function setup(buffer:ByteBuffer): void {
+			var beginPos:int = buffer.pos;
+			buffer.seek(beginPos, 0);
 			
-			var i: Number = 0;
-			var k: Number = 0;
-			var str: String = xml.getAttribute("pages");
-			if (str) {
-				var arr: Array = str.split(",");
-				var cnt: Number = arr.length;
-				for (i = 0; i < cnt; i += 2) {
-					this._pageIds.push(arr[i]);
-					this._pageNames.push(arr[i + 1]);
-				}
-			}
+			name = buffer.readS();
+			autoRadioGroupDepth = buffer.readBool();
 			
-			var col: Array = xml.childNodes;
-			var length1: Number = col.length;
-			if(length1>0)
-			{
-				if(!_actions)
-					_actions = new Vector.<ControllerAction>();
+			buffer.seek(beginPos, 1);
+			
+			var i:int;
+			var nextPos:int;
+			var cnt:int = buffer.getInt16();
 
-				for(var i1: Number = 0;i1 < length1;i1++) {
-					var cxml: Object = col[i1];
-					var action:ControllerAction = ControllerAction.createAction(cxml.getAttribute("type"));
-					action.setup(cxml);
-					_actions.push(action);
-				}
+			for (i = 0; i < cnt; i++)
+			{
+				_pageIds.push(buffer.readS());
+				_pageNames.push(buffer.readS());
 			}
 			
-			str = xml.getAttribute("transitions");
-			if(str) {
-				if(!_actions)
+			buffer.seek(beginPos, 2);
+			
+			cnt = buffer.getInt16();
+			if (cnt > 0)
+			{
+				if (_actions == null)
 					_actions = new Vector.<ControllerAction>();
 				
-				arr = str.split(",");
-				cnt = arr.length;
-				var ii:int;
-				for(i = 0;i < cnt;i++) {
-					str = arr[i];
-					if(!str)
-						continue;
+				for (i = 0; i < cnt; i++)
+				{
+					nextPos = buffer.getInt16();
+					nextPos += buffer.pos;
 					
-					var taction:PlayTransitionAction = new PlayTransitionAction();
-					k = str.indexOf("=");
-					taction.transitionName = str.substr(k + 1);
-					str = str.substring(0,k);
-					k = str.indexOf("-");
-					ii = parseInt(str.substring(k+1));
-					if(ii<_pageIds.length)
-						taction.toPage = [_pageIds[ii]];
-					str = str.substring(0,k);
-					if(str != "*")
-					{
-						ii = parseInt(str);
-						if(ii<_pageIds.length)
-							taction.fromPage = [_pageIds[ii]];
-					}
-					taction.stopOnExit = true;
-					_actions.push(taction);
+					var action:ControllerAction = ControllerAction.createAction(buffer.readByte());
+					action.setup(buffer);
+					_actions.push(action);
+					
+					buffer.pos = nextPos;
 				}
 			}
 			
-			if (this._parent && this._pageIds.length > 0)
-				this._selectedIndex = 0;
+			if (parent != null && _pageIds.length > 0)
+				_selectedIndex = 0;
 			else
-				this._selectedIndex = -1;
+				_selectedIndex = -1;
 		}
 	}
 }

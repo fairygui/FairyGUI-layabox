@@ -1,5 +1,6 @@
 package fairygui {
-	import fairygui.utils.ToolSet;
+	import fairygui.gears.IColorGear;
+	import fairygui.utils.ByteBuffer;
 	
 	import laya.display.Input;
 	
@@ -46,46 +47,33 @@ package fairygui {
 		}
 		
 		public function get titleColor(): String {
-			if(this._titleObject is GTextField)
-				return GTextField(this._titleObject).color;
-			else if(this._titleObject is GLabel)
-				return GLabel(this._titleObject).titleColor;
-			else if(this._titleObject is GButton)
-				return GButton(this._titleObject).titleColor;
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				return tf.color;
 			else
 				return "#000000";
 		}
 		
 		public function set titleColor(value: String):void {
-			if(this._titleObject is GTextField)
-				GTextField(this._titleObject).color = value;
-			else if(this._titleObject is GLabel)
-				GLabel(this._titleObject).titleColor = value;
-			else if(this._titleObject is GButton)
-				GButton(this._titleObject).titleColor = value;
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				tf.color = value;
 			this.updateGear(4);
 		}
 		
-		public function get titleFontSize():int
-		{
-			if(_titleObject is GTextField)
-				return GTextField(_titleObject).fontSize;
-			else if(_titleObject is GLabel)
-				return GLabel(_titleObject).titleFontSize;
-			else if(_titleObject is GButton)
-				return GButton(_titleObject).titleFontSize;
+		public function get titleFontSize():int {
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				return tf.fontSize;
 			else
 				return 0;
 		}
 		
 		public function set titleFontSize(value:int):void
 		{
-			if(_titleObject is GTextField)
-				GTextField(_titleObject).fontSize = value;
-			else if(_titleObject is GLabel)
-				GLabel(_titleObject).titleFontSize = value;
-			else if(_titleObject is GButton)
-				GButton(_titleObject).titleFontSize = value;
+			var tf:GTextField = getTextField();
+			if(tf!=null)
+				tf.fontSize = value;
 		}
 		
 		public function get color(): String {
@@ -108,52 +96,74 @@ package fairygui {
 				return false;
 		}
 		
-		override protected function constructFromXML(xml: Object): void {
-			super.constructFromXML(xml);
-			
+		public function getTextField():GTextField
+		{
+			if (_titleObject is GTextField)
+				return _titleObject as GTextField;
+			else if (_titleObject is GLabel)
+				return (_titleObject as GLabel).getTextField();
+			else if (_titleObject is GButton)
+				return (_titleObject as GButton).getTextField();
+			else
+				return null;
+		}
+		
+		override protected function constructExtension(buffer:ByteBuffer): void {
 			this._titleObject = this.getChild("title");
 			this._iconObject = this.getChild("icon");
 		}
 		
-		override public function setup_afterAdd(xml: Object): void {
-			super.setup_afterAdd(xml);
+		override public function setup_afterAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_afterAdd(buffer, beginPos);
 			
-			xml = ToolSet.findChildNode(xml, "Label");
-			if (xml) {
-				var str: String;
-				str = xml.getAttribute("title");
-				if(str)
-					this.text = str;
-				str = xml.getAttribute("icon");
-				if(str)
-					this.icon = str;                
-				str = xml.getAttribute("titleColor");
-				if (str)
-					this.titleColor = str;
-				str = xml.getAttribute("titleFontSize");
-				if(str)
-					this.titleFontSize = parseInt(str);
-				
-				if(this._titleObject is GTextInput)
+			if (!buffer.seek(beginPos, 6))
+				return;
+			
+			if (buffer.readByte() != packageItem.objectType)
+				return;
+			
+			var str:String;
+			str = buffer.readS();
+			if (str != null)
+				this.title = str;
+			str = buffer.readS();
+			if (str != null)
+				this.icon = str;
+			if (buffer.readBool())
+				this.titleColor = buffer.readColorS();
+			var iv:int = buffer.getInt32();
+			if (iv != 0)
+				this.titleFontSize = iv;
+			
+			if (buffer.readBool())
+			{
+				var input:GTextInput = getTextField() as GTextInput;
+				if (input != null)
 				{
-					str = xml.getAttribute("prompt");
-					if(str)
-						GTextInput(this._titleObject).promptText = str;
-					str = xml.getAttribute("maxLength");
-					if(str)
-						GTextInput(_titleObject).maxLength = parseInt(str);
-					str = xml.getAttribute("restrict");
-					if(str)
-						GTextInput(_titleObject).restrict = str;
-					str = xml.getAttribute("password");
-					if(str)
-						GTextInput(_titleObject).password = str=="true";
-					str = xml.getAttribute("keyboardType");
-					if(str=="4")
-						GTextInput(_titleObject).keyboardType = Input.TYPE_NUMBER;
-					else if(str=="3")
-						GTextInput(_titleObject).keyboardType = Input.TYPE_URL;
+					str = buffer.readS();
+					if (str != null)
+						input.promptText = str;
+					
+					str = buffer.readS();
+					if (str != null)
+						input.restrict = str;
+					
+					iv = buffer.getInt32();
+					if (iv != 0)
+						input.maxLength = iv;
+					iv = buffer.getInt32();
+					if (iv != 0)
+					{
+						if(iv==4)
+							input.keyboardType = Input.TYPE_NUMBER;
+						else if(iv==3)
+							input.keyboardType = Input.TYPE_URL;
+					}
+					if (buffer.readBool())
+						input.password = true;
 				}
+				else
+					buffer.skip(13);
 			}
 		}
 	}

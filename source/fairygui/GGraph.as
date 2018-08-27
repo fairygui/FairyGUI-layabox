@@ -1,13 +1,15 @@
 package fairygui {
+	import fairygui.utils.ByteBuffer;
 	import fairygui.utils.ToolSet;
 	
 	import laya.display.Graphics;
 	import laya.display.Sprite;
 	import laya.renders.Render;
 	import laya.utils.Utils;
+	import fairygui.gears.IColorGear;
 	
 	public class GGraph extends GObject implements IColorGear {
-		private var _type: Number;
+		private var _type: int;
 		private var _lineSize: Number;
 		private var _lineColor: String;
 		private var _fillColor: String;
@@ -23,12 +25,12 @@ package fairygui {
 			this._cornerRadius = null;
 		}
 		
-		public function drawRect(lineSize: Number, lineColor: String, fillColor: String, corners:Array = null): void {
+		public function drawRect(lineSize: Number, lineColor: String, fillColor: String, cornerRadius:Array = null): void {
 			this._type = 1;
 			this._lineSize = lineSize;
 			this._lineColor = lineColor;
 			this._fillColor = fillColor;
-			this._cornerRadius = corners;
+			this._cornerRadius = cornerRadius;
 			this.drawCommon();
 		}
 		
@@ -75,8 +77,10 @@ package fairygui {
 					this.alpha = a;
 				}
 			}
-			if (this._type == 1) {
-				if(_cornerRadius!=null) {
+			if (this._type == 1) 
+			{
+				if(_cornerRadius!=null)
+				{
 					var paths:Array =  [
 						["moveTo", _cornerRadius[0], 0],
 						["lineTo", w - _cornerRadius[1], 0],
@@ -89,12 +93,14 @@ package fairygui {
 						["arcTo", 0, 0, _cornerRadius[0], 0, _cornerRadius[0]],
 						["closePath"]
 					];
-					
-					gr.drawPath(0, 0, paths, {fillStyle: fillColor}, this._lineSize>0?{strokeStyle:lineColor, lineWidth:this._lineSize}:null);
-				} else
-					gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
+					gr.drawPath(0,0,paths, {fillStyle: fillColor}, _lineSize>0?{strokeStyle:lineColor, lineWidth:_lineSize}:null);
+				}
+				else
+					gr.drawRect(0,0,w,h,fillColor,_lineSize>0?lineColor:null,_lineSize);
 			} else
-				gr.drawCircle(w/2,h/2,w/2, fillColor, this._lineSize>0?lineColor:null, this._lineSize);
+			{
+				gr.drawCircle(w/2,h/2,w/2, fillColor, _lineSize>0?lineColor:null, _lineSize);
+			}
 			
 			this._displayObject.repaint();
 		}
@@ -155,55 +161,22 @@ package fairygui {
 				this.drawCommon();
 		}
 		
-		override public function setup_beforeAdd(xml: Object): void {
-			super.setup_beforeAdd(xml);
+		override public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_beforeAdd(buffer, beginPos);
 			
-			var type: String = xml.getAttribute("type");
+			buffer.seek(beginPos, 5);
 			
-			if (type && type!="empty") {
-				var str: String;
-				
-				str = xml.getAttribute("lineSize");
-				if (str)
-					this._lineSize = parseInt(str);
-				
-				str = xml.getAttribute("lineColor");
-				if (str) {
-					var c: Number = ToolSet.convertFromHtmlColor(str, true);
-					var a:Number = ((c >> 24) & 0xFF) / 0xFF;
-					if(a!=1)
-						this._lineColor = "rgba(" + ((c>>16) & 0xFF) + "," + ((c>>8) & 0xFF) + "," + (c & 0xFF) + "," + a + ")";
-					else
-						this._lineColor = Utils.toHexColor(c & 0xFFFFFF);                    
-				}
-				
-				str = xml.getAttribute("fillColor");
-				if (str) {
-					c = ToolSet.convertFromHtmlColor(str, true);
-					a= ((c >> 24) & 0xFF) / 0xFF;
-					if(a!=1)
-						this._fillColor = "rgba(" + ((c>>16) & 0xFF) + "," + ((c>>8) & 0xFF) + "," + (c & 0xFF) + "," + a + ")";
-					else
-						this._fillColor = Utils.toHexColor(c & 0xFFFFFF);   
-				}
-				
-				str = xml.getAttribute("corner");
-				if (str) {
-					var arr:Array = str.split(",");
+			_type = buffer.readByte();
+			if (_type!=0) {
+				_lineSize = buffer.getInt32();
+				_lineColor = buffer.readColorS(true);
+				_fillColor = buffer.readColorS(true);
+				if (buffer.readBool())
+				{
 					_cornerRadius = [];
-					for(var i:int=0;i<4;i++)
-					{
-						if(i<arr.length)
-							_cornerRadius[i] = parseInt(arr[i]);
-						else
-							_cornerRadius[i] = _cornerRadius[i-1];
-					}
+					for (var i:int = 0; i < 4; i++)
+						_cornerRadius[i] = buffer.getFloat32();
 				}
-				
-				if (type == "rect")
-					this._type = 1;
-				else
-					this._type = 2;
 				
 				this.drawCommon();
 			}

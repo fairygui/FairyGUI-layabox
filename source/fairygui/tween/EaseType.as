@@ -34,52 +34,5 @@ package fairygui.tween
 		public static const BounceOut:int = 29;
 		public static const BounceInOut:int = 30;
 		public static const Custom:int = 31;
-		
-		private static const easeTypeMap:Object = {
-			"Linear" : EaseType.Linear ,
-			"Elastic.In" : EaseType.ElasticIn ,
-			"Elastic.Out" : EaseType.ElasticInOut ,
-			"Elastic.InOut" : EaseType.ElasticInOut ,
-			"Quad.In" : EaseType.QuadIn ,
-			"Quad.Out" : EaseType.QuadOut ,
-			"Quad.InOut" : EaseType.QuadInOut ,
-			"Cube.In" : EaseType.CubicIn ,
-			"Cube.Out" : EaseType.CubicOut ,
-			"Cube.InOut" : EaseType.CubicInOut ,
-			"Quart.In" : EaseType.QuartIn ,
-			"Quart.Out" : EaseType.QuartOut ,
-			"Quart.InOut" : EaseType.QuartInOut ,
-			"Quint.In" : EaseType.QuintIn ,
-			"Quint.Out" : EaseType.QuintOut ,
-			"Quint.InOut" : EaseType.QuintInOut ,
-			"Sine.In" : EaseType.SineIn ,
-			"Sine.Out" : EaseType.SineOut ,
-			"Sine.InOut" : EaseType.SineInOut ,
-			"Bounce.In" : EaseType.BounceIn ,
-			"Bounce.Out" : EaseType.BounceOut ,
-			"Bounce.InOut" : EaseType.BounceInOut ,
-			"Circ.In" : EaseType.CircIn ,
-			"Circ.Out" : EaseType.CircOut ,
-			"Circ.InOut" : EaseType.CircInOut ,
-			"Expo.In" : EaseType.ExpoIn ,
-			"Expo.Out" : EaseType.ExpoOut ,
-			"Expo.InOut" : EaseType.ExpoInOut ,
-			"Back.In" : EaseType.BackIn ,
-			"Back.Out" : EaseType.BackOut ,
-			"Back.InOut" : EaseType.BackInOut
-		};
-		
-		public static function parseEaseType(value:String):int
-		{
-			var type:* = easeTypeMap[value];
-			if(type==undefined)
-				return EaseType.ExpoOut;
-			else
-				return type;
-		}
-		
-		public function EaseType()
-		{
-		}
 	}
 }

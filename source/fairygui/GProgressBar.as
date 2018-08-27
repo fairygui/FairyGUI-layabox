@@ -2,7 +2,7 @@ package fairygui {
 	import fairygui.tween.EaseType;
 	import fairygui.tween.GTween;
 	import fairygui.tween.GTweener;
-	import fairygui.utils.ToolSet;
+	import fairygui.utils.ByteBuffer;
 
 	public class GProgressBar extends GComponent {
 		private var _max: Number = 0;
@@ -31,10 +31,16 @@ package fairygui {
 			this._max = 100;
 		}
 		
+		/**
+		 * @see ProgressTitleType
+		 */
 		public function get titleType(): int {
 			return this._titleType;
 		}
 		
+		/**
+		 * @see ProgressTitleType
+		 */
 		public function set titleType(value: int):void {
 			if(this._titleType != value) {
 				this._titleType = value;
@@ -135,17 +141,11 @@ package fairygui {
 				GMovieClip(this._aniObject).frame = Math.round(percent * 100);
 		}
 		
-		override protected function constructFromXML(xml: Object): void {
-			super.constructFromXML(xml);
+		override protected function constructExtension(buffer:ByteBuffer): void {
+			buffer.seek(0, 6);
 			
-			xml = ToolSet.findChildNode(xml, "ProgressBar");
-			
-			var str: String;
-			str = xml.getAttribute("titleType");
-			if(str)
-				this._titleType = ProgressTitleType.parse(str);
-			
-			this._reverse = xml.getAttribute("reverse") == "true";
+			_titleType = buffer.readByte();
+			_reverse = buffer.readBool();
 			
 			this._titleObject = GTextField(this.getChild("title"));
 			this._barObjectH = this.getChild("bar");
@@ -175,15 +175,25 @@ package fairygui {
 				this.update(this._value);
 		}
 		
-		override public function setup_afterAdd(xml: Object): void {
-			super.setup_afterAdd(xml);
+		override public function setup_afterAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_afterAdd(buffer, beginPos);
 			
-			xml = ToolSet.findChildNode(xml, "ProgressBar");
-			if (xml) {
-				this._value = parseInt(xml.getAttribute("value"));
-				this._max = parseInt(xml.getAttribute("max"));
+			if (!buffer.seek(beginPos, 6))
+			{
+				update(_value);
+				return;
 			}
-			this.update(this._value);
+			
+			if (buffer.readByte() != packageItem.objectType)
+			{
+				update(_value);
+				return;
+			}
+			
+			_value = buffer.getInt32();
+			_max = buffer.getInt32();
+			
+			update(this._value);
 		}
 		
 		override public function dispose(): void {

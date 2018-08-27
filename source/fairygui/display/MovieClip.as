@@ -17,7 +17,7 @@ package fairygui.display {
 		
 		private var _playing: Boolean = true;
 		private var _frameCount: Number = 0;
-		private var _frames: Array;
+		private var _frames:Vector.<Frame>;
 		private var _frame: Number = 0;
 		private var _boundsRect: Rectangle;
 		private var _start: Number = 0;
@@ -42,11 +42,11 @@ package fairygui.display {
 			this.on(Event.UNDISPLAY, this, this.__removeFromStage);
 		}
 		
-		public function get frames(): Array {
+		public function get frames(): Vector.<Frame> {
 			return this._frames;
 		}
 		
-		public function set frames(value: Array):void {
+		public function set frames(value:Vector.<Frame>):void {
 			this._frames = value;
 			if (this._frames != null)
 				this._frameCount = this._frames.length;
@@ -303,12 +303,13 @@ package fairygui.display {
 		}
 		
 		private function drawFrame(): void {
-			this.graphics.clear();
 			if (_frameCount>0 && _frame < _frames.length)
 			{
 				var frame:Frame = _frames[_frame];
-				this.graphics.drawTexture(frame.texture, frame.rect.x, frame.rect.y);
+				this.graphics.cleanByTexture(frame.texture, frame.rect.x, frame.rect.y);
 			}
+			else
+				this.graphics.clear();
 		}
 		
 		private function checkTimer():void

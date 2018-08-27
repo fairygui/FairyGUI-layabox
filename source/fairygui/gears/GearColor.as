@@ -1,4 +1,6 @@
-package fairygui {
+package fairygui.gears {
+	import fairygui.GObject;
+	import fairygui.utils.ByteBuffer;
 	
 	public class GearColor extends GearBase {
 		private var _storage: Object;
@@ -16,30 +18,17 @@ package fairygui {
 			this._storage = {};
 		}
 		
-		override protected function addStatus(pageId: String, value: String): void {
-			if(value=="-"|| value.length==0)
-				return;
+		override protected function addStatus(pageId: String, buffer:ByteBuffer): void {
+			var gv:GearColorValue;
+			if (pageId == null)
+				gv = this._default;
+			else {
+				gv = new GearColorValue();
+				this._storage[pageId] = gv;
+			}
 			
-			var pos:int = value.indexOf(",");
-			var col1:String;
-			var col2:String;
-			if(pos==-1)
-			{
-				col1 = value;
-				col2 = null;
-			}
-			else
-			{
-				col1 = value.substr(0,pos);
-				col2 = value.substr(pos+1);
-			}
-			if(pageId==null)
-			{
-				_default.color = col1;
-				_default.strokeColor = col2;
-			}
-			else
-				_storage[pageId] = new GearColorValue(col1, col2);
+			gv.color = buffer.readColorS();
+			gv.strokeColor = buffer.readColorS();
 		}
 		
 		override public function apply(): void {
@@ -76,7 +65,7 @@ class GearColorValue
 	public var color:String;
 	public var strokeColor:String;
 	
-	public function GearColorValue(color:String, strokeColor:String)
+	public function GearColorValue(color:String=null, strokeColor:String=null)
 	{
 		this.color = color;
 		this.strokeColor = strokeColor;

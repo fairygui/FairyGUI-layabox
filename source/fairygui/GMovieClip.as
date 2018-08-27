@@ -1,8 +1,11 @@
 package fairygui {
 	import fairygui.display.MovieClip;
+	import fairygui.utils.ByteBuffer;
 	
 	import laya.maths.Rectangle;
 	import laya.utils.Handler;
+	import fairygui.gears.IAnimationGear;
+	import fairygui.gears.IColorGear;
 	
 	public class GMovieClip extends GObject implements IAnimationGear, IColorGear {
 		private var _movieClip: MovieClip;
@@ -96,19 +99,16 @@ package fairygui {
 			_movieClip.boundsRect = new Rectangle(0, 0, this.sourceWidth, this.sourceHeight);
 		}
 		
-		override public function setup_beforeAdd(xml: Object): void {
-			super.setup_beforeAdd(xml);
+		override public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_beforeAdd(buffer, beginPos);
 			
-			var str: String;
-			str = xml.getAttribute("frame");
-			if (str)
-				_movieClip.frame = parseInt(str);
-			str = xml.getAttribute("playing");
-			_movieClip.playing = str != "false";
+			buffer.seek(beginPos, 5);
 			
-			str = xml.getAttribute("color");
-			if(str)
-				this.color = str;
+			if (buffer.readBool())
+				this.color = buffer.readColorS();
+			buffer.readByte(); //flip
+			_movieClip.frame = buffer.getInt32();
+			_movieClip.playing = buffer.readBool();
 		}
 	}
 }

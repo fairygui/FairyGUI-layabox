@@ -5,9 +5,6 @@ package fairygui {
 		public static var packageItemExtensions: Object = {};
 		private static var loaderType: Object;
 		
-		public function UIObjectFactory() {
-		}
-		
 		public static function setPackageItemExtension(url:String, type:Class):void
 		{
 			if (url == null)
@@ -32,88 +29,71 @@ package fairygui {
 		}
 		
 		public static function newObject(pi:PackageItem): GObject {
-			switch (pi.type) {
-				case PackageItemType.Image:
-					return new GImage();
-					
-				case PackageItemType.MovieClip:
-					return new GMovieClip();
-					
-				case PackageItemType.Component:
-				{
-					var cls:Object = pi.extensionType;
-					if (cls)
-						return new cls();                    
-					
-					var xml: Object = pi.owner.getItemAsset(pi);
-					var extention: String = xml.getAttribute("extention");
-					if(extention != null) {
-						switch(extention) {
-							case "Button":
-								return new GButton();
-								
-							case "Label":
-								return new GLabel();
-								
-							case "ProgressBar":
-								return new GProgressBar();
-								
-							case "Slider":
-								return new GSlider();
-								
-							case "ScrollBar":
-								return new GScrollBar();
-								
-							case "ComboBox":
-								return new GComboBox();
-								
-							default:
-								return new GComponent();
-						}
-					}
-					else
-						return new GComponent();
-				}
-			}
-			return null;
+			if(pi.extensionType!=null)
+				return new pi.extensionType(); 
+			else
+				return newObject2(pi.objectType);
 		}
 		
-		public static function newObject2(type: String): GObject {
+		/**
+		 * @see ObjectType
+		 */
+		public static function newObject2(type: int): GObject {
 			switch (type) {
-				case "image":
+				case ObjectType.Image:
 					return new GImage();
 					
-				case "movieclip":
+				case ObjectType.MovieClip:
 					return new GMovieClip();
 					
-				case "component":
+				case ObjectType.Component:
 					return new GComponent();
 					
-				case "text":
+				case ObjectType.Text:
 					return new GBasicTextField();
 					
-				case "richtext":
+				case ObjectType.RichText:
 					return new GRichTextField();
 					
-				case "inputtext":
+				case ObjectType.InputText:
 					return new GTextInput();
 					
-				case "group":
+				case ObjectType.Group:
 					return new GGroup();
 					
-				case "list":
+				case ObjectType.List:
 					return new GList();
 					
-				case "graph":
+				case ObjectType.Graph:
 					return new GGraph();
 					
-				case "loader":
+				case ObjectType.Loader:
 					if (UIObjectFactory.loaderType != null)
 						return new UIObjectFactory.loaderType();
 					else
 						return new GLoader();
+					
+				case ObjectType.Button:
+					return new GButton();
+					
+				case ObjectType.Label:
+					return new GLabel();
+					
+				case ObjectType.ProgressBar:
+					return new GProgressBar();
+					
+				case ObjectType.Slider:
+					return new GSlider();
+					
+				case ObjectType.ScrollBar:
+					return new GScrollBar();
+					
+				case ObjectType.ComboBox:
+					return new GComboBox();
+					
+				default:
+					return null;
 			}
-			return null;
 		}
 	}
 }

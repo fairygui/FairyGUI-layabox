@@ -1,4 +1,6 @@
-package fairygui {
+package fairygui.gears {
+	import fairygui.GObject;
+	import fairygui.utils.ByteBuffer;
 	
 	public class GearAnimation extends GearBase {
 		private var _storage: Object;
@@ -14,10 +16,7 @@ package fairygui {
 			this._storage = {};
 		}
 		
-		override protected function addStatus(pageId: String, value: String): void {
-			if(value=="-" || value.length==0)
-				return;
-			
+		override protected function addStatus(pageId: String, buffer:ByteBuffer): void {
 			var gv: GearAnimationValue;
 			if (pageId == null)
 				gv = this._default;
@@ -25,9 +24,8 @@ package fairygui {
 				gv = new GearAnimationValue();
 				this._storage[pageId] = gv;
 			}
-			var arr: Array = value.split(",");
-			gv.frame = parseInt(arr[0]);
-			gv.playing = arr[1] == "p";
+			gv.playing = buffer.readBool();
+			gv.frame = buffer.getInt32();
 		}
 		
 		override public function apply(): void {

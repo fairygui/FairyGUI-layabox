@@ -1,5 +1,7 @@
 package fairygui {
 	import fairygui.display.Image;
+	import fairygui.utils.ByteBuffer;
+	import fairygui.gears.IColorGear;
 	
 	public class GImage extends GObject implements IColorGear {
 		public var image: Image;
@@ -28,10 +30,16 @@ package fairygui {
 			//not supported yet
 		}
 		
+		/**
+		 * @see FlipType
+		 */
 		public function get flip():int {
 			return this._flip;
 		}
 		
+		/**
+		 * @see FlipType
+		 */
 		public function set flip(value:int):void {
 			if(this._flip!=value) {
 				this._flip = value;
@@ -84,17 +92,15 @@ package fairygui {
 			}
 		}
 		
-		override public function setup_beforeAdd(xml: Object): void {
-			super.setup_beforeAdd(xml);
+		override public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_beforeAdd(buffer, beginPos);
 			
-			var str: String;
-			str = xml.getAttribute("color");
-			if(str)
-				this.color = str;
+			buffer.seek(beginPos, 5);
 			
-			str = xml.getAttribute("flip");
-			if(str)
-				this.flip = FlipType.parse(str);	
+			if (buffer.readBool())
+				this.color = buffer.readColorS();
+			this.flip = buffer.readByte();
+
 		}
 	}
 }

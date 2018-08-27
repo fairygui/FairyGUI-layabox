@@ -1,28 +1,30 @@
-package fairygui
+package fairygui.gears
 {
+	import fairygui.GObject;
+	import fairygui.utils.ByteBuffer;
 	
-	public class GearIcon extends GearBase
+	public class GearText extends GearBase
 	{
 		private var _storage:Object;
 		private var _default:String;
 		
-		public function GearIcon(owner:GObject)
+		public function GearText(owner:GObject)
 		{
 			super(owner);			
 		}
 		
 		override protected function init():void
 		{
-			_default = _owner.icon;
+			_default = _owner.text;
 			_storage = {};
 		}
 		
-		override protected function addStatus(pageId:String, value:String):void
+		override protected function addStatus(pageId: String, buffer:ByteBuffer):void
 		{
 			if(pageId==null)
-				_default = value;
+				_default = buffer.readS();
 			else
-				_storage[pageId] = value; 
+				_storage[pageId] = buffer.readS(); 
 		}
 		
 		override public function apply():void
@@ -31,16 +33,16 @@ package fairygui
 			
 			var data:* = _storage[_controller.selectedPageId];
 			if(data!=undefined)
-				_owner.icon = String(data);
+				_owner.text = String(data);
 			else
-				_owner.icon = _default;
+				_owner.text = _default;
 			
 			_owner._gearLocked = false;
 		}
 		
 		override public function updateState():void
 		{
-			_storage[_controller.selectedPageId] = _owner.icon;
+			_storage[_controller.selectedPageId] = _owner.text;
 		}
 	}
 }

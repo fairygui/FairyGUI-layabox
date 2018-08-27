@@ -1,20 +1,21 @@
 package fairygui.action
 {
 	import fairygui.Controller;
+	import fairygui.utils.ByteBuffer;
 
 	public class ControllerAction
 	{
 		public var fromPage:Array;
 		public var toPage:Array;
 		
-		public static function createAction(type:String):ControllerAction
+		public static function createAction(type:int):ControllerAction
 		{
 			switch(type)
 			{
-				case "play_transition":
+				case 0:
 					return new PlayTransitionAction();
 					
-				case "change_page":
+				case 1:
 					return new ChangePageAction();
 			}
 			return null;
@@ -43,17 +44,20 @@ package fairygui.action
 			
 		}
 		
-		public function setup(xml:Object):void
+		public function setup(buffer:ByteBuffer):void
 		{
-			var str:String;
+			var cnt:int;
+			var i:int;
 			
-			str = xml.getAttribute("fromPage");
-			if(str)
-				fromPage = str.split(",");
+			cnt = buffer.getInt16();
+			fromPage = [];
+			for (i = 0; i < cnt; i++)
+				fromPage[i] = buffer.readS();
 			
-			str = xml.getAttribute("toPage");
-			if(str)
-				toPage = str.split(",");
+			cnt = buffer.getInt16();
+			toPage = [];
+			for (i = 0; i < cnt; i++)
+				toPage[i] = buffer.readS();
 		}
 	}
 }

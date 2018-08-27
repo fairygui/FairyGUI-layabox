@@ -2,6 +2,7 @@ package fairygui.action
 {
 	import fairygui.Controller;
 	import fairygui.GComponent;
+	import fairygui.utils.ByteBuffer;
 
 	public class ChangePageAction extends ControllerAction
 	{
@@ -31,13 +32,13 @@ package fairygui.action
 			}
 		}
 
-		override public function setup(xml:Object):void
+		override public function setup(buffer:ByteBuffer):void
 		{
-			super.setup(xml);
+			super.setup(buffer);
 			
-			objectId = xml.getAttribute("objectId");
-			controllerName = xml.getAttribute("controller");
-			targetPage = xml.getAttribute("targetPage");
+			objectId = buffer.readS();
+			controllerName = buffer.readS();
+			targetPage = buffer.readS();
 		}
 	}
 }

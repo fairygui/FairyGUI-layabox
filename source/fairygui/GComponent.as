@@ -1,7 +1,7 @@
 package fairygui {
 	
+	import fairygui.utils.ByteBuffer;
 	import fairygui.utils.PixelHitTest;
-	import fairygui.utils.PixelHitTestData;
 	
 	import laya.display.Sprite;
 	import laya.events.Event;
@@ -366,7 +366,7 @@ package fairygui {
 		
 		public function addController(controller: Controller): void {
 			this._controllers.push(controller);
-			controller._parent = this;
+			controller.parent = this;
 			this.applyController(controller);
 		}
 		
@@ -390,7 +390,7 @@ package fairygui {
 			if(index == -1)
 				throw new Error("controller not exists");
 			
-			c._parent = null;
+			c.parent = null;
 			this._controllers.splice(index,1);
 			
 			var length: Number = this._children.length;
@@ -635,11 +635,17 @@ package fairygui {
 			this.handleSizeChanged();
 		}
 		
+		/**
+		 * @see ChildrenRenderOrder
+		 */
 		public function get childrenRenderOrder():int
 		{
 			return _childrenRenderOrder;
 		}
 		
+		/**
+		 * @see ChildrenRenderOrder
+		 */
 		public function set childrenRenderOrder(value:int):void
 		{
 			if (_childrenRenderOrder != value)
@@ -675,6 +681,13 @@ package fairygui {
 			_displayObject.mask = value;
 		}
 		
+		public function get baseUserData():String
+		{
+			var buffer:ByteBuffer = packageItem.rawData;
+			buffer.seek(0, 4);
+			return buffer.readS();
+		}
+		
 		protected function updateHitArea():void
 		{
 			if(this._displayObject.hitArea is PixelHitTest)
@@ -707,21 +720,14 @@ package fairygui {
 			this._displayObject.scrollRect = rect;
 		}
 		
-		protected function setupScroll(scrollBarMargin: Margin,
-									   scroll: int,
-									   scrollBarDisplay: int,
-									   flags: Number,
-									   vtScrollBarRes: String,
-									   hzScrollBarRes: String,
-									   headerRes:String,
-									   footerRes:String): void {
+		protected function setupScroll(buffer:ByteBuffer): void {
 			if (this._displayObject == this._container)
 			{
 				this._container = new Sprite();
 				this._displayObject.addChild(this._container);
 			}
-			this._scrollPane = new ScrollPane(this,scroll,scrollBarMargin,scrollBarDisplay,flags,
-				vtScrollBarRes,hzScrollBarRes, headerRes, footerRes);
+			this._scrollPane = new ScrollPane(this);
+			this._scrollPane.setup(buffer);
 		}
 		
 		protected function setupOverflow(overflow: int): void {
@@ -974,232 +980,251 @@ package fairygui {
 		
 		internal function constructFromResource2(objectPool:Vector.<GObject>, poolIndex:int):void
 		{
-			var xml:Object = this.packageItem.owner.getItemAsset(this.packageItem);
-			
-			this._underConstruct = true;
-			
-			var str: String;
-			var arr: Array;
-			
-			str = xml.getAttribute("size");
-			arr = str.split(",");
-			this.sourceWidth = parseInt(arr[0]);
-			this.sourceHeight = parseInt(arr[1]);
-			this.initWidth = this.sourceWidth;
-			this.initHeight = this.sourceHeight;
-			
-			this.setSize(this.sourceWidth,this.sourceHeight);
-			
-			str = xml.getAttribute("restrictSize");
-			if(str)
+			if (!packageItem.decoded)
 			{
-				arr = str.split(",");
-				minWidth = parseInt(arr[0]);
-				maxWidth = parseInt(arr[1]);
-				minHeight = parseInt(arr[2]);
-				maxHeight= parseInt(arr[3]);
+				packageItem.decoded = true;
+				TranslationHelper.translateComponent(packageItem);
 			}
 			
-			str = xml.getAttribute("pivot");
-			if(str) {
-				arr = str.split(",");
-				str = xml.getAttribute("anchor");
-				internalSetPivot(parseFloat(arr[0]), parseFloat(arr[1]), str=="true");				
+			var i:int;
+			var dataLen:int;
+			var curPos:int;
+			var nextPos:int;
+			var f1:Number;
+			var f2:Number;
+			var i1:int;
+			var i2:int;
+			
+			var buffer:ByteBuffer = packageItem.rawData;
+			buffer.seek(0, 0);
+			
+			_underConstruct = true;
+			
+			sourceWidth = buffer.getInt32();
+			sourceHeight = buffer.getInt32();
+			initWidth = sourceWidth;
+			initHeight = sourceHeight;
+			
+			setSize(sourceWidth, sourceHeight);
+			
+			if (buffer.readBool())
+			{
+				minWidth = buffer.getInt32();
+				maxWidth = buffer.getInt32();
+				minHeight = buffer.getInt32();
+				maxHeight = buffer.getInt32();
 			}
 			
-			str = xml.getAttribute("opaque");
-			this.opaque = str != "false";
-			
-			str = xml.getAttribute("hitTest");
-			if(str)
+			if (buffer.readBool())
 			{
-				arr = str.split(",");
-				var hitTestData:PixelHitTestData = packageItem.owner.getPixelHitTestData(arr[0]);
-				if (hitTestData != null)
+				f1 = buffer.getFloat32();
+				f2 = buffer.getFloat32();
+				internalSetPivot(f1, f2, buffer.readBool());
+			}
+			
+			if (buffer.readBool())
+			{
+				_margin.top = buffer.getInt32();
+				_margin.bottom = buffer.getInt32();
+				_margin.left = buffer.getInt32();
+				_margin.right = buffer.getInt32();
+			}
+			
+			var overflow:int = buffer.readByte();
+			if (overflow == OverflowType.Scroll)
+			{
+				var savedPos:int = buffer.pos;
+				buffer.seek(0, 7);
+				setupScroll(buffer);
+				buffer.pos = savedPos;
+			}
+			else
+				setupOverflow(overflow);
+			
+			if (buffer.readBool())
+				buffer.skip(8);
+			
+			_buildingDisplayList = true;
+			
+			buffer.seek(0, 1);
+			
+			var controllerCount:int = buffer.getInt16();
+			for (i = 0; i < controllerCount; i++)
+			{
+				nextPos = buffer.getInt16();
+				nextPos += buffer.pos;
+				
+				var controller:Controller = new Controller();
+				_controllers.push(controller);
+				controller.parent = this;
+				controller.setup(buffer);
+				
+				buffer.pos = nextPos;
+			}
+			
+			buffer.seek(0, 2);
+			
+			var child:GObject;
+			var childCount:int = buffer.getInt16();
+			for (i = 0; i < childCount; i++)
+			{
+				dataLen = buffer.getInt16();
+				curPos = buffer.pos;
+				
+				if (objectPool != null)
+					child = objectPool[poolIndex + i];
+				else
 				{
-					this._displayObject.hitArea = new PixelHitTest(hitTestData, parseInt(arr[1]), parseInt(arr[2]));
+					buffer.seek(curPos, 0);
+					
+					var type:int = buffer.readByte();
+					var src:String = buffer.readS();
+					var pkgId:String = buffer.readS();
+					
+					var pi:PackageItem = null;
+					if (src != null)
+					{
+						var pkg:UIPackage;
+						if (pkgId != null)
+							pkg = UIPackage.getById(pkgId);
+						else
+							pkg = packageItem.owner;
+						
+						pi = pkg != null ? pkg.getItemById(src) : null;
+					}
+					
+					if (pi != null)
+					{
+						child = UIObjectFactory.newObject(pi);
+						child.packageItem = pi;
+						child.constructFromResource();
+					}
+					else
+						child = UIObjectFactory.newObject2(type);
+				}
+				
+				child._underConstruct = true;
+				child.setup_beforeAdd(buffer, curPos);
+				child.parent = this;
+				_children.push(child);
+				
+				buffer.pos = curPos + dataLen;
+			}
+			
+			buffer.seek(0, 3);
+			this.relations.setup(buffer, true);
+			
+			buffer.seek(0, 2);
+			buffer.skip(2);
+			
+			for (i = 0; i < childCount; i++)
+			{
+				nextPos = buffer.getInt16();
+				nextPos += buffer.pos;
+				
+				buffer.seek(buffer.pos, 3);
+				_children[i].relations.setup(buffer, false);
+				
+				buffer.pos = nextPos;
+			}
+			
+			buffer.seek(0, 2);
+			buffer.skip(2);
+			
+			for (i = 0; i < childCount; i++)
+			{
+				nextPos = buffer.getInt16();
+				nextPos += buffer.pos;
+				
+				child = _children[i];
+				child.setup_afterAdd(buffer, buffer.pos);
+				child._underConstruct = false;
+
+				buffer.pos = nextPos;
+			}
+			
+			buffer.seek(0, 4);
+			
+			buffer.skip(2); //customData
+			this.opaque = buffer.readBool();
+			var maskId:int = buffer.getInt16();
+			if (maskId != -1)
+			{
+				this.mask = getChildAt(maskId).displayObject;
+				buffer.readBool(); //reversedMask
+			}
+			var hitTestId:String = buffer.readS();
+			if (hitTestId != null)
+			{
+				pi = packageItem.owner.getItemById(hitTestId);
+				if (pi != null && pi.pixelHitTestData != null)
+				{
+					i1 = buffer.getInt32();
+					i2 = buffer.getInt32();
+					this._displayObject.hitArea = new PixelHitTest(pi.pixelHitTestData, i1, i2);
 					this._displayObject.mouseThrough = false;
 					this._displayObject.hitTestPrior = true;
 				}
 			}
 			
-			var overflow: int;
-			str = xml.getAttribute("overflow");
-			if (str)
-				overflow = OverflowType.parse(str);
-			else
-				overflow = OverflowType.Visible;
+			buffer.seek(0, 5);
 			
-			str = xml.getAttribute("margin");
-			if(str)
-				this._margin.parse(str);
-			
-			if(overflow==OverflowType.Scroll) {
-				var scroll: int;
-				str = xml.getAttribute("scroll");
-				if (str)
-					scroll = ScrollType.parse(str);
-				else
-					scroll = ScrollType.Vertical;
-				
-				var scrollBarDisplay: int;
-				str = xml.getAttribute("scrollBar");
-				if (str)
-					scrollBarDisplay = ScrollBarDisplayType.parse(str);
-				else
-					scrollBarDisplay = ScrollBarDisplayType.Default;
-				
-				var scrollBarFlags: Number;
-				str = xml.getAttribute("scrollBarFlags");
-				if(str)
-					scrollBarFlags = parseInt(str);
-				else
-					scrollBarFlags = 0;
-				
-				var scrollBarMargin: Margin = new Margin();
-				str = xml.getAttribute("scrollBarMargin");
-				if(str)
-					scrollBarMargin.parse(str);
-				
-				var vtScrollBarRes: String;
-				var hzScrollBarRes: String;
-				str = xml.getAttribute("scrollBarRes");
-				if(str) {
-					arr = str.split(",");
-					vtScrollBarRes = arr[0];
-					hzScrollBarRes = arr[1];
-				}
-				
-				var headerRes:String;
-				var footerRes:String;
-				str = xml.@ptrRes;
-				if(str)
-				{
-					arr = str.split(",");
-					headerRes = arr[0];
-					footerRes = arr[1];
-				}
-				
-				this.setupScroll(scrollBarMargin,scroll,scrollBarDisplay,scrollBarFlags,
-					vtScrollBarRes,hzScrollBarRes, headerRes, footerRes);
-			}
-			else
-				this.setupOverflow(overflow);
-			
-			this._buildingDisplayList = true;
-			
-			var col: Array = xml.childNodes;
-			var length1: Number = 0;
-			if(col)
-				length1 = col.length;
-			
-			var i:int;
-			var controller: Controller;
-			for(i = 0;i < length1;i++) {
-				var cxml: Object = col[i];
-				if(cxml.nodeName == "controller") {
-					controller = new Controller();
-					this._controllers.push(controller);
-					controller._parent = this;
-					controller.setup(cxml);
-				}
-			}
-			
-			var child:GObject;			
-			var displayList:Vector.<DisplayListItem> = packageItem.displayList;
-			var childCount:int = displayList.length;
-			for (i = 0; i < childCount; i++)
+			var transitionCount:int = buffer.getInt16();
+			for (i = 0; i < transitionCount; i++)
 			{
-				var di:DisplayListItem = displayList[i];
+				nextPos = buffer.getInt16();
+				nextPos += buffer.pos;
 				
-				if (objectPool != null)
-				{
-					child = objectPool[poolIndex + i];
-				}
-				else if (di.packageItem)
-				{
-					child = UIObjectFactory.newObject(di.packageItem);
-					child.packageItem = di.packageItem;
-					child.constructFromResource();
-				}
-				else
-					child = UIObjectFactory.newObject2(di.type);
+				var trans:Transition = new Transition(this);
+				trans.setup(buffer);
+				_transitions.push(trans);
 				
-				child._underConstruct = true;
-				child.setup_beforeAdd(di.desc);
-				child.parent = this;
-				_children.push(child);
+				buffer.pos = nextPos;
 			}
 			
-			this.relations.setup(xml);
-			
-			for (i = 0; i < childCount; i++)
-				_children[i].relations.setup(displayList[i].desc);
-			
-			for (i = 0; i < childCount; i++)
-			{
-				child = _children[i];
-				child.setup_afterAdd(displayList[i].desc);
-				child._underConstruct = false;
-			}
-			
-			str = xml.getAttribute("mask");
-			if(str)
-				this.mask = getChildById(str).displayObject;
-			
-			var trans: Transition;
-			for(i = 0;i < length1;i++) {
-				cxml = col[i];
-				if(cxml.nodeName == "transition") {
-					trans = new Transition(this);
-					this._transitions.push(trans);
-					trans.setup(cxml);
-				}
-			}
-			
-			if(this._transitions.length>0)
+			if (_transitions.length > 0)
 			{
 				this.displayObject.on(Event.DISPLAY, this, this.___added);
 				this.displayObject.on(Event.UNDISPLAY, this, this.___removed);
 			}
 			
-			this.applyAllControllers();
+			applyAllControllers();
 			
-			this._buildingDisplayList = false;
-			this._underConstruct = false;
+			_buildingDisplayList = false;
+			_underConstruct = false;
+			
 			buildNativeDisplayList();
 			setBoundsChangedFlag();
 			
-			constructFromXML(xml);
+			if (packageItem.objectType != ObjectType.Component)
+				constructExtension(buffer);
+			
+			constructFromXML(null);
+		}
+		
+		protected function constructExtension(buffer:ByteBuffer):void
+		{
 		}
 		
 		protected function constructFromXML(xml:Object):void
 		{
 		}
 		
-		override public function setup_afterAdd(xml:Object):void
+		override public function setup_afterAdd(buffer:ByteBuffer, beginPos:int):void
 		{
-			super.setup_afterAdd(xml);
+			super.setup_afterAdd(buffer, beginPos);
 			
-			var str:String;
-			if(scrollPane)
+			buffer.seek(beginPos, 4);
+			
+			var pageController:String = buffer.readS();
+			if (pageController != null && _scrollPane != null)
+				_scrollPane.pageController = _parent.getController(pageController);
+			
+			var cnt:int = buffer.getInt16();
+			for (var i:int = 0; i < cnt; i++)
 			{
-				str = xml.getAttribute("pageController");
-				if(str)
-					scrollPane.pageController = parent.getController(str);
-			}
-			
-			
-			str = xml.getAttribute("controller");
-			if(str)
-			{
-				var arr:Array = str.split(",");
-				for(var i:int=0;i<arr.length;i+=2)
-				{
-					var cc:Controller = getController(arr[i]);
-					if(cc)
-						cc.selectedPageId = arr[i+1];
-				}
+				var cc:Controller = getControllerAt(buffer.getInt16());
+				cc.selectedPageId = buffer.readS();
 			}
 		}
 		

@@ -1,5 +1,5 @@
 package fairygui {
-	import fairygui.utils.ToolSet;
+	import fairygui.utils.ByteBuffer;
 	
 	import laya.events.Event;
 	import laya.maths.Point;
@@ -37,10 +37,16 @@ package fairygui {
 			this._clickPos = new laya.maths.Point();
 		}
 		
+		/**
+		 * @see ProgressTitleType
+		 */
 		public function get titleType(): int {
 			return this._titleType;
 		}
 		
+		/**
+		 * @see ProgressTitleType
+		 */
 		public function set titleType(value: int):void {
 			this._titleType = value;
 		}
@@ -117,17 +123,11 @@ package fairygui {
 			}
 		}
 		
-		override protected function constructFromXML(xml: Object): void {
-			super.constructFromXML(xml);
+		override protected function constructExtension(buffer:ByteBuffer): void {
+			buffer.seek(0, 6);
 			
-			xml = ToolSet.findChildNode(xml, "Slider");
-			
-			var str: String;
-			str = xml.getAttribute("titleType");
-			if(str)
-				this._titleType = ProgressTitleType.parse(str);
-			
-			_reverse = xml.getAttribute("reverse")=="true";
+			_titleType = buffer.readByte();
+			_reverse = buffer.readBool();
 			
 			this._titleObject = GTextField(this.getChild("title"));
 			this._barObjectH = this.getChild("bar");
@@ -162,16 +162,25 @@ package fairygui {
 				this.update();
 		}
 		
-		override public function setup_afterAdd(xml:Object): void {
-			super.setup_afterAdd(xml);
+		override public function setup_afterAdd(buffer:ByteBuffer, beginPos:int): void {
+			super.setup_afterAdd(buffer, beginPos);
 			
-			xml = ToolSet.findChildNode(xml, "Slider");
-			if (xml) {
-				this._value = parseInt(xml.getAttribute("value"));
-				this._max = parseInt(xml.getAttribute("max"));
+			if (!buffer.seek(beginPos, 6))
+			{
+				update();
+				return;
 			}
 			
-			this.update();
+			if (buffer.readByte() != packageItem.objectType)
+			{
+				update();
+				return;
+			}
+			
+			_value = buffer.getInt32();
+			_max = buffer.getInt32();
+			
+			update();
 		}
 		
 		private function __gripMouseDown(evt: Event): void {

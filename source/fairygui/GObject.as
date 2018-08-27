@@ -1,4 +1,14 @@
 package fairygui {
+	import fairygui.gears.GearAnimation;
+	import fairygui.gears.GearBase;
+	import fairygui.gears.GearColor;
+	import fairygui.gears.GearDisplay;
+	import fairygui.gears.GearIcon;
+	import fairygui.gears.GearLook;
+	import fairygui.gears.GearSize;
+	import fairygui.gears.GearText;
+	import fairygui.gears.GearXY;
+	import fairygui.utils.ByteBuffer;
 	import fairygui.utils.ColorMatrix;
 	
 	import laya.display.Sprite;
@@ -660,18 +670,18 @@ package fairygui {
 				gear.updateState();
 		}
 		
-		internal function checkGearController(index:int, c:Controller):Boolean
+		public function checkGearController(index:int, c:Controller):Boolean
 		{
 			return _gears[index] != null && _gears[index].controller==c;
 		}
 		
-		internal function updateGearFromRelations(index:int, dx:Number, dy:Number):void
+		public function updateGearFromRelations(index:int, dx:Number, dy:Number):void
 		{
 			if (_gears[index] != null)
 				_gears[index].updateFromRelations(dx, dy);
 		}
 		
-		internal function addDisplayLock():uint
+		public function addDisplayLock():uint
 		{
 			var gearDisplay:GearDisplay = GearDisplay(_gears[0]);
 			if(gearDisplay && gearDisplay.controller)
@@ -685,7 +695,7 @@ package fairygui {
 				return 0;
 		}
 		
-		internal function releaseDisplayLock(token:uint):void
+		public function releaseDisplayLock(token:uint):void
 		{
 			var gearDisplay:GearDisplay = GearDisplay(_gears[0]);
 			if(gearDisplay && gearDisplay.controller)
@@ -1074,124 +1084,113 @@ package fairygui {
 			
 		}
 		
-		public function setup_beforeAdd(xml: Object): void {
-			var str: String;
-			var arr: Array;
+		public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int): void {
+			buffer.seek(beginPos, 0);
+			buffer.skip(5);
 			
-			this._id = xml.getAttribute("id");
-			this._name = xml.getAttribute("name");
+			var f1:Number;
+			var f2:Number;
 			
-			str = xml.getAttribute("xy");
-			arr = str.split(",");
-			this.setXY(parseInt(arr[0]), parseInt(arr[1]));
+			_id = buffer.readS();
+			_name = buffer.readS();
+			f1 = buffer.getInt32();
+			f2 = buffer.getInt32();
+			setXY(f1, f2);
 			
-			str = xml.getAttribute("size");
-			if (str) {
-				arr = str.split(",");
-				this.initWidth = parseInt(arr[0]);
-				this.initHeight = parseInt(arr[1]);
-				this.setSize(this.initWidth, this.initHeight, true);
-			}
-			
-			str = xml.getAttribute("restrictSize");
-			if(str)
+			if (buffer.readBool())
 			{
-				arr = str.split(",");
-				minWidth = parseInt(arr[0]);
-				maxWidth = parseInt(arr[1]);
-				minHeight = parseInt(arr[2]);
-				maxHeight= parseInt(arr[3]);
+				initWidth = buffer.getInt32();
+				initHeight = buffer.getInt32();
+				setSize(initWidth, initHeight, true);
 			}
 			
-			str = xml.getAttribute("scale");
-			if(str) {
-				arr = str.split(",");
-				this.setScale(parseFloat(arr[0]),parseFloat(arr[1]));
+			if (buffer.readBool())
+			{
+				minWidth = buffer.getInt32();
+				maxWidth = buffer.getInt32();
+				minHeight = buffer.getInt32();
+				maxHeight = buffer.getInt32();
 			}
 			
-			str = xml.getAttribute("skew");
-			if(str) {
-				arr = str.split(",");
-				this.setSkew(parseFloat(arr[0]),parseFloat(arr[1]));
+			if (buffer.readBool())
+			{
+				f1 = buffer.getFloat32();
+				f2 = buffer.getFloat32();
+				setScale(f1, f2);
 			}
 			
-			str = xml.getAttribute("rotation");
-			if (str)
-				this.rotation = parseFloat(str);
-			
-			str = xml.getAttribute("pivot");
-			if (str) {
-				arr = str.split(",");
-				str = xml.getAttribute("anchor");
-				this.setPivot(parseFloat(arr[0]), parseFloat(arr[1]), str=="true");
+			if (buffer.readBool())
+			{
+				f1 = buffer.getFloat32();
+				f2 = buffer.getFloat32();
+				this.setSkew(f1, f2);
 			}
 			
-			str = xml.getAttribute("alpha");
-			if (str)
-				this.alpha = parseFloat(str);
+			if (buffer.readBool())
+			{
+				f1 = buffer.getFloat32();
+				f2 = buffer.getFloat32();
+				setPivot(f1, f2, buffer.readBool());
+			}
 			
-			if(xml.getAttribute("touchable") == "false")
-				this.touchable = false; 
-			if(xml.getAttribute("visible") == "false")
+			f1 = buffer.getFloat32();
+			if (f1 != 1)
+				this.alpha = f1;
+			
+			f1 = buffer.getFloat32();
+			if (f1 != 0)
+				this.rotation = f1;
+			
+			if (!buffer.readBool())
 				this.visible = false;
-			if(xml.getAttribute("grayed") == "true")
+			if (!buffer.readBool())
+				this.touchable = false;
+			if (buffer.readBool())
 				this.grayed = true;
-			this.tooltips = xml.getAttribute("tooltips");
+			var bm:int = buffer.readByte();
+			if(bm==2)
+				this.blendMode = "lighter";
 			
-			str = xml.getAttribute("blend");
-			if (str)
-				this.blendMode = str;
-			
-			str = xml.getAttribute("filter");
-			if (str)
+			var filter:int = buffer.readByte();
+			if (filter == 1)
 			{
-				switch (str)
-				{
-					case "color":
-						str = xml.getAttribute("filterData");
-						arr = str.split(",");
-						var cm:ColorMatrix = new ColorMatrix();
-						cm.adjustBrightness(parseFloat(arr[0]));
-						cm.adjustContrast(parseFloat(arr[1]));
-						cm.adjustSaturation(parseFloat(arr[2]));
-						cm.adjustHue(parseFloat(arr[3]));
-						var cf:ColorFilter = new ColorFilter(cm);						
-						this.filters = [cf];
-						break;
-				}
+				var cm:ColorMatrix = new ColorMatrix();
+				cm.adjustBrightness(buffer.getFloat32());
+				cm.adjustContrast(buffer.getFloat32());
+				cm.adjustSaturation(buffer.getFloat32());
+				cm.adjustHue(buffer.getFloat32());
+				var cf:ColorFilter = new ColorFilter(cm);						
+				this.filters = [cf];
 			}
 			
-			str = xml.getAttribute("customData");
-			if (str)
+			var str:String = buffer.readS();
+			if (str != null)
 				this.data = str;
 		}
 		
-		private static var GearXMLKeys:Object = {
-			"gearDisplay":0,
-			"gearXY":1,
-			"gearSize":2,
-			"gearLook":3,
-			"gearColor":4,
-			"gearAni":5,
-			"gearText":6,
-			"gearIcon":7
-		};
-		
-		public function setup_afterAdd(xml: Object): void {
-			var str: String = xml.getAttribute("group");
-			if (str)
-				this._group = this._parent.getChildById(str) as GGroup;
+		public function setup_afterAdd(buffer:ByteBuffer, beginPos:int): void {
+			buffer.seek(beginPos, 1);
 			
-			var col: Array = xml.childNodes;
-			var length1: Number = col.length;             
-			for (var i1: Number = 0; i1 < length1; i1++) {
-				var cxml:Object = col[i1];
-				if(cxml.nodeType!=1)
-					continue;
+			var str:String = buffer.readS();
+			if (str != null)
+				this.tooltips = str;
+			
+			var groupId:int = buffer.getInt16();
+			if (groupId >= 0)
+				group = parent.getChildAt(groupId) as GGroup;
+			
+			buffer.seek(beginPos, 2);
+			
+			var cnt:int = buffer.getInt16();
+			for (var i:int = 0; i < cnt; i++)
+			{
+				var nextPos:int = buffer.getInt16();
+				nextPos += buffer.pos;
 				
-				var index:* = GObject.GearXMLKeys[cxml.nodeName];
-				if(index!=undefined)
-					this.getGear(index).setup(cxml);
+				var gear:GearBase = getGear(buffer.readByte());
+				gear.setup(buffer);
+				
+				buffer.pos = nextPos;
 			}
 		}
 		

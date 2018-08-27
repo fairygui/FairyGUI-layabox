@@ -1,5 +1,6 @@
 package fairygui
 {
+	import fairygui.utils.ByteBuffer;
 	
 	import laya.utils.Browser;
 	import laya.utils.Handler;
@@ -65,58 +66,105 @@ package fairygui
 			_itemList.length = 0;
 			_objectPool.length = 0;
 			
-			collectComponentChildren(item);
-			_itemList.push(new DisplayListItem(item, null));
+			var di:DisplayListItem = new DisplayListItem(item, ObjectType.Component);
+			di.childCount = collectComponentChildren(item);
+			_itemList.push(di);
 			
 			_index = 0;
 			Laya.timer.frameLoop(1, this, this.run);
 		}
 		
-		private function collectComponentChildren(item:PackageItem):void
+		private function collectComponentChildren(item:PackageItem):int
 		{
-			item.owner.getItemAsset(item);
+			var buffer:ByteBuffer = item.rawData;
+			buffer.seek(0, 2);
 			
-			var cnt:int = item.displayList.length;
-			for (var i:int = 0; i < cnt; i++)
+			var di:DisplayListItem;
+			var pi:PackageItem;
+			var i:int;
+			var dataLen:int;
+			var curPos:int;
+			var pkg:UIPackage;
+			
+			var dcnt:int = buffer.getInt16();
+			for (i = 0; i < dcnt; i++)
 			{
-				var di:DisplayListItem = item.displayList[i];
-				if (di.packageItem != null && di.packageItem.type == PackageItemType.Component)
-					collectComponentChildren(di.packageItem);
-				else if (di.type == "list") //也要收集列表的item
+				dataLen = buffer.getInt16();
+				curPos = buffer.pos;
+				
+				buffer.seek(curPos, 0);
+				
+				var type:int = buffer.readByte();
+				var src:String = buffer.readS();
+				var pkgId:String = buffer.readS();
+				
+				buffer.pos = curPos;
+				
+				if (src != null)
 				{
-					var defaultItem:String = null;
-					di.listItemCount = 0;
+					if (pkgId != null)
+						pkg = UIPackage.getById(pkgId);
+					else
+						pkg = item.owner;
 					
-					var col: Array = di.desc.childNodes;
-					var length: int = col.length;
-					for (var j: int = 0; j < length; j++) {
-						var cxml: Object = col[j];
-						if(cxml.nodeName != "item")
-							continue;
+					pi = pkg != null ? pkg.getItemById(src) : null;
+					di = new DisplayListItem(pi, type);
+					
+					if (pi != null && pi.type == PackageItemType.Component)
+						di.childCount = collectComponentChildren(pi);
+				}
+				else
+				{
+					di = new DisplayListItem(null, type);
+					if (type == ObjectType.List) //list
+						di.listItemCount = collectListChildren(buffer);
+				}
+				
+				_itemList.push(di);
+				buffer.pos = curPos + dataLen;
+			}
+			
+			return dcnt;	
+		}
+		
+		private function collectListChildren(buffer:ByteBuffer):int
+		{
+			buffer.seek(buffer.pos, 8);
+			
+			var listItemCount:int = 0;
+			var i:int;
+			var nextPos:int;
+			var url:String;
+			var pi:PackageItem;
+			var di:DisplayListItem;			
+			var defaultItem:String = buffer.readS();
+			var itemCount:int = buffer.getInt16();
+			
+			for (i = 0; i < itemCount; i++)
+			{
+				nextPos = buffer.getInt16();
+				nextPos += buffer.pos;
+				
+				url = buffer.readS();
+				if (url == null)
+					url = defaultItem;
+				if (url)
+				{
+					pi = UIPackage.getItemByURL(url);
+					if (pi != null)
+					{
+						di = new DisplayListItem(pi, pi.objectType);
+						if (pi.type == PackageItemType.Component)
+							di.childCount = collectComponentChildren(pi);
 						
-						var url:String = cxml.getAttribute("url");
-						if (!url)
-						{
-							if (defaultItem == null)
-								defaultItem = di.desc.getAttribute("defaultItem");
-							url = defaultItem;
-							if (!url)
-								continue;
-						}
-						
-						var pi:PackageItem = UIPackage.getItemByURL(url);
-						if (pi)
-						{
-							if (pi.type == PackageItemType.Component)
-								collectComponentChildren(pi);
-							
-							_itemList.push(new DisplayListItem(pi, null));
-							di.listItemCount++;
-						}
+						_itemList.push(di);
+						listItemCount++;
 					}
 				}
-				_itemList.push(di);
+				buffer.pos = nextPos;
 			}
+			
+			return listItemCount;
 		}
 		
 		private function run():void
@@ -141,11 +189,11 @@ package fairygui
 					UIPackage._constructing++;
 					if (di.packageItem.type == PackageItemType.Component)
 					{
-						poolStart = _objectPool.length - di.packageItem.displayList.length - 1;
+						poolStart = _objectPool.length - di.childCount - 1;
 						
 						GComponent(obj).constructFromResource2(_objectPool, poolStart);
 						
-						_objectPool.splice(poolStart, di.packageItem.displayList.length);
+						_objectPool.splice(poolStart, di.childCount);
 					}
 					else
 					{
@@ -158,7 +206,7 @@ package fairygui
 					obj = UIObjectFactory.newObject2(di.type);
 					_objectPool.push(obj);
 					
-					if (di.type == "list" && di.listItemCount > 0)
+					if (di.type == ObjectType.List && di.listItemCount > 0)
 					{
 						poolStart = _objectPool.length - di.listItemCount - 1;
 						
@@ -182,5 +230,21 @@ package fairygui
 			if(callback!=null)
 				callback.runWith(result);
 		}
+	}
+}
+
+import fairygui.PackageItem;
+
+class DisplayListItem
+{
+	public var packageItem:PackageItem;
+	public var type:int;
+	public var childCount:int;
+	public var listItemCount:int;
+	
+	public function DisplayListItem(packageItem:PackageItem, type:int)
+	{
+		this.packageItem = packageItem;
+		this.type = type;
 	}
 }

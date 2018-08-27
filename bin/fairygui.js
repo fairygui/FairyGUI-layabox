@@ -4,13 +4,13 @@
 
 	var Browser=laya.utils.Browser,Byte=laya.utils.Byte,ColorFilter=laya.filters.ColorFilter,Event=laya.events.Event;
 	var EventDispatcher=laya.events.EventDispatcher,Graphics=laya.display.Graphics,HTMLDivElement=laya.html.dom.HTMLDivElement;
-	var Handler=laya.utils.Handler,HitArea=laya.utils.HitArea,Input=laya.display.Input,Log=laya.utils.Log,Node=laya.display.Node;
-	var Point=laya.maths.Point,Rectangle=laya.maths.Rectangle,Render=laya.renders.Render,Sound=laya.media.Sound;
+	var Handler=laya.utils.Handler,HitArea=laya.utils.HitArea,Input=laya.display.Input,Loader=laya.net.Loader;
+	var Log=laya.utils.Log,Node=laya.display.Node,Point=laya.maths.Point,Rectangle=laya.maths.Rectangle,Render=laya.renders.Render;
 	var SoundManager=laya.media.SoundManager,Sprite=laya.display.Sprite,Stage=laya.display.Stage,Text=laya.display.Text;
-	var Texture=laya.resource.Texture,Tween=laya.utils.Tween,Utils=laya.utils.Utils;
+	var Texture=laya.resource.Texture,Utils=laya.utils.Utils,WeakObject=laya.utils.WeakObject;
 Laya.interface('fairygui.IUISource');
-Laya.interface('fairygui.IColorGear');
-Laya.interface('fairygui.IAnimationGear');
+Laya.interface('fairygui.gears.IColorGear');
+Laya.interface('fairygui.gears.IAnimationGear');
 //class fairygui.action.ControllerAction
 var ControllerAction=(function(){
 	function ControllerAction(){
@@ -30,21 +30,24 @@ var ControllerAction=(function(){
 
 	__proto.enter=function(controller){}
 	__proto.leave=function(controller){}
-	__proto.setup=function(xml){
-		var str;
-		str=xml.getAttribute("fromPage");
-		if(str)
-			this.fromPage=str.split(",");
-		str=xml.getAttribute("toPage");
-		if(str)
-			this.toPage=str.split(",");
+	__proto.setup=function(buffer){
+		var cnt=0;
+		var i=0;
+		cnt=buffer.getInt16();
+		this.fromPage=[];
+		for (i=0;i < cnt;i++)
+		this.fromPage[i]=buffer.readS();
+		cnt=buffer.getInt16();
+		this.toPage=[];
+		for (i=0;i < cnt;i++)
+		this.toPage[i]=buffer.readS();
 	}
 
 	ControllerAction.createAction=function(type){
 		switch(type){
-			case "play_transition":
+			case 0:
 				return new PlayTransitionAction();
-			case "change_page":
+			case 1:
 				return new ChangePageAction();
 			}
 		return null;
@@ -90,6 +93,7 @@ var AssetProxy=(function(){
 
 //class fairygui.AsyncOperation
 var AsyncOperation=(function(){
+	var DisplayListItem;
 	function AsyncOperation(){
 		/**
 		*callback(obj:GObject)
@@ -139,47 +143,81 @@ var AsyncOperation=(function(){
 	__proto.internalCreateObject=function(item){
 		this._itemList.length=0;
 		this._objectPool.length=0;
-		this.collectComponentChildren(item);
-		this._itemList.push(new DisplayListItem(item,null));
+		var di=new DisplayListItem(item,9);
+		di.childCount=this.collectComponentChildren(item);
+		this._itemList.push(di);
 		this._index=0;
 		Laya.timer.frameLoop(1,this,this.run);
 	}
 
 	__proto.collectComponentChildren=function(item){
-		item.owner.getItemAsset(item);
-		var cnt=item.displayList.length;
-		for (var i=0;i < cnt;i++){
-			var di=item.displayList[i];
-			if (di.packageItem !=null && di.packageItem.type==4)
-				this.collectComponentChildren(di.packageItem);
-			else if (di.type=="list"){
-				var defaultItem=null;
-				di.listItemCount=0;
-				var col=di.desc.childNodes;
-				var length=col.length;
-				for (var j=0;j < length;j++){
-					var cxml=col[j];
-					if(cxml.nodeName !="item")
-						continue ;
-					var url=cxml.getAttribute("url");
-					if (!url){
-						if (defaultItem==null)
-							defaultItem=di.desc.getAttribute("defaultItem");
-						url=defaultItem;
-						if (!url)
-							continue ;
-					};
-					var pi=UIPackage.getItemByURL(url);
-					if (pi){
-						if (pi.type==4)
-							this.collectComponentChildren(pi);
-						this._itemList.push(new DisplayListItem(pi,null));
-						di.listItemCount++;
-					}
-				}
+		var buffer=item.rawData;
+		buffer.seek(0,2);
+		var di;
+		var pi;
+		var i=0;
+		var dataLen=0;
+		var curPos=0;
+		var pkg;
+		var dcnt=buffer.getInt16();
+		for (i=0;i < dcnt;i++){
+			dataLen=buffer.getInt16();
+			curPos=buffer.pos;
+			buffer.seek(curPos,0);
+			var type=buffer.readByte();
+			var src=buffer.readS();
+			var pkgId=buffer.readS();
+			buffer.pos=curPos;
+			if (src !=null){
+				if (pkgId !=null)
+					pkg=UIPackage.getById(pkgId);
+				else
+				pkg=item.owner;
+				pi=pkg !=null ? pkg.getItemById(src):null;
+				di=new DisplayListItem(pi,type);
+				if (pi !=null && pi.type==3)
+					di.childCount=this.collectComponentChildren(pi);
+			}
+			else{
+				di=new DisplayListItem(null,type);
+				if (type==10)
+					di.listItemCount=this.collectListChildren(buffer);
 			}
 			this._itemList.push(di);
+			buffer.pos=curPos+dataLen;
 		}
+		return dcnt;
+	}
+
+	__proto.collectListChildren=function(buffer){
+		buffer.seek(buffer.pos,8);
+		var listItemCount=0;
+		var i=0;
+		var nextPos=0;
+		var url;
+		var pi;
+		var di;
+		var defaultItem=buffer.readS();
+		var itemCount=buffer.getInt16();
+		for (i=0;i < itemCount;i++){
+			nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			url=buffer.readS();
+			if (url==null)
+				url=defaultItem;
+			if (url){
+				pi=UIPackage.getItemByURL(url);
+				if (pi !=null){
+					di=new DisplayListItem(pi,pi.objectType);
+					if (pi.type==3)
+						di.childCount=this.collectComponentChildren(pi);
+					this._itemList.push(di);
+					listItemCount++;
+				}
+			}
+			buffer.pos=nextPos;
+		}
+		return listItemCount;
 	}
 
 	__proto.run=function(){
@@ -197,10 +235,10 @@ var AsyncOperation=(function(){
 				obj.packageItem=di.packageItem;
 				this._objectPool.push(obj);
 				UIPackage._constructing++;
-				if (di.packageItem.type==4){
-					poolStart=this._objectPool.length-di.packageItem.displayList.length-1;
+				if (di.packageItem.type==3){
+					poolStart=this._objectPool.length-di.childCount-1;
 					(obj).constructFromResource2(this._objectPool,poolStart);
-					this._objectPool.splice(poolStart,di.packageItem.displayList.length);
+					this._objectPool.splice(poolStart,di.childCount);
 				}
 				else{
 					obj.constructFromResource();
@@ -210,7 +248,7 @@ var AsyncOperation=(function(){
 			else{
 				obj=UIObjectFactory.newObject2(di.type);
 				this._objectPool.push(obj);
-				if (di.type=="list" && di.listItemCount > 0){
+				if (di.type==10 && di.listItemCount > 0){
 					poolStart=this._objectPool.length-di.listItemCount-1;
 					for (k=0;k < di.listItemCount;k++)
 					(obj).itemPool.returnObject(this._objectPool[k+poolStart]);
@@ -229,51 +267,48 @@ var AsyncOperation=(function(){
 			this.callback.runWith(result);
 	}
 
+	AsyncOperation.__init$=function(){
+		//class DisplayListItem
+		DisplayListItem=(function(){
+			function DisplayListItem(packageItem,type){
+				this.packageItem=null;
+				this.type=0;
+				this.childCount=0;
+				this.listItemCount=0;
+				this.packageItem=packageItem;
+				this.type=type;
+			}
+			__class(DisplayListItem,'');
+			return DisplayListItem;
+		})()
+	}
+
 	return AsyncOperation;
 })()
 
 
+/**
+*Use for GTextField.autoSize
+*/
 //class fairygui.AutoSizeType
 var AutoSizeType=(function(){
 	function AutoSizeType(){}
 	__class(AutoSizeType,'fairygui.AutoSizeType');
-	AutoSizeType.parse=function(value){
-		switch (value){
-			case "none":
-				return 0;
-			case "both":
-				return 1;
-			case "height":
-				return 2;
-			default :
-				return 0;
-			}
-	}
-
 	AutoSizeType.None=0;
 	AutoSizeType.Both=1;
 	AutoSizeType.Height=2;
+	AutoSizeType.Shrink=3;
 	return AutoSizeType;
 })()
 
 
+/**
+*Use for GButton.mode
+*/
 //class fairygui.ButtonMode
 var ButtonMode=(function(){
 	function ButtonMode(){}
 	__class(ButtonMode,'fairygui.ButtonMode');
-	ButtonMode.parse=function(value){
-		switch (value){
-			case "Common":
-				return 0;
-			case "Check":
-				return 1;
-			case "Radio":
-				return 2;
-			default :
-				return 0;
-			}
-	}
-
 	ButtonMode.Common=0;
 	ButtonMode.Check=1;
 	ButtonMode.Radio=2;
@@ -281,23 +316,13 @@ var ButtonMode=(function(){
 })()
 
 
+/**
+*Use for GComponent.childrenRenderOrder
+*/
 //class fairygui.ChildrenRenderOrder
 var ChildrenRenderOrder=(function(){
 	function ChildrenRenderOrder(){}
 	__class(ChildrenRenderOrder,'fairygui.ChildrenRenderOrder');
-	ChildrenRenderOrder.parse=function(value){
-		switch (value){
-			case "ascent":
-				return 0;
-			case "descent":
-				return 1;
-			case "arch":
-				return 2;
-			default :
-				return 0;
-			}
-	}
-
 	ChildrenRenderOrder.Ascent=0;
 	ChildrenRenderOrder.Descent=1;
 	ChildrenRenderOrder.Arch=2;
@@ -324,8 +349,6 @@ var BitmapFont$1=(function(){
 //class fairygui.display.BMGlyph
 var BMGlyph=(function(){
 	function BMGlyph(){
-		this.x=0;
-		this.y=0;
 		this.offsetX=0;
 		this.offsetY=0;
 		this.width=0;
@@ -352,22 +375,6 @@ var Frame=(function(){
 
 	__class(Frame,'fairygui.display.Frame');
 	return Frame;
-})()
-
-
-//class fairygui.DisplayListItem
-var DisplayListItem=(function(){
-	function DisplayListItem(packageItem,type){
-		this.packageItem=null;
-		this.type=null;
-		this.desc=null;
-		this.listItemCount=0;
-		this.packageItem=packageItem;
-		this.type=type;
-	}
-
-	__class(DisplayListItem,'fairygui.DisplayListItem');
-	return DisplayListItem;
 })()
 
 
@@ -488,23 +495,13 @@ var Events=(function(){
 })()
 
 
+/**
+*Use for GImage.flip
+*/
 //class fairygui.FlipType
 var FlipType=(function(){
 	function FlipType(){}
 	__class(FlipType,'fairygui.FlipType');
-	FlipType.parse=function(value){
-		switch (value){
-			case "hz":
-				return 1;
-			case "vt":
-				return 2;
-			case "both":
-				return 3;
-			default :
-				return 0;
-			}
-	}
-
 	FlipType.None=0;
 	FlipType.Horizontal=1;
 	FlipType.Vertical=2;
@@ -1028,95 +1025,88 @@ var GObject=(function(){
 	}
 
 	__proto.constructFromResource=function(){}
-	__proto.setup_beforeAdd=function(xml){
-		var str;
-		var arr;
-		this._id=xml.getAttribute("id");
-		this._name=xml.getAttribute("name");
-		str=xml.getAttribute("xy");
-		arr=str.split(",");
-		this.setXY(parseInt(arr[0]),parseInt(arr[1]));
-		str=xml.getAttribute("size");
-		if (str){
-			arr=str.split(",");
-			this.initWidth=parseInt(arr[0]);
-			this.initHeight=parseInt(arr[1]);
+	__proto.setup_beforeAdd=function(buffer,beginPos){
+		buffer.seek(beginPos,0);
+		buffer.skip(5);
+		var f1=NaN;
+		var f2=NaN;
+		this._id=buffer.readS();
+		this._name=buffer.readS();
+		f1=buffer.getInt32();
+		f2=buffer.getInt32();
+		this.setXY(f1,f2);
+		if (buffer.readBool()){
+			this.initWidth=buffer.getInt32();
+			this.initHeight=buffer.getInt32();
 			this.setSize(this.initWidth,this.initHeight,true);
 		}
-		str=xml.getAttribute("restrictSize");
-		if(str){
-			arr=str.split(",");
-			this.minWidth=parseInt(arr[0]);
-			this.maxWidth=parseInt(arr[1]);
-			this.minHeight=parseInt(arr[2]);
-			this.maxHeight=parseInt(arr[3]);
+		if (buffer.readBool()){
+			this.minWidth=buffer.getInt32();
+			this.maxWidth=buffer.getInt32();
+			this.minHeight=buffer.getInt32();
+			this.maxHeight=buffer.getInt32();
 		}
-		str=xml.getAttribute("scale");
-		if(str){
-			arr=str.split(",");
-			this.setScale(parseFloat(arr[0]),parseFloat(arr[1]));
+		if (buffer.readBool()){
+			f1=buffer.getFloat32();
+			f2=buffer.getFloat32();
+			this.setScale(f1,f2);
 		}
-		str=xml.getAttribute("skew");
-		if(str){
-			arr=str.split(",");
-			this.setSkew(parseFloat(arr[0]),parseFloat(arr[1]));
+		if (buffer.readBool()){
+			f1=buffer.getFloat32();
+			f2=buffer.getFloat32();
+			this.setSkew(f1,f2);
 		}
-		str=xml.getAttribute("rotation");
-		if (str)
-			this.rotation=parseFloat(str);
-		str=xml.getAttribute("pivot");
-		if (str){
-			arr=str.split(",");
-			str=xml.getAttribute("anchor");
-			this.setPivot(parseFloat(arr[0]),parseFloat(arr[1]),str=="true");
+		if (buffer.readBool()){
+			f1=buffer.getFloat32();
+			f2=buffer.getFloat32();
+			this.setPivot(f1,f2,buffer.readBool());
 		}
-		str=xml.getAttribute("alpha");
-		if (str)
-			this.alpha=parseFloat(str);
-		if(xml.getAttribute("touchable")=="false")
-			this.touchable=false;
-		if(xml.getAttribute("visible")=="false")
+		f1=buffer.getFloat32();
+		if (f1 !=1)
+			this.alpha=f1;
+		f1=buffer.getFloat32();
+		if (f1 !=0)
+			this.rotation=f1;
+		if (!buffer.readBool())
 			this.visible=false;
-		if(xml.getAttribute("grayed")=="true")
+		if (!buffer.readBool())
+			this.touchable=false;
+		if (buffer.readBool())
 			this.grayed=true;
-		this.tooltips=xml.getAttribute("tooltips");
-		str=xml.getAttribute("blend");
-		if (str)
-			this.blendMode=str;
-		str=xml.getAttribute("filter");
-		if (str){
-			switch (str){
-				case "color":
-					str=xml.getAttribute("filterData");
-					arr=str.split(",");
-					var cm=new ColorMatrix();
-					cm.adjustBrightness(parseFloat(arr[0]));
-					cm.adjustContrast(parseFloat(arr[1]));
-					cm.adjustSaturation(parseFloat(arr[2]));
-					cm.adjustHue(parseFloat(arr[3]));
-					var cf=new ColorFilter(cm);
-					this.filters=[cf];
-					break ;
-				}
-		}
-		str=xml.getAttribute("customData");
-		if (str)
+		var bm=buffer.readByte();
+		if(bm==2)
+			this.blendMode="lighter";
+		var filter=buffer.readByte();
+		if (filter==1){
+			var cm=new ColorMatrix();
+			cm.adjustBrightness(buffer.getFloat32());
+			cm.adjustContrast(buffer.getFloat32());
+			cm.adjustSaturation(buffer.getFloat32());
+			cm.adjustHue(buffer.getFloat32());
+			var cf=new ColorFilter(cm);
+			this.filters=[cf];
+		};
+		var str=buffer.readS();
+		if (str !=null)
 			this.data=str;
 	}
 
-	__proto.setup_afterAdd=function(xml){
-		var str=xml.getAttribute("group");
-		if (str)
-			this._group=this._parent.getChildById(str);
-		var col=xml.childNodes;
-		var length1=col.length;
-		for (var i1=0;i1 < length1;i1++){
-			var cxml=col[i1];
-			if(cxml.nodeType!=1)
-				continue ;
-			var index=fairygui.GObject.GearXMLKeys[cxml.nodeName];
-			if(index!=undefined)
-				this.getGear(index).setup(cxml);
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		buffer.seek(beginPos,1);
+		var str=buffer.readS();
+		if (str !=null)
+			this.tooltips=str;
+		var groupId=buffer.getInt16();
+		if (groupId >=0)
+			this.group=this.parent.getChildAt(groupId);
+		buffer.seek(beginPos,2);
+		var cnt=buffer.getInt16();
+		for (var i=0;i < cnt;i++){
+			var nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			var gear=this.getGear(buffer.readByte());
+			gear.setup(buffer);
+			buffer.pos=nextPos;
 		}
 	}
 
@@ -1624,92 +1614,57 @@ var GObject=(function(){
 	GObject.sDraggingQuery=false;
 	GObject.sUpdateInDragging=false;
 	__static(GObject,
-	['GearXMLKeys',function(){return this.GearXMLKeys={
-			"gearDisplay":0,
-			"gearXY":1,
-			"gearSize":2,
-			"gearLook":3,
-			"gearColor":4,
-			"gearAni":5,
-			"gearText":6,
-			"gearIcon":7
-	};},'sGlobalDragStart',function(){return this.sGlobalDragStart=new Point();},'sGlobalRect',function(){return this.sGlobalRect=new Rectangle();},'sHelperPoint',function(){return this.sHelperPoint=new Point();},'sDragHelperRect',function(){return this.sDragHelperRect=new Rectangle();}
-
+	['sGlobalDragStart',function(){return this.sGlobalDragStart=new Point();},'sGlobalRect',function(){return this.sGlobalRect=new Rectangle();},'sHelperPoint',function(){return this.sHelperPoint=new Point();},'sDragHelperRect',function(){return this.sDragHelperRect=new Rectangle();}
 	]);
 	return GObject;
 })()
 
 
-//class fairygui.GearBase
+//class fairygui.gears.GearBase
 var GearBase=(function(){
 	function GearBase(owner){
-		this._tween=false;
-		this._easeType=0;
-		this._tweenTime=NaN;
-		this._delay=NaN;
-		this._displayLockToken=NaN;
 		this._owner=null;
 		this._controller=null;
+		this._tweenConfig=null;
 		this._owner=owner;
-		this._easeType=5;
-		this._tweenTime=0.3;
-		this._delay=0;
 	}
 
-	__class(GearBase,'fairygui.GearBase');
+	__class(GearBase,'fairygui.gears.GearBase');
 	var __proto=GearBase.prototype;
-	__proto.setup=function(xml){
-		this._controller=this._owner.parent.getController(xml.getAttribute("controller"));
-		if(this._controller==null)
-			return;
+	__proto.setup=function(buffer){
+		this._controller=this._owner.parent.getControllerAt(buffer.getInt16());
 		this.init();
-		var str;
-		str=xml.getAttribute("tween");
-		if (str)
-			this._tween=true;
-		str=xml.getAttribute("ease");
-		if (str)
-			this._easeType=EaseType.parseEaseType(str);
-		str=xml.getAttribute("duration");
-		if (str)
-			this._tweenTime=parseFloat(str);
-		str=xml.getAttribute("delay");
-		if (str)
-			this._delay=parseFloat(str);
-		if((this instanceof fairygui.GearDisplay )){
-			str=xml.getAttribute("pages");
-			if(str){
-				var arr=str.split(",");
-				(this).pages=arr;
-			}
+		var cnt=0;
+		var i=0;
+		var page;
+		if ((this instanceof fairygui.gears.GearDisplay )){
+			cnt=buffer.getInt16();
+			var pages=[];
+			for (i=0;i < cnt;i++)
+			pages[i]=buffer.readS();
+			(this).pages=pages;
 		}
 		else{
-			var pages;
-			var values;
-			str=xml.getAttribute("pages");
-			if(str)
-				pages=str.split(",");
-			if(pages){
-				str=xml.getAttribute("values");
-				if(str!=null)
-					values=str.split("|");
-				else
-				values=[];
-				for(var i=0;i<pages.length;i++){
-					str=values[i];
-					if(str==null)
-						str="";
-					this.addStatus(pages[i],str);
-				}
+			cnt=buffer.getInt16();
+			for (i=0;i < cnt;i++){
+				page=buffer.readS();
+				if (page==null)
+					continue ;
+				this.addStatus(page,buffer);
 			}
-			str=xml.getAttribute("default");
-			if(str)
-				this.addStatus(null,str);
+			if (buffer.readBool())
+				this.addStatus(null,buffer);
+		}
+		if (buffer.readBool()){
+			this._tweenConfig=new GearTweenConfig();
+			this._tweenConfig.easeType=buffer.readByte();
+			this._tweenConfig.duration=buffer.getFloat32();
+			this._tweenConfig.delay=buffer.getFloat32();
 		}
 	}
 
 	__proto.updateFromRelations=function(dx,dy){}
-	__proto.addStatus=function(pageId,value){}
+	__proto.addStatus=function(pageId,buffer){}
 	__proto.init=function(){}
 	__proto.apply=function(){}
 	__proto.updateState=function(){}
@@ -1723,32 +1678,34 @@ var GearBase=(function(){
 		}
 	});
 
-	__getset(0,__proto,'tween',function(){
-		return this._tween;
-		},function(val){
-		this._tween=val;
-	});
-
-	__getset(0,__proto,'delay',function(){
-		return this._delay;
-		},function(val){
-		this._delay=val;
-	});
-
-	__getset(0,__proto,'tweenTime',function(){
-		return this._tweenTime;
-		},function(value){
-		this._tweenTime=value;
-	});
-
-	__getset(0,__proto,'easeType',function(){
-		return this._easeType;
-		},function(value){
-		this._easeType=value;
+	__getset(0,__proto,'tweenConfig',function(){
+		if(this._tweenConfig==null)
+			this._tweenConfig=new GearTweenConfig();
+		return this._tweenConfig;
 	});
 
 	GearBase.disableAllTweenEffect=false;
 	return GearBase;
+})()
+
+
+//class fairygui.gears.GearTweenConfig
+var GearTweenConfig=(function(){
+	function GearTweenConfig(){
+		this.tween=false;
+		this.easeType=0;
+		this.duration=NaN;
+		this.delay=NaN;
+		this._displayLockToken=NaN;
+		this._tweener=null;
+		this.tween=true;
+		this.easeType=5;
+		this.duration=0.3;
+		this.delay=0;
+	}
+
+	__class(GearTweenConfig,'fairygui.gears.GearTweenConfig');
+	return GearTweenConfig;
 })()
 
 
@@ -1807,23 +1764,13 @@ var GObjectPool=(function(){
 })()
 
 
+/**
+*Use for GGroup.layout
+*/
 //class fairygui.GroupLayoutType
 var GroupLayoutType=(function(){
 	function GroupLayoutType(){}
 	__class(GroupLayoutType,'fairygui.GroupLayoutType');
-	GroupLayoutType.parse=function(value){
-		switch (value){
-			case "none":
-				return 0;
-			case "hz":
-				return 1;
-			case "vt":
-				return 2;
-			default :
-				return 0;
-			}
-	}
-
 	GroupLayoutType.None=0;
 	GroupLayoutType.Horizontal=1;
 	GroupLayoutType.Vertical=2;
@@ -1831,27 +1778,13 @@ var GroupLayoutType=(function(){
 })()
 
 
+/**
+*Use for GList.layout
+*/
 //class fairygui.ListLayoutType
 var ListLayoutType=(function(){
 	function ListLayoutType(){}
 	__class(ListLayoutType,'fairygui.ListLayoutType');
-	ListLayoutType.parse=function(value){
-		switch (value){
-			case "column":
-				return 0;
-			case "row":
-				return 1;
-			case "flow_hz":
-				return 2;
-			case "flow_vt":
-				return 3;
-			case "pagination":
-				return 4;
-			default :
-				return 0;
-			}
-	}
-
 	ListLayoutType.SingleColumn=0;
 	ListLayoutType.SingleRow=1;
 	ListLayoutType.FlowHorizontal=2;
@@ -1861,25 +1794,13 @@ var ListLayoutType=(function(){
 })()
 
 
+/**
+*Use for GList.selectionMode
+*/
 //class fairygui.ListSelectionMode
 var ListSelectionMode=(function(){
 	function ListSelectionMode(){}
 	__class(ListSelectionMode,'fairygui.ListSelectionMode');
-	ListSelectionMode.parse=function(value){
-		switch (value){
-			case "single":
-				return 0;
-			case "multiple":
-				return 1;
-			case "multipleSingleClick":
-				return 2;
-			case "none":
-				return 3;
-			default :
-				return 0;
-			}
-	}
-
 	ListSelectionMode.Single=0;
 	ListSelectionMode.Multiple=1;
 	ListSelectionMode.Multiple_SingleClick=2;
@@ -1888,29 +1809,13 @@ var ListSelectionMode=(function(){
 })()
 
 
+/**
+*Use for GLoader.fill
+*/
 //class fairygui.LoaderFillType
 var LoaderFillType=(function(){
 	function LoaderFillType(){}
 	__class(LoaderFillType,'fairygui.LoaderFillType');
-	LoaderFillType.parse=function(value){
-		switch (value){
-			case "none":
-				return 0;
-			case "scale":
-				return 1;
-			case "scaleMatchHeight":
-				return 2;
-			case "scaleMatchWidth":
-				return 3;
-			case "scaleFree":
-				return 4;
-			case "scaleNoBorder":
-				return 5;
-			default :
-				return 0;
-			}
-	}
-
 	LoaderFillType.None=0;
 	LoaderFillType.Scale=1;
 	LoaderFillType.ScaleMatchHeight=2;
@@ -1932,30 +1837,6 @@ var Margin=(function(){
 
 	__class(Margin,'fairygui.Margin');
 	var __proto=Margin.prototype;
-	__proto.parse=function(str){
-		if (!str){
-			this.left=0;
-			this.right=0;
-			this.top=0;
-			this.bottom=0;
-			return;
-		};
-		var arr=str.split(",");
-		if (arr.length==1){
-			var k=parseInt(arr[0]);
-			this.top=k;
-			this.bottom=k;
-			this.left=k;
-			this.right=k;
-		}
-		else {
-			this.top=parseInt(arr[0]);
-			this.bottom=parseInt(arr[1]);
-			this.left=parseInt(arr[2]);
-			this.right=parseInt(arr[3]);
-		}
-	}
-
 	__proto.copy=function(source){
 		this.top=source.top;
 		this.bottom=source.bottom;
@@ -1967,23 +1848,41 @@ var Margin=(function(){
 })()
 
 
+/**
+*Use for UIObjectFactory.newObject
+*/
+//class fairygui.ObjectType
+var ObjectType=(function(){
+	function ObjectType(){}
+	__class(ObjectType,'fairygui.ObjectType');
+	ObjectType.Image=0;
+	ObjectType.MovieClip=1;
+	ObjectType.Swf=2;
+	ObjectType.Graph=3;
+	ObjectType.Loader=4;
+	ObjectType.Group=5;
+	ObjectType.Text=6;
+	ObjectType.RichText=7;
+	ObjectType.InputText=8;
+	ObjectType.Component=9;
+	ObjectType.List=10;
+	ObjectType.Label=11;
+	ObjectType.Button=12;
+	ObjectType.ComboBox=13;
+	ObjectType.ProgressBar=14;
+	ObjectType.Slider=15;
+	ObjectType.ScrollBar=16;
+	return ObjectType;
+})()
+
+
+/**
+*Use for GComponent.overflow
+*/
 //class fairygui.OverflowType
 var OverflowType=(function(){
 	function OverflowType(){}
 	__class(OverflowType,'fairygui.OverflowType');
-	OverflowType.parse=function(value){
-		switch (value){
-			case "visible":
-				return 0;
-			case "hidden":
-				return 1;
-			case "scroll":
-				return 2;
-			default :
-				return 0;
-			}
-	}
-
 	OverflowType.Visible=0;
 	OverflowType.Hidden=1;
 	OverflowType.Scroll=2;
@@ -1996,29 +1895,28 @@ var PackageItem=(function(){
 	function PackageItem(){
 		this.owner=null;
 		this.type=0;
+		this.objectType=0;
 		this.id=null;
 		this.name=null;
 		this.width=0;
 		this.height=0;
 		this.file=null;
 		this.decoded=false;
+		this.rawData=null;
 		//image
 		this.scale9Grid=null;
 		this.scaleByTile=false;
 		this.tileGridIndice=0;
 		this.smoothing=false;
 		this.texture=null;
+		this.pixelHitTestData=null;
 		//movieclip
 		this.interval=0;
 		this.repeatDelay=0;
 		this.swing=false;
 		this.frames=null;
 		//componenet
-		this.componentData=null;
-		this.displayList=null;
 		this.extensionType=null;
-		//sound
-		this.sound=null;
 		//font
 		this.bitmapFont=null;
 	}
@@ -2041,34 +1939,15 @@ var PackageItem=(function(){
 var PackageItemType=(function(){
 	function PackageItemType(){}
 	__class(PackageItemType,'fairygui.PackageItemType');
-	PackageItemType.parse=function(value){
-		switch(value){
-			case "image":
-				return 0;
-			case "movieclip":
-				return 2;
-			case "sound":
-				return 3;
-			case "component":
-				return 4;
-			case "swf":
-				return 1;
-			case "font":
-				return 6;
-			case "atlas":
-				return 7;
-			}
-		return 0;
-	}
-
 	PackageItemType.Image=0;
-	PackageItemType.Swf=1;
-	PackageItemType.MovieClip=2;
-	PackageItemType.Sound=3;
-	PackageItemType.Component=4;
-	PackageItemType.Misc=5;
-	PackageItemType.Font=6;
-	PackageItemType.Atlas=7;
+	PackageItemType.MovieClip=1;
+	PackageItemType.Sound=2;
+	PackageItemType.Component=3;
+	PackageItemType.Atlas=4;
+	PackageItemType.Font=5;
+	PackageItemType.Swf=6;
+	PackageItemType.Misc=7;
+	PackageItemType.Unknown=8;
 	return PackageItemType;
 })()
 
@@ -2115,6 +1994,20 @@ var PageOption=(function(){
 	});
 
 	return PageOption;
+})()
+
+
+/**
+*Use for GComboBox.popupDirection
+*/
+//class fairygui.PopupDirection
+var PopupDirection=(function(){
+	function PopupDirection(){}
+	__class(PopupDirection,'fairygui.PopupDirection');
+	PopupDirection.Auto=0;
+	PopupDirection.Up=1;
+	PopupDirection.Down=2;
+	return PopupDirection;
 })()
 
 
@@ -2291,25 +2184,13 @@ var PopupMenu=(function(){
 })()
 
 
+/**
+*Use for GProgressBar.titleType and GSlider.titleType
+*/
 //class fairygui.ProgressTitleType
 var ProgressTitleType=(function(){
 	function ProgressTitleType(){}
 	__class(ProgressTitleType,'fairygui.ProgressTitleType');
-	ProgressTitleType.parse=function(value){
-		switch (value){
-			case "percent":
-				return 0;
-			case "valueAndmax":
-				return 1;
-			case "value":
-				return 2;
-			case "max":
-				return 3;
-			default :
-				return 0;
-			}
-	}
-
 	ProgressTitleType.Percent=0;
 	ProgressTitleType.ValueAndMax=1;
 	ProgressTitleType.Value=2;
@@ -2922,34 +2803,6 @@ var Relations=(function(){
 		this._items.push(newItem);
 	}
 
-	__proto.addItems=function(target,sidePairs){
-		var arr=sidePairs.split(",");
-		var s;
-		var usePercent=false;
-		var i=NaN;
-		var newItem=new RelationItem(this._owner);
-		newItem.target=target;
-		for (i=0;i < 2;i++){
-			s=arr[i];
-			if (!s)
-				continue ;
-			if (s.charAt(s.length-1)=="%"){
-				s=s.substr(0,s.length-1);
-				usePercent=true;
-			}
-			else
-			usePercent=false;
-			var j=s.indexOf("-");
-			if (j==-1)
-				s=s+"-"+s;
-			var t=fairygui.Relations.RELATION_NAMES.indexOf(s);
-			if (t==-1)
-				throw "invalid relation type";
-			newItem.internalAdd(t,usePercent);
-		}
-		this._items.push(newItem);
-	}
-
 	__proto.remove=function(target,relationType){
 		(relationType===void 0)&& (relationType=0);
 		var cnt=this._items.length;
@@ -3042,27 +2895,26 @@ var Relations=(function(){
 		}
 	}
 
-	__proto.setup=function(xml){
-		var col=xml.childNodes;
-		var length=col.length;
-		var targetId;
+	__proto.setup=function(buffer,parentToChild){
+		var cnt=buffer.readByte();
 		var target;
-		for (var i=0;i < length;i++){
-			var cxml=col[i];
-			if(cxml.nodeName!="relation")
-				continue ;
-			targetId=cxml.getAttribute("target");
-			if (this._owner.parent){
-				if (targetId)
-					target=this._owner.parent.getChildById(targetId);
-				else
+		for (var i=0;i < cnt;i++){
+			var targetIndex=buffer.getInt16();
+			if (targetIndex==-1)
 				target=this._owner.parent;
+			else if (parentToChild)
+			target=(this._owner).getChildAt(targetIndex);
+			else
+			target=this._owner.parent.getChildAt(targetIndex);
+			var newItem=new RelationItem(this._owner);
+			newItem.target=target;
+			this._items.push(newItem);
+			var cnt2=buffer.readByte();
+			for (var j=0;j < cnt2;j++){
+				var rt=buffer.readByte();
+				var usePercent=buffer.readBool();
+				newItem.internalAdd(rt,usePercent);
 			}
-			else {
-				target=(this._owner).getChildById(targetId);
-			}
-			if (target)
-				this.addItems(target,cxml.getAttribute("sidePair"));
 		}
 	}
 
@@ -3070,34 +2922,6 @@ var Relations=(function(){
 		return this._items.length==0;
 	});
 
-	__static(Relations,
-	['RELATION_NAMES',function(){return this.RELATION_NAMES=
-		[
-		"left-left",
-		"left-center",
-		"left-right",
-		"center-center",
-		"right-left",
-		"right-center",
-		"right-right",
-		"top-top",
-		"top-middle",
-		"top-bottom",
-		"middle-middle",
-		"bottom-top",
-		"bottom-middle",
-		"bottom-bottom",
-		"width-width",
-		"height-height",
-		"leftext-left",
-		"leftext-right",
-		"rightext-left",
-		"rightext-right",
-		"topext-top",
-		"topext-bottom",
-		"bottomext-top",
-		"bottomext-bottom"];}
-	]);
 	return Relations;
 })()
 
@@ -3139,21 +2963,6 @@ var RelationType=(function(){
 var ScrollBarDisplayType=(function(){
 	function ScrollBarDisplayType(){}
 	__class(ScrollBarDisplayType,'fairygui.ScrollBarDisplayType');
-	ScrollBarDisplayType.parse=function(value){
-		switch (value){
-			case "default":
-				return 0;
-			case "visible":
-				return 1;
-			case "auto":
-				return 2;
-			case "hidden":
-				return 3;
-			default :
-				return 0;
-			}
-	}
-
 	ScrollBarDisplayType.Default=0;
 	ScrollBarDisplayType.Visible=1;
 	ScrollBarDisplayType.Auto=2;
@@ -3164,7 +2973,7 @@ var ScrollBarDisplayType=(function(){
 
 //class fairygui.ScrollPane
 var ScrollPane=(function(){
-	function ScrollPane(owner,scrollType,scrollBarMargin,scrollBarDisplay,flags,vtScrollBarRes,hzScrollBarRes,headerRes,footerRes){
+	function ScrollPane(owner){
 		this._owner=null;
 		this._container=null;
 		this._maskContainer=null;
@@ -3225,11 +3034,50 @@ var ScrollPane=(function(){
 		this._container=this._owner._container;
 		this._container.pos(0,0);
 		this._maskContainer.addChild(this._container);
-		this._scrollBarMargin=scrollBarMargin;
-		this._scrollType=scrollType;
+		this._scrollBarVisible=true;
+		this._mouseWheelEnabled=true;
+		this._xPos=0;
+		this._yPos=0;
+		this._aniFlag=0;
+		this._footerLockedSize=0;
+		this._headerLockedSize=0;
+		this._scrollBarMargin=new Margin();
+		this._viewSize=new Point();
+		this._contentSize=new Point();
+		this._pageSize=new Point(1,1);
+		this._overlapSize=new Point();
+		this._tweenTime=new Point();
+		this._tweenStart=new Point();
+		this._tweenDuration=new Point();
+		this._tweenChange=new Point();
+		this._velocity=new Point();
+		this._containerPos=new Point();
+		this._beginTouchPos=new Point();
+		this._lastTouchPos=new Point();
+		this._lastTouchGlobalPos=new Point();
 		this._scrollStep=UIConfig$1.defaultScrollStep;
 		this._mouseWheelStep=this._scrollStep*2;
 		this._decelerationRate=UIConfig$1.defaultScrollDecelerationRate;
+		this._owner.on("mousedown",this,this.__mouseDown);
+		this._owner.on("mousewheel",this,this.__mouseWheel);
+	}
+
+	__class(ScrollPane,'fairygui.ScrollPane');
+	var __proto=ScrollPane.prototype;
+	__proto.setup=function(buffer){
+		this._scrollType=buffer.readByte();
+		var scrollBarDisplay=buffer.readByte();
+		var flags=buffer.getInt32();
+		if (buffer.readBool()){
+			this._scrollBarMargin.top=buffer.getInt32();
+			this._scrollBarMargin.bottom=buffer.getInt32();
+			this._scrollBarMargin.left=buffer.getInt32();
+			this._scrollBarMargin.right=buffer.getInt32();
+		};
+		var vtScrollBarRes=buffer.readS();
+		var hzScrollBarRes=buffer.readS();
+		var headerRes=buffer.readS();
+		var footerRes=buffer.readS();
 		this._displayOnLeft=(flags & 1)!=0;
 		this._snapToItem=(flags & 2)!=0;
 		this._displayInDemand=(flags & 4)!=0;
@@ -3249,28 +3097,8 @@ var ScrollPane=(function(){
 		this._inertiaDisabled=(flags & 256)!=0;
 		if((flags & 512)==0)
 			this._maskContainer.scrollRect=new Rectangle();
-		this._scrollBarVisible=true;
-		this._mouseWheelEnabled=true;
-		this._xPos=0;
-		this._yPos=0;
-		this._aniFlag=0;
-		this._footerLockedSize=0;
-		this._headerLockedSize=0;
 		if(scrollBarDisplay==0)
 			scrollBarDisplay=UIConfig$1.defaultScrollBarDisplay;
-		this._viewSize=new Point();
-		this._contentSize=new Point();
-		this._pageSize=new Point(1,1);
-		this._overlapSize=new Point();
-		this._tweenTime=new Point();
-		this._tweenStart=new Point();
-		this._tweenDuration=new Point();
-		this._tweenChange=new Point();
-		this._velocity=new Point();
-		this._containerPos=new Point();
-		this._beginTouchPos=new Point();
-		this._lastTouchPos=new Point();
-		this._lastTouchGlobalPos=new Point();
 		if(scrollBarDisplay !=3){
 			if(this._scrollType==2 || this._scrollType==1){
 				var res=vtScrollBarRes ? vtScrollBarRes :UIConfig$1.verticalScrollBar;
@@ -3315,13 +3143,9 @@ var ScrollPane=(function(){
 		}
 		if (this._header !=null || this._footer !=null)
 			this._refreshBarAxis=(this._scrollType==2 || this._scrollType==1)? "y" :"x";
-		this.setSize(owner.width,owner.height);
-		this._owner.on("mousedown",this,this.__mouseDown);
-		this._owner.on("mousewheel",this,this.__mouseWheel);
+		this.setSize(this.owner.width,this.owner.height);
 	}
 
-	__class(ScrollPane,'fairygui.ScrollPane');
-	var __proto=ScrollPane.prototype;
 	__proto.dispose=function(){
 		if (this._tweening !=0)
 			Laya.timer.clear(this,this.tweenUpdate);
@@ -4714,19 +4538,6 @@ var ScrollPane=(function(){
 var ScrollType=(function(){
 	function ScrollType(){}
 	__class(ScrollType,'fairygui.ScrollType');
-	ScrollType.parse=function(value){
-		switch (value){
-			case "horizontal":
-				return 0;
-			case "vertical":
-				return 1;
-			case "both":
-				return 2;
-			default :
-				return 1;
-			}
-	}
-
 	ScrollType.Horizontal=0;
 	ScrollType.Vertical=1;
 	ScrollType.Both=2;
@@ -5506,7 +5317,7 @@ var Transition=(function(){
 				item.target.setSkew(item.value.f1,item.value.f2);
 				break ;
 			case 6:
-				(item.target).color=item.value.f1;
+				(item.target).color=ToolSet.convertToHtmlColor(item.value.f1,false);
 				break ;
 			case 7:
 				if (item.value.frame>=0)
@@ -5536,7 +5347,7 @@ var Transition=(function(){
 					if(item.value.audioClip==null){
 						var pi=UIPackage.getItemByURL(item.value.sound);
 						if(pi)
-							item.value.audioClip=pi.owner.getItemAssetURL(pi);
+							item.value.audioClip=pi.file;
 						else
 						item.value.audioClip=item.value.sound;
 					}
@@ -5564,203 +5375,97 @@ var Transition=(function(){
 		item.target._gearLocked=false;
 	}
 
-	__proto.setup=function(xml){
-		this.name=xml.getAttribute("name");
-		var str=xml.getAttribute("options");
-		if(str)
-			this._options=parseInt(str);
-		str=xml.getAttribute("autoPlay");
-		if(str)
-			this._autoPlay=str=="true";
-		if(this._autoPlay){
-			str=xml.getAttribute("autoPlayRepeat");
-			if(str)
-				this._autoPlayTimes=parseInt(str);
-			str=xml.getAttribute("autoPlayDelay");
-			if(str)
-				this._autoPlayDelay=parseFloat(str);
-		}
-		str=xml.getAttribute("fps");
-		var frameInterval=NaN;
-		if(str)
-			frameInterval=1/parseInt(str);
-		else
-		frameInterval=1/24;
-		var col=xml.childNodes;
-		var length1=col.length;
-		for(var i1=0;i1 < length1;i1++){
-			var cxml=col[i1];
-			if(cxml.nodeName!="item")
-				continue ;
-			var item=new TransitionItem(this.parseItemType(cxml.getAttribute("type")));
-			this._items.push(item);
-			item.time=parseInt(cxml.getAttribute("time"))*frameInterval;
-			item.targetId=cxml.getAttribute("target");
-			if(cxml.getAttribute("tween")=="true")
+	__proto.setup=function(buffer){
+		this.name=buffer.readS();
+		this._options=buffer.getInt32();
+		this._autoPlay=buffer.readBool();
+		this._autoPlayTimes=buffer.getInt32();
+		this._autoPlayDelay=buffer.getFloat32();
+		var cnt=buffer.getInt16();
+		for (var i=0;i < cnt;i++){
+			var dataLen=buffer.getInt16();
+			var curPos=buffer.pos;
+			buffer.seek(curPos,0);
+			var item=new TransitionItem(buffer.readByte());
+			this._items[i]=item;
+			item.time=buffer.getFloat32();
+			var targetId=buffer.getInt16();
+			if (targetId < 0)
+				item.targetId="";
+			else
+			item.targetId=this._owner.getChildAt(targetId).id;
+			item.label=buffer.readS();
+			if (buffer.readBool()){
+				buffer.seek(curPos,1);
 				item.tweenConfig=new TweenConfig();
-			item.label=cxml.getAttribute("label");
-			if (item.tweenConfig !=null){
-				item.tweenConfig.duration=parseInt(cxml.getAttribute("duration"))*frameInterval;
-				if(item.time+item.tweenConfig.duration > this._totalDuration)
+				item.tweenConfig.duration=buffer.getFloat32();
+				if (item.time+item.tweenConfig.duration > this._totalDuration)
 					this._totalDuration=item.time+item.tweenConfig.duration;
-				str=cxml.getAttribute("ease");
-				if(str)
-					item.tweenConfig.easeType=EaseType.parseEaseType(str);
-				str=cxml.getAttribute("repeat");
-				if(str)
-					item.tweenConfig.repeat=parseInt(str);
-				item.tweenConfig.yoyo=cxml.getAttribute("yoyo")=="true";
-				item.tweenConfig.endLabel=cxml.getAttribute("label2");
-				var v=cxml.getAttribute("endValue");
-				if(v){
-					this.decodeValue(item,cxml.getAttribute("startValue"),item.tweenConfig.startValue);
-					this.decodeValue(item,v,item.tweenConfig.endValue);
-				}
-				else {
-					this.decodeValue(item,cxml.getAttribute("startValue"),item.value);
-					item.tweenConfig=null;
-				}
+				item.tweenConfig.easeType=buffer.readByte();
+				item.tweenConfig.repeat=buffer.getInt32();
+				item.tweenConfig.yoyo=buffer.readBool();
+				item.tweenConfig.endLabel=buffer.readS();
+				buffer.seek(curPos,2);
+				this.decodeValue(item,buffer,item.tweenConfig.startValue);
+				buffer.seek(curPos,3);
+				this.decodeValue(item,buffer,item.tweenConfig.endValue);
 			}
-			else {
-				if(item.time > this._totalDuration)
+			else{
+				if (item.time > this._totalDuration)
 					this._totalDuration=item.time;
-				this.decodeValue(item,cxml.getAttribute("value"),item.value);
+				buffer.seek(curPos,2);
+				this.decodeValue(item,buffer,item.value);
 			}
+			buffer.pos=curPos+dataLen;
 		}
 	}
 
-	__proto.parseItemType=function(str){
-		var type=0;
-		switch(str){
-			case "XY":
-				type=0;
-				break ;
-			case "Size":
-				type=1;
-				break ;
-			case "Scale":
-				type=2;
-				break ;
-			case "Pivot":
-				type=3;
-				break ;
-			case "Alpha":
-				type=4;
-				break ;
-			case "Rotation":
-				type=5;
-				break ;
-			case "Color":
-				type=6;
-				break ;
-			case "Animation":
-				type=7;
-				break ;
-			case "Visible":
-				type=8;
-				break ;
-			case "Sound":
-				type=9;
-				break ;
-			case "Transition":
-				type=10;
-				break ;
-			case "Shake":
-				type=11;
-				break ;
-			case "ColorFilter":
-				type=12;
-				break ;
-			case "Skew":
-				type=13;
-				break ;
-			default :
-				type=14;
-				break ;
-			}
-		return type;
-	}
-
-	__proto.decodeValue=function(item,str,value){
-		var arr;
+	__proto.decodeValue=function(item,buffer,value){
 		switch(item.type){
 			case 0:
 			case 1:
 			case 3:
 			case 13:
-				arr=str.split(",");
-				if (arr[0]=="-"){
-					value.b1=false;
-				}
-				else{
-					value.f1=parseFloat(arr[0]);
-					value.b1=true;
-				}
-				if(arr[1]=="-"){
-					value.b2=false;
-				}
-				else{
-					value.f2=parseFloat(arr[1]);
-					value.b2=true;
-				}
+				value.b1=buffer.readBool();
+				value.b2=buffer.readBool();
+				value.f1=buffer.getFloat32();
+				value.f2=buffer.getFloat32();
 				break ;
 			case 4:
-				value.f1=parseFloat(str);
-				break ;
 			case 5:
-				value.f1=parseFloat(str);
+				value.f1=buffer.getFloat32();
 				break ;
 			case 2:
-				arr=str.split(",");
-				value.f1=parseFloat(arr[0]);
-				value.f2=parseFloat(arr[1]);
+				value.f1=buffer.getFloat32();
+				value.f2=buffer.getFloat32();
 				break ;
 			case 6:
-				value.f1=ToolSet.convertFromHtmlColor(str);
+				value.f1=buffer.readColor();
 				break ;
 			case 7:
-				arr=str.split(",");
-				if(arr[0]=="-")
-					value.frame=-1;
-				else
-				value.frame=parseInt(arr[0]);
-				value.playing=arr[1]=="p";
+				value.playing=buffer.readBool();
+				value.frame=buffer.getInt32();
 				break ;
 			case 8:
-				value.visible=str=="true";
+				value.visible=buffer.readBool();
 				break ;
 			case 9:
-				arr=str.split(",");
-				value.sound=arr[0];
-				if(arr.length>1){
-					var intv=parseInt(arr[1]);
-					if(intv==0 || intv==100)
-						value.volume=1;
-					else
-					value.volume=intv/100;
-				}
-				else
-				value.volume=1;
+				value.sound=buffer.readS();
+				value.volume=buffer.getFloat32();
 				break ;
 			case 10:
-				arr=str.split(",");
-				value.transName=arr[0];
-				if (arr.length > 1)
-					value.playTimes=parseInt(arr[1]);
-				else
-				value.playTimes=1;
+				value.transName=buffer.readS();
+				value.playTimes=buffer.getInt32();
 				break ;
 			case 11:
-				arr=str.split(",");
-				value.amplitude=parseFloat(arr[0]);
-				value.duration=parseFloat(arr[1]);
+				value.amplitude=buffer.getFloat32();
+				value.duration=buffer.getFloat32();
 				break ;
 			case 12:
-				arr=str.split(",");
-				value.f1=parseFloat(arr[0]);
-				value.f2=parseFloat(arr[1]);
-				value.f3=parseFloat(arr[2]);
-				value.f4=parseFloat(arr[3]);
+				value.f1=buffer.getFloat32();
+				value.f2=buffer.getFloat32();
+				value.f3=buffer.getFloat32();
+				value.f4=buffer.getFloat32();
 				break ;
 			}
 	}
@@ -5948,6 +5653,186 @@ var Transition=(function(){
 	}
 
 	return Transition;
+})()
+
+
+//class fairygui.TranslationHelper
+var TranslationHelper=(function(){
+	function TranslationHelper(){}
+	__class(TranslationHelper,'fairygui.TranslationHelper');
+	TranslationHelper.loadFromXML=function(source){
+		TranslationHelper.strings={};
+		var xml=Utils.parseXMLFromString(source);
+		var resNode=TranslationHelper.findChildNode(xml,"resources");
+		var nodes=resNode.childNodes;
+		var length1=nodes.length;
+		for (var i1=0;i1 < length1;i1++){
+			var cxml=nodes[i1];
+			if (cxml.nodeName=="string"){
+				var key=cxml.getAttribute("name");
+				var text=cxml.textContent;
+				var i=key.indexOf("-");
+				if(i==-1)
+					continue ;
+				var key2=key.substr(0,i);
+				var key3=key.substr(i+1);
+				var col=TranslationHelper.strings[key2];
+				if(!col){
+					col={};
+					TranslationHelper.strings[key2]=col;
+				}
+				col[key3]=text;
+			}
+		}
+	}
+
+	TranslationHelper.translateComponent=function(item){
+		if(strings==null)
+			return;
+		var strings=strings[item.owner.id+item.id];
+		if(strings==null)
+			return;
+		var elementId,value;
+		var buffer=item.rawData;
+		var nextPos=0;
+		var itemCount=0;
+		var i=0,j=0,k=0;
+		var dataLen=0;
+		var curPos=0;
+		var valueCnt=0;
+		var page;
+		buffer.seek(0,2);
+		var childCount=buffer.getInt16();
+		for (i=0;i < childCount;i++){
+			dataLen=buffer.getInt16();
+			curPos=buffer.pos;
+			buffer.seek(curPos,0);
+			var type=buffer.readByte();
+			buffer.skip(4);
+			elementId=buffer.readS();
+			if (type==9){
+				if (buffer.seek(curPos,6))
+					type=buffer.readByte();
+			}
+			buffer.seek(curPos,1);
+			if((value=strings[elementId+"-tips"])!=null)
+				buffer.writeS(value);
+			buffer.seek(curPos,2);
+			var gearCnt=buffer.getInt16();
+			for (j=0;j < gearCnt;j++){
+				nextPos=buffer.getInt16();
+				nextPos+=buffer.pos;
+				if (buffer.readByte()==6){
+					buffer.skip(2);
+					valueCnt=buffer.getInt16();
+					for (k=0;k < valueCnt;k++){
+						page=buffer.readS();
+						if (page !=null){
+							if((value=strings[elementId+"-texts_"+k])!=null)
+								buffer.writeS(value);
+							else
+							buffer.skip(2);
+						}
+					}
+					if (buffer.readBool()&& (value=strings[elementId+"-texts_def"])!=null)
+						buffer.writeS(value);
+				}
+				buffer.pos=nextPos;
+			}
+			switch (type){
+				case 6:
+				case 7:
+				case 8:{
+						if ((value=strings[elementId])!=null){
+							buffer.seek(curPos,6);
+							buffer.writeS(value);
+						}
+						if ((value=strings[elementId+"-prompt"])!=null){
+							buffer.seek(curPos,4);
+							buffer.writeS(value);
+						}
+						break ;
+					}
+				case 10:{
+						buffer.seek(curPos,8);
+						buffer.skip(2);
+						itemCount=buffer.getInt16();
+						for (j=0;j<itemCount;j++){
+							nextPos=buffer.getInt16();
+							nextPos+=buffer.pos;
+							buffer.skip(2);
+							if ((value=strings[elementId+"-"+j])!=null)
+								buffer.writeS(value);
+							else
+							buffer.skip(2);
+							if ((value=strings[elementId+"-"+j+"-0"])!=null)
+								buffer.writeS(value);
+							buffer.pos=nextPos;
+						}
+						break ;
+					}
+				case 11:{
+						if (buffer.seek(curPos,6)&& buffer.readByte()==type){
+							if ((value=strings[elementId])!=null)
+								buffer.writeS(value);
+							else
+							buffer.skip(2);
+							buffer.skip(2);
+							if (buffer.readBool())
+								buffer.skip(4);
+							buffer.skip(4);
+							if (buffer.readBool()&& (value=strings[elementId+"-prompt"])!=null)
+								buffer.writeS(value);
+						}
+						break ;
+					}
+				case 12:{
+						if (buffer.seek(curPos,6)&& buffer.readByte()==type){
+							if ((value=strings[elementId])!=null)
+								buffer.writeS(value);
+							else
+							buffer.skip(2);
+							if ((value=strings[elementId+"-0"])!=null)
+								buffer.writeS(value);
+						}
+						break ;
+					}
+				case 13:{
+						if (buffer.seek(curPos,6)&& buffer.readByte()==type){
+							itemCount=buffer.getInt16();
+							for (j=0;j < itemCount;j++){
+								nextPos=buffer.getInt16();
+								nextPos+=buffer.pos;
+								if ((value=strings[elementId+"-"+j])!=null)
+									buffer.writeS(value);
+								buffer.pos=nextPos;
+							}
+							if ((value=strings[elementId])!=null)
+								buffer.writeS(value);
+						}
+						break ;
+					}
+				}
+			buffer.pos=curPos+dataLen;
+		}
+	}
+
+	TranslationHelper.findChildNode=function(xml,name){
+		var col=xml.childNodes;
+		var length1=col.length;
+		if (length1>0){
+			for (var i1=0;i1 < length1;i1++){
+				var cxml=col[i1];
+				if (cxml.nodeName==name){
+					return cxml;
+				}
+			}
+		}
+		return null;
+	}
+
+	TranslationHelper.strings=null;
+	return TranslationHelper;
 })()
 
 
@@ -6637,14 +6522,6 @@ var EaseManager=(function(){
 var EaseType=(function(){
 	function EaseType(){}
 	__class(EaseType,'fairygui.tween.EaseType');
-	EaseType.parseEaseType=function(value){
-		var type=EaseType.easeTypeMap[value];
-		if(type==undefined)
-			return 17;
-		else
-		return type;
-	}
-
 	EaseType.Linear=0;
 	EaseType.SineIn=1;
 	EaseType.SineOut=2;
@@ -6677,42 +6554,6 @@ var EaseType=(function(){
 	EaseType.BounceOut=29;
 	EaseType.BounceInOut=30;
 	EaseType.Custom=31;
-	__static(EaseType,
-	['easeTypeMap',function(){return this.easeTypeMap={
-			"Linear" :0 ,
-			"Elastic.In" :22 ,
-			"Elastic.Out" :24 ,
-			"Elastic.InOut" :24 ,
-			"Quad.In" :4 ,
-			"Quad.Out" :5 ,
-			"Quad.InOut" :6 ,
-			"Cube.In" :7 ,
-			"Cube.Out" :8 ,
-			"Cube.InOut" :9 ,
-			"Quart.In" :10 ,
-			"Quart.Out" :11 ,
-			"Quart.InOut" :12 ,
-			"Quint.In" :13 ,
-			"Quint.Out" :14 ,
-			"Quint.InOut" :15 ,
-			"Sine.In" :1 ,
-			"Sine.Out" :2 ,
-			"Sine.InOut" :3 ,
-			"Bounce.In" :28 ,
-			"Bounce.Out" :29 ,
-			"Bounce.InOut" :30 ,
-			"Circ.In" :19 ,
-			"Circ.Out" :20 ,
-			"Circ.InOut" :21 ,
-			"Expo.In" :16 ,
-			"Expo.Out" :17 ,
-			"Expo.InOut" :18 ,
-			"Back.In" :25 ,
-			"Back.Out" :26 ,
-			"Back.InOut" :27
-	};}
-
-	]);
 	return EaseType;
 })()
 
@@ -7472,69 +7313,52 @@ var UIObjectFactory=(function(){
 	}
 
 	UIObjectFactory.newObject=function(pi){
-		switch (pi.type){
-			case 0:
-				return new GImage();
-			case 2:
-				return new GMovieClip();
-			case 4:{
-					var cls=pi.extensionType;
-					if (cls)
-						return new cls();
-					var xml=pi.owner.getItemAsset(pi);
-					var extention=xml.getAttribute("extention");
-					if(extention !=null){
-					switch(extention){
-						case "Button":
-							return new GButton();
-						case "Label":
-							return new GLabel();
-						case "ProgressBar":
-							return new GProgressBar();
-						case "Slider":
-							return new GSlider();
-						case "ScrollBar":
-							return new GScrollBar();
-						case "ComboBox":
-							return new GComboBox();
-						default :
-							return new GComponent();
-						}
-				}
-				else
-				return new GComponent();
-			}
-		}
-		return null;
+		if(pi.extensionType!=null)
+			return new pi.extensionType();
+		else
+		return UIObjectFactory.newObject2(pi.objectType);
 	}
 
 	UIObjectFactory.newObject2=function(type){
 		switch (type){
-			case "image":
+			case 0:
 				return new GImage();
-			case "movieclip":
+			case 1:
 				return new GMovieClip();
-			case "component":
+			case 9:
 				return new GComponent();
-			case "text":
+			case 6:
 				return new GBasicTextField();
-			case "richtext":
+			case 7:
 				return new GRichTextField();
-			case "inputtext":
+			case 8:
 				return new GTextInput();
-			case "group":
+			case 5:
 				return new GGroup();
-			case "list":
+			case 10:
 				return new GList();
-			case "graph":
+			case 3:
 				return new GGraph();
-			case "loader":
+			case 4:
 				if (fairygui.UIObjectFactory.loaderType !=null)
 					return new fairygui.UIObjectFactory.loaderType();
 				else
 				return new GLoader();
+			case 12:
+				return new GButton();
+			case 11:
+				return new GLabel();
+			case 14:
+				return new GProgressBar();
+			case 15:
+				return new GSlider();
+			case 16:
+				return new GScrollBar();
+			case 13:
+				return new GComboBox();
+			default :
+				return null;
 			}
-		return null;
 	}
 
 	UIObjectFactory.packageItemExtensions={};
@@ -7549,196 +7373,157 @@ var UIPackage=(function(){
 	function UIPackage(){
 		this._id=null;
 		this._name=null;
-		this._basePath=null;
 		this._items=null;
 		this._itemsById=null;
 		this._itemsByName=null;
-		this._resKey=null;
-		this._resData=null;
 		this._customId=null;
 		this._sprites=null;
-		this._hitTestDatas=null;
 		this._items=[];
+		this._itemsById={};
+		this._itemsByName={};
 		this._sprites={};
-		this._hitTestDatas={};
 	}
 
 	__class(UIPackage,'fairygui.UIPackage');
 	var __proto=UIPackage.prototype;
-	__proto.create=function(resKey,descData){
-		this._resKey=resKey;
-		this.loadPackage(descData);
-	}
-
-	__proto.loadPackage=function(descData){
-		var str;
-		var arr;
-		if(!descData){
-			descData=AssetProxy.inst.getRes(this._resKey+"."+UIConfig$1.packageFileExtension);
-			if(!descData)
-				throw new Error("package resource not ready: "+this._resKey);
-		}
-		this.decompressPackage(descData);
-		str=this.getDesc("sprites.bytes");
-		arr=str.split("\n");
-		var cnt=arr.length;
-		for(var i=1;i < cnt;i++){
-			str=arr[i];
-			if(!str)
-				continue ;
-			var arr2=str.split(" ");
-			var sprite=new AtlasSprite();
-			var itemId=arr2[0];
-			var binIndex=parseInt(arr2[1]);
-			if(binIndex >=0)
-				sprite.atlas="atlas"+binIndex;
-			else {
-				var pos=itemId.indexOf("_");
-				if(pos==-1)
-					sprite.atlas="atlas_"+itemId;
-				else
-				sprite.atlas="atlas_"+itemId.substr(0,pos);
-			}
-			sprite.rect.x=parseInt(arr2[2]);
-			sprite.rect.y=parseInt(arr2[3]);
-			sprite.rect.width=parseInt(arr2[4]);
-			sprite.rect.height=parseInt(arr2[5]);
-			sprite.rotated=arr2[6]=="1";
-			this._sprites[itemId]=sprite;
-		}
-		str=this.getDesc("hittest.bytes");
-		if(str!=null){
-			var ba=ToolSet.base64Decode(str);
-			ba.endian="bigEndian";
-			while(ba.bytesAvailable){
-				var hitTestData=new PixelHitTestData();
-				this._hitTestDatas[ba.readUTFString()]=hitTestData;
-				hitTestData.load(ba);
-			}
-		}
-		str=this.getDesc("package.xml");
-		var xml=Utils.parseXMLFromString(str);
-		var rootNode=xml.firstChild;
-		this._id=rootNode.getAttribute("id");
-		this._name=rootNode.getAttribute("name");
-		var resources=ToolSet.findChildNode(rootNode,"resources").childNodes;
-		this._itemsById={};
-		this._itemsByName={};
+	__proto.loadPackage=function(buffer,resKey){
+		if (buffer.getUint32()!=0x46475549)
+			throw new Error("FairyGUI: old package format found in '"+resKey+"'");
+		buffer.version=buffer.getInt32();
+		var compressed=buffer.readBool();
+		this._id=buffer.readUTFString();
+		this._name=buffer.readUTFString();
+		buffer.skip(20);
+		if(compressed){
+			var buf=new Uint8Array(buffer.buffer,buffer.pos,buffer.length-buffer.pos);
+			var inflater=new Zlib.RawInflate(buf);buf=inflater.decompress();;
+			buffer=new ByteBuffer(buf);
+		};
+		var indexTablePos=buffer.pos;
+		var cnt=0;
+		var i=0;
+		var nextPos=0;
+		buffer.seek(indexTablePos,4);
+		cnt=buffer.getInt32();
+		var stringTable=__newvec(cnt);
+		for (i=0;i < cnt;i++)
+		stringTable[i]=buffer.readUTFString();
+		buffer.stringTable=stringTable;
+		buffer.seek(indexTablePos,1);
 		var pi;
-		var cxml;
-		var length1=resources.length;
-		for(var i1=0;i1 < length1;i1++){
-			cxml=resources[i1];
-			if(cxml.nodeType!=1)
-				continue ;
+		resKey=resKey+"_";
+		cnt=buffer.getUint16();
+		for (i=0;i < cnt;i++){
+			nextPos=buffer.getInt32();
+			nextPos+=buffer.pos;
 			pi=new PackageItem();
 			pi.owner=this;
-			pi.type=PackageItemType.parse(cxml.nodeName);
-			pi.id=cxml.getAttribute("id");
-			pi.name=cxml.getAttribute("name");
-			pi.file=cxml.getAttribute("file");
-			str=cxml.getAttribute("size");
-			if(str){
-				arr=str.split(",");
-				pi.width=parseInt(arr[0]);
-				pi.height=parseInt(arr[1]);
-			}
-			switch(pi.type){
+			pi.type=buffer.readByte();
+			pi.id=buffer.readS();
+			pi.name=buffer.readS();
+			buffer.readS();
+			pi.file=buffer.readS();
+			buffer.readBool();
+			pi.width=buffer.getInt32();
+			pi.height=buffer.getInt32();
+			switch (pi.type){
 				case 0:{
-						str=cxml.getAttribute("scale");
-						if(str=="9grid"){
+						pi.objectType=0;
+						var scaleOption=buffer.readByte();
+						if (scaleOption==1){
 							pi.scale9Grid=new laya.maths.Rectangle();
-							str=cxml.getAttribute("scale9grid");
-							if(str){
-								arr=str.split(",");
-								pi.scale9Grid.x=parseInt(arr[0]);
-								pi.scale9Grid.y=parseInt(arr[1]);
-								pi.scale9Grid.width=parseInt(arr[2]);
-								pi.scale9Grid.height=parseInt(arr[3]);
-								str=cxml.getAttribute("gridTile");
-								if(str)
-									pi.tileGridIndice=parseInt(str);
-							}
+							pi.scale9Grid.x=buffer.getInt32();
+							pi.scale9Grid.y=buffer.getInt32();
+							pi.scale9Grid.width=buffer.getInt32();
+							pi.scale9Grid.height=buffer.getInt32();
+							pi.tileGridIndice=buffer.getInt32();
 						}
-						else if(str=="tile"){
-							pi.scaleByTile=true;
-						}
-						str=cxml.getAttribute("smoothing");
-						pi.smoothing=str !="false";
+						else if (scaleOption==2)
+						pi.scaleByTile=true;
+						pi.smoothing=buffer.readBool();
+						break ;
+					}
+				case 1:{
+						pi.smoothing=buffer.readBool();
+						pi.objectType=1;
+						pi.rawData=buffer.readBuffer();
+						break ;
+					}
+				case 5:{
+						pi.rawData=buffer.readBuffer();
+						break ;
+					}
+				case 3:{
+						var extension=buffer.readByte();
+						if (extension > 0)
+							pi.objectType=extension;
+						else
+						pi.objectType=9;
+						pi.rawData=buffer.readBuffer();
+						UIObjectFactory.resolvePackageItemExtension(pi);
 						break ;
 					}
 				case 4:
-					UIObjectFactory.resolvePackageItemExtension(pi);
-					break ;
+				case 2:
+				case 7:{
+						pi.file=resKey+pi.file;
+						break ;
+					}
 				}
 			this._items.push(pi);
 			this._itemsById[pi.id]=pi;
-			if(pi.name !=null)
+			if (pi.name !=null)
 				this._itemsByName[pi.name]=pi;
+			buffer.pos=nextPos;
 		}
-		cnt=this._items.length;
-		for(i=0;i < cnt;i++){
-			pi=this._items[i];
-			if(pi.type==6){
-				this.loadFont(pi);
-				fairygui.UIPackage._bitmapFonts[pi.bitmapFont.id]=pi.bitmapFont;
-			}
+		buffer.seek(indexTablePos,2);
+		cnt=buffer.getUint16();
+		for (i=0;i < cnt;i++){
+			nextPos=buffer.getUint16();
+			nextPos+=buffer.pos;
+			var itemId=buffer.readS();
+			pi=this._itemsById[buffer.readS()];
+			var sprite=new AtlasSprite();
+			sprite.atlas=pi;
+			sprite.rect.x=buffer.getInt32();
+			sprite.rect.y=buffer.getInt32();
+			sprite.rect.width=buffer.getInt32();
+			sprite.rect.height=buffer.getInt32();
+			sprite.rotated=buffer.readBool();
+			this._sprites[itemId]=sprite;
+			buffer.pos=nextPos;
 		}
-	}
-
-	__proto.decompressPackage=function(buf){
-		this._resData={};
-		var mark=new Uint8Array(buf.slice(0,2));
-		if(mark[0]==0x50 && mark[1]==0x4b){
-			buf.position=0;
-			this.decodeUncompressed(buf);
-		}
-		else{
-			var data;
-			var inflater=new Zlib.RawInflate(buf);data=inflater.decompress();;
-			var source=new Byte(data).readUTFBytes();
-			var curr=0;
-			var fn;
-			var size=NaN;
-			while(true){
-				var pos=source.indexOf("|",curr);
-				if(pos==-1)
-					break ;
-				fn=source.substring(curr,pos);
-				curr=pos+1;
-				pos=source.indexOf("|",curr);
-				size=parseInt(source.substring(curr,pos));
-				curr=pos+1;
-				this._resData[fn]=source.substr(curr,size);
-				curr+=size;
-			}
-		}
-	}
-
-	__proto.decodeUncompressed=function(buf){
-		var ba=new Byte(buf);
-		var pos=ba.length-22;
-		ba.pos=pos+10;
-		var entryCount=ba.getUint16();
-		ba.pos=pos+16;
-		pos=ba.getInt32();
-		for (var i=0;i < entryCount;i++){
-			ba.pos=pos+28;
-			var len=ba.getUint16();
-			var len2=ba.getUint16()+ba.getUint16();
-			ba.pos=pos+46;
-			var entryName=ba.getUTFBytes(len);
-			if (entryName[entryName.length-1] !='/' && entryName[entryName.length-1] !='\\'){
-				ba.pos=pos+20;
-				var size=ba.getInt32();
-				ba.pos=pos+42;
-				var offset=ba.getInt32()+30+len;
-				if (size > 0){
-					ba.pos=offset;
-					this._resData[entryName]=ba.readUTFBytes(size);
+		if (buffer.seek(indexTablePos,3)){
+			cnt=buffer.getUint16();
+			for (i=0;i < cnt;i++){
+				nextPos=buffer.getInt32();
+				nextPos+=buffer.pos;
+				pi=this._itemsById[buffer.readS()];
+				if (pi && pi.type==0){
+					pi.pixelHitTestData=new PixelHitTestData();
+					pi.pixelHitTestData.load(buffer);
 				}
+				buffer.pos=nextPos;
 			}
-			pos+=46+len+len2;
+		}
+	}
+
+	__proto.loadAllAssets=function(){
+		var cnt=this._items.length;
+		for(var i=0;i < cnt;i++){
+			var pi=this._items[i];
+			this.getItemAsset(pi);
+		}
+	}
+
+	__proto.unloadAssets=function(){
+		var cnt=this._items.length;
+		for(var i=0;i < cnt;i++){
+			var pi=this._items[i];
+			if(pi.type==4){
+				if(pi.texture!=null)
+					Laya.loader.clearTextureRes(pi.texture.url);
+			}
 		}
 	}
 
@@ -7746,13 +7531,14 @@ var UIPackage=(function(){
 		var cnt=this._items.length;
 		for(var i=0;i < cnt;i++){
 			var pi=this._items[i];
-			if(pi.type==7){
-				var texture=pi.texture;
-				if(texture !=null)
-					texture.destroy(true);
+			if(pi.type==4){
+				if(pi.texture!=null){
+					pi.texture.destroy(true);
+					pi.texture=null;
+				}
 			}
-			if(pi.bitmapFont !=null){
-				delete fairygui.UIPackage._bitmapFonts[pi.bitmapFont.id];
+			else if(pi.type==2){
+				SoundManager.destroySound(pi.file);
 			}
 		}
 	}
@@ -7767,7 +7553,7 @@ var UIPackage=(function(){
 
 	__proto.internalCreateObject=function(item,userClass){
 		var g;
-		if (item.type==4){
+		if (item.type==3){
 			if (userClass !=null)
 				g=new userClass();
 			else
@@ -7800,10 +7586,6 @@ var UIPackage=(function(){
 		return this.getItemAsset(pi);
 	}
 
-	__proto.getItemAssetURL=function(item){
-		return this._resKey+"@"+item.file;;
-	}
-
 	__proto.getItemAsset=function(item){
 		switch (item.type){
 			case 0:
@@ -7812,368 +7594,145 @@ var UIPackage=(function(){
 					var sprite=this._sprites[item.id];
 					if (sprite !=null)
 						item.texture=this.createSpriteTexture(sprite);
+					else
+					item.texture=null;
 				}
 				return item.texture;
-			case 7:
+			case 4:
 				if (!item.decoded){
 					item.decoded=true;
-					var fileName=(item.file !=null && item.file.length > 0)? item.file :(item.id+".png");
-					item.texture=AssetProxy.inst.getRes(this._resKey+"@"+fileName);
+					item.texture=AssetProxy.inst.getRes(item.file);
 					if(!UIConfig$1.textureLinearSampling)
 						item.texture.isLinearSampling=false;
 				}
 				return item.texture;
-			case 3:
-				if (!item.decoded){
-					item.decoded=true;
-					item.sound=AssetProxy.inst.getRes(this._resKey+"@"+item.file);
-				}
-				return item.sound;
-			case 6:
+			case 5:
 				if (!item.decoded){
 					item.decoded=true;
 					this.loadFont(item);
 				}
 				return item.bitmapFont;
-			case 2:
+			case 1:
 				if (!item.decoded){
 					item.decoded=true;
 					this.loadMovieClip(item);
 				}
 				return item.frames;
-			case 4:
-				if (!item.decoded){
-					item.decoded=true;
-					var str=this.getDesc(item.id+".xml");
-					var xml=Utils.parseXMLFromString(str);
-					item.componentData=xml.firstChild;
-					this.loadComponentChildren(item);
-					this.translateComponent(item);
-				}
-				return item.componentData;
+			case 3:
+				return item.rawData;
+			case 7:
+				if(item.file)
+					return AssetProxy.inst.getRes(item.file);
+				else
+				return null;
 			default :
-				return AssetProxy.inst.getRes(this._resKey+"@"+item.id);
+				return null;
 			}
-	}
-
-	__proto.getDesc=function(fn){
-		return this._resData[fn];
-	}
-
-	__proto.getPixelHitTestData=function(itemId){
-		return this._hitTestDatas[itemId];
-	}
-
-	__proto.loadComponentChildren=function(item){
-		var listNode=ToolSet.findChildNode(item.componentData,"displayList");
-		if (listNode !=null){
-			var col=listNode.childNodes;
-			var dcnt=col.length;
-			item.displayList=__newvec(dcnt);
-			var di;
-			for (var i=0;i < dcnt;i++){
-				var cxml=col[i];
-				var tagName=cxml.nodeName;
-				var src=cxml.getAttribute("src");
-				if (src){
-					var pkgId=cxml.getAttribute("pkg");
-					var pkg;
-					if (pkgId && pkgId !=item.owner.id)
-						pkg=fairygui.UIPackage.getById(pkgId);
-					else
-					pkg=item.owner;
-					var pi=pkg !=null ? pkg.getItemById(src):null;
-					if (pi !=null)
-						di=new DisplayListItem(pi,null);
-					else
-					di=new DisplayListItem(null,tagName);
-				}
-				else{
-					if (tagName=="text" && cxml.getAttribute("input")=="true")
-						di=new DisplayListItem(null,"inputtext");
-					else
-					di=new DisplayListItem(null,tagName);
-				}
-				di.desc=cxml;
-				item.displayList[i]=di;
-			}
-		}
-		else
-		item.displayList=__newvec(0,null);
-	}
-
-	__proto.translateComponent=function(item){
-		if(fairygui.UIPackage._stringsSource==null)
-			return;
-		var strings=fairygui.UIPackage._stringsSource[this.id+item.id];
-		if(strings==null)
-			return;
-		var length1=item.displayList.length;
-		var length2=NaN;
-		var value;
-		var cxml,dxml,exml;
-		var ename;
-		var elementId;
-		var items;
-		var i1=NaN,i2=NaN,j=NaN;
-		var str;
-		for (i1=0;i1 < length1;i1++){
-			cxml=item.displayList[i1].desc;
-			ename=cxml.nodeName;
-			elementId=cxml.getAttribute("id");
-			str=cxml.getAttribute("tooltips");
-			if(str){
-				value=strings[elementId+"-tips"];
-				if(value!=undefined)
-					cxml.setAttribute("tooltips",value);
-			}
-			dxml=ToolSet.findChildNode(cxml,"gearText");
-			if(dxml){
-				value=strings[elementId+"-texts"];
-				if(value!=undefined)
-					dxml.setAttribute("values",value);
-				value=strings[elementId+"-texts_def"];
-				if(value!=undefined)
-					dxml.setAttribute("default",value);
-			}
-			if(ename=="text" || ename=="richtext"){
-				value=strings[elementId];
-				if(value!=undefined)
-					cxml.setAttribute("text",value);
-				value=strings[elementId+"-prompt"];
-				if(value!=undefined)
-					cxml.setAttribute("prompt",value);
-			}
-			else if(ename=="list"){
-				items=cxml.childNodes;
-				length2=items.length;
-				j=0;
-				for (i2=0;i2 < length2;i2++){
-					exml=items[i2];
-					if(exml.nodeName!="item")
-						continue ;
-					value=strings[elementId+"-"+j];
-					if(value!=undefined)
-						exml.setAttribute("title",value);
-					j++;
-				}
-			}
-			else if(ename=="component"){
-				dxml=ToolSet.findChildNode(cxml,"Button");
-				if(dxml){
-					value=strings[elementId];
-					if(value!=undefined)
-						dxml.setAttribute("title",value);
-					value=strings[elementId+"-0"];
-					if(value!=undefined)
-						dxml.setAttribute("selectedTitle",value);
-					continue ;
-				}
-				dxml=ToolSet.findChildNode(cxml,"Label");
-				if(dxml){
-					value=strings[elementId];
-					if(value!=undefined)
-						dxml.setAttribute("title",value);
-					value=strings[elementId+"-prompt"];
-					if(value!=undefined)
-						dxml.setAttribute("prompt",value);
-					continue ;
-				}
-				dxml=ToolSet.findChildNode(cxml,"ComboBox");
-				if(dxml){
-					value=strings[elementId];
-					if(value!=undefined)
-						dxml.setAttribute("title",value);
-					items=dxml.childNodes;
-					length2=items.length;
-					j=0;
-					for (i2=0;i2 < length2;i2++){
-						exml=items[i2];
-						if(exml.nodeName!="item")
-							continue ;
-						value=strings[elementId+"-"+j];
-						if(value!=undefined)
-							exml.setAttribute("title",value);
-						j++;
-					}
-					continue ;
-				}
-			}
-		}
 	}
 
 	__proto.createSpriteTexture=function(sprite){
-		var atlasItem=this._itemsById[sprite.atlas];
-		if (atlasItem !=null){
-			var atlasTexture=(this.getItemAsset(atlasItem));
-			if(atlasTexture==null)
-				return null;
-			else
-			return this.createSubTexture(atlasTexture,sprite.rect);
-		}
-		else
-		return null;
-	}
-
-	__proto.createSubTexture=function(atlasTexture,clipRect){
-		var texture=Texture.createFromTexture(atlasTexture,
-		clipRect.x,clipRect.y,clipRect.width,clipRect.height);
-		return texture;
+		var atlasTexture=(this.getItemAsset(sprite.atlas));
+		return Texture.createFromTexture(atlasTexture,
+		sprite.rect.x,sprite.rect.y,sprite.rect.width,sprite.rect.height);
 	}
 
 	__proto.loadMovieClip=function(item){
-		var xml=Utils.parseXMLFromString(this.getDesc(item.id+".xml")).firstChild;
-		var str;
-		var arr;
-		str=xml.getAttribute("interval");
-		if (str)
-			item.interval=parseInt(str);
-		str=xml.getAttribute("swing");
-		if (str)
-			item.swing=str=="true";
-		str=xml.getAttribute("repeatDelay");
-		if (str)
-			item.repeatDelay=parseInt(str);
-		var frameCount=parseInt(xml.getAttribute("frameCount"));
-		item.frames=[];
-		var frameNodes=ToolSet.findChildNode(xml,"frames").childNodes;
-		var i=0;
-		var len=frameNodes.length;
-		for(var k=0;k < len;k++){
-			var frameNode=frameNodes[k];
-			if(frameNode.nodeName!="frame")
-				continue ;
-			var frame=new Frame();
-			str=frameNode.getAttribute("rect");
-			arr=str.split(",");
-			frame.rect=new Rectangle(parseInt(arr[0]),parseInt(arr[1]),parseInt(arr[2]),parseInt(arr[3]));
-			str=frameNode.getAttribute("addDelay");
-			if(str)
-				frame.addDelay=parseInt(str);
-			item.frames[i]=frame;
-			if (frame.rect.width==0)
-				continue ;
-			str=frameNode.getAttribute("sprite");
-			if (str)
-				str=item.id+"_"+str;
-			else
-			str=item.id+"_"+i;
-			var sprite=this._sprites[str];
-			if(sprite !=null)
+		var buffer=item.rawData;
+		buffer.seek(0,0);
+		item.interval=buffer.getInt32();
+		item.swing=buffer.readBool();
+		item.repeatDelay=buffer.getInt32();
+		buffer.seek(0,1);
+		var frameCount=buffer.getInt16();
+		item.frames=__newvec(frameCount);
+		var spriteId;
+		var frame;
+		var sprite;
+		for (var i=0;i < frameCount;i++){
+			var nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			frame=new Frame();
+			frame.rect.x=buffer.getInt32();
+			frame.rect.y=buffer.getInt32();
+			frame.rect.width=buffer.getInt32();
+			frame.rect.height=buffer.getInt32();
+			frame.addDelay=buffer.getInt32();
+			spriteId=buffer.readS();
+			if (spriteId !=null && (sprite=this._sprites[spriteId])!=null)
 				frame.texture=this.createSpriteTexture(sprite);
-			i++;
+			item.frames[i]=frame;
+			buffer.pos=nextPos;
 		}
 	}
 
 	__proto.loadFont=function(item){
 		var font=new BitmapFont$1();
-		font.id="ui://"+this.id+item.id;
-		var str=this.getDesc(item.id+".fnt");
-		var lines=str.split("\n");
-		var lineCount=lines.length;
-		var i=0;
-		var kv={};
-		var ttf=false;
-		var size=0;
-		var xadvance=0;
-		var resizable=false;
-		var atlasOffsetX=0,atlasOffsetY=0;
-		var charImg;
-		var mainTexture;
-		var lineHeight=0;
-		for (i=0;i < lineCount;i++){
-			str=lines[i];
-			if (str.length==0)
-				continue ;
-			str=ToolSet.trim(str);
-			var arr=str.split(" ");
-			for (var j=1;j < arr.length;j++){
-				var arr2=arr[j].split("=");
-				kv[arr2[0]]=arr2[1];
-			}
-			str=arr[0];
-			if (str=="char"){
-				var bg=new BMGlyph();
-				bg.x=isNaN(kv.x)? 0 :parseInt(kv.x);
-				bg.y=isNaN(kv.y)? 0 :parseInt(kv.y);
-				bg.offsetX=isNaN(kv.xoffset)? 0 :parseInt(kv.xoffset);
-				bg.offsetY=isNaN(kv.yoffset)? 0 :parseInt(kv.yoffset);
-				bg.width=isNaN(kv.width)? 0 :parseInt(kv.width);
-				bg.height=isNaN(kv.height)? 0 :parseInt(kv.height);
-				bg.advance=isNaN(kv.xadvance)? 0 :parseInt(kv.xadvance);
-				if (kv.chnl !=undefined){
-					bg.channel=parseInt(kv.chnl);
-					if (bg.channel==15)
-						bg.channel=4;
-					else if (bg.channel==1)
-					bg.channel=3;
-					else if (bg.channel==2)
-					bg.channel=2;
-					else
-					bg.channel=1;
-				}
-				if (!ttf){
-					if (kv.img){
-						charImg=this._itemsById[kv.img];
-						if (charImg !=null){
-							charImg.load();
-							bg.width=charImg.width;
-							bg.height=charImg.height;
-							bg.texture=charImg.texture;
-						}
-					}
-				}
-				else if (mainTexture !=null){
-					bg.texture=this.createSubTexture(mainTexture,new Rectangle(bg.x+atlasOffsetX,bg.y+atlasOffsetY,bg.width,bg.height));
-				}
-				if (ttf)
-					bg.lineHeight=lineHeight;
-				else {
-					if(bg.advance==0){
-						if(xadvance==0)
-							bg.advance=bg.offsetX+bg.width;
-						else
-						bg.advance=xadvance;
-					}
-					bg.lineHeight=bg.offsetY < 0 ? bg.height :(bg.offsetY+bg.height);
-					if(size>0 && bg.lineHeight<size)
-						bg.lineHeight=size;
-				}
-				font.glyphs[String.fromCharCode(kv.id)]=bg;
-			}
-			else if (str=="info"){
-				ttf=kv.face !=null;
-				if(!isNaN(kv.size))
-					size=parseInt(kv.size);
-				resizable=kv.resizable=="true";
-				if (ttf){
-					var sprite=this._sprites[item.id];
-					if (sprite !=null){
-						atlasOffsetX=sprite.rect.x;
-						atlasOffsetY=sprite.rect.y;
-						var atlasItem=this._itemsById[sprite.atlas];
-						if(atlasItem !=null)
-							mainTexture=(this.getItemAsset(atlasItem));
-					}
-				}
-			}
-			else if (str=="common"){
-				if(!isNaN(kv.lineHeight))
-					lineHeight=parseInt(kv.lineHeight);
-				if(size==0)
-					size=lineHeight;
-				else if(lineHeight==0)
-				lineHeight=size;
-				if(!isNaN(kv.xadvance))
-					xadvance=parseInt(kv.xadvance);
-			}
-		}
-		if (size==0 && bg)
-			size=bg.height;
-		font.ttf=ttf;
-		font.size=size;
-		font.resizable=resizable;
 		item.bitmapFont=font;
+		var buffer=item.rawData;
+		buffer.seek(0,0);
+		font.ttf=buffer.readBool();
+		buffer.readBool();
+		font.resizable=buffer.readBool();
+		buffer.readBool();
+		font.size=buffer.getInt32();
+		var xadvance=buffer.getInt32();
+		var lineHeight=buffer.getInt32();
+		var mainTexture=null;
+		var mainSprite=this._sprites[item.id];
+		if (mainSprite!=null)
+			mainTexture=(this.getItemAsset(mainSprite.atlas));
+		buffer.seek(0,1);
+		var bg=null;
+		var cnt=buffer.getInt32();
+		for (var i=0;i < cnt;i++){
+			var nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			bg=new BMGlyph();
+			var ch=buffer.readChar();
+			font.glyphs[ch]=bg;
+			var img=buffer.readS();
+			var bx=buffer.getInt32();
+			var by=buffer.getInt32();
+			bg.offsetX=buffer.getInt32();
+			bg.offsetY=buffer.getInt32();
+			bg.width=buffer.getInt32();
+			bg.height=buffer.getInt32();
+			bg.advance=buffer.getInt32();
+			bg.channel=buffer.readByte();
+			if (bg.channel==1)
+				bg.channel=3;
+			else if (bg.channel==2)
+			bg.channel=2;
+			else if (bg.channel==3)
+			bg.channel=1;
+			if (!font.ttf){
+				var charImg=this._itemsById[img];
+				if (charImg){
+					this.getItemAsset(charImg);
+					bg.width=charImg.width;
+					bg.height=charImg.height;
+					bg.texture=charImg.texture;
+				}
+			}
+			else{
+				bg.texture=Texture.createFromTexture(mainTexture,
+				bx+mainSprite.rect.x,by+mainSprite.rect.y,bg.width,bg.height);
+			}
+			if (font.ttf)
+				bg.lineHeight=lineHeight;
+			else{
+				if (bg.advance==0){
+					if (xadvance==0)
+						bg.advance=bg.offsetX+bg.width;
+					else
+					bg.advance=xadvance;
+				}
+				bg.lineHeight=bg.offsetY < 0 ? bg.height :(bg.offsetY+bg.height);
+				if (bg.lineHeight < font.size)
+					bg.lineHeight=font.size;
+			}
+			buffer.pos=nextPos;
+		}
 	}
 
 	__getset(0,__proto,'id',function(){
@@ -8203,8 +7762,14 @@ var UIPackage=(function(){
 	}
 
 	UIPackage.addPackage=function(resKey,descData){
+		if(!descData){
+			descData=AssetProxy.inst.getRes(resKey+"."+UIConfig$1.packageFileExtension);
+			if(!descData || descData.length==0)
+				throw new Error("package resource not ready: "+resKey);
+		};
+		var buffer=new ByteBuffer(descData);
 		var pkg=new UIPackage();
-		pkg.create(resKey,descData);
+		pkg.loadPackage(buffer,resKey);
 		fairygui.UIPackage._packageInstById[pkg.id]=pkg;
 		fairygui.UIPackage._packageInstByName[pkg.name]=pkg;
 		pkg.customId=resKey;
@@ -8276,6 +7841,13 @@ var UIPackage=(function(){
 		return null;
 	}
 
+	UIPackage.getItemAssetByURL=function(url){
+		var item=UIPackage.getItemByURL(url);
+		if (item==null)
+			return null;
+		return item.owner.getItemAsset(item);
+	}
+
 	UIPackage.normalizeURL=function(url){
 		if(url==null)
 			return null;
@@ -8290,45 +7862,13 @@ var UIPackage=(function(){
 		return UIPackage.getItemURL(pkgName,srcName);
 	}
 
-	UIPackage.getBitmapFontByURL=function(url){
-		return fairygui.UIPackage._bitmapFonts[url];
-	}
-
 	UIPackage.setStringsSource=function(source){
-		fairygui.UIPackage._stringsSource={};
-		var xml=Utils.parseXMLFromString(source);
-		var resNode=ToolSet.findChildNode(xml,"resources");
-		var nodes=resNode.childNodes;
-		var length1=nodes.length;
-		for (var i1=0;i1 < length1;i1++){
-			var cxml=nodes[i1];
-			if (cxml.nodeName=="string"){
-				var key=cxml.getAttribute("name");
-				var text=cxml.textContent;
-				var i=key.indexOf("-");
-				if(i==-1)
-					continue ;
-				var key2=key.substr(0,i);
-				var key3=key.substr(i+1);
-				var col=fairygui.UIPackage._stringsSource[key2];
-				if(!col){
-					col={};
-					fairygui.UIPackage._stringsSource[key2]=col;
-				}
-				col[key3]=text;
-			}
-		}
+		TranslationHelper.loadFromXML(source);
 	}
 
 	UIPackage._constructing=0;
 	UIPackage._packageInstById={};
 	UIPackage._packageInstByName={};
-	UIPackage._bitmapFonts={};
-	UIPackage._stringsSource=null;
-	UIPackage.sep0=",";
-	UIPackage.sep1="\n";
-	UIPackage.sep2=" ";
-	UIPackage.sep3="=";
 	UIPackage.__init$=function(){
 		//class AtlasSprite
 		AtlasSprite=(function(){
@@ -8493,20 +8033,6 @@ var ToolSet=(function(){
 		return null;
 	}
 
-	ToolSet.findChildNode=function(xml,name){
-		var col=xml.childNodes;
-		var length1=col.length;
-		if (length1>0){
-			for (var i1=0;i1 < length1;i1++){
-				var cxml=col[i1];
-				if (cxml.nodeName==name){
-					return cxml;
-				}
-			}
-		}
-		return null;
-	}
-
 	ToolSet.encodeHTML=function(str){
 		if (!str)
 			return "";
@@ -8538,32 +8064,10 @@ var ToolSet=(function(){
 		return value;
 	}
 
-	ToolSet.base64Decode=function(bstr){
-		var ba=new Byte();
-		var code=0;
-		var len=bstr.length;
-		for (var i=0;i < len;i+=4){
-			code=(ToolSet.BASE64_CHARS.indexOf(bstr.charAt(i))& 0x3F)<< 18;
-			code+=(ToolSet.BASE64_CHARS.indexOf(bstr.charAt(i+1))& 0x3F)<< 12;
-			code+=(ToolSet.BASE64_CHARS.indexOf(bstr.charAt(i+2))& 0x3F)<< 6;
-			code+=(ToolSet.BASE64_CHARS.indexOf(bstr.charAt(i+3))& 0x3F);
-			ba.writeByte((code >> 16)& 0xFF);
-			ba.writeByte((code >> 8)& 0xFF);
-			ba.writeByte(code & 0xFF);
-		}
-		if(len>0 && bstr.charAt(len-1)=="=")
-			ba.length-=1;
-		if(len>1 && bstr.charAt(len-2)=="=")
-			ba.length-=1;
-		ba.pos=0;
-		return ba;
-	}
-
 	ToolSet.lerp=function(start,end,percent){
 		return (start+percent*(end-start));
 	}
 
-	ToolSet.BASE64_CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 	__static(ToolSet,
 	['defaultUBBParser',function(){return this.defaultUBBParser=new UBBParser();}
 	]);
@@ -8718,7 +8222,7 @@ var UBBParser=(function(){
 			func=this._handlers[tag];
 			if(func!=null){
 				if(!remove){
-					repl=func(tag,end,attr);
+					repl=func.call(this,tag,end,attr);
 					if(repl!=null)
 						result+=repl;
 				}
@@ -8878,14 +8382,14 @@ var ColorMatrix=(function(_super){
 //class fairygui.Controller extends laya.events.EventDispatcher
 var Controller=(function(_super){
 	function Controller(){
-		this._name=null;
 		this._selectedIndex=0;
 		this._previousIndex=0;
 		this._pageIds=null;
 		this._pageNames=null;
 		this._actions=null;
-		this._parent=null;
-		this._autoRadioGroupDepth=false;
+		this.name=null;
+		this.parent=null;
+		this.autoRadioGroupDepth=false;
 		this.changing=false;
 		Controller.__super.call(this);
 		this._pageIds=[];
@@ -8909,7 +8413,7 @@ var Controller=(function(_super){
 			this.changing=true;
 			this._previousIndex=this._selectedIndex;
 			this._selectedIndex=value;
-			this._parent.applyController(this);
+			this.parent.applyController(this);
 			this.changing=false;
 		}
 	}
@@ -8953,7 +8457,7 @@ var Controller=(function(_super){
 			if (this._selectedIndex >=this._pageIds.length)
 				this.selectedIndex=this._selectedIndex-1;
 			else
-			this._parent.applyController(this);
+			this.parent.applyController(this);
 		}
 	}
 
@@ -8964,7 +8468,7 @@ var Controller=(function(_super){
 		if (this._selectedIndex >=this._pageIds.length)
 			this.selectedIndex=this._selectedIndex-1;
 		else
-		this._parent.applyController(this);
+		this.parent.applyController(this);
 	}
 
 	__proto.clearPages=function(){
@@ -8973,7 +8477,7 @@ var Controller=(function(_super){
 		if (this._selectedIndex !=-1)
 			this.selectedIndex=-1;
 		else
-		this._parent.applyController(this);
+		this.parent.applyController(this);
 	}
 
 	__proto.hasPage=function(aName){
@@ -9014,88 +8518,38 @@ var Controller=(function(_super){
 		}
 	}
 
-	__proto.setup=function(xml){
-		this._name=xml.getAttribute("name");
-		this._autoRadioGroupDepth=xml.getAttribute("autoRadioGroupDepth")=="true";
+	__proto.setup=function(buffer){
+		var beginPos=buffer.pos;
+		buffer.seek(beginPos,0);
+		this.name=buffer.readS();
+		this.autoRadioGroupDepth=buffer.readBool();
+		buffer.seek(beginPos,1);
 		var i=0;
-		var k=0;
-		var str=xml.getAttribute("pages");
-		if (str){
-			var arr=str.split(",");
-			var cnt=arr.length;
-			for (i=0;i < cnt;i+=2){
-				this._pageIds.push(arr[i]);
-				this._pageNames.push(arr[i+1]);
-			}
-		};
-		var col=xml.childNodes;
-		var length1=col.length;
-		if(length1>0){
-			if(!this._actions)
+		var nextPos=0;
+		var cnt=buffer.getInt16();
+		for (i=0;i < cnt;i++){
+			this._pageIds.push(buffer.readS());
+			this._pageNames.push(buffer.readS());
+		}
+		buffer.seek(beginPos,2);
+		cnt=buffer.getInt16();
+		if (cnt > 0){
+			if (this._actions==null)
 				this._actions=[];
-			for(var i1=0;i1 < length1;i1++){
-				var cxml=col[i1];
-				var action=ControllerAction.createAction(cxml.getAttribute("type"));
-				action.setup(cxml);
+			for (i=0;i < cnt;i++){
+				nextPos=buffer.getInt16();
+				nextPos+=buffer.pos;
+				var action=ControllerAction.createAction(buffer.readByte());
+				action.setup(buffer);
 				this._actions.push(action);
+				buffer.pos=nextPos;
 			}
 		}
-		str=xml.getAttribute("transitions");
-		if(str){
-			if(!this._actions)
-				this._actions=[];
-			arr=str.split(",");
-			cnt=arr.length;
-			var ii=0;
-			for(i=0;i < cnt;i++){
-				str=arr[i];
-				if(!str)
-					continue ;
-				var taction=new PlayTransitionAction();
-				k=str.indexOf("=");
-				taction.transitionName=str.substr(k+1);
-				str=str.substring(0,k);
-				k=str.indexOf("-");
-				ii=parseInt(str.substring(k+1));
-				if(ii<this._pageIds.length)
-					taction.toPage=[this._pageIds[ii]];
-				str=str.substring(0,k);
-				if(str !="*"){
-					ii=parseInt(str);
-					if(ii<this._pageIds.length)
-						taction.fromPage=[this._pageIds[ii]];
-				}
-				taction.stopOnExit=true;
-				this._actions.push(taction);
-			}
-		}
-		if (this._parent && this._pageIds.length > 0)
+		if (this.parent !=null && this._pageIds.length > 0)
 			this._selectedIndex=0;
 		else
 		this._selectedIndex=-1;
 	}
-
-	__getset(0,__proto,'oppositePageId',null,function(val){
-		var i=this._pageIds.indexOf(val);
-		if(i > 0)
-			this.selectedIndex=0;
-		else if(this._pageIds.length > 1)
-		this.selectedIndex=1;
-	});
-
-	__getset(0,__proto,'name',function(){
-		return this._name;
-		},function(value){
-		this._name=value;
-	});
-
-	__getset(0,__proto,'pageCount',function(){
-		return this._pageIds.length;
-	});
-
-	__getset(0,__proto,'parent',function(){
-		return this._parent;
-	});
 
 	__getset(0,__proto,'selectedIndex',function(){
 		return this._selectedIndex;
@@ -9106,7 +8560,7 @@ var Controller=(function(_super){
 			this.changing=true;
 			this._previousIndex=this._selectedIndex;
 			this._selectedIndex=value;
-			this._parent.applyController(this);
+			this.parent.applyController(this);
 			this.event("fui_state_changed");
 			this.changing=false;
 		}
@@ -9135,6 +8589,10 @@ var Controller=(function(_super){
 		return this._pageNames[this._previousIndex];
 	});
 
+	__getset(0,__proto,'pageCount',function(){
+		return this._pageIds.length;
+	});
+
 	__getset(0,__proto,'selectedPageId',function(){
 		if (this._selectedIndex==-1)
 			return null;
@@ -9152,9 +8610,140 @@ var Controller=(function(_super){
 		return this._pageIds[this._previousIndex];
 	});
 
+	__getset(0,__proto,'oppositePageId',null,function(val){
+		var i=this._pageIds.indexOf(val);
+		if(i > 0)
+			this.selectedIndex=0;
+		else if(this._pageIds.length > 1)
+		this.selectedIndex=1;
+	});
+
 	Controller._nextPageId=0;
 	return Controller;
 })(EventDispatcher)
+
+
+//class fairygui.utils.ByteBuffer extends laya.utils.Byte
+var ByteBuffer=(function(_super){
+	function ByteBuffer(data,offset,length){
+		this.stringTable=null;
+		this.version=0;
+		(offset===void 0)&& (offset=0);
+		(length===void 0)&& (length=-1);
+		if(length==-1)
+			length=data.byteLength-offset;
+		if(offset==0 && length==data.byteLength)
+			ByteBuffer.__super.call(this,data);
+		else{
+			this._u8d_=new Uint8Array(data,offset,length);
+			this._d_=new DataView(this._u8d_.buffer,offset,length);
+			this._length=length;
+		}
+		this.endian="bigEndian";
+	}
+
+	__class(ByteBuffer,'fairygui.utils.ByteBuffer',_super);
+	var __proto=ByteBuffer.prototype;
+	__proto.skip=function(count){
+		this.pos+=count;
+	}
+
+	__proto.readBool=function(){
+		return this.getUint8()==1;
+	}
+
+	__proto.readS=function(){
+		var index=this.getUint16();
+		if (index==65534)
+			return null;
+		else if (index==65533)
+		return ""
+		else
+		return this.stringTable[index];
+	}
+
+	__proto.writeS=function(value){
+		var index=this.getUint16();
+		if (index !=65534 && index !=65533)
+			this.stringTable[index]=value;
+	}
+
+	__proto.readColor=function(hasAlpha){
+		(hasAlpha===void 0)&& (hasAlpha=false);
+		var r=this.getUint8();
+		var g=this.getUint8();
+		var b=this.getUint8();
+		var a=this.getUint8();
+		return (hasAlpha?(a<<24):0)+(r<<16)+(g<<8)+b;
+	}
+
+	__proto.readColorS=function(hasAlpha){
+		(hasAlpha===void 0)&& (hasAlpha=false);
+		var r=this.getUint8();
+		var g=this.getUint8();
+		var b=this.getUint8();
+		var a=this.getUint8();
+		if(hasAlpha && a!=255)
+			return "rgba("+r+","+g+","+b+","+(a/255)+")";
+		else{
+			var sr=r.toString(16);
+			var sg=g.toString(16);
+			var sb=b.toString(16);
+			if (sr.length==1)
+				sr="0"+sr;
+			if (sg.length==1)
+				sg="0"+sg;
+			if (sb.length==1)
+				sb="0"+sb;
+			return "#"+sr+sg+sb;
+		}
+	}
+
+	__proto.readChar=function(){
+		var i=this.getUint16();
+		return String.fromCharCode(i);
+	}
+
+	__proto.readBuffer=function(){
+		var count=this.getUint32();
+		var ba=new ByteBuffer(this.buffer,this._pos_,count);
+		ba.stringTable=this.stringTable;
+		ba.version=this.version;
+		return ba;
+	}
+
+	__proto.seek=function(indexTablePos,blockIndex){
+		var tmp=this._pos_;
+		this.pos=indexTablePos;
+		var segCount=this.getUint8();
+		if (blockIndex < segCount){
+			var useShort=this.getUint8()==1;
+			var newPos=0;
+			if (useShort){
+				this.pos+=2 *blockIndex;
+				newPos=this.getUint16();
+			}
+			else{
+				this.pos+=4 *blockIndex;
+				newPos=this.getUint32();
+			}
+			if (newPos > 0){
+				this.pos=indexTablePos+newPos;
+				return true;
+			}
+			else{
+				this.pos=tmp;
+				return false;
+			}
+		}
+		else{
+			this.pos=tmp;
+			return false;
+		}
+	}
+
+	return ByteBuffer;
+})(Byte)
 
 
 //class fairygui.utils.PixelHitTest extends laya.utils.HitArea
@@ -9221,11 +8810,11 @@ var ChangePageAction=(function(_super){
 		}
 	}
 
-	__proto.setup=function(xml){
-		_super.prototype.setup.call(this,xml);
-		this.objectId=xml.getAttribute("objectId");
-		this.controllerName=xml.getAttribute("controller");
-		this.targetPage=xml.getAttribute("targetPage");
+	__proto.setup=function(buffer){
+		_super.prototype.setup.call(this,buffer);
+		this.objectId=buffer.readS();
+		this.controllerName=buffer.readS();
+		this.targetPage=buffer.readS();
 	}
 
 	return ChangePageAction;
@@ -9263,17 +8852,12 @@ var PlayTransitionAction=(function(_super){
 		}
 	}
 
-	__proto.setup=function(xml){
-		_super.prototype.setup.call(this,xml);
-		this.transitionName=xml.getAttribute("transition");
-		var str;
-		str=xml.getAttribute("repeat");
-		if(str)
-			this.playTimes=parseInt(str);
-		str=xml.getAttribute("delay");
-		if(str)
-			this.delay=parseFloat(str);
-		this.stopOnExit=xml.getAttribute("stopOnExit")=="true";
+	__proto.setup=function(buffer){
+		_super.prototype.setup.call(this,buffer);
+		this.transitionName=buffer.readS();
+		this.playTimes=buffer.getInt32();
+		this.delay=buffer.getFloat32();
+		this.stopOnExit=buffer.readBool();
 	}
 
 	return PlayTransitionAction;
@@ -9292,7 +8876,7 @@ var GTextField=(function(_super){
 
 	__class(GTextField,'fairygui.GTextField',_super);
 	var __proto=GTextField.prototype;
-	Laya.imps(__proto,{"fairygui.IColorGear":true})
+	Laya.imps(__proto,{"fairygui.gears.IColorGear":true})
 	__proto.parseTemplate=function(template){
 		var pos1=0,pos2=0,pos3=0;
 		var tag;
@@ -9353,54 +8937,40 @@ var GTextField=(function(_super){
 			this._gearColor.apply();
 	}
 
-	__proto.setup_beforeAdd=function(xml){
-		_super.prototype.setup_beforeAdd.call(this,xml);
-		var str;
-		str=xml.getAttribute("font");
-		if (str)
-			this.font=str;
-		str=xml.getAttribute("fontSize");
-		if (str)
-			this.fontSize=parseInt(str);
-		str=xml.getAttribute("color");
-		if (str)
-			this.color=str;
-		str=xml.getAttribute("align");
-		if (str)
-			this.align=str;
-		str=xml.getAttribute("vAlign");
-		if (str)
-			this.valign=str;
-		str=xml.getAttribute("leading");
-		if (str)
-			this.leading=parseInt(str);
-		else
-		this.leading=3;
-		str=xml.getAttribute("letterSpacing");
-		if (str)
-			this.letterSpacing=parseInt(str);
-		this.ubbEnabled=xml.getAttribute("ubb")=="true";
-		this.italic=xml.getAttribute("italic")=="true";
-		this.bold=xml.getAttribute("bold")=="true";
-		this.underline=xml.getAttribute("underline")=="true";
-		this.singleLine=xml.getAttribute("singleLine")=="true";
-		str=xml.getAttribute("strokeColor");
-		if (str){
-			this.strokeColor=str;
-			str=xml.getAttribute("strokeSize");
-			if(str)
-				this.stroke=parseInt(str)+1;
-			else
-			this.stroke=2;
+	__proto.setup_beforeAdd=function(buffer,beginPos){
+		_super.prototype.setup_beforeAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,5);
+		var iv=0;
+		this.font=buffer.readS();
+		this.fontSize=buffer.getInt16();
+		this.color=buffer.readColorS();
+		iv=buffer.readByte();
+		this.align=iv==0?"left":(iv==1?"center":"right");
+		iv=buffer.readByte();
+		this.valign=iv==0?"top":(iv==1?"middle":"bottom");
+		this.leading=buffer.getInt16();
+		this.letterSpacing=buffer.getInt16();
+		this.ubbEnabled=buffer.readBool();
+		this.autoSize=buffer.readByte();
+		this.underline=buffer.readBool();
+		this.italic=buffer.readBool();
+		this.bold=buffer.readBool();
+		this.singleLine=buffer.readBool();
+		if (buffer.readBool()){
+			this.strokeColor=buffer.readColorS();
+			this.stroke=buffer.getFloat32()+1;
 		}
-		if(xml.getAttribute("vars")=="true")
+		if (buffer.readBool())
+			buffer.skip(12);
+		if (buffer.readBool())
 			this._templateVars={};
 	}
 
-	__proto.setup_afterAdd=function(xml){
-		_super.prototype.setup_afterAdd.call(this,xml);
-		var str=xml.getAttribute("text");
-		if(str !=null && str.length > 0)
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,6);
+		var str=buffer.readS();
+		if (str !=null)
 			this.text=str;
 	}
 
@@ -9483,12 +9053,19 @@ var GTextField=(function(_super){
 		},function(value){
 	});
 
-	__getset(0,__proto,'textWidth',function(){
+	/**
+	*@see AutoSizeType
+	*/
+	/**
+	*@see AutoSizeType
+	*/
+	__getset(0,__proto,'autoSize',function(){
 		return 0;
+		},function(value){
 	});
 
-	__getset(0,__proto,'gearColor',function(){
-		return this._gearColor;
+	__getset(0,__proto,'textWidth',function(){
+		return 0;
 	});
 
 	return GTextField;
@@ -9803,7 +9380,7 @@ var GComponent=(function(_super){
 
 	__proto.addController=function(controller){
 		this._controllers.push(controller);
-		controller._parent=this;
+		controller.parent=this;
 		this.applyController(controller);
 	}
 
@@ -9825,7 +9402,7 @@ var GComponent=(function(_super){
 		var index=this._controllers.indexOf(c);
 		if(index==-1)
 			throw new Error("controller not exists");
-		c._parent=null;
+		c.parent=null;
 		this._controllers.splice(index,1);
 		var length=this._children.length;
 		for(var i=0;i < length;i++){
@@ -10029,13 +9606,13 @@ var GComponent=(function(_super){
 		this._displayObject.scrollRect=rect;
 	}
 
-	__proto.setupScroll=function(scrollBarMargin,scroll,scrollBarDisplay,flags,vtScrollBarRes,hzScrollBarRes,headerRes,footerRes){
+	__proto.setupScroll=function(buffer){
 		if (this._displayObject==this._container){
 			this._container=new Sprite();
 			this._displayObject.addChild(this._container);
 		}
-		this._scrollPane=new ScrollPane(this,scroll,scrollBarMargin,scrollBarDisplay,flags,
-		vtScrollBarRes,hzScrollBarRes,headerRes,footerRes);
+		this._scrollPane=new ScrollPane(this);
+		this._scrollPane.setup(buffer);
 	}
 
 	__proto.setupOverflow=function(overflow){
@@ -10239,153 +9816,153 @@ var GComponent=(function(_super){
 	}
 
 	__proto.constructFromResource2=function(objectPool,poolIndex){
-		var xml=this.packageItem.owner.getItemAsset(this.packageItem);
+		if (!this.packageItem.decoded){
+			this.packageItem.decoded=true;
+			TranslationHelper.translateComponent(this.packageItem);
+		};
+		var i=0;
+		var dataLen=0;
+		var curPos=0;
+		var nextPos=0;
+		var f1=NaN;
+		var f2=NaN;
+		var i1=0;
+		var i2=0;
+		var buffer=this.packageItem.rawData;
+		buffer.seek(0,0);
 		this._underConstruct=true;
-		var str;
-		var arr;
-		str=xml.getAttribute("size");
-		arr=str.split(",");
-		this.sourceWidth=parseInt(arr[0]);
-		this.sourceHeight=parseInt(arr[1]);
+		this.sourceWidth=buffer.getInt32();
+		this.sourceHeight=buffer.getInt32();
 		this.initWidth=this.sourceWidth;
 		this.initHeight=this.sourceHeight;
 		this.setSize(this.sourceWidth,this.sourceHeight);
-		str=xml.getAttribute("restrictSize");
-		if(str){
-			arr=str.split(",");
-			this.minWidth=parseInt(arr[0]);
-			this.maxWidth=parseInt(arr[1]);
-			this.minHeight=parseInt(arr[2]);
-			this.maxHeight=parseInt(arr[3]);
+		if (buffer.readBool()){
+			this.minWidth=buffer.getInt32();
+			this.maxWidth=buffer.getInt32();
+			this.minHeight=buffer.getInt32();
+			this.maxHeight=buffer.getInt32();
 		}
-		str=xml.getAttribute("pivot");
-		if(str){
-			arr=str.split(",");
-			str=xml.getAttribute("anchor");
-			this.internalSetPivot(parseFloat(arr[0]),parseFloat(arr[1]),str=="true");
+		if (buffer.readBool()){
+			f1=buffer.getFloat32();
+			f2=buffer.getFloat32();
+			this.internalSetPivot(f1,f2,buffer.readBool());
 		}
-		str=xml.getAttribute("opaque");
-		this.opaque=str !="false";
-		str=xml.getAttribute("hitTest");
-		if(str){
-			arr=str.split(",");
-			var hitTestData=this.packageItem.owner.getPixelHitTestData(arr[0]);
-			if (hitTestData !=null){
-				this._displayObject.hitArea=new PixelHitTest(hitTestData,parseInt(arr[1]),parseInt(arr[2]));
-				this._displayObject.mouseThrough=false;
-				this._displayObject.hitTestPrior=true;
-			}
+		if (buffer.readBool()){
+			this._margin.top=buffer.getInt32();
+			this._margin.bottom=buffer.getInt32();
+			this._margin.left=buffer.getInt32();
+			this._margin.right=buffer.getInt32();
 		};
-		var overflow=0;
-		str=xml.getAttribute("overflow");
-		if (str)
-			overflow=OverflowType.parse(str);
-		else
-		overflow=0;
-		str=xml.getAttribute("margin");
-		if(str)
-			this._margin.parse(str);
-		if(overflow==2){
-			var scroll=0;
-			str=xml.getAttribute("scroll");
-			if (str)
-				scroll=ScrollType.parse(str);
-			else
-			scroll=1;
-			var scrollBarDisplay=0;
-			str=xml.getAttribute("scrollBar");
-			if (str)
-				scrollBarDisplay=ScrollBarDisplayType.parse(str);
-			else
-			scrollBarDisplay=0;
-			var scrollBarFlags=NaN;
-			str=xml.getAttribute("scrollBarFlags");
-			if(str)
-				scrollBarFlags=parseInt(str);
-			else
-			scrollBarFlags=0;
-			var scrollBarMargin=new Margin();
-			str=xml.getAttribute("scrollBarMargin");
-			if(str)
-				scrollBarMargin.parse(str);
-			var vtScrollBarRes;
-			var hzScrollBarRes;
-			str=xml.getAttribute("scrollBarRes");
-			if(str){
-				arr=str.split(",");
-				vtScrollBarRes=arr[0];
-				hzScrollBarRes=arr[1];
-			};
-			var headerRes;
-			var footerRes;
-			str=xml.getAttribute('ptrRes');
-			if(str){
-				arr=str.split(",");
-				headerRes=arr[0];
-				footerRes=arr[1];
-			}
-			this.setupScroll(scrollBarMargin,scroll,scrollBarDisplay,scrollBarFlags,
-			vtScrollBarRes,hzScrollBarRes,headerRes,footerRes);
+		var overflow=buffer.readByte();
+		if (overflow==2){
+			var savedPos=buffer.pos;
+			buffer.seek(0,7);
+			this.setupScroll(buffer);
+			buffer.pos=savedPos;
 		}
 		else
 		this.setupOverflow(overflow);
+		if (buffer.readBool())
+			buffer.skip(8);
 		this._buildingDisplayList=true;
-		var col=xml.childNodes;
-		var length1=0;
-		if(col)
-			length1=col.length;
-		var i=0;
-		var controller;
-		for(i=0;i < length1;i++){
-			var cxml=col[i];
-			if(cxml.nodeName=="controller"){
-				controller=new Controller();
-				this._controllers.push(controller);
-				controller._parent=this;
-				controller.setup(cxml);
-			}
-		};
+		buffer.seek(0,1);
+		var controllerCount=buffer.getInt16();
+		for (i=0;i < controllerCount;i++){
+			nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			var controller=new Controller();
+			this._controllers.push(controller);
+			controller.parent=this;
+			controller.setup(buffer);
+			buffer.pos=nextPos;
+		}
+		buffer.seek(0,2);
 		var child;
-		var displayList=this.packageItem.displayList;
-		var childCount=displayList.length;
+		var childCount=buffer.getInt16();
 		for (i=0;i < childCount;i++){
-			var di=displayList[i];
-			if (objectPool !=null){
+			dataLen=buffer.getInt16();
+			curPos=buffer.pos;
+			if (objectPool !=null)
 				child=objectPool[poolIndex+i];
+			else{
+				buffer.seek(curPos,0);
+				var type=buffer.readByte();
+				var src=buffer.readS();
+				var pkgId=buffer.readS();
+				var pi=null;
+				if (src !=null){
+					var pkg;
+					if (pkgId !=null)
+						pkg=UIPackage.getById(pkgId);
+					else
+					pkg=this.packageItem.owner;
+					pi=pkg !=null ? pkg.getItemById(src):null;
+				}
+				if (pi !=null){
+					child=UIObjectFactory.newObject(pi);
+					child.packageItem=pi;
+					child.constructFromResource();
+				}
+				else
+				child=UIObjectFactory.newObject2(type);
 			}
-			else if (di.packageItem){
-				child=UIObjectFactory.newObject(di.packageItem);
-				child.packageItem=di.packageItem;
-				child.constructFromResource();
-			}
-			else
-			child=UIObjectFactory.newObject2(di.type);
 			child._underConstruct=true;
-			child.setup_beforeAdd(di.desc);
+			child.setup_beforeAdd(buffer,curPos);
 			child.parent=this;
 			this._children.push(child);
+			buffer.pos=curPos+dataLen;
 		}
-		this.relations.setup(xml);
-		for (i=0;i < childCount;i++)
-		this._children[i].relations.setup(displayList[i].desc);
+		buffer.seek(0,3);
+		this.relations.setup(buffer,true);
+		buffer.seek(0,2);
+		buffer.skip(2);
 		for (i=0;i < childCount;i++){
-			child=this._children[i];
-			child.setup_afterAdd(displayList[i].desc);
-			child._underConstruct=false;
+			nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			buffer.seek(buffer.pos,3);
+			this._children[i].relations.setup(buffer,false);
+			buffer.pos=nextPos;
 		}
-		str=xml.getAttribute("mask");
-		if(str)
-			this.mask=this.getChildById(str).displayObject;
-		var trans;
-		for(i=0;i < length1;i++){
-			cxml=col[i];
-			if(cxml.nodeName=="transition"){
-				trans=new Transition(this);
-				this._transitions.push(trans);
-				trans.setup(cxml);
+		buffer.seek(0,2);
+		buffer.skip(2);
+		for (i=0;i < childCount;i++){
+			nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			child=this._children[i];
+			child.setup_afterAdd(buffer,buffer.pos);
+			child._underConstruct=false;
+			buffer.pos=nextPos;
+		}
+		buffer.seek(0,4);
+		buffer.skip(2);
+		this.opaque=buffer.readBool();
+		var maskId=buffer.getInt16();
+		if (maskId !=-1){
+			this.mask=this.getChildAt(maskId).displayObject;
+			buffer.readBool();
+		};
+		var hitTestId=buffer.readS();
+		if (hitTestId !=null){
+			pi=this.packageItem.owner.getItemById(hitTestId);
+			if (pi !=null && pi.pixelHitTestData !=null){
+				i1=buffer.getInt32();
+				i2=buffer.getInt32();
+				this._displayObject.hitArea=new PixelHitTest(pi.pixelHitTestData,i1,i2);
+				this._displayObject.mouseThrough=false;
+				this._displayObject.hitTestPrior=true;
 			}
 		}
-		if(this._transitions.length>0){
+		buffer.seek(0,5);
+		var transitionCount=buffer.getInt16();
+		for (i=0;i < transitionCount;i++){
+			nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			var trans=new Transition(this);
+			trans.setup(buffer);
+			this._transitions.push(trans);
+			buffer.pos=nextPos;
+		}
+		if (this._transitions.length > 0){
 			this.displayObject.on("display",this,this.___added);
 			this.displayObject.on("undisplay",this,this.___removed);
 		}
@@ -10394,26 +9971,23 @@ var GComponent=(function(_super){
 		this._underConstruct=false;
 		this.buildNativeDisplayList();
 		this.setBoundsChangedFlag();
-		this.constructFromXML(xml);
+		if (this.packageItem.objectType !=9)
+			this.constructExtension(buffer);
+		this.constructFromXML(null);
 	}
 
+	__proto.constructExtension=function(buffer){}
 	__proto.constructFromXML=function(xml){}
-	__proto.setup_afterAdd=function(xml){
-		_super.prototype.setup_afterAdd.call(this,xml);
-		var str;
-		if(this.scrollPane){
-			str=xml.getAttribute("pageController");
-			if(str)
-				this.scrollPane.pageController=this.parent.getController(str);
-		}
-		str=xml.getAttribute("controller");
-		if(str){
-			var arr=str.split(",");
-			for(var i=0;i<arr.length;i+=2){
-				var cc=this.getController(arr[i]);
-				if(cc)
-					cc.selectedPageId=arr[i+1];
-			}
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,4);
+		var pageController=buffer.readS();
+		if (pageController !=null && this._scrollPane !=null)
+			this._scrollPane.pageController=this._parent.getController(pageController);
+		var cnt=buffer.getInt16();
+		for (var i=0;i < cnt;i++){
+			var cc=this.getControllerAt(buffer.getInt16());
+			cc.selectedPageId=buffer.readS();
 		}
 	}
 
@@ -10439,6 +10013,12 @@ var GComponent=(function(_super){
 		return this._container;
 	});
 
+	/**
+	*@see ChildrenRenderOrder
+	*/
+	/**
+	*@see ChildrenRenderOrder
+	*/
 	__getset(0,__proto,'childrenRenderOrder',function(){
 		return this._childrenRenderOrder;
 		},function(value){
@@ -10495,18 +10075,6 @@ var GComponent=(function(_super){
 		this._displayObject.mask=value;
 	});
 
-	__getset(0,__proto,'viewWidth',function(){
-		if (this._scrollPane !=null)
-			return this._scrollPane.viewWidth;
-		else
-		return this.width-this._margin.left-this._margin.right;
-		},function(value){
-		if (this._scrollPane !=null)
-			this._scrollPane.viewWidth=value;
-		else
-		this.width=value+this._margin.left+this._margin.right;
-	});
-
 	__getset(0,__proto,'viewHeight',function(){
 		if (this._scrollPane !=null)
 			return this._scrollPane.viewHeight;
@@ -10519,11 +10087,29 @@ var GComponent=(function(_super){
 		this.height=value+this._margin.top+this._margin.bottom;
 	});
 
+	__getset(0,__proto,'baseUserData',function(){
+		var buffer=this.packageItem.rawData;
+		buffer.seek(0,4);
+		return buffer.readS();
+	});
+
+	__getset(0,__proto,'viewWidth',function(){
+		if (this._scrollPane !=null)
+			return this._scrollPane.viewWidth;
+		else
+		return this.width-this._margin.left-this._margin.right;
+		},function(value){
+		if (this._scrollPane !=null)
+			this._scrollPane.viewWidth=value;
+		else
+		this.width=value+this._margin.left+this._margin.right;
+	});
+
 	return GComponent;
 })(GObject)
 
 
-//class fairygui.GearAnimation extends fairygui.GearBase
+//class fairygui.gears.GearAnimation extends fairygui.gears.GearBase
 var GearAnimation=(function(_super){
 	var GearAnimationValue;
 	function GearAnimation(owner){
@@ -10532,7 +10118,7 @@ var GearAnimation=(function(_super){
 		GearAnimation.__super.call(this,owner);
 	}
 
-	__class(GearAnimation,'fairygui.GearAnimation',_super);
+	__class(GearAnimation,'fairygui.gears.GearAnimation',_super);
 	var __proto=GearAnimation.prototype;
 	__proto.init=function(){
 		this._default=new GearAnimationValue((this._owner).playing,
@@ -10540,19 +10126,16 @@ var GearAnimation=(function(_super){
 		this._storage={};
 	}
 
-	__proto.addStatus=function(pageId,value){
-		if(value=="-" || value.length==0)
-			return;
+	__proto.addStatus=function(pageId,buffer){
 		var gv;
 		if (pageId==null)
 			gv=this._default;
 		else {
 			gv=new GearAnimationValue();
 			this._storage[pageId]=gv;
-		};
-		var arr=value.split(",");
-		gv.frame=parseInt(arr[0]);
-		gv.playing=arr[1]=="p";
+		}
+		gv.playing=buffer.readBool();
+		gv.frame=buffer.getInt32();
 	}
 
 	__proto.apply=function(){
@@ -10596,7 +10179,7 @@ var GearAnimation=(function(_super){
 })(GearBase)
 
 
-//class fairygui.GearColor extends fairygui.GearBase
+//class fairygui.gears.GearColor extends fairygui.gears.GearBase
 var GearColor=(function(_super){
 	var GearColorValue;
 	function GearColor(owner){
@@ -10605,7 +10188,7 @@ var GearColor=(function(_super){
 		GearColor.__super.call(this,owner);
 	}
 
-	__class(GearColor,'fairygui.GearColor',_super);
+	__class(GearColor,'fairygui.gears.GearColor',_super);
 	var __proto=GearColor.prototype;
 	__proto.init=function(){
 		if(this._owner["strokeColor"]!=undefined)
@@ -10615,26 +10198,16 @@ var GearColor=(function(_super){
 		this._storage={};
 	}
 
-	__proto.addStatus=function(pageId,value){
-		if(value=="-"|| value.length==0)
-			return;
-		var pos=value.indexOf(",");
-		var col1;
-		var col2;
-		if(pos==-1){
-			col1=value;
-			col2=null;
+	__proto.addStatus=function(pageId,buffer){
+		var gv;
+		if (pageId==null)
+			gv=this._default;
+		else {
+			gv=new GearColorValue();
+			this._storage[pageId]=gv;
 		}
-		else{
-			col1=value.substr(0,pos);
-			col2=value.substr(pos+1);
-		}
-		if(pageId==null){
-			this._default.color=col1;
-			this._default.strokeColor=col2;
-		}
-		else
-		this._storage[pageId]=new GearColorValue(col1,col2);
+		gv.color=buffer.readColorS();
+		gv.strokeColor=buffer.readColorS();
 	}
 
 	__proto.apply=function(){
@@ -10677,16 +10250,17 @@ var GearColor=(function(_super){
 })(GearBase)
 
 
-//class fairygui.GearDisplay extends fairygui.GearBase
+//class fairygui.gears.GearDisplay extends fairygui.gears.GearBase
 var GearDisplay=(function(_super){
 	function GearDisplay(owner){
 		this.pages=null;
 		this._visible=0;
+		this._displayLockToken=0;
 		GearDisplay.__super.call(this,owner);
 		this._displayLockToken=1;
 	}
 
-	__class(GearDisplay,'fairygui.GearDisplay',_super);
+	__class(GearDisplay,'fairygui.gears.GearDisplay',_super);
 	var __proto=GearDisplay.prototype;
 	__proto.init=function(){
 		this.pages=null;
@@ -10721,7 +10295,7 @@ var GearDisplay=(function(_super){
 })(GearBase)
 
 
-//class fairygui.GearIcon extends fairygui.GearBase
+//class fairygui.gears.GearIcon extends fairygui.gears.GearBase
 var GearIcon=(function(_super){
 	function GearIcon(owner){
 		this._storage=null;
@@ -10729,18 +10303,18 @@ var GearIcon=(function(_super){
 		GearIcon.__super.call(this,owner);
 	}
 
-	__class(GearIcon,'fairygui.GearIcon',_super);
+	__class(GearIcon,'fairygui.gears.GearIcon',_super);
 	var __proto=GearIcon.prototype;
 	__proto.init=function(){
 		this._default=this._owner.icon;
 		this._storage={};
 	}
 
-	__proto.addStatus=function(pageId,value){
+	__proto.addStatus=function(pageId,buffer){
 		if(pageId==null)
-			this._default=value;
+			this._default=buffer.readS();
 		else
-		this._storage[pageId]=value;
+		this._storage[pageId]=buffer.readS();
 	}
 
 	__proto.apply=function(){
@@ -10761,56 +10335,49 @@ var GearIcon=(function(_super){
 })(GearBase)
 
 
-//class fairygui.GearLook extends fairygui.GearBase
+//class fairygui.gears.GearLook extends fairygui.gears.GearBase
 var GearLook=(function(_super){
 	var GearLookValue;
 	function GearLook(owner){
 		this._storage=null;
 		this._default=null;
-		this._tweener=null;
 		GearLook.__super.call(this,owner);
 	}
 
-	__class(GearLook,'fairygui.GearLook',_super);
+	__class(GearLook,'fairygui.gears.GearLook',_super);
 	var __proto=GearLook.prototype;
 	__proto.init=function(){
 		this._default=new GearLookValue(this._owner.alpha,this._owner.rotation,this._owner.grayed,this._owner.touchable);
 		this._storage={};
 	}
 
-	__proto.addStatus=function(pageId,value){
-		if(value=="-"|| value.length==0)
-			return;
-		var arr=value.split(",");
+	__proto.addStatus=function(pageId,buffer){
 		var gv;
-		if(pageId==null)
+		if (pageId==null)
 			gv=this._default;
 		else {
 			gv=new GearLookValue();
 			this._storage[pageId]=gv;
 		}
-		gv.alpha=parseFloat(arr[0]);
-		gv.rotation=parseInt(arr[1]);
-		gv.grayed=arr[2]=="1" ? true :false;
-		if(arr.length<4)
-			gv.touchable=this._owner.touchable;
-		else
-		gv.touchable=arr[3]=="1"?true:false;
+		gv.alpha=buffer.getFloat32();
+		gv.rotation=buffer.getFloat32();
+		gv.grayed=buffer.readBool();
+		gv.touchable=buffer.readBool();
 	}
 
 	__proto.apply=function(){
 		var gv=this._storage[this._controller.selectedPageId];
 		if(!gv)
 			gv=this._default;
-		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+		if(this._tweenConfig!=null && this._tweenConfig.tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
 			this._owner._gearLocked=true;
 			this._owner.grayed=gv.grayed;
 			this._owner.touchable=gv.touchable;
 			this._owner._gearLocked=false;
-			if (this._tweener !=null){
-				if (this._tweener.endValue.x !=gv.alpha || this._tweener.endValue.y !=gv.rotation){
-					this._tweener.kill(true);
-					this._tweener=null;
+			if (this._tweenConfig._tweener !=null){
+				if (this._tweenConfig._tweener.endValue.x !=gv.alpha || this._tweenConfig._tweener.endValue.y !=gv.rotation){
+					this._tweenConfig._tweener.kill(true);
+					this._tweenConfig._tweener=null;
 				}
 				else
 				return;
@@ -10819,10 +10386,10 @@ var GearLook=(function(_super){
 			var b=gv.rotation!=this._owner.rotation;
 			if(a || b){
 				if(this._owner.checkGearController(0,this._controller))
-					this._displayLockToken=this._owner.addDisplayLock();
-				this._tweener=GTween.to2(this._owner.alpha,this._owner.rotation,gv.alpha,gv.rotation,this._tweenTime)
-				.setDelay(this._delay)
-				.setEase(this._easeType)
+					this._tweenConfig._displayLockToken=this._owner.addDisplayLock();
+				this._tweenConfig._tweener=GTween.to2(this._owner.alpha,this._owner.rotation,gv.alpha,gv.rotation,this._tweenConfig.duration)
+				.setDelay(this._tweenConfig.delay)
+				.setEase(this._tweenConfig.easeType)
 				.setUserData((a ? 1 :0)+(b ? 2 :0))
 				.setTarget(this)
 				.onUpdate(this.__tweenUpdate,this)
@@ -10850,11 +10417,11 @@ var GearLook=(function(_super){
 	}
 
 	__proto.__tweenComplete=function(){
-		if(this._displayLockToken!=0){
-			this._owner.releaseDisplayLock(this._displayLockToken);
-			this._displayLockToken=0;
+		if(this._tweenConfig._displayLockToken!=0){
+			this._owner.releaseDisplayLock(this._tweenConfig._displayLockToken);
+			this._tweenConfig._displayLockToken=0;
 		}
-		this._tweener=null;
+		this._tweenConfig._tweener=null;
 	}
 
 	__proto.updateState=function(){
@@ -10895,10 +10462,146 @@ var GearLook=(function(_super){
 })(GearBase)
 
 
+//class fairygui.gears.GearSize extends fairygui.gears.GearBase
+var GearSize=(function(_super){
+	var GearSizeValue;
+	function GearSize(owner){
+		this._storage=null;
+		this._default=null;
+		GearSize.__super.call(this,owner);
+	}
+
+	__class(GearSize,'fairygui.gears.GearSize',_super);
+	var __proto=GearSize.prototype;
+	__proto.init=function(){
+		this._default=new GearSizeValue(this._owner.width,this._owner.height,
+		this._owner.scaleX,this._owner.scaleY);
+		this._storage={};
+	}
+
+	__proto.addStatus=function(pageId,buffer){
+		var gv;
+		if (pageId==null)
+			gv=this._default;
+		else {
+			gv=new GearSizeValue();
+			this._storage[pageId]=gv;
+		}
+		gv.width=buffer.getInt32();
+		gv.height=buffer.getInt32();
+		gv.scaleX=buffer.getFloat32();
+		gv.scaleY=buffer.getFloat32();
+	}
+
+	__proto.apply=function(){
+		var gv=this._storage[this._controller.selectedPageId];
+		if (!gv)
+			gv=this._default;
+		if(this._tweenConfig!=null && this._tweenConfig.tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+			if (this._tweenConfig._tweener !=null){
+				if (this._tweenConfig._tweener.endValue.x !=gv.width || this._tweenConfig._tweener.endValue.y !=gv.height
+					|| this._tweenConfig._tweener.endValue.z !=gv.scaleX || this._tweenConfig._tweener.endValue.w !=gv.scaleY){
+					this._tweenConfig._tweener.kill(true);
+					this._tweenConfig._tweener=null;
+				}
+				else
+				return;
+			};
+			var a=gv.width !=this._owner.width || gv.height !=this._owner.height;
+			var b=gv.scaleX !=this._owner.scaleX || gv.scaleY !=this._owner.scaleY;
+			if(a || b){
+				if(this._owner.checkGearController(0,this._controller))
+					this._tweenConfig._displayLockToken=this._owner.addDisplayLock();
+				this._tweenConfig._tweener=GTween.to4(this._owner.width,this._owner.height,this._owner.scaleX,this._owner.scaleY,gv.width,gv.height,gv.scaleX,gv.scaleY,this._tweenConfig.duration)
+				.setDelay(this._tweenConfig.delay)
+				.setEase(this._tweenConfig.easeType)
+				.setUserData((a ? 1 :0)+(b ? 2 :0))
+				.setTarget(this)
+				.onUpdate(this.__tweenUpdate,this)
+				.onComplete(this.__tweenComplete,this);
+			}
+		}
+		else {
+			this._owner._gearLocked=true;
+			this._owner.setSize(gv.width,gv.height,this._owner.checkGearController(1,this._controller));
+			this._owner.setScale(gv.scaleX,gv.scaleY);
+			this._owner._gearLocked=false;
+		}
+	}
+
+	__proto.__tweenUpdate=function(tweener){
+		var flag=tweener.userData;
+		this._owner._gearLocked=true;
+		if ((flag & 1)!=0)
+			this._owner.setSize(tweener.value.x,tweener.value.y,this._owner.checkGearController(1,this._controller));
+		if ((flag & 2)!=0)
+			this._owner.setScale(tweener.value.z,tweener.value.w);
+		this._owner._gearLocked=false;
+	}
+
+	__proto.__tweenComplete=function(){
+		if(this._tweenConfig._displayLockToken!=0){
+			this._owner.releaseDisplayLock(this._tweenConfig._displayLockToken);
+			this._tweenConfig._displayLockToken=0;
+		}
+		this._tweenConfig._tweener=null;
+	}
+
+	__proto.updateState=function(){
+		var gv=this._storage[this._controller.selectedPageId];
+		if(!gv){
+			gv=new GearSizeValue();
+			this._storage[this._controller.selectedPageId]=gv;
+		}
+		gv.width=this._owner.width;
+		gv.height=this._owner.height;
+		gv.scaleX=this._owner.scaleX;
+		gv.scaleY=this._owner.scaleY;
+	}
+
+	__proto.updateFromRelations=function(dx,dy){
+		if(this._controller==null || this._storage==null)
+			return;
+		for(var key in this._storage){
+			var gv=this._storage[key];
+			gv.width+=dx;
+			gv.height+=dy;
+		}
+		this._default.width+=dx;
+		this._default.height+=dy;
+		this.updateState();
+	}
+
+	GearSize.__init$=function(){
+		//class GearSizeValue
+		GearSizeValue=(function(){
+			function GearSizeValue(width,height,scaleX,scaleY){
+				this.width=NaN;
+				this.height=NaN;
+				this.scaleX=NaN;
+				this.scaleY=NaN;
+				(width===void 0)&& (width=0);
+				(height===void 0)&& (height=0);
+				(scaleX===void 0)&& (scaleX=0);
+				(scaleY===void 0)&& (scaleY=0);
+				this.width=width;
+				this.height=height;
+				this.scaleX=scaleX;
+				this.scaleY=scaleY;
+			}
+			__class(GearSizeValue,'');
+			return GearSizeValue;
+		})()
+	}
+
+	return GearSize;
+})(GearBase)
+
+
 //class fairygui.GGraph extends fairygui.GObject
 var GGraph=(function(_super){
 	function GGraph(){
-		this._type=NaN;
+		this._type=0;
 		this._lineSize=NaN;
 		this._lineColor=null;
 		this._fillColor=null;
@@ -10913,13 +10616,13 @@ var GGraph=(function(_super){
 
 	__class(GGraph,'fairygui.GGraph',_super);
 	var __proto=GGraph.prototype;
-	Laya.imps(__proto,{"fairygui.IColorGear":true})
-	__proto.drawRect=function(lineSize,lineColor,fillColor,corners){
+	Laya.imps(__proto,{"fairygui.gears.IColorGear":true})
+	__proto.drawRect=function(lineSize,lineColor,fillColor,cornerRadius){
 		this._type=1;
 		this._lineSize=lineSize;
 		this._lineColor=lineColor;
 		this._fillColor=fillColor;
-		this._cornerRadius=corners;
+		this._cornerRadius=cornerRadius;
 		this.drawCommon();
 	}
 
@@ -10965,10 +10668,12 @@ var GGraph=(function(_super){
 				["arcTo",0,0,this._cornerRadius[0],0,this._cornerRadius[0]],
 				["closePath"]];
 				gr.drawPath(0,0,paths,{fillStyle:fillColor},this._lineSize>0?{strokeStyle:lineColor,lineWidth:this._lineSize}:null);
-			}else
+			}
+			else
 			gr.drawRect(0,0,w,h,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
-		}else
-		gr.drawCircle(w/2,h/2,w/2,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
+			}else{
+			gr.drawCircle(w/2,h/2,w/2,fillColor,this._lineSize>0?lineColor:null,this._lineSize);
+		}
 		this._displayObject.repaint();
 	}
 
@@ -11022,47 +10727,19 @@ var GGraph=(function(_super){
 			this.drawCommon();
 	}
 
-	__proto.setup_beforeAdd=function(xml){
-		_super.prototype.setup_beforeAdd.call(this,xml);
-		var type=xml.getAttribute("type");
-		if (type && type!="empty"){
-			var str;
-			str=xml.getAttribute("lineSize");
-			if (str)
-				this._lineSize=parseInt(str);
-			str=xml.getAttribute("lineColor");
-			if (str){
-				var c=ToolSet.convertFromHtmlColor(str,true);
-				var a=((c >> 24)& 0xFF)/ 0xFF;
-				if(a!=1)
-					this._lineColor="rgba("+((c>>16)& 0xFF)+","+((c>>8)& 0xFF)+","+(c & 0xFF)+","+a+")";
-				else
-				this._lineColor=Utils.toHexColor(c & 0xFFFFFF);
-			}
-			str=xml.getAttribute("fillColor");
-			if (str){
-				c=ToolSet.convertFromHtmlColor(str,true);
-				a=((c >> 24)& 0xFF)/ 0xFF;
-				if(a!=1)
-					this._fillColor="rgba("+((c>>16)& 0xFF)+","+((c>>8)& 0xFF)+","+(c & 0xFF)+","+a+")";
-				else
-				this._fillColor=Utils.toHexColor(c & 0xFFFFFF);
-			}
-			str=xml.getAttribute("corner");
-			if (str){
-				var arr=str.split(",");
+	__proto.setup_beforeAdd=function(buffer,beginPos){
+		_super.prototype.setup_beforeAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,5);
+		this._type=buffer.readByte();
+		if (this._type!=0){
+			this._lineSize=buffer.getInt32();
+			this._lineColor=buffer.readColorS(true);
+			this._fillColor=buffer.readColorS(true);
+			if (buffer.readBool()){
 				this._cornerRadius=[];
-				for(var i=0;i<4;i++){
-					if(i<arr.length)
-						this._cornerRadius[i]=parseInt(arr[i]);
-					else
-					this._cornerRadius[i]=this._cornerRadius[i-1];
-				}
+				for (var i=0;i < 4;i++)
+				this._cornerRadius[i]=buffer.getFloat32();
 			}
-			if (type=="rect")
-				this._type=1;
-			else
-			this._type=2;
 			this.drawCommon();
 		}
 	}
@@ -11077,6 +10754,46 @@ var GGraph=(function(_super){
 
 	return GGraph;
 })(GObject)
+
+
+//class fairygui.gears.GearText extends fairygui.gears.GearBase
+var GearText=(function(_super){
+	function GearText(owner){
+		this._storage=null;
+		this._default=null;
+		GearText.__super.call(this,owner);
+	}
+
+	__class(GearText,'fairygui.gears.GearText',_super);
+	var __proto=GearText.prototype;
+	__proto.init=function(){
+		this._default=this._owner.text;
+		this._storage={};
+	}
+
+	__proto.addStatus=function(pageId,buffer){
+		if(pageId==null)
+			this._default=buffer.readS();
+		else
+		this._storage[pageId]=buffer.readS();
+	}
+
+	__proto.apply=function(){
+		this._owner._gearLocked=true;
+		var data=this._storage[this._controller.selectedPageId];
+		if(data!=undefined)
+			this._owner.text=String(data);
+		else
+		this._owner.text=this._default;
+		this._owner._gearLocked=false;
+	}
+
+	__proto.updateState=function(){
+		this._storage[this._controller.selectedPageId]=this._owner.text;
+	}
+
+	return GearText;
+})(GearBase)
 
 
 //class fairygui.GGroup extends fairygui.GObject
@@ -11384,27 +11101,26 @@ var GGroup=(function(_super){
 		}
 	}
 
-	__proto.setup_beforeAdd=function(xml){
-		_super.prototype.setup_beforeAdd.call(this,xml);
-		var str;
-		str=xml.getAttribute("layout");
-		if (str !=null){
-			this._layout=GroupLayoutType.parse(str);
-			str=xml.getAttribute("lineGap");
-			if(str)
-				this._lineGap=parseInt(str);
-			str=xml.getAttribute("colGap");
-			if(str)
-				this._columnGap=parseInt(str);
-		}
+	__proto.setup_beforeAdd=function(buffer,beginPos){
+		_super.prototype.setup_beforeAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,5);
+		this._layout=buffer.readByte();
+		this._lineGap=buffer.getInt32();
+		this._columnGap=buffer.getInt32();
 	}
 
-	__proto.setup_afterAdd=function(xml){
-		_super.prototype.setup_afterAdd.call(this,xml);
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
 		if(!this.visible)
 			this.handleVisibleChanged();
 	}
 
+	/**
+	*@see GroupLayout
+	*/
+	/**
+	*@see GroupLayout
+	*/
 	__getset(0,__proto,'layout',function(){
 		return this._layout;
 		},function(value){
@@ -11448,7 +11164,7 @@ var GImage=(function(_super){
 
 	__class(GImage,'fairygui.GImage',_super);
 	var __proto=GImage.prototype;
-	Laya.imps(__proto,{"fairygui.IColorGear":true})
+	Laya.imps(__proto,{"fairygui.gears.IColorGear":true})
 	__proto.applyColor=function(){}
 	__proto.createDisplayObject=function(){
 		this._displayObject=this.image=new Image$1();
@@ -11485,15 +11201,12 @@ var GImage=(function(_super){
 		}
 	}
 
-	__proto.setup_beforeAdd=function(xml){
-		_super.prototype.setup_beforeAdd.call(this,xml);
-		var str;
-		str=xml.getAttribute("color");
-		if(str)
-			this.color=str;
-		str=xml.getAttribute("flip");
-		if(str)
-			this.flip=FlipType.parse(str);
+	__proto.setup_beforeAdd=function(buffer,beginPos){
+		_super.prototype.setup_beforeAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,5);
+		if (buffer.readBool())
+			this.color=buffer.readColorS();
+		this.flip=buffer.readByte();
 	}
 
 	__getset(0,__proto,'color',function(){
@@ -11506,7 +11219,12 @@ var GImage=(function(_super){
 		}
 	});
 
-	//not supported yet
+	/**
+	*@see FlipType
+	*/
+	/**
+	*@see FlipType
+	*/
 	__getset(0,__proto,'flip',function(){
 		return this._flip;
 		},function(value){
@@ -11526,238 +11244,52 @@ var GImage=(function(_super){
 })(GObject)
 
 
-//class fairygui.GearSize extends fairygui.GearBase
-var GearSize=(function(_super){
-	var GearSizeValue;
-	function GearSize(owner){
-		this._storage=null;
-		this._default=null;
-		this._tweener=null;
-		GearSize.__super.call(this,owner);
-	}
-
-	__class(GearSize,'fairygui.GearSize',_super);
-	var __proto=GearSize.prototype;
-	__proto.init=function(){
-		this._default=new GearSizeValue(this._owner.width,this._owner.height,
-		this._owner.scaleX,this._owner.scaleY);
-		this._storage={};
-	}
-
-	__proto.addStatus=function(pageId,value){
-		if(value=="-"|| value.length==0)
-			return;
-		var arr=value.split(",");
-		var gv;
-		if (pageId==null)
-			gv=this._default;
-		else {
-			gv=new GearSizeValue();
-			this._storage[pageId]=gv;
-		}
-		gv.width=parseInt(arr[0]);
-		gv.height=parseInt(arr[1]);
-		if(arr.length>2){
-			gv.scaleX=parseFloat(arr[2]);
-			gv.scaleY=parseFloat(arr[3]);
-		}
-	}
-
-	__proto.apply=function(){
-		var gv=this._storage[this._controller.selectedPageId];
-		if (!gv)
-			gv=this._default;
-		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-			if (this._tweener !=null){
-				if (this._tweener.endValue.x !=gv.width || this._tweener.endValue.y !=gv.height
-					|| this._tweener.endValue.z !=gv.scaleX || this._tweener.endValue.w !=gv.scaleY){
-					this._tweener.kill(true);
-					this._tweener=null;
-				}
-				else
-				return;
-			};
-			var a=gv.width !=this._owner.width || gv.height !=this._owner.height;
-			var b=gv.scaleX !=this._owner.scaleX || gv.scaleY !=this._owner.scaleY;
-			if(a || b){
-				if(this._owner.checkGearController(0,this._controller))
-					this._displayLockToken=this._owner.addDisplayLock();
-				this._tweener=GTween.to4(this._owner.width,this._owner.height,this._owner.scaleX,this._owner.scaleY,gv.width,gv.height,gv.scaleX,gv.scaleY,this._tweenTime)
-				.setDelay(this._delay)
-				.setEase(this._easeType)
-				.setUserData((a ? 1 :0)+(b ? 2 :0))
-				.setTarget(this)
-				.onUpdate(this.__tweenUpdate,this)
-				.onComplete(this.__tweenComplete,this);
-			}
-		}
-		else {
-			this._owner._gearLocked=true;
-			this._owner.setSize(gv.width,gv.height,this._owner.checkGearController(1,this._controller));
-			this._owner.setScale(gv.scaleX,gv.scaleY);
-			this._owner._gearLocked=false;
-		}
-	}
-
-	__proto.__tweenUpdate=function(tweener){
-		var flag=tweener.userData;
-		this._owner._gearLocked=true;
-		if ((flag & 1)!=0)
-			this._owner.setSize(tweener.value.x,tweener.value.y,this._owner.checkGearController(1,this._controller));
-		if ((flag & 2)!=0)
-			this._owner.setScale(tweener.value.z,tweener.value.w);
-		this._owner._gearLocked=false;
-	}
-
-	__proto.__tweenComplete=function(){
-		if(this._displayLockToken!=0){
-			this._owner.releaseDisplayLock(this._displayLockToken);
-			this._displayLockToken=0;
-		}
-		this._tweener=null;
-	}
-
-	__proto.updateState=function(){
-		var gv=this._storage[this._controller.selectedPageId];
-		if(!gv){
-			gv=new GearSizeValue();
-			this._storage[this._controller.selectedPageId]=gv;
-		}
-		gv.width=this._owner.width;
-		gv.height=this._owner.height;
-		gv.scaleX=this._owner.scaleX;
-		gv.scaleY=this._owner.scaleY;
-	}
-
-	__proto.updateFromRelations=function(dx,dy){
-		if(this._controller==null || this._storage==null)
-			return;
-		for(var key in this._storage){
-			var gv=this._storage[key];
-			gv.width+=dx;
-			gv.height+=dy;
-		}
-		this._default.width+=dx;
-		this._default.height+=dy;
-		this.updateState();
-	}
-
-	GearSize.__init$=function(){
-		//class GearSizeValue
-		GearSizeValue=(function(){
-			function GearSizeValue(width,height,scaleX,scaleY){
-				this.width=NaN;
-				this.height=NaN;
-				this.scaleX=NaN;
-				this.scaleY=NaN;
-				(width===void 0)&& (width=0);
-				(height===void 0)&& (height=0);
-				(scaleX===void 0)&& (scaleX=0);
-				(scaleY===void 0)&& (scaleY=0);
-				this.width=width;
-				this.height=height;
-				this.scaleX=scaleX;
-				this.scaleY=scaleY;
-			}
-			__class(GearSizeValue,'');
-			return GearSizeValue;
-		})()
-	}
-
-	return GearSize;
-})(GearBase)
-
-
-//class fairygui.GearText extends fairygui.GearBase
-var GearText=(function(_super){
-	function GearText(owner){
-		this._storage=null;
-		this._default=null;
-		GearText.__super.call(this,owner);
-	}
-
-	__class(GearText,'fairygui.GearText',_super);
-	var __proto=GearText.prototype;
-	__proto.init=function(){
-		this._default=this._owner.text;
-		this._storage={};
-	}
-
-	__proto.addStatus=function(pageId,value){
-		if(pageId==null)
-			this._default=value;
-		else
-		this._storage[pageId]=value;
-	}
-
-	__proto.apply=function(){
-		this._owner._gearLocked=true;
-		var data=this._storage[this._controller.selectedPageId];
-		if(data!=undefined)
-			this._owner.text=String(data);
-		else
-		this._owner.text=this._default;
-		this._owner._gearLocked=false;
-	}
-
-	__proto.updateState=function(){
-		this._storage[this._controller.selectedPageId]=this._owner.text;
-	}
-
-	return GearText;
-})(GearBase)
-
-
-//class fairygui.GearXY extends fairygui.GearBase
+//class fairygui.gears.GearXY extends fairygui.gears.GearBase
 var GearXY=(function(_super){
 	function GearXY(owner){
 		this._storage=null;
 		this._default=null;
-		this._tweener=null;
 		GearXY.__super.call(this,owner);
 	}
 
-	__class(GearXY,'fairygui.GearXY',_super);
+	__class(GearXY,'fairygui.gears.GearXY',_super);
 	var __proto=GearXY.prototype;
 	__proto.init=function(){
 		this._default=new Point(this._owner.x,this._owner.y);
 		this._storage={};
 	}
 
-	__proto.addStatus=function(pageId,value){
-		if(value=="-"|| value.length==0)
-			return;
-		var arr=value.split(",");
-		var pt;
+	__proto.addStatus=function(pageId,buffer){
+		var gv;
 		if (pageId==null)
-			pt=this._default;
+			gv=this._default;
 		else {
-			pt=new Point();
-			this._storage[pageId]=pt;
+			gv=new Point();
+			this._storage[pageId]=gv;
 		}
-		pt.x=parseInt(arr[0]);
-		pt.y=parseInt(arr[1]);
+		gv.x=buffer.getInt32();
+		gv.y=buffer.getInt32();
 	}
 
 	__proto.apply=function(){
 		var pt=this._storage[this._controller.selectedPageId];
 		if (!pt)
 			pt=this._default;
-		if(this._tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
-			if (this._tweener !=null){
-				if (this._tweener.endValue.x !=pt.x || this._tweener.endValue.y !=pt.y){
-					this._tweener.kill(true);
-					this._tweener=null;
+		if(this._tweenConfig!=null && this._tweenConfig.tween && !UIPackage._constructing && !GearBase.disableAllTweenEffect){
+			if (this._tweenConfig._tweener !=null){
+				if (this._tweenConfig._tweener.endValue.x !=pt.x || this._tweenConfig._tweener.endValue.y !=pt.y){
+					this._tweenConfig._tweener.kill(true);
+					this._tweenConfig._tweener=null;
 				}
 				else
 				return;
 			}
 			if (this._owner.x !=pt.x || this._owner.y !=pt.y){
 				if(this._owner.checkGearController(0,this._controller))
-					this._displayLockToken=this._owner.addDisplayLock();
-				this._tweener=GTween.to2(this._owner.x,this._owner.y,pt.x,pt.y,this._tweenTime)
-				.setDelay(this._delay)
-				.setEase(this._easeType)
+					this._tweenConfig._displayLockToken=this._owner.addDisplayLock();
+				this._tweenConfig._tweener=GTween.to2(this._owner.x,this._owner.y,pt.x,pt.y,this._tweenConfig.duration)
+				.setDelay(this._tweenConfig.delay)
+				.setEase(this._tweenConfig.easeType)
 				.setTarget(this)
 				.onUpdate(this.__tweenUpdate,this)
 				.onComplete(this.__tweenComplete,this);
@@ -11777,11 +11309,11 @@ var GearXY=(function(_super){
 	}
 
 	__proto.__tweenComplete=function(){
-		if(this._displayLockToken!=0){
-			this._owner.releaseDisplayLock(this._displayLockToken);
-			this._displayLockToken=0;
+		if(this._tweenConfig._displayLockToken!=0){
+			this._owner.releaseDisplayLock(this._tweenConfig._displayLockToken);
+			this._tweenConfig._displayLockToken=0;
 		}
-		this._tweener=null;
+		this._tweenConfig._tweener=null;
 	}
 
 	__proto.updateState=function(){
@@ -11845,7 +11377,7 @@ var GLoader=(function(_super){
 
 	__class(GLoader,'fairygui.GLoader',_super);
 	var __proto=GLoader.prototype;
-	Laya.imps(__proto,{"fairygui.IAnimationGear":true,"fairygui.IColorGear":true})
+	Laya.imps(__proto,{"fairygui.gears.IAnimationGear":true,"fairygui.gears.IColorGear":true})
 	__proto.createDisplayObject=function(){
 		_super.prototype.createDisplayObject.call(this);
 		this._displayObject.mouseEnabled=true;
@@ -11904,7 +11436,7 @@ var GLoader=(function(_super){
 					this.updateLayout();
 				}
 			}
-			else if(this._contentItem.type==2){
+			else if(this._contentItem.type==1){
 				if(!((this._content instanceof fairygui.display.MovieClip ))){
 					this._content=new MovieClip$1();
 					this._displayObject.addChild(this._content);
@@ -11920,7 +11452,7 @@ var GLoader=(function(_super){
 				(this._content).boundsRect=new Rectangle(0,0,this._contentSourceWidth,this._contentSourceHeight);
 				this.updateLayout();
 			}
-			else if(this._contentItem.type==4){
+			else if(this._contentItem.type==3){
 				var obj=UIPackage.createObjectFromURL(itemURL);
 				if(!obj)
 					this.setErrorState();
@@ -11944,7 +11476,7 @@ var GLoader=(function(_super){
 	}
 
 	__proto.loadExternal=function(){
-		AssetProxy.inst.load(this._url,Handler.create(this,this.__getResCompleted));
+		AssetProxy.inst.load(this._url,Handler.create(this,this.__getResCompleted),null,"image");
 	}
 
 	__proto.freeExternal=function(texture){}
@@ -12109,30 +11641,26 @@ var GLoader=(function(_super){
 			this.updateLayout();
 	}
 
-	__proto.setup_beforeAdd=function(xml){
-		_super.prototype.setup_beforeAdd.call(this,xml);
-		var str;
-		str=xml.getAttribute("url");
-		if (str)
-			this._url=str;
-		str=xml.getAttribute("align");
-		if (str)
-			this._align=str;
-		str=xml.getAttribute("vAlign");
-		if (str)
-			this._valign=str;
-		str=xml.getAttribute("fill");
-		if (str)
-			this._fill=LoaderFillType.parse(str);
-		this._shrinkOnly=xml.getAttribute("shrinkOnly")=="true";
-		this._autoSize=xml.getAttribute("autoSize")=="true";
-		str=xml.getAttribute("errorSign");
-		if (str)
-			this._showErrorSign=str=="true";
-		this._playing=xml.getAttribute("playing")!="false";
-		str=xml.getAttribute("color");
-		if(str)
-			this.color=str;
+	__proto.setup_beforeAdd=function(buffer,beginPos){
+		_super.prototype.setup_beforeAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,5);
+		var iv=0;
+		this._url=buffer.readS();
+		iv=buffer.readByte();
+		this._align=iv==0?"left":(iv==1?"center":"right");
+		iv=buffer.readByte();
+		this._valign=iv==0?"top":(iv==1?"middle":"bottom");
+		this._fill=buffer.readByte();
+		this._shrinkOnly=buffer.readBool();
+		this._autoSize=buffer.readBool();
+		this._showErrorSign=buffer.readBool();
+		this._playing=buffer.readBool();
+		this._frame=buffer.getInt32();
+		if (buffer.readBool())
+			this.color=buffer.readColorS();
+		var fillMethod=buffer.readByte();
+		if (fillMethod !=0)
+			buffer.skip(6);
 		if (this._url)
 			this.loadContent();
 	}
@@ -12167,6 +11695,12 @@ var GLoader=(function(_super){
 		}
 	});
 
+	/**
+	*@see LoaderFillType
+	*/
+	/**
+	*@see LoaderFillType
+	*/
 	__getset(0,__proto,'fill',function(){
 		return this._fill;
 		},function(value){
@@ -12272,7 +11806,7 @@ var GMovieClip=(function(_super){
 
 	__class(GMovieClip,'fairygui.GMovieClip',_super);
 	var __proto=GMovieClip.prototype;
-	Laya.imps(__proto,{"fairygui.IAnimationGear":true,"fairygui.IColorGear":true})
+	Laya.imps(__proto,{"fairygui.gears.IAnimationGear":true,"fairygui.gears.IColorGear":true})
 	__proto.createDisplayObject=function(){
 		this._displayObject=this._movieClip=new MovieClip$1();
 		this._movieClip.mouseEnabled=false;
@@ -12314,17 +11848,14 @@ var GMovieClip=(function(_super){
 		this._movieClip.boundsRect=new Rectangle(0,0,this.sourceWidth,this.sourceHeight);
 	}
 
-	__proto.setup_beforeAdd=function(xml){
-		_super.prototype.setup_beforeAdd.call(this,xml);
-		var str;
-		str=xml.getAttribute("frame");
-		if (str)
-			this._movieClip.frame=parseInt(str);
-		str=xml.getAttribute("playing");
-		this._movieClip.playing=str !="false";
-		str=xml.getAttribute("color");
-		if(str)
-			this.color=str;
+	__proto.setup_beforeAdd=function(buffer,beginPos){
+		_super.prototype.setup_beforeAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,5);
+		if (buffer.readBool())
+			this.color=buffer.readColorS();
+		buffer.readByte();
+		this._movieClip.frame=buffer.getInt32();
+		this._movieClip.playing=buffer.readBool();
 	}
 
 	__getset(0,__proto,'color',function(){
@@ -12720,14 +12251,6 @@ var GBasicTextField=(function(_super){
 		this.text=this._text;
 	}
 
-	__proto.setup_beforeAdd=function(xml){
-		_super.prototype.setup_beforeAdd.call(this,xml);
-		var str;
-		str=xml.getAttribute("autoSize");
-		if (str)
-			this.setAutoSize(AutoSizeType.parse(str));
-	}
-
 	__getset(0,__proto,'bold',function(){
 		return this.textField.bold;
 		},function(value){
@@ -12789,12 +12312,14 @@ var GBasicTextField=(function(_super){
 		return this.textField.font;
 		},function(value){
 		this._font=value;
-		if(ToolSet.startsWith(this._font,"ui://")){
-			this._bitmapFont=UIPackage.getBitmapFontByURL(this._font);
+		if(ToolSet.startsWith(this._font,"ui://"))
+			this._bitmapFont=UIPackage.getItemAssetByURL(this._font);
+		else
+		this._bitmapFont=null;
+		if(this._bitmapFont!=null){
 			this.textField["setChanged"]();
 		}
 		else {
-			this._bitmapFont=null;
 			if(this._font)
 				this.textField.font=this._font;
 			else
@@ -12995,6 +12520,17 @@ var GButton=(function(_super){
 
 	__class(GButton,'fairygui.GButton',_super);
 	var __proto=GButton.prototype;
+	__proto.getTextField=function(){
+		if ((this._titleObject instanceof fairygui.GTextField ))
+			return this._titleObject;
+		else if ((this._titleObject instanceof fairygui.GLabel ))
+		return (this._titleObject).getTextField();
+		else if ((this._titleObject instanceof fairygui.GButton ))
+		return (this._titleObject).getTextField();
+		else
+		return null;
+	}
+
 	__proto.fireClick=function(downEffect){
 		(downEffect===void 0)&& (downEffect=true);
 		if (downEffect && this._mode==0){
@@ -13068,27 +12604,17 @@ var GButton=(function(_super){
 		_super.prototype.handleGrayedChanged.call(this);
 	}
 
-	__proto.constructFromXML=function(xml){
-		_super.prototype.constructFromXML.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"Button");
-		var str;
-		str=xml.getAttribute("mode");
-		if (str)
-			this._mode=ButtonMode.parse(str);
-		str=xml.getAttribute("sound");
+	__proto.constructExtension=function(buffer){
+		buffer.seek(0,6);
+		this._mode=buffer.readByte();
+		var str=buffer.readS();
 		if(str)
 			this._sound=str;
-		str=xml.getAttribute("volume");
-		if(str)
-			this._soundVolumeScale=parseInt(str)/ 100;
-		str=xml.getAttribute("downEffect");
-		if(str){
-			this._downEffect=str=="dark"?1:(str=="scale"?2:0);
-			str=xml.getAttribute("downEffectValue");
-			this._downEffectValue=parseFloat(str);
-			if(this._downEffect==2)
-				this.setPivot(0.5,0.5);
-		}
+		this._soundVolumeScale=buffer.getFloat32();
+		this._downEffect=buffer.readByte();
+		this._downEffectValue=buffer.getFloat32();
+		if(this._downEffect==2)
+			this.setPivot(0.5,0.5,this.pivotAsAnchor);
 		this._buttonController=this.getController("button");
 		this._titleObject=this.getChild("title");
 		this._iconObject=this.getChild("icon");
@@ -13104,43 +12630,41 @@ var GButton=(function(_super){
 		this.on("click",this,this.__click);
 	}
 
-	__proto.setup_afterAdd=function(xml){
-		_super.prototype.setup_afterAdd.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"Button");
-		if (xml){
-			var str;
-			str=xml.getAttribute("title");
-			if (str)
-				this.title=str;
-			str=xml.getAttribute("icon");
-			if (str)
-				this.icon=str;
-			str=xml.getAttribute("selectedTitle");
-			if (str)
-				this.selectedTitle=str;
-			str=xml.getAttribute("selectedIcon");
-			if (str)
-				this.selectedIcon=str;
-			str=xml.getAttribute("titleColor");
-			if (str)
-				this.titleColor=str;
-			str=xml.getAttribute("titleFontSize");
-			if(str)
-				this.titleFontSize=parseInt(str);
-			str=xml.getAttribute("sound");
-			if (str!=null)
-				this._sound=str;
-			str=xml.getAttribute("volume");
-			if(str)
-				this._soundVolumeScale=parseInt(str)/100;
-			str=xml.getAttribute("controller");
-			if (str)
-				this._relatedController=this._parent.getController(str);
-			else
-			this._relatedController=null;
-			this._pageOption.id=xml.getAttribute("page");
-			this.selected=xml.getAttribute("checked")=="true";
-		}
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
+		if (!buffer.seek(beginPos,6))
+			return;
+		if (buffer.readByte()!=this.packageItem.objectType)
+			return;
+		var str;
+		var iv=0;
+		str=buffer.readS();
+		if (str !=null)
+			this.title=str;
+		str=buffer.readS();
+		if (str !=null)
+			this.selectedTitle=str;
+		str=buffer.readS();
+		if (str !=null)
+			this.icon=str;
+		str=buffer.readS();
+		if (str !=null)
+			this.selectedIcon=str;
+		if (buffer.readBool())
+			this.titleColor=buffer.readColorS();
+		iv=buffer.getInt32();
+		if (iv !=0)
+			this.titleFontSize=iv;
+		iv=buffer.getInt16();
+		if (iv >=0)
+			this._relatedController=this.parent.getControllerAt(iv);
+		this.pageOption.id=buffer.readS();
+		str=buffer.readS();
+		if (str !=null)
+			this._sound=str;
+		if (buffer.readBool())
+			this._soundVolumeScale=buffer.getFloat32();
+		this.selected=buffer.readBool();
 	}
 
 	__proto.__rollover=function(){
@@ -13202,7 +12726,7 @@ var GButton=(function(_super){
 		if(this._sound){
 			var pi=UIPackage.getItemByURL(this._sound);
 			if (pi)
-				GRoot.inst.playOneShotSound(pi.owner.getItemAssetURL(pi));
+				GRoot.inst.playOneShotSound(pi.file);
 			else
 			GRoot.inst.playOneShotSound(this._sound);
 		}
@@ -13245,21 +12769,15 @@ var GButton=(function(_super){
 	});
 
 	__getset(0,__proto,'titleFontSize',function(){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			return (this._titleObject).fontSize;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		return (this._titleObject).titleFontSize;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		return (this._titleObject).titleFontSize;
+		var tf=this.getTextField();
+		if(tf!=null)
+			return tf.fontSize;
 		else
 		return 0;
 		},function(value){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			(this._titleObject).fontSize=value;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		(this._titleObject).titleFontSize=value;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		(this._titleObject).titleFontSize=value;
+		var tf=this.getTextField();
+		if(tf!=null)
+			tf.fontSize=value;
 	});
 
 	__getset(0,__proto,'selectedIcon',function(){
@@ -13307,21 +12825,16 @@ var GButton=(function(_super){
 	});
 
 	__getset(0,__proto,'titleColor',function(){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			return (this._titleObject).color;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		return (this._titleObject).titleColor;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		return (this._titleObject).titleColor;
+		var tf=this.getTextField();
+		if(tf!=null)
+			return tf.color;
 		else
 		return "#000000";
 		},function(value){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			(this._titleObject).color=value;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		(this._titleObject).titleColor=value;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		(this._titleObject).titleColor=value;
+		var tf=this.getTextField();
+		if(tf!=null)
+			tf.color=value;
+		this.updateGear(4);
 	});
 
 	__getset(0,__proto,'selected',function(){
@@ -13355,7 +12868,7 @@ var GButton=(function(_super){
 			&& !this._parent._buildingDisplayList){
 				if(this._selected){
 					this._relatedController.selectedPageId=this._pageOption.id;
-					if(this._relatedController._autoRadioGroupDepth)
+					if(this._relatedController.autoRadioGroupDepth)
 						this._parent.adjustRadioGroupDepth(this,this._relatedController);
 				}
 				else if(this._mode==1 && this._relatedController.selectedPageId==this._pageOption.id)
@@ -13364,6 +12877,12 @@ var GButton=(function(_super){
 		}
 	});
 
+	/**
+	*@see ButtonMode
+	*/
+	/**
+	*@see ButtonMode
+	*/
 	__getset(0,__proto,'mode',function(){
 		return this._mode;
 		},function(value){
@@ -13410,7 +12929,7 @@ var GComboBox=(function(_super){
 		this._items=null;
 		this._icons=null;
 		this._values=null;
-		this._popupDownward=null;
+		this._popupDirection=0;
 		this._visibleItemCount=0;
 		this._itemsUpdated=false;
 		this._selectedIndex=0;
@@ -13428,6 +12947,17 @@ var GComboBox=(function(_super){
 
 	__class(GComboBox,'fairygui.GComboBox',_super);
 	var __proto=GComboBox.prototype;
+	__proto.getTextField=function(){
+		if ((this._titleObject instanceof fairygui.GTextField ))
+			return this._titleObject;
+		else if ((this._titleObject instanceof fairygui.GLabel ))
+		return (this._titleObject).getTextField();
+		else if ((this._titleObject instanceof fairygui.GButton ))
+		return (this._titleObject).getTextField();
+		else
+		return null;
+	}
+
 	__proto.setState=function(val){
 		if (this._buttonController)
 			this._buttonController.selectedPage=val;
@@ -13458,14 +12988,12 @@ var GComboBox=(function(_super){
 		_super.prototype.dispose.call(this);
 	}
 
-	__proto.constructFromXML=function(xml){
-		_super.prototype.constructFromXML.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"ComboBox");
+	__proto.constructExtension=function(buffer){
 		var str;
 		this._buttonController=this.getController("button");
 		this._titleObject=this.getChild("title");
 		this._iconObject=this.getChild("icon");
-		str=xml.getAttribute("dropdown");
+		str=buffer.readS();
 		if (str){
 			this.dropdown=(UIPackage.createObjectFromURL(str));
 			if (!this.dropdown){
@@ -13490,57 +13018,53 @@ var GComboBox=(function(_super){
 		this.on("mousedown",this,this.__mousedown);
 	}
 
-	__proto.setup_afterAdd=function(xml){
-		_super.prototype.setup_afterAdd.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"ComboBox");
-		if (xml){
-			var str;
-			str=xml.getAttribute("titleColor");
-			if (str)
-				this.titleColor=str;
-			str=xml.getAttribute("visibleItemCount");
-			if (str)
-				this._visibleItemCount=parseInt(str);
-			var col=xml.childNodes;
-			var length=col.length;
-			for (var i=0;i < length;i++){
-				var cxml=col[i];
-				if(cxml.nodeName=="item"){
-					this._items.push(cxml.getAttribute("title"));
-					this._values.push(cxml.getAttribute("value"));
-					str=cxml.getAttribute("icon");
-					if (str){
-						if(!this._icons)
-							this._icons=new Array(length);
-						this._icons[i]=str;
-					}
-				}
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
+		if (!buffer.seek(beginPos,6))
+			return;
+		if (buffer.readByte()!=this.packageItem.objectType)
+			return;
+		var i=0;
+		var iv=0;
+		var nextPos=0;
+		var str;
+		var itemCount=buffer.getInt16();
+		for (i=0;i < itemCount;i++){
+			nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			this._items[i]=buffer.readS();
+			this._values[i]=buffer.readS();
+			str=buffer.readS();
+			if (str !=null){
+				if (this._icons==null)
+					this._icons=[];
+				this._icons[i]=str;
 			}
-			str=xml.getAttribute("title");
-			if(str){
-				this.text=str;
-				this._selectedIndex=this._items.indexOf(str);
-			}
-			else if(this._items.length>0){
-				this._selectedIndex=0;
-				this.text=this._items[0];
-			}
-			else
-			this._selectedIndex=-1;
-			str=xml.getAttribute("icon");
-			if(str)
-				this.icon=str;
-			str=xml.getAttribute("direction");
-			if(str){
-				if(str=="up")
-					this._popupDownward=false;
-				else if(str=="auto")
-				this._popupDownward=null;
-			}
-			str=xml.getAttribute("selectionController");
-			if (str)
-				this._selectionController=this.parent.getController(str);
+			buffer.pos=nextPos;
 		}
+		str=buffer.readS();
+		if (str !=null){
+			this.text=str;
+			this._selectedIndex=this._items.indexOf(str);
+		}
+		else if (this._items.length > 0){
+			this._selectedIndex=0;
+			this.text=this._items[0];
+		}
+		else
+		this._selectedIndex=-1;
+		str=buffer.readS();
+		if (str !=null)
+			this.icon=str;
+		if (buffer.readBool())
+			this.titleColor=buffer.readColorS();
+		iv=buffer.getInt32();
+		if (iv > 0)
+			this._visibleItemCount=iv;
+		this._popupDirection=buffer.readByte();
+		iv=buffer.getInt16();
+		if (iv >=0)
+			this._selectionController=this.parent.getControllerAt(iv);
 	}
 
 	__proto.showDropdown=function(){
@@ -13558,7 +13082,12 @@ var GComboBox=(function(_super){
 		}
 		this._list.selectedIndex=-1;
 		this.dropdown.width=this.width;
-		this.root.togglePopup(this.dropdown,this,this._popupDownward);
+		var downward=null;
+		if (this._popupDirection==2)
+			downward=true;
+		else if (this._popupDirection==1)
+		downward=false;
+		this.root.togglePopup(this.dropdown,this,downward);
 		if (this.dropdown.parent)
 			this.setState("down");
 	}
@@ -13631,40 +13160,28 @@ var GComboBox=(function(_super){
 	});
 
 	__getset(0,__proto,'titleColor',function(){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			return (this._titleObject).color;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		return (this._titleObject).titleColor;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		return (this._titleObject).titleColor;
+		var tf=this.getTextField();
+		if(tf!=null)
+			return tf.color;
 		else
 		return "#000000";
 		},function(value){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			(this._titleObject).color=value;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		(this._titleObject).titleColor=value;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		(this._titleObject).titleColor=value;
+		var tf=this.getTextField();
+		if(tf!=null)
+			tf.color=value;
+		this.updateGear(4);
 	});
 
-	__getset(0,__proto,'selectedIndex',function(){
-		return this._selectedIndex;
-		},function(val){
-		if(this._selectedIndex==val)
-			return;
-		this._selectedIndex=val;
-		if(this._selectedIndex>=0 && this._selectedIndex<this._items.length){
-			this.text=this._items[this._selectedIndex];
-			if (this._icons !=null && this._selectedIndex < this._icons.length)
-				this.icon=this._icons[this._selectedIndex];
-		}
-		else{
-			this.text="";
-			if (this._icons !=null)
-				this.icon=null;
-		}
-		this.updateSelectionController();
+	__getset(0,__proto,'titleFontSize',function(){
+		var tf=this.getTextField();
+		if(tf!=null)
+			return tf.fontSize;
+		else
+		return 0;
+		},function(value){
+		var tf=this.getTextField();
+		if(tf!=null)
+			tf.fontSize=value;
 	});
 
 	__getset(0,__proto,'icon',function(){
@@ -13698,19 +13215,16 @@ var GComboBox=(function(_super){
 		this._visibleItemCount=value;
 	});
 
-	__getset(0,__proto,'popupDownward',function(){
-		return this._popupDownward;
+	/**
+	*@see PopupDirection
+	*/
+	/**
+	*@see PopupDirection
+	*/
+	__getset(0,__proto,'popupDirection',function(){
+		return this._popupDirection;
 		},function(value){
-		this._popupDownward=value;
-	});
-
-	__getset(0,__proto,'values',function(){
-		return this._values;
-		},function(value){
-		if (!value)
-			this._values.length=0;
-		else
-		this._values=value.concat();
+		this._popupDirection=value;
 	});
 
 	__getset(0,__proto,'items',function(){
@@ -13738,6 +13252,34 @@ var GComboBox=(function(_super){
 		this._itemsUpdated=true;
 	});
 
+	__getset(0,__proto,'values',function(){
+		return this._values;
+		},function(value){
+		if (!value)
+			this._values.length=0;
+		else
+		this._values=value.concat();
+	});
+
+	__getset(0,__proto,'selectedIndex',function(){
+		return this._selectedIndex;
+		},function(val){
+		if(this._selectedIndex==val)
+			return;
+		this._selectedIndex=val;
+		if(this._selectedIndex>=0 && this._selectedIndex<this._items.length){
+			this.text=this._items[this._selectedIndex];
+			if (this._icons !=null && this._selectedIndex < this._icons.length)
+				this.icon=this._icons[this._selectedIndex];
+		}
+		else{
+			this.text="";
+			if (this._icons !=null)
+				this.icon=null;
+		}
+		this.updateSelectionController();
+	});
+
 	__getset(0,__proto,'value',function(){
 		return this._values[this._selectedIndex];
 		},function(val){
@@ -13758,49 +13300,65 @@ var GLabel=(function(_super){
 
 	__class(GLabel,'fairygui.GLabel',_super);
 	var __proto=GLabel.prototype;
-	Laya.imps(__proto,{"fairygui.IColorGear":true})
-	__proto.constructFromXML=function(xml){
-		_super.prototype.constructFromXML.call(this,xml);
+	Laya.imps(__proto,{"fairygui.gears.IColorGear":true})
+	__proto.getTextField=function(){
+		if ((this._titleObject instanceof fairygui.GTextField ))
+			return this._titleObject;
+		else if ((this._titleObject instanceof fairygui.GLabel ))
+		return (this._titleObject).getTextField();
+		else if ((this._titleObject instanceof fairygui.GButton ))
+		return (this._titleObject).getTextField();
+		else
+		return null;
+	}
+
+	__proto.constructExtension=function(buffer){
 		this._titleObject=this.getChild("title");
 		this._iconObject=this.getChild("icon");
 	}
 
-	__proto.setup_afterAdd=function(xml){
-		_super.prototype.setup_afterAdd.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"Label");
-		if (xml){
-			var str;
-			str=xml.getAttribute("title");
-			if(str)
-				this.text=str;
-			str=xml.getAttribute("icon");
-			if(str)
-				this.icon=str;
-			str=xml.getAttribute("titleColor");
-			if (str)
-				this.titleColor=str;
-			str=xml.getAttribute("titleFontSize");
-			if(str)
-				this.titleFontSize=parseInt(str);
-			if((this._titleObject instanceof fairygui.GTextInput )){
-				str=xml.getAttribute("prompt");
-				if(str)
-					(this._titleObject).promptText=str;
-				str=xml.getAttribute("maxLength");
-				if(str)
-					(this._titleObject).maxLength=parseInt(str);
-				str=xml.getAttribute("restrict");
-				if(str)
-					(this._titleObject).restrict=str;
-				str=xml.getAttribute("password");
-				if(str)
-					(this._titleObject).password=str=="true";
-				str=xml.getAttribute("keyboardType");
-				if(str=="4")
-					(this._titleObject).keyboardType="number";
-				else if(str=="3")
-				(this._titleObject).keyboardType="url";
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
+		if (!buffer.seek(beginPos,6))
+			return;
+		if (buffer.readByte()!=this.packageItem.objectType)
+			return;
+		var str;
+		str=buffer.readS();
+		if (str !=null)
+			this.title=str;
+		str=buffer.readS();
+		if (str !=null)
+			this.icon=str;
+		if (buffer.readBool())
+			this.titleColor=buffer.readColorS();
+		var iv=buffer.getInt32();
+		if (iv !=0)
+			this.titleFontSize=iv;
+		if (buffer.readBool()){
+			var input=this.getTextField();
+			if (input !=null){
+				str=buffer.readS();
+				if (str !=null)
+					input.promptText=str;
+				str=buffer.readS();
+				if (str !=null)
+					input.restrict=str;
+				iv=buffer.getInt32();
+				if (iv !=0)
+					input.maxLength=iv;
+				iv=buffer.getInt32();
+				if (iv !=0){
+					if(iv==4)
+						input.keyboardType="number";
+					else if(iv==3)
+					input.keyboardType="url";
+				}
+				if (buffer.readBool())
+					input.password=true;
 			}
+			else
+			buffer.skip(13);
 		}
 	}
 
@@ -13849,40 +13407,28 @@ var GLabel=(function(_super){
 	});
 
 	__getset(0,__proto,'titleColor',function(){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			return (this._titleObject).color;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		return (this._titleObject).titleColor;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		return (this._titleObject).titleColor;
+		var tf=this.getTextField();
+		if(tf!=null)
+			return tf.color;
 		else
 		return "#000000";
 		},function(value){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			(this._titleObject).color=value;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		(this._titleObject).titleColor=value;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		(this._titleObject).titleColor=value;
+		var tf=this.getTextField();
+		if(tf!=null)
+			tf.color=value;
 		this.updateGear(4);
 	});
 
 	__getset(0,__proto,'titleFontSize',function(){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			return (this._titleObject).fontSize;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		return (this._titleObject).titleFontSize;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		return (this._titleObject).titleFontSize;
+		var tf=this.getTextField();
+		if(tf!=null)
+			return tf.fontSize;
 		else
 		return 0;
 		},function(value){
-		if((this._titleObject instanceof fairygui.GTextField ))
-			(this._titleObject).fontSize=value;
-		else if((this._titleObject instanceof fairygui.GLabel ))
-		(this._titleObject).titleFontSize=value;
-		else if((this._titleObject instanceof fairygui.GButton ))
-		(this._titleObject).titleFontSize=value;
+		var tf=this.getTextField();
+		if(tf!=null)
+			tf.fontSize=value;
 	});
 
 	return GLabel;
@@ -15628,160 +15174,106 @@ var GList=(function(_super){
 		this.setBounds(0,0,cw,ch);
 	}
 
-	__proto.setup_beforeAdd=function(xml){
-		fairygui.GObject.prototype.setup_beforeAdd.call(this,xml);
+	__proto.setup_beforeAdd=function(buffer,beginPos){
+		fairygui.GObject.prototype.setup_beforeAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,5);
+		var i=0;
+		var j=0;
+		var cnt=0;
+		var i1=0;
+		var i2=0;
+		var nextPos=0;
 		var str;
-		var arr;
-		str=xml.getAttribute("layout");
-		if (str)
-			this._layout=ListLayoutType.parse(str);
-		var overflow=0;
-		str=xml.getAttribute("overflow");
-		if (str)
-			overflow=OverflowType.parse(str);
-		else
-		overflow=0;
-		str=xml.getAttribute("margin");
-		if(str)
-			this._margin.parse(str);
-		str=xml.getAttribute("align");
-		if(str)
-			this._align=str;
-		str=xml.getAttribute("vAlign");
-		if(str)
-			this._verticalAlign=str;
-		if(overflow==2){
-			var scroll=0;
-			str=xml.getAttribute("scroll");
-			if (str)
-				scroll=ScrollType.parse(str);
-			else
-			scroll=1;
-			var scrollBarDisplay=0;
-			str=xml.getAttribute("scrollBar");
-			if (str)
-				scrollBarDisplay=ScrollBarDisplayType.parse(str);
-			else
-			scrollBarDisplay=0;
-			var scrollBarFlags=NaN;
-			str=xml.getAttribute("scrollBarFlags");
-			if(str)
-				scrollBarFlags=parseInt(str);
-			else
-			scrollBarFlags=0;
-			var scrollBarMargin=new Margin();
-			str=xml.getAttribute("scrollBarMargin");
-			if(str)
-				scrollBarMargin.parse(str);
-			var vtScrollBarRes;
-			var hzScrollBarRes;
-			str=xml.getAttribute("scrollBarRes");
-			if(str){
-				arr=str.split(",");
-				vtScrollBarRes=arr[0];
-				hzScrollBarRes=arr[1];
-			};
-			var headerRes;
-			var footerRes;
-			str=xml.getAttribute('ptrRes');
-			if(str){
-				arr=str.split(",");
-				headerRes=arr[0];
-				footerRes=arr[1];
-			}
-			this.setupScroll(scrollBarMargin,scroll,scrollBarDisplay,scrollBarFlags,
-			vtScrollBarRes,hzScrollBarRes,headerRes,footerRes);
+		this._layout=buffer.readByte();
+		this._selectionMode=buffer.readByte();
+		i1=buffer.readByte();
+		this._align=i1==0?"left":(i1==1?"center":"right");
+		i1=buffer.readByte();
+		this._verticalAlign=i1==0?"top":(i1==1?"middle":"bottom");
+		this._lineGap=buffer.getInt16();
+		this._columnGap=buffer.getInt16();
+		this._lineCount=buffer.getInt16();
+		this._columnCount=buffer.getInt16();
+		this._autoResizeItem=buffer.readBool();
+		this._childrenRenderOrder=buffer.readByte();
+		this._apexIndex=buffer.getInt16();
+		if (buffer.readBool()){
+			this._margin.top=buffer.getInt32();
+			this._margin.bottom=buffer.getInt32();
+			this._margin.left=buffer.getInt32();
+			this._margin.right=buffer.getInt32();
+		};
+		var overflow=buffer.readByte();
+		if (overflow==2){
+			var savedPos=buffer.pos;
+			buffer.seek(beginPos,7);
+			this.setupScroll(buffer);
+			buffer.pos=savedPos;
 		}
 		else
 		this.setupOverflow(overflow);
-		str=xml.getAttribute("lineGap");
-		if (str)
-			this._lineGap=parseInt(str);
-		str=xml.getAttribute("colGap");
-		if (str)
-			this._columnGap=parseInt(str);
-		str=xml.getAttribute("lineItemCount");
-		if(str){
-			if (this._layout==2 || this._layout==4)
-				this._columnCount=parseInt(str);
-			else if (this._layout==3)
-			this._lineCount=parseInt(str);
-		}
-		str=xml.getAttribute("lineItemCount2");
-		if(str)
-			this._lineCount=parseInt(str);
-		str=xml.getAttribute("selectionMode");
-		if (str)
-			this._selectionMode=ListSelectionMode.parse(str);
-		str=xml.getAttribute("defaultItem");
-		if (str)
-			this._defaultItem=str;
-		str=xml.getAttribute("autoItemSize");
-		if (this._layout==1 || this._layout==0)
-			this._autoResizeItem=str!="false";
-		else
-		this._autoResizeItem=str=="true";
-		str=xml.getAttribute("renderOrder");
-		if(str){
-			this._childrenRenderOrder=ChildrenRenderOrder.parse(str);
-			if(this._childrenRenderOrder==2){
-				str=xml.getAttribute("apex");
-				if(str)
-					this._apexIndex=parseInt(str);
-			}
-		};
-		var col=xml.childNodes;
-		var length=col.length;
-		for (var i=0;i < length;i++){
-			var cxml=col[i];
-			if(cxml.nodeName !="item")
-				continue ;
-			var url=cxml.getAttribute("url");
-			if (!url)
-				url=this._defaultItem;
-			if (!url)
-				continue ;
-			var obj=this.getFromPool(url);
-			if(obj !=null){
+		if (buffer.readBool())
+			buffer.skip(8);
+		buffer.seek(beginPos,8);
+		this._defaultItem=buffer.readS();
+		var itemCount=buffer.getInt16();
+		for (i=0;i < itemCount;i++){
+			nextPos=buffer.getInt16();
+			nextPos+=buffer.pos;
+			str=buffer.readS();
+			if (str==null){
+				str=this.defaultItem;
+				if (!str){
+					buffer.pos=nextPos;
+					continue ;
+				}
+			};
+			var obj=this.getFromPool(str);
+			if (obj !=null){
 				this.addChild(obj);
-				str=cxml.getAttribute("title");
-				if(str)
+				str=buffer.readS();
+				if (str !=null)
 					obj.text=str;
-				str=cxml.getAttribute("icon");
-				if(str)
-					obj.icon=str;
-				str=cxml.getAttribute("name");
-				if(str)
-					obj.name=str;
-				str=cxml.getAttribute("selectedIcon");
-				if(str && ((obj instanceof fairygui.GButton )))
-					(obj).selectedIcon=str;
-				str=cxml.getAttribute("selectedTitle");
-				if(str && ((obj instanceof fairygui.GButton )))
+				str=buffer.readS();
+				if (str !=null && ((obj instanceof fairygui.GButton )))
 					(obj).selectedTitle=str;
-				if((obj instanceof fairygui.GComponent )){
-					str=cxml.getAttribute("controllers");
-					if(str){
-						arr=str.split(",");
-						for(var j=0;j<arr.length;j+=2){
-							var cc=(obj).getController(arr[j]);
-							if(cc!=null)
-								cc.selectedPageId=arr[j+1];
-						}
+				str=buffer.readS();
+				if (str !=null)
+					obj.icon=str;
+				str=buffer.readS();
+				if (str !=null && ((obj instanceof fairygui.GButton )))
+					(obj).selectedIcon=str;
+				str=buffer.readS();
+				if (str !=null)
+					obj.name=str;
+				if ((obj instanceof fairygui.GComponent )){
+					cnt=buffer.getInt16();
+					for (j=0;j < cnt;j++){
+						var cc=(obj).getController(buffer.readS());
+						str=buffer.readS();
+						if (cc !=null)
+							cc.selectedPageId=str;
 					}
 				}
 			}
+			buffer.pos=nextPos;
 		}
 	}
 
-	__proto.setup_afterAdd=function(xml){
-		_super.prototype.setup_afterAdd.call(this,xml);
-		var str;
-		str=xml.getAttribute("selectionController");
-		if(str)
-			this._selectionController=this.parent.getController(str);
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,6);
+		var i=buffer.getInt16();
+		if (i !=-1)
+			this._selectionController=this.parent.getControllerAt(i);
 	}
 
+	/**
+	*@see ListLayoutType
+	*/
+	/**
+	*@see ListLayoutType
+	*/
 	__getset(0,__proto,'layout',function(){
 		return this._layout;
 		},function(value){
@@ -15891,6 +15383,12 @@ var GList=(function(_super){
 		}
 	});
 
+	/**
+	*@see ListSelectionMode
+	*/
+	/**
+	*@see ListSelectionMode
+	*/
 	__getset(0,__proto,'selectionMode',function(){
 		return this._selectionMode;
 		},function(value){
@@ -16211,14 +15709,10 @@ var GProgressBar=(function(_super){
 			(this._aniObject).frame=Math.round(percent *100);
 	}
 
-	__proto.constructFromXML=function(xml){
-		_super.prototype.constructFromXML.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"ProgressBar");
-		var str;
-		str=xml.getAttribute("titleType");
-		if(str)
-			this._titleType=ProgressTitleType.parse(str);
-		this._reverse=xml.getAttribute("reverse")=="true";
+	__proto.constructExtension=function(buffer){
+		buffer.seek(0,6);
+		this._titleType=buffer.readByte();
+		this._reverse=buffer.readBool();
 		this._titleObject=(this.getChild("title"));
 		this._barObjectH=this.getChild("bar");
 		this._barObjectV=this.getChild("bar_v");
@@ -16245,13 +15739,18 @@ var GProgressBar=(function(_super){
 			this.update(this._value);
 	}
 
-	__proto.setup_afterAdd=function(xml){
-		_super.prototype.setup_afterAdd.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"ProgressBar");
-		if (xml){
-			this._value=parseInt(xml.getAttribute("value"));
-			this._max=parseInt(xml.getAttribute("max"));
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
+		if (!buffer.seek(beginPos,6)){
+			this.update(this._value);
+			return;
 		}
+		if (buffer.readByte()!=this.packageItem.objectType){
+			this.update(this._value);
+			return;
+		}
+		this._value=buffer.getInt32();
+		this._max=buffer.getInt32();
 		this.update(this._value);
 	}
 
@@ -16270,6 +15769,12 @@ var GProgressBar=(function(_super){
 		}
 	});
 
+	/**
+	*@see ProgressTitleType
+	*/
+	/**
+	*@see ProgressTitleType
+	*/
 	__getset(0,__proto,'titleType',function(){
 		return this._titleType;
 		},function(value){
@@ -16707,26 +16212,27 @@ var GTextInput=(function(_super){
 		this.input.size(this.width,this.height);
 	}
 
-	__proto.setup_beforeAdd=function(xml){
-		_super.prototype.setup_beforeAdd.call(this,xml);
-		var str=xml.getAttribute("prompt");
-		if(str)
+	__proto.setup_beforeAdd=function(buffer,beginPos){
+		_super.prototype.setup_beforeAdd.call(this,buffer,beginPos);
+		buffer.seek(beginPos,4);
+		var str=buffer.readS();
+		if (str !=null)
 			this.promptText=str;
-		str=xml.getAttribute("maxLength");
-		if(str)
-			this.input.maxChars=parseInt(str);
-		str=xml.getAttribute("restrict");
-		if(str)
+		str=buffer.readS();
+		if (str !=null)
 			this.input.restrict=str;
-		if(xml.getAttribute("password")=="true")
-			this.password=true;
-		else{
-			str=xml.getAttribute("keyboardType");
-			if(str=="4")
+		var iv=buffer.getInt32();
+		if (iv !=0)
+			this.input.maxChars=iv;
+		iv=buffer.getInt32();
+		if (iv !=0){
+			if(iv==4)
 				this.keyboardType="number";
-			else if(str=="3")
+			else if(iv==3)
 			this.keyboardType="url";
 		}
+		if (buffer.readBool())
+			this.password=true;
 	}
 
 	__getset(0,__proto,'bold',function(){
@@ -16873,12 +16379,9 @@ var GScrollBar=(function(_super){
 		this._vertical=vertical;
 	}
 
-	__proto.constructFromXML=function(xml){
-		_super.prototype.constructFromXML.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"ScrollBar");
-		if (xml){
-			this._fixedGripSize=xml.getAttribute("fixedGripSize")=="true";
-		}
+	__proto.constructExtension=function(buffer){
+		buffer.seek(0,6);
+		this._fixedGripSize=buffer.readBool();
 		this._grip=this.getChild("grip");
 		if(!this._grip){
 			Log.print("需要定义grip");
@@ -17069,14 +16572,10 @@ var GSlider=(function(_super){
 		}
 	}
 
-	__proto.constructFromXML=function(xml){
-		_super.prototype.constructFromXML.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"Slider");
-		var str;
-		str=xml.getAttribute("titleType");
-		if(str)
-			this._titleType=ProgressTitleType.parse(str);
-		this._reverse=xml.getAttribute("reverse")=="true";
+	__proto.constructExtension=function(buffer){
+		buffer.seek(0,6);
+		this._titleType=buffer.readByte();
+		this._reverse=buffer.readBool();
 		this._titleObject=(this.getChild("title"));
 		this._barObjectH=this.getChild("bar");
 		this._barObjectV=this.getChild("bar_v");
@@ -17107,13 +16606,18 @@ var GSlider=(function(_super){
 			this.update();
 	}
 
-	__proto.setup_afterAdd=function(xml){
-		_super.prototype.setup_afterAdd.call(this,xml);
-		xml=ToolSet.findChildNode(xml,"Slider");
-		if (xml){
-			this._value=parseInt(xml.getAttribute("value"));
-			this._max=parseInt(xml.getAttribute("max"));
+	__proto.setup_afterAdd=function(buffer,beginPos){
+		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
+		if (!buffer.seek(beginPos,6)){
+			this.update();
+			return;
 		}
+		if (buffer.readByte()!=this.packageItem.objectType){
+			this.update();
+			return;
+		}
+		this._value=buffer.getInt32();
+		this._max=buffer.getInt32();
 		this.update();
 	}
 
@@ -17194,6 +16698,12 @@ var GSlider=(function(_super){
 		}
 	});
 
+	/**
+	*@see ProgressTitleType
+	*/
+	/**
+	*@see ProgressTitleType
+	*/
 	__getset(0,__proto,'titleType',function(){
 		return this._titleType;
 		},function(value){
@@ -17490,13 +17000,11 @@ var Image$1=(function(_super){
 		this._scaleByTile=false;
 		this._scale9Grid=null;
 		this._tileGridIndice=0;
-		this._textureScaleX=0;
-		this._textureScaleY=0;
+		this._textureScaleX=1;
+		this._textureScaleY=1;
 		this._needRebuild=false;
 		Image.__super.call(this);
 		this.mouseEnabled=false;
-		this._textureScaleX=1;
-		this._textureScaleY=1;
 	}
 
 	__class(Image,'fairygui.display.Image',_super,'Image$1');
@@ -17520,65 +17028,60 @@ var Image$1=(function(_super){
 
 	__proto.rebuild=function(){
 		this._needRebuild=false;
+		var w=this.width;
+		var h=this.height;
+		var tw=this._tex.width;
+		var th=this._tex.height;
 		var g=this.graphics;
-		g.clear();
-		if(this._tex==null){
-			this.repaint();
-			return;
-		};
-		var width=this.width;
-		var height=this.height;
-		var sw=this._tex.width;
-		var sh=this._tex.height;
-		if(width==0 || height==0){
-			this.repaint();
+		if(this._tex==null || w==0 || h==0){
+			g.clear();
 			return;
 		}
 		if(this._scaleByTile){
-			g.fillTexture(this._tex,0,0,width,height);
+			g.clear();
+			g.fillTexture(this._tex,0,0,w,h);
 		}
 		else if(this._scale9Grid!=null){
 			var left=this._scale9Grid.x;
-			var right=Math.max(sw-this._scale9Grid.right,0);
+			var right=Math.max(tw-this._scale9Grid.right,0);
 			var top=this._scale9Grid.y;
-			var bottom=Math.max(sh-this._scale9Grid.bottom,0);
+			var bottom=Math.max(th-this._scale9Grid.bottom,0);
 			var tmp=NaN;
-			if (height >=(sh-this._scale9Grid.height)){
+			if (h >=(th-this._scale9Grid.height)){
 				top=this._scale9Grid.y;
-				bottom=sh-this._scale9Grid.bottom;
+				bottom=th-this._scale9Grid.bottom;
 			}
 			else{
-				tmp=this._scale9Grid.y / (sh-this._scale9Grid.bottom);
-				tmp=height *tmp / (1+tmp);
+				tmp=this._scale9Grid.y / (th-this._scale9Grid.bottom);
+				tmp=h *tmp / (1+tmp);
 				top=Math.round(tmp);
-				bottom=height-tmp;
+				bottom=h-tmp;
 			}
-			if (width >=(sw-this._scale9Grid.width)){
+			if (w >=(tw-this._scale9Grid.width)){
 				left=this._scale9Grid.x;
-				right=sw-this._scale9Grid.right;
+				right=tw-this._scale9Grid.right;
 			}
 			else{
-				tmp=this._scale9Grid.x / (sw-this._scale9Grid.right);
-				tmp=width *tmp / (1+tmp);
+				tmp=this._scale9Grid.x / (tw-this._scale9Grid.right);
+				tmp=w *tmp / (1+tmp);
 				left=Math.round(tmp);
-				right=width-tmp;
+				right=w-tmp;
 			};
-			var centerWidth=Math.max(width-left-right,0);
-			var centerHeight=Math.max(height-top-bottom,0);
+			var centerWidth=Math.max(w-left-right,0);
+			var centerHeight=Math.max(h-top-bottom,0);
 			left && top && g.drawTexture(fairygui.display.Image.getTexture(this._tex,0,0,left,top),0,0,left,top);
-			right && top && g.drawTexture(fairygui.display.Image.getTexture(this._tex,sw-right,0,right,top),width-right,0,right,top);
-			left && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._tex,0,sh-bottom,left,bottom),0,height-bottom,left,bottom);
-			right && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._tex,sw-right,sh-bottom,right,bottom),width-right,height-bottom,right,bottom);
-			centerWidth && top && this.drawTexture(0,fairygui.display.Image.getTexture(this._tex,left,0,sw-left-right,top),left,0,centerWidth,top);
-			centerWidth && bottom && this.drawTexture(1,fairygui.display.Image.getTexture(this._tex,left,sh-bottom,sw-left-right,bottom),left,height-bottom,centerWidth,bottom);
-			centerHeight && left && this.drawTexture(2,fairygui.display.Image.getTexture(this._tex,0,top,left,sh-top-bottom),0,top,left,centerHeight);
-			centerHeight && right && this.drawTexture(3,fairygui.display.Image.getTexture(this._tex,sw-right,top,right,sh-top-bottom),width-right,top,right,centerHeight);
-			centerWidth && centerHeight && this.drawTexture(4,fairygui.display.Image.getTexture(this._tex,left,top,sw-left-right,sh-top-bottom),left,top,centerWidth,centerHeight);
+			right && top && g.drawTexture(fairygui.display.Image.getTexture(this._tex,tw-right,0,right,top),w-right,0,right,top);
+			left && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._tex,0,th-bottom,left,bottom),0,h-bottom,left,bottom);
+			right && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._tex,tw-right,th-bottom,right,bottom),w-right,h-bottom,right,bottom);
+			centerWidth && top && this.drawTexture(0,fairygui.display.Image.getTexture(this._tex,left,0,tw-left-right,top),left,0,centerWidth,top);
+			centerWidth && bottom && this.drawTexture(1,fairygui.display.Image.getTexture(this._tex,left,th-bottom,tw-left-right,bottom),left,h-bottom,centerWidth,bottom);
+			centerHeight && left && this.drawTexture(2,fairygui.display.Image.getTexture(this._tex,0,top,left,th-top-bottom),0,top,left,centerHeight);
+			centerHeight && right && this.drawTexture(3,fairygui.display.Image.getTexture(this._tex,tw-right,top,right,th-top-bottom),w-right,top,right,centerHeight);
+			centerWidth && centerHeight && this.drawTexture(4,fairygui.display.Image.getTexture(this._tex,left,top,tw-left-right,th-top-bottom),left,top,centerWidth,centerHeight);
 		}
 		else {
-			g.drawTexture(this._tex,0,0,width,height);
+			g.cleanByTexture(this._tex,0,0,w,h);
 		}
-		this.repaint();
 	}
 
 	__proto.drawTexture=function(part,tex,x,y,width,height){
@@ -17628,21 +17131,19 @@ var Image$1=(function(_super){
 		}
 	});
 
-	Image.getTexture=function(source,x,y,width,height){
-		source.$GID || (source.$GID=Utils.getGID());
-		var key=source.$GID+"."+x+"."+y+"."+width+"."+height;
-		var texture=fairygui.display.Image._textureCache[key];
-		if (!texture){
-			texture=fairygui.display.Image._textureCache[key]=Texture.create(source,x,y,width,height);
+	Image.getTexture=function(tex,x,y,width,height){
+		if (width <=0)width=1;
+		if (height <=0)height=1;
+		tex.$_GID || (tex.$_GID=Utils.getGID())
+		var key=tex.$_GID+"."+x+"."+y+"."+width+"."+height;
+		var texture=WeakObject.I.get(key);
+		if (!texture||!texture.source){
+			texture=Texture.createFromTexture(tex,x,y,width,height);
+			WeakObject.I.set(key,texture);
 		}
 		return texture;
 	}
 
-	Image.clearCache=function(){
-		fairygui.display.Image._textureCache={};
-	}
-
-	Image._textureCache={};
 	return Image;
 })(Sprite)
 
@@ -17837,11 +17338,12 @@ var MovieClip$1=(function(_super){
 	}
 
 	__proto.drawFrame=function(){
-		this.graphics.clear();
 		if (this._frameCount>0 && this._frame < this._frames.length){
 			var frame=this._frames[this._frame];
-			this.graphics.drawTexture(frame.texture,frame.rect.x,frame.rect.y);
+			this.graphics.cleanByTexture(frame.texture,frame.rect.x,frame.rect.y);
 		}
+		else
+		this.graphics.clear();
 	}
 
 	__proto.checkTimer=function(){
@@ -17916,7 +17418,7 @@ var MovieClip$1=(function(_super){
 })(Sprite)
 
 
-	Laya.__init([GList,GearColor,GearAnimation,Transition,UIPackage,RelationItem,GBasicTextField,EaseManager,GearLook,GearSize]);
+	Laya.__init([GList,Transition,AsyncOperation,UIPackage,RelationItem,GBasicTextField,GearColor,EaseManager,GearAnimation,GearLook,GearSize]);
 })(window,document,Laya);
 
 if (typeof define === 'function' && define.amd){
