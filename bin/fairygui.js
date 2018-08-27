@@ -5772,8 +5772,8 @@ var Transition=(function(){
 	__getset(0,__proto,'timeScale',function(){
 		return this._timeScale;
 		},function(value){
-		this._timeScale=value;
 		if(this._timeScale !=value){
+			this._timeScale=value;
 			if (this._playing){
 				var cnt=this._items.length;
 				for (var i=0;i < cnt;i++){

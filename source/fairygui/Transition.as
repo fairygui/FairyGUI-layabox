@@ -458,9 +458,9 @@ package fairygui
 		
 		public function set timeScale(value:Number):void
 		{
-			_timeScale = value;
 			if(_timeScale != value)
-			{			
+			{		
+				_timeScale = value;
 				if (_playing)
 				{
 					var cnt:int = _items.length;
