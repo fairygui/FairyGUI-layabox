@@ -654,10 +654,10 @@ declare module fairygui {
         onStage: boolean;
         resourceURL: string;
         group: GGroup;
-        gearDisplay: GearDisplay;
-        gearXY: GearXY;
-        gearSize: GearSize;
-        gearLook: GearLook;
+        gearDisplay: fairygui.gears.GearDisplay;
+        gearXY: fairygui.gears.GearXY;
+        gearSize: fairygui.gears.GearSize;
+        gearLook: fairygui.gears.GearLook;
         relations: Relations;
         addRelation(target: GObject, relationType: number, usePercent?: boolean): void;
         removeRelation(target: GObject, relationType?: number): void;
@@ -800,7 +800,6 @@ declare module fairygui {
 }
 declare module fairygui {
     class GTextField extends GObject implements fairygui.gears.IColorGear {
-        protected _gearColor: GearColor;
         constructor();
         font: string;
         fontSize: number;
@@ -1159,7 +1158,7 @@ declare module fairygui {
         static setPackageItemExtension(url: string, type: any): void;
         static setLoaderExtension(type: any): void;
         static newObject(pi: PackageItem): GObject;
-        static newObject2(type: int): GObject;
+        static newObject2(type: number): GObject;
     }
 }
 declare module fairygui {
