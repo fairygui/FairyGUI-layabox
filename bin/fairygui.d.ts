@@ -233,7 +233,7 @@ declare module fairygui {
         titleColor: string;
         titleFontSize: number;
         visibleItemCount: number;
-        popupDirection: numer;
+        popupDirection: number;
         items: Array<any>;
         values: Array<any>;
         icons: Array<any>;
@@ -914,7 +914,7 @@ declare module fairygui {
         interval: number;
         repeatDelay: number;
         swing: boolean;
-        frames: Array<Frame>;
+        frames: Array<fairygui.display.Frame>;
         sound: laya.media.Sound;
         bitmapFont: fairygui.display.BitmapFont;
         constructor();
