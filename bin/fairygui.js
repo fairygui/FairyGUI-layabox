@@ -9981,13 +9981,15 @@ var GComponent=(function(_super){
 	__proto.setup_afterAdd=function(buffer,beginPos){
 		_super.prototype.setup_afterAdd.call(this,buffer,beginPos);
 		buffer.seek(beginPos,4);
-		var pageController=buffer.readS();
-		if (pageController !=null && this._scrollPane !=null)
-			this._scrollPane.pageController=this._parent.getController(pageController);
+		var pageController=buffer.getInt16();
+		if (pageController !=-1 && this._scrollPane !=null)
+			this._scrollPane.pageController=this._parent.getControllerAt(pageController);
 		var cnt=buffer.getInt16();
 		for (var i=0;i < cnt;i++){
-			var cc=this.getControllerAt(buffer.getInt16());
-			cc.selectedPageId=buffer.readS();
+			var cc=this.getController(buffer.readS());
+			var pageId=buffer.readS();
+			if(cc)
+				cc.selectedPageId=pageId;
 		}
 	}
 
@@ -12186,11 +12188,13 @@ var GBasicTextField=(function(_super){
 				glyph=this._bitmapFont.glyphs[ch];
 				if (glyph !=null){
 					charIndent=(line.height+line.textHeight)/ 2-Math.ceil(glyph.lineHeight*fontScale);
-					gr.drawTexture(glyph.texture,
-					charX+lineIndent+Math.ceil(glyph.offsetX*fontScale),
-					line.y+charIndent+Math.ceil(glyph.offsetY*fontScale),
-					glyph.texture.width *fontScale,
-					glyph.texture.height *fontScale);
+					if(glyph.texture){
+						gr.drawTexture(glyph.texture,
+						charX+lineIndent+Math.ceil(glyph.offsetX*fontScale),
+						line.y+charIndent+Math.ceil(glyph.offsetY*fontScale),
+						glyph.texture.width *fontScale,
+						glyph.texture.height *fontScale);
+					}
 					charX+=letterSpacing+Math.ceil(glyph.advance*fontScale);
 				}
 				else {

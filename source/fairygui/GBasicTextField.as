@@ -530,11 +530,14 @@ package fairygui {
 					glyph = this._bitmapFont.glyphs[ch];
 					if (glyph != null) {
 						charIndent = (line.height + line.textHeight) / 2 - Math.ceil(glyph.lineHeight*fontScale);
-						gr.drawTexture(glyph.texture,
-							charX + lineIndent + Math.ceil(glyph.offsetX*fontScale),
-							line.y + charIndent + Math.ceil(glyph.offsetY*fontScale),
-							glyph.texture.width * fontScale,
-							glyph.texture.height * fontScale);
+						if(glyph.texture)
+						{
+							gr.drawTexture(glyph.texture,
+								charX + lineIndent + Math.ceil(glyph.offsetX*fontScale),
+								line.y + charIndent + Math.ceil(glyph.offsetY*fontScale),
+								glyph.texture.width * fontScale,
+								glyph.texture.height * fontScale);
+						}
 						charX += letterSpacing + Math.ceil(glyph.advance*fontScale);
 					}
 					else {

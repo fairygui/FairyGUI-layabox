@@ -1216,15 +1216,17 @@ package fairygui {
 			
 			buffer.seek(beginPos, 4);
 			
-			var pageController:String = buffer.readS();
-			if (pageController != null && _scrollPane != null)
-				_scrollPane.pageController = _parent.getController(pageController);
+			var pageController:int = buffer.getInt16();
+			if (pageController != -1 && _scrollPane != null)
+				_scrollPane.pageController = _parent.getControllerAt(pageController);
 			
 			var cnt:int = buffer.getInt16();
 			for (var i:int = 0; i < cnt; i++)
 			{
-				var cc:Controller = getControllerAt(buffer.getInt16());
-				cc.selectedPageId = buffer.readS();
+				var cc:Controller = getController(buffer.readS());
+				var pageId:String = buffer.readS();
+				if(cc)
+					cc.selectedPageId = pageId;
 			}
 		}
 		
