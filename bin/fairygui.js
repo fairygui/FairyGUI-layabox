@@ -17046,6 +17046,7 @@ var Image$1=(function(_super){
 			g.fillTexture(this._tex,0,0,w,h);
 		}
 		else if(this._scale9Grid!=null){
+			g.clear();
 			var left=this._scale9Grid.x;
 			var right=Math.max(tw-this._scale9Grid.right,0);
 			var top=this._scale9Grid.y;
