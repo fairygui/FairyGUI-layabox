@@ -10839,8 +10839,8 @@ var GGroup=(function(_super){
 		var cnt=this._parent.numChildren;
 		var i=0;
 		var child;
-		var ax=Number.MAX_VALUE,ay=Number.MAX_VALUE;
-		var ar=Number.MIN_VALUE,ab=Number.MIN_VALUE;
+		var ax=Number.POSITIVE_INFINITY,ay=Number.POSITIVE_INFINITY;
+		var ar=Number.NEGATIVE_INFINITY,ab=Number.NEGATIVE_INFINITY;
 		var tmp=0;
 		var empty=true;
 		for(i=0;i<cnt;i++){
@@ -17034,8 +17034,6 @@ var Image$1=(function(_super){
 		this._needRebuild=false;
 		var w=this.width;
 		var h=this.height;
-		var tw=this._tex.width;
-		var th=this._tex.height;
 		var g=this.graphics;
 		if(this._tex==null || w==0 || h==0){
 			g.clear();
@@ -17047,6 +17045,8 @@ var Image$1=(function(_super){
 		}
 		else if(this._scale9Grid!=null){
 			g.clear();
+			var tw=this._tex.width;
+			var th=this._tex.height;
 			var left=this._scale9Grid.x;
 			var right=Math.max(tw-this._scale9Grid.right,0);
 			var top=this._scale9Grid.y;

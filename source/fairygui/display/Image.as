@@ -90,8 +90,6 @@ package fairygui.display {
 			this._needRebuild = false;
 			var w:Number=this.width;
 			var h:Number=this.height;
-			var tw:Number=this._tex.width;
-			var th:Number=this._tex.height;
 			var g:Graphics  = this.graphics;
 			
 			if(this._tex==null || w==0 || h==0)
@@ -99,13 +97,16 @@ package fairygui.display {
 				g.clear();
 				return;
 			}
-
+			
 			if(this._scaleByTile) {
 				g.clear();
 				g.fillTexture(this._tex, 0, 0, w, h);
 			}
 			else if(this._scale9Grid!=null) {
 				g.clear();
+				
+				var tw:Number=this._tex.width;
+				var th:Number=this._tex.height;
 				var left:Number = this._scale9Grid.x;
 				var right:Number = Math.max(tw - this._scale9Grid.right, 0);
 				var top:Number = this._scale9Grid.y;
