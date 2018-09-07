@@ -4547,7 +4547,7 @@ var ScrollType=(function(){
 
 //class fairygui.Transition
 var Transition=(function(){
-	var TransitionActionType,TransitionItem,TweenConfig,TValue_Visible,TValue_Animation,TValue_Sound,TValue_Transition,TValue_Shake,TValue;
+	var TransitionActionType,TransitionItem,TweenConfig,TValue_Visible,TValue_Animation,TValue_Sound,TValue_Transition,TValue_Shake,TValue_Text,TValue;
 	function Transition(owner){
 		this.name=null;
 		this._owner=null;
@@ -4847,6 +4847,10 @@ var Transition=(function(){
 					value.f2=parseFloat(args[1]);
 					value.f3=parseFloat(args[2]);
 					value.f4=parseFloat(args[3]);
+					break ;
+				case 14:
+				case 15:
+					value.text=args[0];
 					break ;
 				}
 		}
@@ -5166,6 +5170,12 @@ var Transition=(function(){
 					if (!startValue.b2)
 						startValue.f2=item.target.y;
 				}
+				else{
+					if (!startValue.b1)
+						startValue.f1=item.target.x-this._ownerBaseX;
+					if (!startValue.b2)
+						startValue.f2=item.target.y-this._ownerBaseY;
+				}
 			}
 			else{
 				if (!startValue.b1)
@@ -5371,6 +5381,12 @@ var Transition=(function(){
 					item.target.filters=arr;
 					break ;
 				}
+			case 14:
+				item.target.text=item.value.text;
+				break ;
+			case 15:
+				item.target.icon=item.value.text;
+				break ;
 			}
 		item.target._gearLocked=false;
 	}
@@ -5467,6 +5483,10 @@ var Transition=(function(){
 				value.f3=buffer.getFloat32();
 				value.f4=buffer.getFloat32();
 				break ;
+			case 14:
+			case 15:
+				value.text=buffer.readS();
+				break ;
 			}
 	}
 
@@ -5517,7 +5537,9 @@ var Transition=(function(){
 			TransitionActionType.Shake=11;
 			TransitionActionType.ColorFilter=12;
 			TransitionActionType.Skew=13;
-			TransitionActionType.Unknown=14;
+			TransitionActionType.Text=14;
+			TransitionActionType.Icon=15;
+			TransitionActionType.Unknown=16;
 			return TransitionActionType;
 		})()
 		//class TransitionItem
@@ -5560,6 +5582,10 @@ var Transition=(function(){
 						break ;
 					case 8:
 						this.value=new TValue_Visible();
+						break ;
+					case 14:
+					case 15:
+						this.value=new TValue_Text();
 						break ;
 					}
 			}
@@ -5635,6 +5661,14 @@ var Transition=(function(){
 			}
 			__class(TValue_Shake,'');
 			return TValue_Shake;
+		})()
+		//class TValue_Text
+		TValue_Text=(function(){
+			function TValue_Text(){
+				this.text=null;
+			}
+			__class(TValue_Text,'');
+			return TValue_Text;
 		})()
 		//class TValue
 		TValue=(function(){

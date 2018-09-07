@@ -100,8 +100,8 @@ package fairygui
 			var cnt:int = _parent.numChildren;
 			var i:int;
 			var child:GObject;
-			var ax:int=Number.MAX_VALUE, ay:int=Number.MAX_VALUE;
-			var ar:int = Number.MIN_VALUE, ab:int = Number.MIN_VALUE;
+			var ax:int=Number.POSITIVE_INFINITY, ay:int=Number.POSITIVE_INFINITY;
+			var ar:int = Number.NEGATIVE_INFINITY, ab:int = Number.NEGATIVE_INFINITY;
 			var tmp:int;
 			var empty:Boolean = true;
 			for(i=0;i<cnt;i++)

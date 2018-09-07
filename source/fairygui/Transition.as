@@ -378,6 +378,11 @@ package fairygui
 						value.f3 = parseFloat(args[2]);
 						value.f4 = parseFloat(args[3]);
 						break;
+					
+					case TransitionActionType.Text:
+					case TransitionActionType.Icon:
+						value.text = args[0];
+						break;
 				}
 			}
 		}
@@ -820,6 +825,13 @@ package fairygui
 						if (!startValue.b2)
 							startValue.f2 = item.target.y;
 					}
+					else
+					{
+						if (!startValue.b1)
+							startValue.f1 = item.target.x - _ownerBaseX;
+						if (!startValue.b2)
+							startValue.f2 = item.target.y - _ownerBaseY;
+					}
 				}
 				else
 				{
@@ -1078,6 +1090,14 @@ package fairygui
 					item.target.filters = arr;
 					break;
 				}
+					
+				case TransitionActionType.Text:
+					item.target.text = item.value.text;
+					break;
+				
+				case TransitionActionType.Icon:
+					item.target.icon = item.value.text;
+					break;
 			}
 			
 			item.target._gearLocked = false;
@@ -1203,6 +1223,11 @@ package fairygui
 					value.f3 = buffer.getFloat32();
 					value.f4 = buffer.getFloat32();
 					break;
+				
+				case TransitionActionType.Text:
+				case TransitionActionType.Icon:
+					value.text = buffer.readS();
+					break;
 			}
 		}
 	}
@@ -1231,7 +1256,9 @@ class TransitionActionType
 	public static const Shake:int = 11;
 	public static const ColorFilter:int = 12;
 	public static const Skew:int = 13;
-	public static const Unknown:int = 14;
+	public static const Text:int = 14;
+	public static const Icon:int = 15;
+	public static const Unknown:int = 16;
 }
 
 class TransitionItem
@@ -1284,6 +1311,11 @@ class TransitionItem
 			
 			case TransitionActionType.Visible:
 				value = new TValue_Visible();
+				break;
+			
+			case TransitionActionType.Text:
+			case TransitionActionType.Icon:
+				value = new TValue_Text();
 				break;
 		}
 	}
@@ -1343,6 +1375,11 @@ class TValue_Shake
 	public var offsetY:Number;
 	public var lastOffsetX:Number;
 	public var lastOffsetY:Number;
+}
+
+class TValue_Text
+{
+	public var text:String;
 }
 
 class TValue
