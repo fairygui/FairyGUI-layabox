@@ -32,7 +32,7 @@ package fairygui.gears
 			_owner._gearLocked = true;
 			
 			var data:* = _storage[_controller.selectedPageId];
-			if(data!=undefined)
+			if(data!==undefined)
 				_owner.icon = String(data);
 			else
 				_owner.icon = _default;
