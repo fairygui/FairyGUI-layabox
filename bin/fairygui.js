@@ -10357,7 +10357,7 @@ var GearIcon=(function(_super){
 		this._owner._gearLocked=true;
 		var data=this._storage[this._controller.selectedPageId];
 		if(data!==undefined)
-			this._owner.icon=String(data);
+			this._owner.icon=data;
 		else
 		this._owner.icon=this._default;
 		this._owner._gearLocked=false;
@@ -10818,7 +10818,7 @@ var GearText=(function(_super){
 		this._owner._gearLocked=true;
 		var data=this._storage[this._controller.selectedPageId];
 		if(data!==undefined)
-			this._owner.text=String(data);
+			this._owner.text=data;
 		else
 		this._owner.text=this._default;
 		this._owner._gearLocked=false;

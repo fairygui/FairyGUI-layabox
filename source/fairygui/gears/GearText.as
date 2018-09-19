@@ -33,7 +33,7 @@ package fairygui.gears
 			
 			var data:* = _storage[_controller.selectedPageId];
 			if(data!==undefined)
-				_owner.text = String(data);
+				_owner.text = data;
 			else
 				_owner.text = _default;
 			

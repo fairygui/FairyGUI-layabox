@@ -33,7 +33,7 @@ package fairygui.gears
 			
 			var data:* = _storage[_controller.selectedPageId];
 			if(data!==undefined)
-				_owner.icon = String(data);
+				_owner.icon = data;
 			else
 				_owner.icon = _default;
 			
