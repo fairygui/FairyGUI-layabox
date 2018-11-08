@@ -5721,10 +5721,10 @@ var TranslationHelper=(function(){
 	}
 
 	TranslationHelper.translateComponent=function(item){
-		if(strings==null)
+		if(TranslationHelper.strings==null)
 			return;
-		var strings=strings[item.owner.id+item.id];
-		if(strings==null)
+		var compStrings=TranslationHelper.strings[item.owner.id+item.id];
+		if(compStrings==null)
 			return;
 		var elementId,value;
 		var buffer=item.rawData;
@@ -5749,7 +5749,7 @@ var TranslationHelper=(function(){
 					type=buffer.readByte();
 			}
 			buffer.seek(curPos,1);
-			if((value=strings[elementId+"-tips"])!=null)
+			if((value=compStrings[elementId+"-tips"])!=null)
 				buffer.writeS(value);
 			buffer.seek(curPos,2);
 			var gearCnt=buffer.getInt16();
@@ -5762,13 +5762,13 @@ var TranslationHelper=(function(){
 					for (k=0;k < valueCnt;k++){
 						page=buffer.readS();
 						if (page !=null){
-							if((value=strings[elementId+"-texts_"+k])!=null)
+							if((value=compStrings[elementId+"-texts_"+k])!=null)
 								buffer.writeS(value);
 							else
 							buffer.skip(2);
 						}
 					}
-					if (buffer.readBool()&& (value=strings[elementId+"-texts_def"])!=null)
+					if (buffer.readBool()&& (value=compStrings[elementId+"-texts_def"])!=null)
 						buffer.writeS(value);
 				}
 				buffer.pos=nextPos;
@@ -5777,11 +5777,11 @@ var TranslationHelper=(function(){
 				case 6:
 				case 7:
 				case 8:{
-						if ((value=strings[elementId])!=null){
+						if ((value=compStrings[elementId])!=null){
 							buffer.seek(curPos,6);
 							buffer.writeS(value);
 						}
-						if ((value=strings[elementId+"-prompt"])!=null){
+						if ((value=compStrings[elementId+"-prompt"])!=null){
 							buffer.seek(curPos,4);
 							buffer.writeS(value);
 						}
@@ -5795,11 +5795,11 @@ var TranslationHelper=(function(){
 							nextPos=buffer.getInt16();
 							nextPos+=buffer.pos;
 							buffer.skip(2);
-							if ((value=strings[elementId+"-"+j])!=null)
+							if ((value=compStrings[elementId+"-"+j])!=null)
 								buffer.writeS(value);
 							else
 							buffer.skip(2);
-							if ((value=strings[elementId+"-"+j+"-0"])!=null)
+							if ((value=compStrings[elementId+"-"+j+"-0"])!=null)
 								buffer.writeS(value);
 							buffer.pos=nextPos;
 						}
@@ -5807,7 +5807,7 @@ var TranslationHelper=(function(){
 					}
 				case 11:{
 						if (buffer.seek(curPos,6)&& buffer.readByte()==type){
-							if ((value=strings[elementId])!=null)
+							if ((value=compStrings[elementId])!=null)
 								buffer.writeS(value);
 							else
 							buffer.skip(2);
@@ -5815,18 +5815,18 @@ var TranslationHelper=(function(){
 							if (buffer.readBool())
 								buffer.skip(4);
 							buffer.skip(4);
-							if (buffer.readBool()&& (value=strings[elementId+"-prompt"])!=null)
+							if (buffer.readBool()&& (value=compStrings[elementId+"-prompt"])!=null)
 								buffer.writeS(value);
 						}
 						break ;
 					}
 				case 12:{
 						if (buffer.seek(curPos,6)&& buffer.readByte()==type){
-							if ((value=strings[elementId])!=null)
+							if ((value=compStrings[elementId])!=null)
 								buffer.writeS(value);
 							else
 							buffer.skip(2);
-							if ((value=strings[elementId+"-0"])!=null)
+							if ((value=compStrings[elementId+"-0"])!=null)
 								buffer.writeS(value);
 						}
 						break ;
@@ -5837,11 +5837,11 @@ var TranslationHelper=(function(){
 							for (j=0;j < itemCount;j++){
 								nextPos=buffer.getInt16();
 								nextPos+=buffer.pos;
-								if ((value=strings[elementId+"-"+j])!=null)
+								if ((value=compStrings[elementId+"-"+j])!=null)
 									buffer.writeS(value);
 								buffer.pos=nextPos;
 							}
-							if ((value=strings[elementId])!=null)
+							if ((value=compStrings[elementId])!=null)
 								buffer.writeS(value);
 						}
 						break ;
@@ -8780,6 +8780,37 @@ var ByteBuffer=(function(_super){
 })(Byte)
 
 
+//class fairygui.utils.ChildHitArea extends laya.utils.HitArea
+var ChildHitArea=(function(_super){
+	function ChildHitArea(child,reversed){
+		this._child=null;
+		this._reversed=false;
+		ChildHitArea.__super.call(this);
+		this._child=child;
+		this._reversed=reversed;
+		if(this._reversed)
+			this.unHit=child.hitArea.hit;
+		else
+		this.hit=child.hitArea.hit;
+	}
+
+	__class(ChildHitArea,'fairygui.utils.ChildHitArea',_super);
+	var __proto=ChildHitArea.prototype;
+	__proto.isHit=function(x,y){
+		var tPos;
+		tPos=Point.TEMP;
+		tPos.setTo(0,0);
+		tPos=this._child.toParentPoint(tPos);
+		if (this._reversed)
+			return !HitArea.isHitGraphic(x-tPos.x,y-tPos.y,this.unHit);
+		else
+		return HitArea.isHitGraphic(x-tPos.x,y-tPos.y,this.hit)
+	}
+
+	return ChildHitArea;
+})(HitArea)
+
+
 //class fairygui.utils.PixelHitTest extends laya.utils.HitArea
 var PixelHitTest=(function(_super){
 	function PixelHitTest(data,offsetX,offsetY){
@@ -9112,6 +9143,7 @@ var GComponent=(function(_super){
 		this._sortingChildCount=0;
 		this._opaque=false;
 		this._applyingController=null;
+		this._mask=null;
 		this._margin=null;
 		this._trackBounds=false;
 		this._boundsChanged=false;
@@ -9130,6 +9162,7 @@ var GComponent=(function(_super){
 		this._transitions=[];
 		this._margin=new Margin();
 		this._alignOffset=new Point();
+		this._opaque=false;
 	}
 
 	__class(GComponent,'fairygui.GComponent',_super);
@@ -9163,6 +9196,7 @@ var GComponent=(function(_super){
 			obj.dispose();
 		}
 		this._boundsChanged=false;
+		this._mask=null;
 		_super.prototype.dispose.call(this);
 	}
 
@@ -9614,6 +9648,31 @@ var GComponent=(function(_super){
 		return-1;
 	}
 
+	__proto.setMask=function(value,reversed){
+		if(this._mask && this._mask!=value){
+			if(this._mask.blendMode=="destination-out")
+				this._mask.blendMode=null;
+		}
+		this._mask=value;
+		if(!this._mask){
+			this._displayObject.mask=null;
+			if((this._displayObject.hitArea instanceof fairygui.utils.ChildHitArea ))
+				this._displayObject.hitArea=null;
+			return;
+		}
+		if(this._mask.hitArea){
+			this._displayObject.hitArea=new ChildHitArea(this._mask,reversed);
+			this._displayObject.mouseThrough=false;
+			this._displayObject.hitTestPrior=true;
+		}
+		if(reversed){
+			this._displayObject.mask=null;
+			this._mask.blendMode="destination-out";
+		}
+		else
+		this._displayObject.mask=this._mask;
+	}
+
 	__proto.updateHitArea=function(){
 		if((this._displayObject.hitArea instanceof fairygui.utils.PixelHitTest )){
 			var hitTest=(this._displayObject.hitArea);
@@ -9622,9 +9681,7 @@ var GComponent=(function(_super){
 			if(this.sourceHeight!=0)
 				hitTest.scaleY=this.height/this.sourceHeight;
 		}
-		else{
-			if(this._displayObject.hitArea==null)
-				this._displayObject.hitArea=new Rectangle();
+		else if((this._displayObject.hitArea instanceof laya.maths.Rectangle )){
 			this._displayObject.hitArea.setTo(0,0,this.width,this.height);
 		}
 	}
@@ -9972,8 +10029,7 @@ var GComponent=(function(_super){
 		this.opaque=buffer.readBool();
 		var maskId=buffer.getInt16();
 		if (maskId !=-1){
-			this.mask=this.getChildAt(maskId).displayObject;
-			buffer.readBool();
+			this.setMask(this.getChildAt(maskId).displayObject,buffer.readBool());
 		};
 		var hitTestId=buffer.readS();
 		if (hitTestId !=null){
@@ -10065,15 +10121,22 @@ var GComponent=(function(_super){
 	});
 
 	__getset(0,__proto,'opaque',function(){
-		return this._displayObject.hitArea!=null;
+		return this._opaque;
 		},function(value){
-		if (value){
-			this.updateHitArea();
-			this._displayObject.mouseThrough=false;
-		}
-		else{
-			this._displayObject.hitArea=null;
-			this._displayObject.mouseThrough=true;
+		if(this._opaque!=value){
+			this._opaque=value;
+			if (this._opaque){
+				if(this._displayObject.hitArea==null)
+					this._displayObject.hitArea=new Rectangle();
+				if((this._displayObject.hitArea instanceof laya.maths.Rectangle ))
+					this._displayObject.hitArea.setTo(0,0,this.width,this.height);
+				this._displayObject.mouseThrough=false;
+			}
+			else {
+				if((this._displayObject.hitArea instanceof laya.maths.Rectangle ))
+					this._displayObject.hitArea=null;
+				this._displayObject.mouseThrough=true;
+			}
 		}
 	});
 
@@ -10106,9 +10169,9 @@ var GComponent=(function(_super){
 	});
 
 	__getset(0,__proto,'mask',function(){
-		return this._displayObject.mask;
+		return this._mask;
 		},function(value){
-		this._displayObject.mask=value;
+		this.setMask(value,false);
 	});
 
 	__getset(0,__proto,'viewHeight',function(){
@@ -10642,6 +10705,7 @@ var GGraph=(function(_super){
 		this._lineColor=null;
 		this._fillColor=null;
 		this._cornerRadius=null;
+		this._hitArea=null;
 		GGraph.__super.call(this);
 		this._type=0;
 		this._lineSize=1;
@@ -10755,6 +10819,9 @@ var GGraph=(function(_super){
 	__proto.createDisplayObject=function(){
 		_super.prototype.createDisplayObject.call(this);
 		this._displayObject.mouseEnabled=false;
+		this._hitArea=new HitArea();
+		this._hitArea.hit=this._displayObject.graphics;
+		this._displayObject.hitArea=this._hitArea;
 	}
 
 	__proto.handleSizeChanged=function(){
