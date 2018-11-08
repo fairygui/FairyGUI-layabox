@@ -1,12 +1,13 @@
 package fairygui {
+	import fairygui.gears.IColorGear;
 	import fairygui.utils.ByteBuffer;
 	import fairygui.utils.ToolSet;
 	
 	import laya.display.Graphics;
 	import laya.display.Sprite;
 	import laya.renders.Render;
+	import laya.utils.HitArea;
 	import laya.utils.Utils;
-	import fairygui.gears.IColorGear;
 	
 	public class GGraph extends GObject implements IColorGear {
 		private var _type: int;
@@ -14,6 +15,7 @@ package fairygui {
 		private var _lineColor: String;
 		private var _fillColor: String;
 		private var _cornerRadius: Array;
+		private var _hitArea:HitArea;
 		
 		public function GGraph () {
 			super();
@@ -152,6 +154,10 @@ package fairygui {
 		override protected function createDisplayObject():void {
 			super.createDisplayObject();
 			this._displayObject.mouseEnabled = false;
+			
+			_hitArea = new HitArea();
+			_hitArea.hit = this._displayObject.graphics;
+			this._displayObject.hitArea = _hitArea;
 		}
 		
 		override protected function handleSizeChanged(): void {

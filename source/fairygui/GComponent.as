@@ -1,6 +1,7 @@
 package fairygui {
 	
 	import fairygui.utils.ByteBuffer;
+	import fairygui.utils.ChildHitArea;
 	import fairygui.utils.PixelHitTest;
 	
 	import laya.display.Sprite;
@@ -12,6 +13,7 @@ package fairygui {
 		private var _sortingChildCount: Number = 0;
 		private var _opaque: Boolean;
 		private var _applyingController:Controller;
+		private var _mask:Sprite = null;
 		
 		protected var _margin: Margin;
 		protected var _trackBounds: Boolean;
@@ -34,6 +36,7 @@ package fairygui {
 			this._transitions = new Vector.<Transition>();
 			this._margin = new Margin();
 			this._alignOffset = new Point();
+			this._opaque = false;
 		}
 		
 		override protected function createDisplayObject(): void {
@@ -72,6 +75,7 @@ package fairygui {
 			}
 			
 			this._boundsChanged = false;
+			this._mask = null;
 			super.dispose();
 		}
 		
@@ -604,22 +608,28 @@ package fairygui {
 			return this._scrollPane;
 		}
 		
-		public function get opaque():Boolean
-		{
-			return this._displayObject.hitArea!=null;
+		public function get opaque():Boolean {
+			return _opaque;
 		}
 		
-		public function set opaque(value:Boolean):void
-		{
-			if (value)
-			{
-				updateHitArea();
-				this._displayObject.mouseThrough = false;
-			}
-			else
-			{
-				this._displayObject.hitArea = null;
-				this._displayObject.mouseThrough = true;
+		public function set opaque(value:Boolean):void {
+			if(_opaque!=value)	{
+				_opaque = value;
+				if (_opaque) {
+					if(this._displayObject.hitArea==null)
+						this._displayObject.hitArea = new Rectangle();
+
+					if(this._displayObject.hitArea is Rectangle)
+						this._displayObject.hitArea.setTo(0, 0, this.width, this.height);
+					
+					this._displayObject.mouseThrough = false;
+				}
+				else {
+					if(this._displayObject.hitArea is Rectangle)
+						this._displayObject.hitArea = null;
+					
+					this._displayObject.mouseThrough = true;
+				}
 			}
 		}
 		
@@ -673,12 +683,44 @@ package fairygui {
 		
 		public function get mask():Sprite
 		{
-			return _displayObject.mask;
+			return _mask;
 		}
 		
 		public function set mask(value:Sprite):void
 		{
-			_displayObject.mask = value;
+			setMask(value, false);
+		}
+		
+		public function setMask(value:Sprite, reversed:Boolean):void
+		{
+			if(_mask && _mask!=value)
+			{
+				if(_mask.blendMode == "destination-out")
+					_mask.blendMode = null;
+			}
+			
+			_mask = value;
+			if(!_mask)
+			{
+				_displayObject.mask = null;
+				if(_displayObject.hitArea is ChildHitArea)
+					_displayObject.hitArea = null;
+				return;
+			}
+			
+			if(_mask.hitArea)
+			{
+				_displayObject.hitArea = new ChildHitArea(_mask, reversed);
+				_displayObject.mouseThrough = false;
+				_displayObject.hitTestPrior = true;
+			}
+			if(reversed)
+			{
+				_displayObject.mask = null;
+				_mask.blendMode = "destination-out";
+			}
+			else
+				_displayObject.mask = _mask;
 		}
 		
 		public function get baseUserData():String
@@ -698,11 +740,8 @@ package fairygui {
 				if(this.sourceHeight!=0)
 					hitTest.scaleY = this.height/this.sourceHeight;
 			}
-			else
+			else if(this._displayObject.hitArea is Rectangle)
 			{
-				if(this._displayObject.hitArea==null)
-					this._displayObject.hitArea = new Rectangle();
-				
 				this._displayObject.hitArea.setTo(0, 0, this.width, this.height);
 			}
 		}
@@ -1150,8 +1189,7 @@ package fairygui {
 			var maskId:int = buffer.getInt16();
 			if (maskId != -1)
 			{
-				this.mask = getChildAt(maskId).displayObject;
-				buffer.readBool(); //reversedMask
+				this.setMask(getChildAt(maskId).displayObject, buffer.readBool());
 			}
 			var hitTestId:String = buffer.readS();
 			if (hitTestId != null)

@@ -44,8 +44,8 @@ package fairygui
 			if(strings==null)
 				return;
 			
-			var strings:Object = strings[item.owner.id + item.id];
-			if(strings==null)
+			var compStrings:Object = strings[item.owner.id + item.id];
+			if(compStrings==null)
 				return;
 			
 			var elementId:String, value:String;
@@ -80,7 +80,7 @@ package fairygui
 				
 				buffer.seek(curPos, 1);
 				
-				if((value = strings[elementId + "-tips"])!=null)
+				if((value = compStrings[elementId + "-tips"])!=null)
 					buffer.writeS(value);
 				
 				buffer.seek(curPos, 2);
@@ -100,14 +100,14 @@ package fairygui
 							page = buffer.readS();
 							if (page != null)
 							{
-								if((value=strings[elementId + "-texts_" + k])!=null)
+								if((value=compStrings[elementId + "-texts_" + k])!=null)
 									buffer.writeS(value);
 								else
 									buffer.skip(2);
 							}
 						}
 						
-						if (buffer.readBool() && (value=strings[elementId + "-texts_def"])!=null)
+						if (buffer.readBool() && (value=compStrings[elementId + "-texts_def"])!=null)
 							buffer.writeS(value);
 					}
 					
@@ -120,12 +120,12 @@ package fairygui
 					case ObjectType.RichText:
 					case ObjectType.InputText:
 					{
-						if ((value=strings[elementId])!=null)
+						if ((value=compStrings[elementId])!=null)
 						{
 							buffer.seek(curPos, 6);
 							buffer.writeS(value);
 						}
-						if ((value=strings[elementId + "-prompt"])!=null)
+						if ((value=compStrings[elementId + "-prompt"])!=null)
 						{
 							buffer.seek(curPos, 4);
 							buffer.writeS(value);
@@ -144,11 +144,11 @@ package fairygui
 							nextPos += buffer.pos;
 							
 							buffer.skip(2); //url
-							if ((value=strings[elementId + "-" + j])!=null)
+							if ((value=compStrings[elementId + "-" + j])!=null)
 								buffer.writeS(value);
 							else
 								buffer.skip(2);
-							if ((value=strings[elementId + "-" + j+"-0"])!=null)
+							if ((value=compStrings[elementId + "-" + j+"-0"])!=null)
 								buffer.writeS(value);
 							buffer.pos = nextPos;
 						}
@@ -159,7 +159,7 @@ package fairygui
 					{
 						if (buffer.seek(curPos, 6) && buffer.readByte() == type)
 						{
-							if ((value=strings[elementId])!=null)
+							if ((value=compStrings[elementId])!=null)
 								buffer.writeS(value);
 							else
 								buffer.skip(2);
@@ -168,7 +168,7 @@ package fairygui
 							if (buffer.readBool())
 								buffer.skip(4);
 							buffer.skip(4);
-							if (buffer.readBool() && (value=strings[elementId + "-prompt"])!=null)
+							if (buffer.readBool() && (value=compStrings[elementId + "-prompt"])!=null)
 								buffer.writeS(value);
 						}
 						break;
@@ -178,11 +178,11 @@ package fairygui
 					{
 						if (buffer.seek(curPos, 6) && buffer.readByte() == type)
 						{
-							if ((value=strings[elementId])!=null)
+							if ((value=compStrings[elementId])!=null)
 								buffer.writeS(value);
 							else
 								buffer.skip(2);
-							if ((value=strings[elementId + "-0"])!=null)
+							if ((value=compStrings[elementId + "-0"])!=null)
 								buffer.writeS(value);
 						}
 						break;
@@ -198,13 +198,13 @@ package fairygui
 								nextPos = buffer.getInt16();
 								nextPos += buffer.pos;
 								
-								if ((value=strings[elementId + "-" + j])!=null)
+								if ((value=compStrings[elementId + "-" + j])!=null)
 									buffer.writeS(value);
 								
 								buffer.pos = nextPos;
 							}
 							
-							if ((value=strings[elementId])!=null)
+							if ((value=compStrings[elementId])!=null)
 								buffer.writeS(value);
 						}
 						
