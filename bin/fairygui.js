@@ -10028,6 +10028,7 @@ var GComponent=(function(_super){
 		}
 		if(reversed){
 			this._displayObject.mask=null;
+			this._displayObject.cacheAs="bitmap";
 			this._mask.blendMode="destination-out";
 		}
 		else

@@ -717,6 +717,7 @@ package fairygui {
 			if(reversed)
 			{
 				_displayObject.mask = null;
+				_displayObject.cacheAs = "bitmap";
 				_mask.blendMode = "destination-out";
 			}
 			else
