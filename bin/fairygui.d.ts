@@ -89,6 +89,10 @@ declare module fairygui.display {
         scale9Grid: laya.maths.Rectangle;
         scaleByTile: boolean;
         tileGridIndice: number;
+        fillMethod: number;
+        fillOrigin: number;
+        fillClockwise: boolean;
+        fillAmount: number;
         static clearCache(): void;
     }
 }
@@ -468,6 +472,10 @@ declare module fairygui {
         constructor();
         color: string;
         flip: number;
+        fillMethod: number;
+        fillOrigin: number;
+        fillClockwise: boolean;
+        fillAmount: number;
         handleControllerChanged(c: Controller): void;
         protected createDisplayObject(): void;
         constructFromResource(): void;
@@ -1471,5 +1479,29 @@ declare module fairygui {
     class TranslationHelper {
         strings: any;
         static loadFromXML(source: string):void;
+    }
+}
+
+declare module fairygui {
+    class FillMethod {
+        static None: number;
+        static Horizontal: number;
+        static Vertical: number;
+        static Radial90: number;
+        static Radial180: number; 
+        static Radial360: number;
+    }
+}
+
+declare module fairygui {
+    class FillOrigin {
+        static Top: number;
+        static Bottom: number;
+        static Left: number;
+        static Right: number;
+        static TopLeft: number; 
+        static TopRight: number;
+        static BottomLeft: number; 
+        static BottomRight: number;
     }
 }

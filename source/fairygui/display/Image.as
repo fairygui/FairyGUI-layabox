@@ -14,8 +14,13 @@ package fairygui.display {
 		private var _tileGridIndice:int = 0;
 		private var _textureScaleX:Number = 1;
 		private var _textureScaleY:Number = 1;
-		private var _needRebuild:Boolean = false;
-		
+		private var _needRebuild:int = 0;
+		private var _fillMethod:int = 0;
+		private var _fillOrigin:int = 0;
+		private var _fillAmount:Number = 0;
+		private var _fillClockwise:Boolean = false;
+		private var _mask:Sprite = null;
+
 		public function Image() {
 			super();
 			
@@ -33,7 +38,7 @@ package fairygui.display {
 					this.size(this._tex.width* this._textureScaleX, this._tex.height* this._textureScaleY);
 				else
 					this.size(0,0);
-				this.markChanged();
+				this.markChanged(1);
 			}
 		}
 		
@@ -43,7 +48,7 @@ package fairygui.display {
 				this._textureScaleY = sy;
 				if(this._tex)
 					this.size(this._tex.width*sx, this._tex.height*sy);
-				this.markChanged();
+				this.markChanged(1);
 			}
 		}
 		
@@ -53,7 +58,7 @@ package fairygui.display {
 		
 		public function set scale9Grid(value:Rectangle):void {
 			this._scale9Grid = value;
-			this.markChanged();
+			this.markChanged(1);
 		}
 		
 		public function get scaleByTile(): Boolean {
@@ -63,7 +68,7 @@ package fairygui.display {
 		public function set scaleByTile(value:Boolean):void {
 			if(this._scaleByTile!=value) {
 				this._scaleByTile = value;
-				this.markChanged();
+				this.markChanged(1);
 			}
 		}
 		
@@ -74,20 +79,102 @@ package fairygui.display {
 		public function set tileGridIndice(value:int):void {
 			if(this._tileGridIndice!=value) {
 				this._tileGridIndice = value;
-				this.markChanged();
+				this.markChanged(1);
 			}
 		}
 		
-		private function markChanged():void {
+		public function get fillMethod():int
+		{
+			return _fillMethod;
+		}
+		
+		public function set fillMethod(value:int):void
+		{
+			if(_fillMethod!=value)
+			{
+				_fillMethod = value;
+				if(_fillMethod!=0)
+				{
+					if(!_mask)
+					{
+						_mask = new Sprite();
+						_mask.mouseEnabled = false;
+					}
+					this.mask = _mask;
+					markChanged(2);
+				}
+				else if(this.mask)
+				{
+					_mask.graphics.clear();
+					this.mask = null;
+				}
+			}
+		}
+		
+		public function get fillOrigin():int
+		{
+			return _fillOrigin;
+		}
+		
+		public function set fillOrigin(value:int):void
+		{
+			if(_fillOrigin!=value)
+			{
+				_fillOrigin = value;
+				if(_fillMethod!=0)
+					markChanged(2);
+			}
+		}
+		
+		public function get fillClockwise():Boolean
+		{
+			return _fillClockwise;
+		}
+		
+		public function set fillClockwise(value:Boolean):void
+		{
+			if(_fillClockwise!=value)
+			{
+				_fillClockwise = value;
+				if(_fillMethod!=0)
+					markChanged(2);
+			}
+		}
+		
+		public function get fillAmount():Number
+		{
+			return _fillAmount;
+		}
+		
+		public function set fillAmount(value:Number):void
+		{
+			if(_fillAmount!=value)
+			{
+				_fillAmount = value;
+				if(_fillMethod!=0)
+					markChanged(2);
+			}
+		}
+		
+		private function markChanged(flag:int):void {
 			if(!this._needRebuild) {
-				this._needRebuild = true;
+				this._needRebuild = flag;
 				
 				Laya.timer.callLater(this, this.rebuild);
 			}
+			else
+				this._needRebuild |= flag;
 		}
 		
 		private function rebuild():void {
-			this._needRebuild = false;
+			if((this._needRebuild & 1)!=0)
+				doDraw();
+			if((this._needRebuild & 2)!=0 && _fillMethod!=0)
+				doFill();
+			this._needRebuild = 0;
+		}
+		
+		private function doDraw():void {
 			var w:Number=this.width;
 			var h:Number=this.height;
 			var g:Graphics  = this.graphics;
@@ -95,10 +182,8 @@ package fairygui.display {
 			if(this._tex==null || w==0 || h==0)
 			{
 				g.clear();
-				return;
 			}
-			
-			if(this._scaleByTile) {
+			else if(this._scaleByTile) {
 				g.clear();
 				g.fillTexture(this._tex, 0, 0, w, h);
 			}
@@ -179,6 +264,19 @@ package fairygui.display {
 			}
 
 			return texture;
+		}
+		
+		private function doFill():void
+		{
+			var w:Number=this.width;
+			var h:Number=this.height;
+			var g:Graphics = _mask.graphics;
+			g.clear();
+			if(w==0 || h==0)
+				return;
+
+			var points:Array = FillUtils.fill(w, h, _fillMethod, _fillOrigin, _fillClockwise, _fillAmount);
+			g.drawPoly(0,0,points,"#FFFFFF");
 		}
 	}
 }

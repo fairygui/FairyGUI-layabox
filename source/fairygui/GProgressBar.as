@@ -122,19 +122,39 @@ package fairygui {
 			var fullHeight: Number = this.height - this._barMaxHeightDelta;
 			if(!this._reverse) {
 				if(this._barObjectH)
-					this._barObjectH.width = Math.round(fullWidth * percent);
+				{
+					if ((_barObjectH is GImage) && (_barObjectH as GImage).fillMethod != FillMethod.None)
+						(_barObjectH as GImage).fillAmount = percent;
+					else
+						this._barObjectH.width = Math.round(fullWidth * percent);
+				}
 				if(this._barObjectV)
-					this._barObjectV.height = Math.round(fullHeight * percent);
+				{
+					if ((_barObjectV is GImage) && (_barObjectV as GImage).fillMethod != FillMethod.None)
+						(_barObjectV  as GImage).fillAmount = percent;
+					else
+						this._barObjectV.height = Math.round(fullHeight * percent);
+				}
 			}
 			else {
 				if(this._barObjectH) {
-					this._barObjectH.width = Math.round(fullWidth * percent);
-					this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
+					if ((_barObjectH is GImage) && (_barObjectH as GImage).fillMethod != FillMethod.None)
+						(_barObjectH as GImage).fillAmount = 1 - percent;
+					else
+					{
+						this._barObjectH.width = Math.round(fullWidth * percent);
+						this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
+					}
 					
 				}
 				if(this._barObjectV) {
-					this._barObjectV.height = Math.round(fullHeight * percent);
-					this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
+					if ((_barObjectV is GImage) && (_barObjectV as GImage).fillMethod != FillMethod.None)
+						(_barObjectV as GImage).fillAmount = 1 - percent;
+					else
+					{
+						this._barObjectV.height = Math.round(fullHeight * percent);
+						this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
+					}
 				}
 			}
 			if(this._aniObject is GMovieClip)

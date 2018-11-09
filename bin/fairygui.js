@@ -364,6 +364,337 @@ var BMGlyph=(function(){
 })()
 
 
+//class fairygui.display.FillUtils
+var FillUtils=(function(){
+	function FillUtils(){}
+	__class(FillUtils,'fairygui.display.FillUtils');
+	FillUtils.fill=function(w,h,method,origin,clockwise,amount){
+		var points;
+		switch(method){
+			case 1:
+				points=fairygui.display.FillUtils.fillHorizontal(w,h,origin,amount);
+				break ;
+			case 2:
+				points=fairygui.display.FillUtils.fillVertical(w,h,origin,amount);
+				break ;
+			case 3:
+				points=fairygui.display.FillUtils.fillRadial90(w,h,origin,clockwise,amount);
+				break ;
+			case 4:
+				points=fairygui.display.FillUtils.fillRadial180(w,h,origin,clockwise,amount);
+				break ;
+			case 5:
+				points=fairygui.display.FillUtils.fillRadial360(w,h,origin,clockwise,amount);
+				break ;
+			}
+		return points;
+	}
+
+	FillUtils.fillHorizontal=function(w,h,origin,amount){
+		var w2=w*amount;
+		if(origin==2 || origin==0)
+			return [0,0,w2,0,w2,h,0,h];
+		else
+		return [w,0,w,h,w-w2,h,w-w2,0];
+	}
+
+	FillUtils.fillVertical=function(w,h,origin,amount){
+		var h2=h*amount;
+		if(origin==2 || origin==0)
+			return [0,0,0,h2,w,h2,w,0];
+		else
+		return [0,h,w,h,w,h-h2,0,h-h2];
+	}
+
+	FillUtils.fillRadial90=function(w,h,origin,clockwise,amount){
+		if(clockwise && (origin==1 || origin==2)
+			|| !clockwise && (origin==0 || origin==3)){
+			amount=1-amount;
+		};
+		var v=NaN,v2=NaN,h2=NaN;
+		v=Math.tan(Math.PI / 2 *amount);
+		h2=w *v;
+		v2=(h2-h)/ h2;
+		var points;
+		switch(origin){
+			case 0:
+				if(clockwise){
+					if(h2<=h)
+						points=[0,0,w,h2,w,0];
+					else
+					points=[0,0,w*(1-v2),h,w,h,w,0];
+				}
+				else{
+					if(h2<=h)
+						points=[0,0,w,h2,w,h,0,h];
+					else
+					points=[0,0,w*(1-v2),h,0,h];
+				}
+				break ;
+			case 1:
+				if(clockwise){
+					if(h2<=h)
+						points=[w,0,0,h2,0,h,w,h];
+					else
+					points=[w,0,w*v2,h,w,h];
+				}
+				else{
+					if(h2<=h)
+						points=[w,0,0,h2,0,0];
+					else
+					points=[w,0,w*v2,h,0,h,0,0];
+				}
+				break ;
+			case 2:
+				if(clockwise){
+					if(h2<=h)
+						points=[0,h,w,h-h2,w,0,0,0];
+					else
+					points=[0,h,w*(1-v2),0,0,0];
+				}
+				else{
+					if(h2<=h)
+						points=[0,h,w,h-h2,w,h];
+					else
+					points=[0,h,w*(1-v2),0,w,0,w,h];
+				}
+				break ;
+			case 3:
+				if(clockwise){
+					if(h2<=h)
+						points=[w,h,0,h-h2,0,h];
+					else
+					points=[w,h,w*v2,0,0,0,0,h];
+				}
+				else{
+					if(h2<=h)
+						points=[w,h,0,h-h2,0,0,w,0];
+					else
+					points=[w,h,w*v2,0,w,0];
+				}
+				break ;
+			}
+		return points;
+	}
+
+	FillUtils.movePoints=function(points,offsetX,offsetY){
+		var cnt=points.length;
+		for(var i=0;i<cnt;i+=2){
+			points[i]+=offsetX;
+			points[i+1]+=offsetY;
+		}
+	}
+
+	FillUtils.fillRadial180=function(w,h,origin,clockwise,amount){
+		var points;
+		switch(origin){
+			case 0:
+				if(amount<=0.5){
+					amount=amount / 0.5;
+					points=FillUtils.fillRadial90(w/2,h,
+					clockwise?0:1,
+					clockwise,
+					amount);
+					if(clockwise)
+						FillUtils.movePoints(points,w/2,0);
+				}
+				else{
+					amount=(amount-0.5)/ 0.5;
+					points=FillUtils.fillRadial90(w/2,h,
+					clockwise?1:0,
+					clockwise,
+					amount);
+					if(clockwise)
+						points.push(w,h,w,0);
+					else{
+						FillUtils.movePoints(points,w/2,0);
+						points.push(0,h,0,0);
+					}
+				}
+				break ;
+			case 1:
+				if(amount<=0.5){
+					amount=amount / 0.5;
+					points=FillUtils.fillRadial90(w/2,h,
+					clockwise?3:2,
+					clockwise,
+					amount);
+					if(!clockwise)
+						FillUtils.movePoints(points,w/2,0);
+				}
+				else{
+					amount=(amount-0.5)/ 0.5;
+					points=FillUtils.fillRadial90(w/2,h,
+					clockwise?2:3,
+					clockwise,
+					amount);
+					if(clockwise){
+						FillUtils.movePoints(points,w/2,0);
+						points.push(0,0,0,h);
+					}
+					else
+					points.push(w,0,w,h);
+				}
+				break ;
+			case 2:
+				if(amount<=0.5){
+					amount=amount / 0.5;
+					points=FillUtils.fillRadial90(w,h/2,
+					clockwise?2:0,
+					clockwise,
+					amount);
+					if(!clockwise)
+						FillUtils.movePoints(points,0,h/2);
+				}
+				else{
+					amount=(amount-0.5)/ 0.5;
+					points=FillUtils.fillRadial90(w,h/2,
+					clockwise?0:2,
+					clockwise,
+					amount);
+					if(clockwise){
+						FillUtils.movePoints(points,0,h/2);
+						points.push(w,0,0,0);
+					}
+					else
+					points.push(w,h,0,h);
+				}
+				break ;
+			case 3:
+				if(amount<=0.5){
+					amount=amount / 0.5;
+					points=FillUtils.fillRadial90(w,h/2,
+					clockwise?1:3,
+					clockwise,
+					amount);
+					if(clockwise)
+						FillUtils.movePoints(points,0,h/2);
+				}
+				else{
+					amount=(amount-0.5)/ 0.5;
+					points=FillUtils.fillRadial90(w,h/2,
+					clockwise?3:1,
+					clockwise,
+					amount);
+					if(clockwise)
+						points.push(0,h,w,h);
+					else{
+						FillUtils.movePoints(points,0,h/2);
+						points.push(0,0,w,0);
+					}
+				}
+				break ;
+			}
+		return points;
+	}
+
+	FillUtils.fillRadial360=function(w,h,origin,clockwise,amount){
+		var points;
+		switch(origin){
+			case 0:
+				if(amount<=0.5){
+					amount=amount / 0.5;
+					points=FillUtils.fillRadial180(w/2,h,
+					clockwise?2:3,
+					clockwise,
+					amount);
+					if(clockwise)
+						FillUtils.movePoints(points,w/2,0);
+				}
+				else{
+					amount=(amount-0.5)/ 0.5;
+					points=FillUtils.fillRadial180(w/2,h,
+					clockwise?3:2,
+					clockwise,
+					amount);
+					if(clockwise)
+						points.push(w,h,w,0,w/2,0);
+					else{
+						FillUtils.movePoints(points,w/2,0);
+						points.push(0,h,0,0,w/2,0);
+					}
+				}
+				break ;
+			case 1:
+				if(amount<=0.5){
+					amount=amount / 0.5;
+					points=FillUtils.fillRadial180(w/2,h,
+					clockwise?3:2,
+					clockwise,
+					amount);
+					if(!clockwise)
+						FillUtils.movePoints(points,w/2,0);
+				}
+				else{
+					amount=(amount-0.5)/ 0.5;
+					points=FillUtils.fillRadial180(w/2,h,
+					clockwise?2:3,
+					clockwise,
+					amount);
+					if(clockwise){
+						FillUtils.movePoints(points,w/2,0);
+						points.push(0,0,0,h,w/2,h);
+					}
+					else
+					points.push(w,0,w,h,w/2,h);
+				}
+				break ;
+			case 2:
+				if(amount<=0.5){
+					amount=amount / 0.5;
+					points=FillUtils.fillRadial180(w,h/2,
+					clockwise?1:0,
+					clockwise,
+					amount);
+					if(!clockwise)
+						FillUtils.movePoints(points,0,h/2);
+				}
+				else{
+					amount=(amount-0.5)/ 0.5;
+					points=FillUtils.fillRadial180(w,h/2,
+					clockwise?0:1,
+					clockwise,
+					amount);
+					if(clockwise){
+						FillUtils.movePoints(points,0,h/2);
+						points.push(w,0,0,0,0,h/2);
+					}
+					else
+					points.push(w,h,0,h,0,h/2);
+				}
+				break ;
+			case 3:
+				if(amount<=0.5){
+					amount=amount / 0.5;
+					points=FillUtils.fillRadial180(w,h/2,
+					clockwise?0:1,
+					clockwise,
+					amount);
+					if(clockwise)
+						FillUtils.movePoints(points,0,h/2);
+				}
+				else{
+					amount=(amount-0.5)/ 0.5;
+					points=FillUtils.fillRadial180(w,h/2,
+					clockwise?1:0,
+					clockwise,
+					amount);
+					if(clockwise)
+						points.push(0,h,w,h,w,h/2);
+					else{
+						FillUtils.movePoints(points,0,h/2);
+						points.push(0,0,w,0,w,h/2);
+					}
+				}
+				break ;
+			}
+		return points;
+	}
+
+	return FillUtils;
+})()
+
+
 //class fairygui.display.Frame
 var Frame=(function(){
 	function Frame(){
@@ -492,6 +823,36 @@ var Events=(function(){
 	['$event',function(){return this.$event=new Event();}
 	]);
 	return Events;
+})()
+
+
+//class fairygui.FillMethod
+var FillMethod=(function(){
+	function FillMethod(){}
+	__class(FillMethod,'fairygui.FillMethod');
+	FillMethod.None=0;
+	FillMethod.Horizontal=1;
+	FillMethod.Vertical=2;
+	FillMethod.Radial90=3;
+	FillMethod.Radial180=4;
+	FillMethod.Radial360=5;
+	return FillMethod;
+})()
+
+
+//class fairygui.FillOrigin
+var FillOrigin=(function(){
+	function FillOrigin(){}
+	__class(FillOrigin,'fairygui.FillOrigin');
+	FillOrigin.Top=0;
+	FillOrigin.Bottom=1;
+	FillOrigin.Left=2;
+	FillOrigin.Right=3;
+	FillOrigin.TopLeft=0;
+	FillOrigin.TopRight=1;
+	FillOrigin.BottomLeft=2;
+	FillOrigin.BottomRight=3;
+	return FillOrigin;
 })()
 
 
@@ -8804,7 +9165,7 @@ var ChildHitArea=(function(_super){
 		if (this._reversed)
 			return !HitArea.isHitGraphic(x-tPos.x,y-tPos.y,this.unHit);
 		else
-		return HitArea.isHitGraphic(x-tPos.x,y-tPos.y,this.hit)
+		return HitArea.isHitGraphic(x-tPos.x,y-tPos.y,this.hit);
 	}
 
 	return ChildHitArea;
@@ -10859,46 +11220,6 @@ var GGraph=(function(_super){
 })(GObject)
 
 
-//class fairygui.gears.GearText extends fairygui.gears.GearBase
-var GearText=(function(_super){
-	function GearText(owner){
-		this._storage=null;
-		this._default=null;
-		GearText.__super.call(this,owner);
-	}
-
-	__class(GearText,'fairygui.gears.GearText',_super);
-	var __proto=GearText.prototype;
-	__proto.init=function(){
-		this._default=this._owner.text;
-		this._storage={};
-	}
-
-	__proto.addStatus=function(pageId,buffer){
-		if(pageId==null)
-			this._default=buffer.readS();
-		else
-		this._storage[pageId]=buffer.readS();
-	}
-
-	__proto.apply=function(){
-		this._owner._gearLocked=true;
-		var data=this._storage[this._controller.selectedPageId];
-		if(data!==undefined)
-			this._owner.text=data;
-		else
-		this._owner.text=this._default;
-		this._owner._gearLocked=false;
-	}
-
-	__proto.updateState=function(){
-		this._storage[this._controller.selectedPageId]=this._owner.text;
-	}
-
-	return GearText;
-})(GearBase)
-
-
 //class fairygui.GGroup extends fairygui.GObject
 var GGroup=(function(_super){
 	function GGroup(){
@@ -11255,6 +11576,46 @@ var GGroup=(function(_super){
 })(GObject)
 
 
+//class fairygui.gears.GearText extends fairygui.gears.GearBase
+var GearText=(function(_super){
+	function GearText(owner){
+		this._storage=null;
+		this._default=null;
+		GearText.__super.call(this,owner);
+	}
+
+	__class(GearText,'fairygui.gears.GearText',_super);
+	var __proto=GearText.prototype;
+	__proto.init=function(){
+		this._default=this._owner.text;
+		this._storage={};
+	}
+
+	__proto.addStatus=function(pageId,buffer){
+		if(pageId==null)
+			this._default=buffer.readS();
+		else
+		this._storage[pageId]=buffer.readS();
+	}
+
+	__proto.apply=function(){
+		this._owner._gearLocked=true;
+		var data=this._storage[this._controller.selectedPageId];
+		if(data!==undefined)
+			this._owner.text=data;
+		else
+		this._owner.text=this._default;
+		this._owner._gearLocked=false;
+	}
+
+	__proto.updateState=function(){
+		this._storage[this._controller.selectedPageId]=this._owner.text;
+	}
+
+	return GearText;
+})(GearBase)
+
+
 //class fairygui.GImage extends fairygui.GObject
 var GImage=(function(_super){
 	function GImage(){
@@ -11310,6 +11671,12 @@ var GImage=(function(_super){
 		if (buffer.readBool())
 			this.color=buffer.readColorS();
 		this.flip=buffer.readByte();
+		this.image.fillMethod=buffer.readByte();
+		if (this.image.fillMethod !=0){
+			this.image.fillOrigin=buffer.readByte();
+			this.image.fillClockwise=buffer.readBool();
+			this.image.fillAmount=buffer.getFloat32();
+		}
 	}
 
 	__getset(0,__proto,'color',function(){
@@ -11320,6 +11687,12 @@ var GImage=(function(_super){
 			this.updateGear(4);
 			this.applyColor();
 		}
+	});
+
+	__getset(0,__proto,'fillClockwise',function(){
+		return this.image.fillClockwise;
+		},function(value){
+		this.image.fillClockwise=value;
 	});
 
 	/**
@@ -11341,6 +11714,24 @@ var GImage=(function(_super){
 			this.setScale(sx,sy);
 			this.handleXYChanged();
 		}
+	});
+
+	__getset(0,__proto,'fillMethod',function(){
+		return this.image.fillMethod;
+		},function(value){
+		this.image.fillMethod=value;
+	});
+
+	__getset(0,__proto,'fillOrigin',function(){
+		return this.image.fillOrigin;
+		},function(value){
+		this.image.fillOrigin=value;
+	});
+
+	__getset(0,__proto,'fillAmount',function(){
+		return this.image.fillAmount;
+		},function(value){
+		this.image.fillAmount=value;
 	});
 
 	return GImage;
@@ -15795,19 +16186,35 @@ var GProgressBar=(function(_super){
 		var fullWidth=this.width-this._barMaxWidthDelta;
 		var fullHeight=this.height-this._barMaxHeightDelta;
 		if(!this._reverse){
-			if(this._barObjectH)
+			if(this._barObjectH){
+				if (((this._barObjectH instanceof fairygui.GImage ))&& (this._barObjectH).fillMethod !=0)
+					(this._barObjectH).fillAmount=percent;
+				else
 				this._barObjectH.width=Math.round(fullWidth *percent);
-			if(this._barObjectV)
+			}
+			if(this._barObjectV){
+				if (((this._barObjectV instanceof fairygui.GImage ))&& (this._barObjectV).fillMethod !=0)
+					(this._barObjectV).fillAmount=percent;
+				else
 				this._barObjectV.height=Math.round(fullHeight *percent);
+			}
 		}
 		else {
 			if(this._barObjectH){
-				this._barObjectH.width=Math.round(fullWidth *percent);
-				this._barObjectH.x=this._barStartX+(fullWidth-this._barObjectH.width);
+				if (((this._barObjectH instanceof fairygui.GImage ))&& (this._barObjectH).fillMethod !=0)
+					(this._barObjectH).fillAmount=1-percent;
+				else{
+					this._barObjectH.width=Math.round(fullWidth *percent);
+					this._barObjectH.x=this._barStartX+(fullWidth-this._barObjectH.width);
+				}
 			}
 			if(this._barObjectV){
-				this._barObjectV.height=Math.round(fullHeight *percent);
-				this._barObjectV.y=this._barStartY+(fullHeight-this._barObjectV.height);
+				if (((this._barObjectV instanceof fairygui.GImage ))&& (this._barObjectV).fillMethod !=0)
+					(this._barObjectV).fillAmount=1-percent;
+				else{
+					this._barObjectV.height=Math.round(fullHeight *percent);
+					this._barObjectV.y=this._barStartY+(fullHeight-this._barObjectV.height);
+				}
 			}
 		}
 		if((this._aniObject instanceof fairygui.GMovieClip ))
@@ -17107,7 +17514,12 @@ var Image$1=(function(_super){
 		this._tileGridIndice=0;
 		this._textureScaleX=1;
 		this._textureScaleY=1;
-		this._needRebuild=false;
+		this._needRebuild=0;
+		this._fillMethod=0;
+		this._fillOrigin=0;
+		this._fillAmount=0;
+		this._fillClockwise=false;
+		this._mask=null;
 		Image.__super.call(this);
 		this.mouseEnabled=false;
 	}
@@ -17120,27 +17532,35 @@ var Image$1=(function(_super){
 			this._textureScaleY=sy;
 			if(this._tex)
 				this.size(this._tex.width*sx,this._tex.height*sy);
-			this.markChanged();
+			this.markChanged(1);
 		}
 	}
 
-	__proto.markChanged=function(){
+	__proto.markChanged=function(flag){
 		if(!this._needRebuild){
-			this._needRebuild=true;
+			this._needRebuild=flag;
 			Laya.timer.callLater(this,this.rebuild);
 		}
+		else
+		this._needRebuild |=flag;
 	}
 
 	__proto.rebuild=function(){
-		this._needRebuild=false;
+		if((this._needRebuild & 1)!=0)
+			this.doDraw();
+		if((this._needRebuild & 2)!=0 && this._fillMethod!=0)
+			this.doFill();
+		this._needRebuild=0;
+	}
+
+	__proto.doDraw=function(){
 		var w=this.width;
 		var h=this.height;
 		var g=this.graphics;
 		if(this._tex==null || w==0 || h==0){
 			g.clear();
-			return;
 		}
-		if(this._scaleByTile){
+		else if(this._scaleByTile){
 			g.clear();
 			g.fillTexture(this._tex,0,0,w,h);
 		}
@@ -17199,6 +17619,27 @@ var Image$1=(function(_super){
 		this.graphics.fillTexture(tex,x,y,width,height);
 	}
 
+	__proto.doFill=function(){
+		var w=this.width;
+		var h=this.height;
+		var g=this._mask.graphics;
+		g.clear();
+		if(w==0 || h==0)
+			return;
+		var points=FillUtils.fill(w,h,this._fillMethod,this._fillOrigin,this._fillClockwise,this._fillAmount);
+		g.drawPoly(0,0,points,"#FFFFFF");
+	}
+
+	__getset(0,__proto,'fillClockwise',function(){
+		return this._fillClockwise;
+		},function(value){
+		if(this._fillClockwise!=value){
+			this._fillClockwise=value;
+			if(this._fillMethod!=0)
+				this.markChanged(2);
+		}
+	});
+
 	__getset(0,__proto,'tex',function(){
 		return this._tex;
 		},function(value){
@@ -17208,7 +17649,7 @@ var Image$1=(function(_super){
 				this.size(this._tex.width*this._textureScaleX,this._tex.height*this._textureScaleY);
 			else
 			this.size(0,0);
-			this.markChanged();
+			this.markChanged(1);
 		}
 	});
 
@@ -17216,7 +17657,17 @@ var Image$1=(function(_super){
 		return this._scale9Grid;
 		},function(value){
 		this._scale9Grid=value;
-		this.markChanged();
+		this.markChanged(1);
+	});
+
+	__getset(0,__proto,'fillAmount',function(){
+		return this._fillAmount;
+		},function(value){
+		if(this._fillAmount!=value){
+			this._fillAmount=value;
+			if(this._fillMethod!=0)
+				this.markChanged(2);
+		}
 	});
 
 	__getset(0,__proto,'scaleByTile',function(){
@@ -17224,7 +17675,7 @@ var Image$1=(function(_super){
 		},function(value){
 		if(this._scaleByTile!=value){
 			this._scaleByTile=value;
-			this.markChanged();
+			this.markChanged(1);
 		}
 	});
 
@@ -17233,7 +17684,37 @@ var Image$1=(function(_super){
 		},function(value){
 		if(this._tileGridIndice!=value){
 			this._tileGridIndice=value;
-			this.markChanged();
+			this.markChanged(1);
+		}
+	});
+
+	__getset(0,__proto,'fillMethod',function(){
+		return this._fillMethod;
+		},function(value){
+		if(this._fillMethod!=value){
+			this._fillMethod=value;
+			if(this._fillMethod!=0){
+				if(!this._mask){
+					this._mask=new Sprite();
+					this._mask.mouseEnabled=false;
+				}
+				this.mask=this._mask;
+				this.markChanged(2);
+			}
+			else if(this.mask){
+				this._mask.graphics.clear();
+				this.mask=null;
+			}
+		}
+	});
+
+	__getset(0,__proto,'fillOrigin',function(){
+		return this._fillOrigin;
+		},function(value){
+		if(this._fillOrigin!=value){
+			this._fillOrigin=value;
+			if(this._fillMethod!=0)
+				this.markChanged(2);
 		}
 	});
 

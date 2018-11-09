@@ -1,7 +1,7 @@
 package fairygui {
 	import fairygui.display.Image;
-	import fairygui.utils.ByteBuffer;
 	import fairygui.gears.IColorGear;
+	import fairygui.utils.ByteBuffer;
 	
 	public class GImage extends GObject implements IColorGear {
 		public var image: Image;
@@ -54,6 +54,46 @@ package fairygui {
 			}
 		}
 		
+		public function get fillMethod():int
+		{
+			return image.fillMethod;
+		}
+		
+		public function set fillMethod(value:int):void
+		{
+			image.fillMethod = value;
+		}
+		
+		public function get fillOrigin():int
+		{
+			return image.fillOrigin;
+		}
+		
+		public function set fillOrigin(value:int):void
+		{
+			image.fillOrigin = value;
+		}
+		
+		public function get fillClockwise():Boolean
+		{
+			return image.fillClockwise;
+		}
+		
+		public function set fillClockwise(value:Boolean):void
+		{
+			image.fillClockwise = value;
+		}
+		
+		public function get fillAmount():Number
+		{
+			return image.fillAmount;
+		}
+		
+		public function set fillAmount(value:Number):void
+		{
+			image.fillAmount = value;
+		}
+		
 		override protected function createDisplayObject(): void {
 			this._displayObject = this.image = new Image();
 			this.image.mouseEnabled = false;
@@ -100,7 +140,13 @@ package fairygui {
 			if (buffer.readBool())
 				this.color = buffer.readColorS();
 			this.flip = buffer.readByte();
-
+			this.image.fillMethod = buffer.readByte();
+			if (this.image.fillMethod != 0)
+			{
+				this.image.fillOrigin = buffer.readByte();
+				this.image.fillClockwise = buffer.readBool();
+				this.image.fillAmount = buffer.getFloat32();
+			}
 		}
 	}
 }
