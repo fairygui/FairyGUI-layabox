@@ -36,11 +36,14 @@ package fairygui {
 		}
 		
 		override public function get font(): String {
-			return this.div.style.fontFamily;
+			return this.div.style.font;
 		}
 		
 		override public function set font(value: String):void {
-			this.div.style.fontFamily = value;
+			if(value)
+				this.div.style.font = value;
+			else
+				this.div.style.font = fairygui.UIConfig.defaultFont;
 		}
 		
 		override public function get fontSize(): Number {
@@ -58,7 +61,7 @@ package fairygui {
 		override public function set color(value: String):void {
 			if (_color != value) {
 				_color = value;
-				this.div.color = value;
+				this.div.style.color = value;
 				if (this._gearColor.controller)
 					this._gearColor.updateState();
 			}

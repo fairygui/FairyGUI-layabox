@@ -20,15 +20,15 @@ package fairygui.utils
 				this.hit = child.hitArea.hit;
 		}
 		
-		override public function isHit(x:Number, y:Number):Boolean { 
+		override public function contains(x:Number, y:Number):Boolean {
 			var tPos:Point;
 			tPos = Point.TEMP;
 			tPos.setTo(0, 0);
 			tPos = _child.toParentPoint(tPos);
 			if (_reversed) 
-				return !isHitGraphic(x-tPos.x,y-tPos.y, unHit);
+				return !_isHitGraphic(x-tPos.x,y-tPos.y, unHit);
 			else
-				return isHitGraphic(x-tPos.x,y-tPos.y, hit);
+				return _isHitGraphic(x-tPos.x,y-tPos.y, hit);
 		}
 	}
 }

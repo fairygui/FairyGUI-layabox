@@ -306,7 +306,8 @@ package fairygui.display {
 			if (_frameCount>0 && _frame < _frames.length)
 			{
 				var frame:Frame = _frames[_frame];
-				this.graphics.cleanByTexture(frame.texture, frame.rect.x, frame.rect.y);
+				this.graphics.clear();
+				this.graphics.drawImage(frame.texture, frame.rect.x, frame.rect.y);
 			}
 			else
 				this.graphics.clear();

@@ -608,17 +608,18 @@ package fairygui {
 			return this._scrollPane;
 		}
 		
-		public function get opaque():Boolean {
+		public function get opaque():Boolean
+		{
 			return _opaque;
 		}
 		
 		public function set opaque(value:Boolean):void {
-			if(_opaque!=value)	{
+			if(_opaque!=value) {
 				_opaque = value;
 				if (_opaque) {
 					if(this._displayObject.hitArea==null)
 						this._displayObject.hitArea = new Rectangle();
-
+					
 					if(this._displayObject.hitArea is Rectangle)
 						this._displayObject.hitArea.setTo(0, 0, this.width, this.height);
 					

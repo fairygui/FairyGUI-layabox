@@ -1,7 +1,7 @@
 package fairygui {
 	import fairygui.display.Image;
-	import fairygui.gears.IColorGear;
 	import fairygui.utils.ByteBuffer;
+	import fairygui.gears.IColorGear;
 	
 	public class GImage extends GObject implements IColorGear {
 		public var image: Image;

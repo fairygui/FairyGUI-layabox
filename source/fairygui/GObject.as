@@ -493,7 +493,7 @@ package fairygui {
 		
 		public function get internalVisible(): Boolean {
 			return this._internalVisible && (!this._group || this._group.internalVisible)
-				&& !this._displayObject._$P["maskParent"];
+				&& !this._displayObject._cacheStyle.maskParent;
 		}
 		
 		public function get internalVisible2(): Boolean {

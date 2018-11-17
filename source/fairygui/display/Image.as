@@ -14,13 +14,13 @@ package fairygui.display {
 		private var _tileGridIndice:int = 0;
 		private var _textureScaleX:Number = 1;
 		private var _textureScaleY:Number = 1;
-		private var _needRebuild:int = 0;
+		private var _needRebuild:int = 0;		
 		private var _fillMethod:int = 0;
 		private var _fillOrigin:int = 0;
 		private var _fillAmount:Number = 0;
 		private var _fillClockwise:Boolean = false;
 		private var _mask:Sprite = null;
-
+		
 		public function Image() {
 			super();
 			
@@ -178,18 +178,17 @@ package fairygui.display {
 			var w:Number=this.width;
 			var h:Number=this.height;
 			var g:Graphics  = this.graphics;
+			g.clear();
 			
 			if(this._tex==null || w==0 || h==0)
 			{
-				g.clear();
+				return;
 			}
-			else if(this._scaleByTile) {
-				g.clear();
+			
+			if(this._scaleByTile) {
 				g.fillTexture(this._tex, 0, 0, w, h);
 			}
 			else if(this._scale9Grid!=null) {
-				g.clear();
-				
 				var tw:Number=this._tex.width;
 				var th:Number=this._tex.height;
 				var left:Number = this._scale9Grid.x;
@@ -227,10 +226,10 @@ package fairygui.display {
 				var centerHeight:Number = Math.max(h - top - bottom,0);
 				
 				//绘制四个角
-				left && top && g.drawTexture(Image.getTexture(this._tex, 0, 0, left, top), 0, 0, left, top);
-				right && top && g.drawTexture(Image.getTexture(this._tex, tw - right, 0, right, top), w - right, 0, right, top);
-				left && bottom && g.drawTexture(Image.getTexture(this._tex, 0, th - bottom, left, bottom), 0, h - bottom, left, bottom);
-				right && bottom && g.drawTexture(Image.getTexture(this._tex, tw - right, th - bottom, right, bottom), w - right, h - bottom, right, bottom);
+				left && top && g.drawImage(Image.getTexture(this._tex, 0, 0, left, top), 0, 0, left, top);
+				right && top && g.drawImage(Image.getTexture(this._tex, tw - right, 0, right, top), w - right, 0, right, top);
+				left && bottom && g.drawImage(Image.getTexture(this._tex, 0, th - bottom, left, bottom), 0, h - bottom, left, bottom);
+				right && bottom && g.drawImage(Image.getTexture(this._tex, tw - right, th - bottom, right, bottom), w - right, h - bottom, right, bottom);
 				//绘制上下两个边
 				centerWidth && top && drawTexture(0,Image.getTexture(this._tex, left, 0, tw - left - right, top), left, 0, centerWidth, top);				
 				centerWidth && bottom && drawTexture(1,Image.getTexture(this._tex, left, th - bottom, tw - left - right, bottom), left, h - bottom, centerWidth, bottom);
@@ -241,13 +240,13 @@ package fairygui.display {
 				centerWidth && centerHeight && drawTexture(4,Image.getTexture(this._tex, left, top, tw - left - right, th - top - bottom), left, top, centerWidth, centerHeight);
 			}
 			else {
-				g.cleanByTexture(_tex, 0, 0, w, h);
+				g.drawImage(_tex, 0, 0, w, h);
 			}
 		}
 		
 		private function drawTexture(part:int, tex:Texture, x:Number, y:Number, width:Number = 0, height:Number = 0):void {
 			if(part==-1 || (_tileGridIndice & (1<<part))==0)
-				this.graphics.drawTexture(tex, x, y, width, height);		
+				this.graphics.drawImage(tex, x, y, width, height);		
 			else
 				this.graphics.fillTexture(tex, x, y, width, height);
 		}
@@ -256,11 +255,12 @@ package fairygui.display {
 			if (width <= 0) width = 1;
 			if (height <= 0) height = 1;
 			tex.$_GID || (tex.$_GID = Utils.getGID())
-			var key:String = tex.$_GID + "." + x + "." + y + "." + width + "." + height;
-			var texture:Texture = WeakObject.I.get(key);
-			if (!texture||!texture.source) {
+			//var key:String = tex.$_GID + "." + x + "." + y + "." + width + "." + height;
+			//var texture:Texture = WeakObject.I.get(key);
+			var texture:Texture;
+			if (!texture||!texture._getSource()) {
 				texture = Texture.createFromTexture(tex, x, y, width, height);
-				WeakObject.I.set(key, texture);
+				//WeakObject.I.set(key, texture);
 			}
 
 			return texture;
@@ -274,8 +274,11 @@ package fairygui.display {
 			g.clear();
 			if(w==0 || h==0)
 				return;
-
+			
 			var points:Array = FillUtils.fill(w, h, _fillMethod, _fillOrigin, _fillClockwise, _fillAmount);
+			if(points==null)
+				return;
+			
 			g.drawPoly(0,0,points,"#FFFFFF");
 		}
 	}

@@ -303,7 +303,7 @@ declare module fairygui {
         childrenRenderOrder: number;
         apexIndex: number;
         mask: laya.display.Sprite;
-       	setMask(value: laya.display.Sprite, reversed: boolean): void;
+        setMask(value: laya.display.Sprite, reversed: boolean): void;
         protected updateHitArea(): void;
         protected updateMask(): void;
         protected setupScroll(scrollBarMargin: Margin, scroll: number, scrollBarDisplay: number, flags: number, vtScrollBarRes: string, hzScrollBarRes: string, headerRes: string, footerRes: string): void;
@@ -1301,7 +1301,7 @@ declare module fairygui.utils {
         scaleX: number;
         scaleY: number;
         constructor(data: fairygui.utils.PixelHitTestData, offsetX: number, offsetY: number);
-        isHit(x: number, y: number):boolean;
+        contains(x: number, y: number):boolean;
     }
 }
 

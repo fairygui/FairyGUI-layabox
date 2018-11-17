@@ -1,5 +1,4 @@
 package fairygui {
-	import fairygui.gears.IColorGear;
 	import fairygui.utils.ByteBuffer;
 	import fairygui.utils.ToolSet;
 	
@@ -8,6 +7,7 @@ package fairygui {
 	import laya.renders.Render;
 	import laya.utils.HitArea;
 	import laya.utils.Utils;
+	import fairygui.gears.IColorGear;
 	
 	public class GGraph extends GObject implements IColorGear {
 		private var _type: int;

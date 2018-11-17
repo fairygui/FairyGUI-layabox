@@ -21,7 +21,7 @@ package fairygui.utils
 			scaleY = 1;
 		}
 		
-		override public function isHit(x:Number, y:Number):Boolean
+		override public function contains(x:Number, y:Number):Boolean
 		{
 			x = Math.floor((x / scaleX - offsetX) * _data.scale);
 			y = Math.floor((y / scaleY - offsetY) * _data.scale);
