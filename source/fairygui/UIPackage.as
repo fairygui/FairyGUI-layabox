@@ -44,7 +44,7 @@ package fairygui {
 			if(!descData)
 			{
 				descData = AssetProxy.inst.getRes(resKey+"."+fairygui.UIConfig.packageFileExtension);
-				if(!descData || descData.length==0)
+				if(!descData || descData.byteLength==0)
 					throw new Error("package resource not ready: " + resKey);
 			}
 			
@@ -356,7 +356,7 @@ package fairygui {
 				{
 					if(pi.texture!= null)
 					{
-						pi.texture.destroy(true);
+						pi.texture.destroy();
 						pi.texture = null;
 					}
 				}
@@ -450,8 +450,8 @@ package fairygui {
 					if (!item.decoded) {
 						item.decoded = true;
 						item.texture = AssetProxy.inst.getRes(item.file);
-						if(!fairygui.UIConfig.textureLinearSampling)
-							item.texture.isLinearSampling = false;
+						//if(!fairygui.UIConfig.textureLinearSampling)
+							//item.texture.isLinearSampling = false;
 					}
 					return item.texture;
 					

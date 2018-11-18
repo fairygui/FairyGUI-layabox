@@ -7932,7 +7932,7 @@ var UIPackage=(function(){
 			var pi=this._items[i];
 			if(pi.type==4){
 				if(pi.texture!=null){
-					pi.texture.destroy(true);
+					pi.texture.destroy();
 					pi.texture=null;
 				}
 			}
@@ -8001,8 +8001,6 @@ var UIPackage=(function(){
 				if (!item.decoded){
 					item.decoded=true;
 					item.texture=AssetProxy.inst.getRes(item.file);
-					if(!UIConfig$1.textureLinearSampling)
-						item.texture.isLinearSampling=false;
 				}
 				return item.texture;
 			case 5:
@@ -8163,7 +8161,7 @@ var UIPackage=(function(){
 	UIPackage.addPackage=function(resKey,descData){
 		if(!descData){
 			descData=AssetProxy.inst.getRes(resKey+"."+UIConfig$1.packageFileExtension);
-			if(!descData || descData.length==0)
+			if(!descData || descData.byteLength==0)
 				throw new Error("package resource not ready: "+resKey);
 		};
 		var buffer=new ByteBuffer(descData);
