@@ -7,6 +7,11 @@ package fairygui.display
 	{
 		static public function fill(w:Number, h:Number, method:int, origin:int, clockwise:Boolean, amount:Number):Array
 		{
+			if(amount<=0)
+				return null;
+			else if(amount>=0.9999)
+				return [0,0,w,0,w,h,0,h];
+			
 			var points:Array;
 			switch(method)
 			{

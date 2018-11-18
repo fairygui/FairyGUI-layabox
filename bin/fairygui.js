@@ -369,6 +369,10 @@ var FillUtils=(function(){
 	function FillUtils(){}
 	__class(FillUtils,'fairygui.display.FillUtils');
 	FillUtils.fill=function(w,h,method,origin,clockwise,amount){
+		if(amount<=0)
+			return null;
+		else if(amount>=0.9999)
+		return [0,0,w,0,w,h,0,h];
 		var points;
 		switch(method){
 			case 1:
@@ -17630,8 +17634,11 @@ var Image$1=(function(_super){
 		if(w==0 || h==0)
 			return;
 		var points=FillUtils.fill(w,h,this._fillMethod,this._fillOrigin,this._fillClockwise,this._fillAmount);
-		if(points==null)
+		if(points==null){
+			this.mask=null;
+			this.mask=this._mask;
 			return;
+		}
 		g.drawPoly(0,0,points,"#FFFFFF");
 	}
 
