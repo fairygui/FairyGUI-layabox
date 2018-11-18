@@ -276,6 +276,14 @@ package fairygui.display {
 				return;
 
 			var points:Array = FillUtils.fill(w, h, _fillMethod, _fillOrigin, _fillClockwise, _fillAmount);
+			if(points==null)
+			{
+				//不知道为什么，不这样操作一下空白的遮罩不能生效
+				this.mask = null;
+				this.mask = this._mask;
+				return;
+			}
+			
 			g.drawPoly(0,0,points,"#FFFFFF");
 		}
 	}
