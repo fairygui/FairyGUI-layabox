@@ -1035,9 +1035,9 @@ package fairygui {
 				{
 					var j:int = _firstIndex % _numItems;
 					if (index >= j)
-						index = _firstIndex + (index - j);
+						index = index - j;
 					else
-						index = _firstIndex + _numItems + (j - index);
+						index = _numItems - j + index;
 				}
 				else
 					index -= _firstIndex;
