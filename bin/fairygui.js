@@ -1211,6 +1211,7 @@ var GObject=(function(){
 		this.removeFromParent();
 		this._relations.dispose();
 		this._displayObject.destroy();
+		this._displayObject=null;
 	}
 
 	__proto.onClick=function(thisObj,listener,args){
@@ -13210,6 +13211,8 @@ var GButton=(function(_super){
 		if (this._down){
 			Laya.stage.off("mouseup",this,this.__mouseup);
 			this._down=false;
+			if(this._displayObject==null)
+				return;
 			if(this._mode==0){
 				if(this.grayed && this._buttonController && this._buttonController.hasPage("disabled"))
 					this.setState("disabled");
@@ -13978,8 +13981,6 @@ var GList=(function(_super){
 		this._virtualItems=null;
 		this._eventLocked=false;
 		this.itemInfoVer=0;
-		//用来标志item是否在本次处理中已经被重用了
-		this.enterCounter=0;
 		GList.__super.call(this);
 		this._trackBounds=true;
 		this._pool=new GObjectPool();
@@ -14640,9 +14641,9 @@ var GList=(function(_super){
 			if (this._loop && this._numItems > 0){
 				var j=this._firstIndex % this._numItems;
 				if (index >=j)
-					index=this._firstIndex+(index-j);
+					index=index-j;
 				else
-				index=this._firstIndex+this._numItems+(j-index);
+				index=this._numItems-j+index;
 			}
 			else
 			index-=this._firstIndex;
@@ -14936,13 +14937,28 @@ var GList=(function(_super){
 	__proto.handleScroll=function(forceUpdate){
 		if (this._eventLocked)
 			return;
-		this.enterCounter=0;
 		if (this._layout==0 || this._layout==2){
-			this.handleScroll1(forceUpdate);
+			var enterCounter=0;
+			while(this.handleScroll1(forceUpdate)){
+				enterCounter++;
+				forceUpdate=false;
+				if(enterCounter>20){
+					console.log("FairyGUI: list will never be filled as the item renderer function always returns a different size.");
+					break ;
+				}
+			}
 			this.handleArchOrder1();
 		}
 		else if (this._layout==1 || this._layout==3){
-			this.handleScroll2(forceUpdate);
+			enterCounter=0;
+			while(this.handleScroll2(forceUpdate)){
+				enterCounter++;
+				forceUpdate=false;
+				if(enterCounter>20){
+					console.log("FairyGUI: list will never be filled as the item renderer function always returns a different size.");
+					break ;
+				}
+			}
 			this.handleArchOrder2();
 		}
 		else{
@@ -14952,11 +14968,6 @@ var GList=(function(_super){
 	}
 
 	__proto.handleScroll1=function(forceUpdate){
-		this.enterCounter++;
-		if (this.enterCounter > 3){
-			console.log("FairyGUI: list will never be filled as the item renderer function always returns a different size.");
-			return;
-		};
 		var pos=this._scrollPane.scrollingPosY;
 		var max=pos+this._scrollPane.viewHeight;
 		var end=max==this._scrollPane.contentHeight;
@@ -14964,7 +14975,7 @@ var GList=(function(_super){
 		var newFirstIndex=this.getIndexOnPos1(forceUpdate);
 		pos=fairygui.GList.pos_param;
 		if (newFirstIndex==this._firstIndex && !forceUpdate)
-			return;
+			return false;
 		var oldFirstIndex=this._firstIndex;
 		this._firstIndex=newFirstIndex;
 		var curIndex=newFirstIndex;
@@ -15084,15 +15095,12 @@ var GList=(function(_super){
 		if (deltaSize !=0 || firstItemDeltaSize !=0)
 			this._scrollPane.changeContentSizeOnScrolling(0,deltaSize,0,firstItemDeltaSize);
 		if (curIndex > 0 && this.numChildren > 0 && this._container.y < 0 && this.getChildAt(0).y >-this._container.y)
-			this.handleScroll1(false);
+			return true;
+		else
+		return false;
 	}
 
 	__proto.handleScroll2=function(forceUpdate){
-		this.enterCounter++;
-		if (this.enterCounter > 3){
-			console.log("FairyGUI: list will never be filled as the item renderer function always returns a different size.");
-			return;
-		};
 		var pos=this._scrollPane.scrollingPosX;
 		var max=pos+this._scrollPane.viewWidth;
 		var end=pos==this._scrollPane.contentWidth;
@@ -15100,7 +15108,7 @@ var GList=(function(_super){
 		var newFirstIndex=this.getIndexOnPos2(forceUpdate);
 		pos=fairygui.GList.pos_param;
 		if (newFirstIndex==this._firstIndex && !forceUpdate)
-			return;
+			return false;
 		var oldFirstIndex=this._firstIndex;
 		this._firstIndex=newFirstIndex;
 		var curIndex=newFirstIndex;
@@ -15220,7 +15228,9 @@ var GList=(function(_super){
 		if (deltaSize !=0 || firstItemDeltaSize !=0)
 			this._scrollPane.changeContentSizeOnScrolling(deltaSize,0,firstItemDeltaSize,0);
 		if (curIndex > 0 && this.numChildren > 0 && this._container.x < 0 && this.getChildAt(0).x >-this._container.x)
-			this.handleScroll2(false);
+			return true;
+		else
+		return false;
 	}
 
 	__proto.handleScroll3=function(forceUpdate){
