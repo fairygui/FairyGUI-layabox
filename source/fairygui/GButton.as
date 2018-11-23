@@ -458,6 +458,9 @@ package fairygui {
 				Laya.stage.off(Event.MOUSE_UP, this, this.__mouseup);
 				this._down = false;
 				
+				if(this._displayObject==null)
+					return;
+				
 				if(this._mode == ButtonMode.Common) {
 					if(this.grayed && this._buttonController && this._buttonController.hasPage(GButton.DISABLED))
 						this.setState(GButton.DISABLED);
