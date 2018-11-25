@@ -557,6 +557,9 @@ package fairygui
 		
 		private function releaseRefTarget(target:GObject):void
 		{
+			if(target.displayObject==null)
+				return;
+			
 			target.off(Events.XY_CHANGED, this, this.__targetXYChanged);
 			target.off(Events.SIZE_CHANGED, this, this.__targetSizeChanged);
 			target.off(Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);

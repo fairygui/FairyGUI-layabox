@@ -3019,6 +3019,8 @@ var RelationItem=(function(){
 	}
 
 	__proto.releaseRefTarget=function(target){
+		if(target.displayObject==null)
+			return;
 		target.off("fui_xy_changed",this,this.__targetXYChanged);
 		target.off("fui_size_changed",this,this.__targetSizeChanged);
 		target.off("fui_size_delay_change",this,this.__targetSizeWillChange);
