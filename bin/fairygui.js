@@ -14043,7 +14043,10 @@ var GList=(function(_super){
 
 	__proto.removeChildAt=function(index,dispose){
 		(dispose===void 0)&& (dispose=false);
-		var child=_super.prototype.removeChildAt.call(this,index,dispose);
+		var child=_super.prototype.removeChildAt.call(this,index);
+		if(dispose)
+			child.dispose();
+		else
 		child.off("click",this,this.__clickItem);
 		return child;
 	}
