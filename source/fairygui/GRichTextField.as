@@ -40,7 +40,10 @@ package fairygui {
 		}
 		
 		override public function set font(value: String):void {
-			this.div.style.fontFamily = value;
+			if(value)
+				this.div.style.font = value;
+			else
+				this.div.style.font = fairygui.UIConfig.defaultFont;
 		}
 		
 		override public function get fontSize(): Number {

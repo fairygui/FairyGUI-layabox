@@ -294,8 +294,11 @@ package fairygui {
 		}
 		
 		override public function removeChildAt(index: Number, dispose: Boolean= false): GObject {
-			var child: GObject = super.removeChildAt(index, dispose);
-			child.off(Event.CLICK, this, this.__clickItem);
+			var child: GObject = super.removeChildAt(index);
+			if(dispose)
+				child.dispose();
+			else
+				child.off(Event.CLICK, this, this.__clickItem);
 			
 			return child;
 		}

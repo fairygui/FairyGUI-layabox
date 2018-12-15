@@ -14045,7 +14045,10 @@ var GList=(function(_super){
 
 	__proto.removeChildAt=function(index,dispose){
 		(dispose===void 0)&& (dispose=false);
-		var child=_super.prototype.removeChildAt.call(this,index,dispose);
+		var child=_super.prototype.removeChildAt.call(this,index);
+		if(dispose)
+			child.dispose();
+		else
 		child.off("click",this,this.__clickItem);
 		return child;
 	}
@@ -16101,7 +16104,10 @@ var GRichTextField=(function(_super){
 	__getset(0,__proto,'font',function(){
 		return this.div.style.fontFamily;
 		},function(value){
-		this.div.style.fontFamily=value;
+		if(value)
+			this.div.style.font=value;
+		else
+		this.div.style.font=UIConfig$1.defaultFont;
 	});
 
 	__getset(0,__proto,'leading',function(){
