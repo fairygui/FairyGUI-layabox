@@ -12,14 +12,17 @@ package fairygui {
 		
 		public function GMovieClip() {
 			super();
-			this._sizeImplType = 1;
 		}
 		
 		public function get color(): String {
-			return "#FFFFFF";
+			return _movieClip.color;
 		}
 		
 		public function set color(value: String):void {
+			if(this._movieClip.color != value) {
+				this._movieClip.color = value;
+				this.updateGear(4);
+			}
 		}
 		
 		override protected function createDisplayObject(): void {
@@ -96,7 +99,6 @@ package fairygui {
 			_movieClip.swing = this.packageItem.swing;
 			_movieClip.repeatDelay = this.packageItem.repeatDelay;
 			_movieClip.frames = this.packageItem.frames;
-			_movieClip.boundsRect = new Rectangle(0, 0, this.sourceWidth, this.sourceHeight);
 		}
 		
 		override public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int): void {

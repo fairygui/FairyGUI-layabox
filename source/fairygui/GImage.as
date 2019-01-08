@@ -5,31 +5,23 @@ package fairygui {
 	
 	public class GImage extends GObject implements IColorGear {
 		public var image: Image;
-		
-		private var _color: String;
 		private var _flip: int;
 		
 		public function GImage() {
 			super();
-			this._color = "#FFFFFF";
 		}
 		
 		public function get color(): String {
-			return this._color;
+			return this.image.color;
 		}
 		
 		public function set color(value: String):void {
-			if(this._color != value) {
-				this._color = value;
+			if(this.image.color != value) {
+				this.image.color = value;
 				this.updateGear(4);
-				this.applyColor();
 			}
 		}
-		
-		private function applyColor():void {
-			//not supported yet
-		}
-		
+
 		/**
 		 * @see FlipType
 		 */
@@ -110,7 +102,7 @@ package fairygui {
 			this.image.scale9Grid = this.packageItem.scale9Grid;
 			this.image.scaleByTile = this.packageItem.scaleByTile;
 			this.image.tileGridIndice = this.packageItem.tileGridIndice;
-			this.image.tex = this.packageItem.texture;
+			this.image.texture = this.packageItem.texture;
 			this.setSize(this.sourceWidth, this.sourceHeight);
 		}
 		
@@ -123,12 +115,6 @@ package fairygui {
 					this.image.x += this.width;
 				if(this.scaleY==-1)
 					this.image.y += this.height;
-			}
-		}
-		
-		override protected function handleSizeChanged(): void {
-			if(this.image.tex!=null) {
-				this.image.scaleTexture(this.width/this.sourceWidth, this.height/this.sourceHeight);
 			}
 		}
 		

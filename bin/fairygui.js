@@ -702,10 +702,8 @@ var FillUtils=(function(){
 //class fairygui.display.Frame
 var Frame=(function(){
 	function Frame(){
-		this.rect=null;
 		this.addDelay=0;
 		this.texture=null;
-		this.rect=new Rectangle();
 	}
 
 	__class(Frame,'fairygui.display.Frame');
@@ -909,8 +907,6 @@ var GObject=(function(){
 		this._dragBounds=null;
 		this._displayObject=null;
 		this._yOffset=0;
-		//Size的实现方式，有两种，0-GObject的w/h等于DisplayObject的w/h。1-GObject的sourceWidth/sourceHeight等于DisplayObject的w/h，剩余部分由scale实现
-		this._sizeImplType=0;
 		this.minWidth=0;
 		this.minHeight=0;
 		this.maxWidth=0;
@@ -1060,14 +1056,8 @@ var GObject=(function(){
 	__proto.updatePivotOffset=function(){
 		if(this._displayObject!=null){
 			if(this._displayObject.transform && (this._pivotX!=0 || this._pivotY!=0)){
-				if(this._sizeImplType==0){
-					fairygui.GObject.sHelperPoint.x=this._pivotX*this._width;
-					fairygui.GObject.sHelperPoint.y=this._pivotY*this._height;
-				}
-				else {
-					fairygui.GObject.sHelperPoint.x=this._pivotX*this.sourceWidth;
-					fairygui.GObject.sHelperPoint.y=this._pivotY*this.sourceHeight;
-				};
+				fairygui.GObject.sHelperPoint.x=this._pivotX*this._width;
+				fairygui.GObject.sHelperPoint.y=this._pivotY*this._height;
 				var pt=this._displayObject.transform.transformPoint(fairygui.GObject.sHelperPoint);
 				this._pivotOffsetX=this._pivotX*this._width-pt.x;
 				this._pivotOffsetY=this._pivotY*this._height-pt.y;
@@ -1349,23 +1339,13 @@ var GObject=(function(){
 	}
 
 	__proto.handleSizeChanged=function(){
-		if(this._displayObject!=null){
-			if(this._sizeImplType==0 || this.sourceWidth==0 || this.sourceHeight==0)
-				this._displayObject.size(this._width,this._height);
-			else
-			this._displayObject.scale(this._width/this.sourceWidth*this._scaleX,
-			this._height/this.sourceHeight*this._scaleY);
-		}
+		if(this._displayObject!=null)
+			this._displayObject.size(this._width,this._height);
 	}
 
 	__proto.handleScaleChanged=function(){
-		if(this._displayObject!=null){
-			if(this._sizeImplType==0 || this.sourceWidth==0 || this.sourceHeight==0)
-				this._displayObject.scale(this._scaleX,this._scaleY);
-			else
-			this._displayObject.scale(this._width/this.sourceWidth*this._scaleX,
-			this._height/this.sourceHeight*this._scaleY);
-		}
+		if(this._displayObject!=null)
+			this._displayObject.scale(this._scaleX,this._scaleY);
 	}
 
 	__proto.handleGrayedChanged=function(){
@@ -7994,8 +7974,11 @@ var UIPackage=(function(){
 				if (!item.decoded){
 					item.decoded=true;
 					var sprite=this._sprites[item.id];
-					if (sprite !=null)
-						item.texture=this.createSpriteTexture(sprite);
+					if (sprite !=null){
+						var atlasTexture=(this.getItemAsset(sprite.atlas));
+						item.texture=Texture.create(atlasTexture,
+						sprite.rect.x,sprite.rect.y,sprite.rect.width,sprite.rect.height);
+					}
 					else
 					item.texture=null;
 				}
@@ -8032,12 +8015,6 @@ var UIPackage=(function(){
 			}
 	}
 
-	__proto.createSpriteTexture=function(sprite){
-		var atlasTexture=(this.getItemAsset(sprite.atlas));
-		return Texture.createFromTexture(atlasTexture,
-		sprite.rect.x,sprite.rect.y,sprite.rect.width,sprite.rect.height);
-	}
-
 	__proto.loadMovieClip=function(item){
 		var buffer=item.rawData;
 		buffer.seek(0,0);
@@ -8050,18 +8027,24 @@ var UIPackage=(function(){
 		var spriteId;
 		var frame;
 		var sprite;
+		var fx=NaN;
+		var fy=NaN;
 		for (var i=0;i < frameCount;i++){
 			var nextPos=buffer.getInt16();
 			nextPos+=buffer.pos;
 			frame=new Frame();
-			frame.rect.x=buffer.getInt32();
-			frame.rect.y=buffer.getInt32();
-			frame.rect.width=buffer.getInt32();
-			frame.rect.height=buffer.getInt32();
+			fx=buffer.getInt32();
+			fy=buffer.getInt32();
+			buffer.getInt32();
+			buffer.getInt32();
 			frame.addDelay=buffer.getInt32();
 			spriteId=buffer.readS();
-			if (spriteId !=null && (sprite=this._sprites[spriteId])!=null)
-				frame.texture=this.createSpriteTexture(sprite);
+			if (spriteId !=null && (sprite=this._sprites[spriteId])!=null){
+				var atlasTexture=(this.getItemAsset(sprite.atlas));
+				frame.texture=Texture.create(atlasTexture,
+				sprite.rect.x,sprite.rect.y,sprite.rect.width,sprite.rect.height,
+				fx,fy,item.width,item.height);
+			}
 			item.frames[i]=frame;
 			buffer.pos=nextPos;
 		}
@@ -8117,7 +8100,7 @@ var UIPackage=(function(){
 				}
 			}
 			else{
-				bg.texture=Texture.createFromTexture(mainTexture,
+				bg.texture=Texture.create(mainTexture,
 				bx+mainSprite.rect.x,by+mainSprite.rect.y,bg.width,bg.height);
 			}
 			if (font.ttf)
@@ -11628,16 +11611,13 @@ var GearText=(function(_super){
 var GImage=(function(_super){
 	function GImage(){
 		this.image=null;
-		this._color=null;
 		this._flip=0;
 		GImage.__super.call(this);
-		this._color="#FFFFFF";
 	}
 
 	__class(GImage,'fairygui.GImage',_super);
 	var __proto=GImage.prototype;
 	Laya.imps(__proto,{"fairygui.gears.IColorGear":true})
-	__proto.applyColor=function(){}
 	__proto.createDisplayObject=function(){
 		this._displayObject=this.image=new Image$1();
 		this.image.mouseEnabled=false;
@@ -11653,7 +11633,7 @@ var GImage=(function(_super){
 		this.image.scale9Grid=this.packageItem.scale9Grid;
 		this.image.scaleByTile=this.packageItem.scaleByTile;
 		this.image.tileGridIndice=this.packageItem.tileGridIndice;
-		this.image.tex=this.packageItem.texture;
+		this.image.texture=this.packageItem.texture;
 		this.setSize(this.sourceWidth,this.sourceHeight);
 	}
 
@@ -11664,12 +11644,6 @@ var GImage=(function(_super){
 				this.image.x+=this.width;
 			if(this.scaleY==-1)
 				this.image.y+=this.height;
-		}
-	}
-
-	__proto.handleSizeChanged=function(){
-		if(this.image.tex!=null){
-			this.image.scaleTexture(this.width/this.sourceWidth,this.height/this.sourceHeight);
 		}
 	}
 
@@ -11688,12 +11662,11 @@ var GImage=(function(_super){
 	}
 
 	__getset(0,__proto,'color',function(){
-		return this._color;
+		return this.image.color;
 		},function(value){
-		if(this._color !=value){
-			this._color=value;
+		if(this.image.color !=value){
+			this.image.color=value;
 			this.updateGear(4);
-			this.applyColor();
 		}
 	});
 
@@ -11855,9 +11828,6 @@ var GLoader=(function(_super){
 		this._fill=0;
 		this._shrinkOnly=false;
 		this._showErrorSign=false;
-		this._playing=false;
-		this._frame=0;
-		this._color=null;
 		this._contentItem=null;
 		this._contentSourceWidth=0;
 		this._contentSourceHeight=0;
@@ -11868,13 +11838,11 @@ var GLoader=(function(_super){
 		this._content2=null;
 		this._updatingLayout=false;
 		GLoader.__super.call(this);
-		this._playing=true;
 		this._url="";
 		this._fill=0;
 		this._align="left";
 		this._valign="top";
 		this._showErrorSign=true;
-		this._color="#FFFFFF";
 	}
 
 	__class(GLoader,'fairygui.GLoader',_super);
@@ -11882,14 +11850,14 @@ var GLoader=(function(_super){
 	Laya.imps(__proto,{"fairygui.gears.IAnimationGear":true,"fairygui.gears.IColorGear":true})
 	__proto.createDisplayObject=function(){
 		_super.prototype.createDisplayObject.call(this);
+		this._content=new MovieClip$1();
+		this._displayObject.addChild(this._content);
 		this._displayObject.mouseEnabled=true;
 	}
 
 	__proto.dispose=function(){
-		if(this._contentItem==null && ((this._content instanceof fairygui.display.Image ))){
-			var texture=(this._content).tex;
-			if(texture !=null)
-				this.freeExternal(texture);
+		if(this._contentItem==null && this._content.texture!=null){
+			this.freeExternal(this._content.texture);
 		}
 		if(this._content2!=null)
 			this._content2.dispose();
@@ -11897,11 +11865,9 @@ var GLoader=(function(_super){
 	}
 
 	__proto.advance=function(timeInMiniseconds){
-		if((this._content instanceof fairygui.display.MovieClip ))
-			(this._content).advance(timeInMiniseconds);
+		this._content.advance(timeInMiniseconds);
 	}
 
-	__proto.applyColor=function(){}
 	__proto.loadContent=function(){
 		this.clearContent();
 		if (!this._url)
@@ -11923,35 +11889,22 @@ var GLoader=(function(_super){
 					this.setErrorState();
 				}
 				else {
-					if(!((this._content instanceof fairygui.display.Image ))){
-						this._content=new Image$1();
-						this._displayObject.addChild(this._content);
-					}
-					else
-					this._displayObject.addChild(this._content);
-					(this._content).tex=this._contentItem.texture;
-					(this._content).scale9Grid=this._contentItem.scale9Grid;
-					(this._content).scaleByTile=this._contentItem.scaleByTile;
-					(this._content).tileGridIndice=this._contentItem.tileGridIndice;
+					this._content.texture=this._contentItem.texture;
+					this._content.scale9Grid=this._contentItem.scale9Grid;
+					this._content.scaleByTile=this._contentItem.scaleByTile;
+					this._content.tileGridIndice=this._contentItem.tileGridIndice;
 					this._contentSourceWidth=this._contentItem.width;
 					this._contentSourceHeight=this._contentItem.height;
 					this.updateLayout();
 				}
 			}
 			else if(this._contentItem.type==1){
-				if(!((this._content instanceof fairygui.display.MovieClip ))){
-					this._content=new MovieClip$1();
-					this._displayObject.addChild(this._content);
-				}
-				else
-				this._displayObject.addChild(this._content);
 				this._contentSourceWidth=this._contentItem.width;
 				this._contentSourceHeight=this._contentItem.height;
-				(this._content).interval=this._contentItem.interval;
-				(this._content).swing=this._contentItem.swing;
-				(this._content).repeatDelay=this._contentItem.repeatDelay;
-				(this._content).frames=this._contentItem.frames;
-				(this._content).boundsRect=new Rectangle(0,0,this._contentSourceWidth,this._contentSourceHeight);
+				this._content.interval=this._contentItem.interval;
+				this._content.swing=this._contentItem.swing;
+				this._content.repeatDelay=this._contentItem.repeatDelay;
+				this._content.frames=this._contentItem.frames;
 				this.updateLayout();
 			}
 			else if(this._contentItem.type==3){
@@ -11983,15 +11936,9 @@ var GLoader=(function(_super){
 
 	__proto.freeExternal=function(texture){}
 	__proto.onExternalLoadSuccess=function(texture){
-		if(!((this._content instanceof fairygui.display.Image ))){
-			this._content=new Image$1();
-			this._displayObject.addChild(this._content);
-		}
-		else
-		this._displayObject.addChild(this._content);
-		(this._content).tex=texture;
-		(this._content).scale9Grid=null;
-		(this._content).scaleByTile=false;
+		this._content.texture=texture;
+		this._content.scale9Grid=null;
+		this._content.scaleByTile=false;
 		this._contentSourceWidth=texture.width;
 		this._contentSourceHeight=texture.height;
 		this.updateLayout();
@@ -12031,7 +11978,7 @@ var GLoader=(function(_super){
 	}
 
 	__proto.updateLayout=function(){
-		if (this._content2==null && this._content==null){
+		if (this._content2==null && this._content.texture==null && this._content.frames==null){
 			if (this._autoSize){
 				this._updatingLayout=true;
 				this.setSize(50,30);
@@ -12054,12 +12001,8 @@ var GLoader=(function(_super){
 					this._content2.setXY(0,0);
 					this._content2.setScale(1,1);
 				}
-				else{
-					this._content.x=0;
-					this._content.y=0;
-					this._content.scaleX=1;
-					this._content.scaleY=1;
-				}
+				else
+				this._content.pos(0,0);
 				return;
 			}
 		};
@@ -12096,10 +12039,8 @@ var GLoader=(function(_super){
 		}
 		if(this._content2!=null)
 			this._content2.setScale(sx,sy);
-		else if ((this._content instanceof fairygui.display.Image ))
-		(this._content).scaleTexture(sx,sy);
 		else
-		this._content.scale(sx,sy);
+		this._content.size(this._contentWidth,this._contentHeight);
 		var nx=NaN,ny=NaN;
 		if (this._align=="center")
 			nx=Math.floor((this.width-this._contentWidth)/ 2);
@@ -12115,21 +12056,17 @@ var GLoader=(function(_super){
 		ny=0;
 		if(this._content2!=null)
 			this._content2.setXY(nx,ny);
-		else{
-			this._content.x=nx;
-			this._content.y=ny;
-		}
+		else
+		this._content.pos(nx,ny);
 	}
 
 	__proto.clearContent=function(){
 		this.clearErrorState();
-		if (this._content !=null && this._content.parent !=null)
-			this._displayObject.removeChild(this._content);
-		if(this._contentItem==null && ((this._content instanceof fairygui.display.Image ))){
-			var texture=(this._content).tex;
-			if(texture !=null)
-				this.freeExternal(texture);
+		if(this._contentItem==null && this._content.texture!=null){
+			this.freeExternal(this._content.texture);
 		}
+		this._content.texture=null;
+		this._content.frames=null;
 		if(this._content2!=null){
 			this._content2.dispose();
 			this._content2=null;
@@ -12156,8 +12093,8 @@ var GLoader=(function(_super){
 		this._shrinkOnly=buffer.readBool();
 		this._autoSize=buffer.readBool();
 		this._showErrorSign=buffer.readBool();
-		this._playing=buffer.readBool();
-		this._frame=buffer.getInt32();
+		this._content.playing=buffer.readBool();
+		this._content.frame=buffer.getInt32();
 		if (buffer.readBool())
 			this.color=buffer.readColorS();
 		var fillMethod=buffer.readByte();
@@ -12168,12 +12105,10 @@ var GLoader=(function(_super){
 	}
 
 	__getset(0,__proto,'frame',function(){
-		return this._frame;
+		return this._content.frame;
 		},function(value){
-		if (this._frame !=value){
-			this._frame=value;
-			if ((this._content instanceof fairygui.display.MovieClip ))
-				(this._content).frame=value;
+		if (this._content.frame !=value){
+			this._content.frame=value;
 			this.updateGear(5);
 		}
 	});
@@ -12240,7 +12175,6 @@ var GLoader=(function(_super){
 		}
 	});
 
-	//todo:
 	__getset(0,__proto,'showErrorSign',function(){
 		return this._showErrorSign;
 		},function(value){
@@ -12257,33 +12191,26 @@ var GLoader=(function(_super){
 	});
 
 	__getset(0,__proto,'playing',function(){
-		return this._playing;
+		return this._content.playing;
 		},function(value){
-		if (this._playing !=value){
-			this._playing=value;
-			if ((this._content instanceof fairygui.display.MovieClip ))
-				(this._content).playing=value;
+		if (this._content.playing !=value){
+			this._content.playing=value;
 			this.updateGear(5);
 		}
 	});
 
 	__getset(0,__proto,'timeScale',function(){
-		if((this._content instanceof fairygui.display.MovieClip ))
-			return (this._content).timeScale;
-		else
-		return 1;
+		return this._content.timeScale;
 		},function(value){
-		if((this._content instanceof fairygui.display.MovieClip ))
-			(this._content).timeScale=value;
+		this._content.timeScale=value;
 	});
 
 	__getset(0,__proto,'color',function(){
-		return this._color;
+		return this._content.color;
 		},function(value){
-		if(this._color !=value){
-			this._color=value;
+		if(this._content.color !=value){
+			this._content.color=value;
 			this.updateGear(4);
-			this.applyColor();
 		}
 	});
 
@@ -12303,7 +12230,6 @@ var GMovieClip=(function(_super){
 	function GMovieClip(){
 		this._movieClip=null;
 		GMovieClip.__super.call(this);
-		this._sizeImplType=1;
 	}
 
 	__class(GMovieClip,'fairygui.GMovieClip',_super);
@@ -12347,7 +12273,6 @@ var GMovieClip=(function(_super){
 		this._movieClip.swing=this.packageItem.swing;
 		this._movieClip.repeatDelay=this.packageItem.repeatDelay;
 		this._movieClip.frames=this.packageItem.frames;
-		this._movieClip.boundsRect=new Rectangle(0,0,this.sourceWidth,this.sourceHeight);
 	}
 
 	__proto.setup_beforeAdd=function(buffer,beginPos){
@@ -12361,8 +12286,12 @@ var GMovieClip=(function(_super){
 	}
 
 	__getset(0,__proto,'color',function(){
-		return "#FFFFFF";
+		return this._movieClip.color;
 		},function(value){
+		if(this._movieClip.color !=value){
+			this._movieClip.color=value;
+			this.updateGear(4);
+		}
 	});
 
 	__getset(0,__proto,'playing',function(){
@@ -17543,34 +17472,24 @@ var Window$2=(function(_super){
 //class fairygui.display.Image extends laya.display.Sprite
 var Image$1=(function(_super){
 	function Image(){
-		this._tex=null;
+		this._source=null;
 		this._scaleByTile=false;
 		this._scale9Grid=null;
 		this._tileGridIndice=0;
-		this._textureScaleX=1;
-		this._textureScaleY=1;
 		this._needRebuild=0;
 		this._fillMethod=0;
 		this._fillOrigin=0;
 		this._fillAmount=0;
 		this._fillClockwise=false;
 		this._mask=null;
+		this._color=null;
 		Image.__super.call(this);
 		this.mouseEnabled=false;
+		this._color="#FFFFFF";
 	}
 
 	__class(Image,'fairygui.display.Image',_super,'Image$1');
 	var __proto=Image.prototype;
-	__proto.scaleTexture=function(sx,sy){
-		if(this._textureScaleX!=sx || this._textureScaleY!=sy){
-			this._textureScaleX=sx;
-			this._textureScaleY=sy;
-			if(this._tex)
-				this.size(this._tex.width*sx,this._tex.height*sy);
-			this.markChanged(1);
-		}
-	}
-
 	__proto.markChanged=function(flag){
 		if(!this._needRebuild){
 			this._needRebuild=flag;
@@ -17580,10 +17499,11 @@ var Image$1=(function(_super){
 		this._needRebuild |=flag;
 	}
 
-	__proto.rebuild=function(){
-		if((this._needRebuild & 1)!=0)
+	__proto.rebuild=function(forced){
+		(forced===void 0)&& (forced=false);
+		if((this._needRebuild & 1)!=0 || forced)
 			this.doDraw();
-		if((this._needRebuild & 2)!=0 && this._fillMethod!=0)
+		if(((this._needRebuild & 2)!=0 || forced)&& this._fillMethod!=0)
 			this.doFill();
 		this._needRebuild=0;
 	}
@@ -17592,17 +17512,18 @@ var Image$1=(function(_super){
 		var w=this.width;
 		var h=this.height;
 		var g=this.graphics;
-		if(this._tex==null || w==0 || h==0){
+		var tex=this.texture;
+		if(tex==null || w==0 || h==0){
 			g.clear();
 		}
 		else if(this._scaleByTile){
 			g.clear();
-			g.fillTexture(this._tex,0,0,w,h);
+			g.fillTexture(tex,0,0,w,h);
 		}
 		else if(this._scale9Grid!=null){
 			g.clear();
-			var tw=this._tex.width;
-			var th=this._tex.height;
+			var tw=tex.width;
+			var th=tex.height;
 			var left=this._scale9Grid.x;
 			var right=Math.max(tw-this._scale9Grid.right,0);
 			var top=this._scale9Grid.y;
@@ -17630,18 +17551,18 @@ var Image$1=(function(_super){
 			};
 			var centerWidth=Math.max(w-left-right,0);
 			var centerHeight=Math.max(h-top-bottom,0);
-			left && top && g.drawTexture(fairygui.display.Image.getTexture(this._tex,0,0,left,top),0,0,left,top);
-			right && top && g.drawTexture(fairygui.display.Image.getTexture(this._tex,tw-right,0,right,top),w-right,0,right,top);
-			left && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._tex,0,th-bottom,left,bottom),0,h-bottom,left,bottom);
-			right && bottom && g.drawTexture(fairygui.display.Image.getTexture(this._tex,tw-right,th-bottom,right,bottom),w-right,h-bottom,right,bottom);
-			centerWidth && top && this.drawTexture(0,fairygui.display.Image.getTexture(this._tex,left,0,tw-left-right,top),left,0,centerWidth,top);
-			centerWidth && bottom && this.drawTexture(1,fairygui.display.Image.getTexture(this._tex,left,th-bottom,tw-left-right,bottom),left,h-bottom,centerWidth,bottom);
-			centerHeight && left && this.drawTexture(2,fairygui.display.Image.getTexture(this._tex,0,top,left,th-top-bottom),0,top,left,centerHeight);
-			centerHeight && right && this.drawTexture(3,fairygui.display.Image.getTexture(this._tex,tw-right,top,right,th-top-bottom),w-right,top,right,centerHeight);
-			centerWidth && centerHeight && this.drawTexture(4,fairygui.display.Image.getTexture(this._tex,left,top,tw-left-right,th-top-bottom),left,top,centerWidth,centerHeight);
+			left && top && g.drawTexture(fairygui.display.Image.getTexture(tex,0,0,left,top),0,0,left,top);
+			right && top && g.drawTexture(fairygui.display.Image.getTexture(tex,tw-right,0,right,top),w-right,0,right,top);
+			left && bottom && g.drawTexture(fairygui.display.Image.getTexture(tex,0,th-bottom,left,bottom),0,h-bottom,left,bottom);
+			right && bottom && g.drawTexture(fairygui.display.Image.getTexture(tex,tw-right,th-bottom,right,bottom),w-right,h-bottom,right,bottom);
+			centerWidth && top && this.drawTexture(0,fairygui.display.Image.getTexture(tex,left,0,tw-left-right,top),left,0,centerWidth,top);
+			centerWidth && bottom && this.drawTexture(1,fairygui.display.Image.getTexture(tex,left,th-bottom,tw-left-right,bottom),left,h-bottom,centerWidth,bottom);
+			centerHeight && left && this.drawTexture(2,fairygui.display.Image.getTexture(tex,0,top,left,th-top-bottom),0,top,left,centerHeight);
+			centerHeight && right && this.drawTexture(3,fairygui.display.Image.getTexture(tex,tw-right,top,right,th-top-bottom),w-right,top,right,centerHeight);
+			centerWidth && centerHeight && this.drawTexture(4,fairygui.display.Image.getTexture(tex,left,top,tw-left-right,th-top-bottom),left,top,centerWidth,centerHeight);
 		}
 		else {
-			g.cleanByTexture(this._tex,0,0,w,h);
+			g.cleanByTexture(tex,0,0,w,h);
 		}
 	}
 
@@ -17670,25 +17591,51 @@ var Image$1=(function(_super){
 		g.drawPoly(0,0,points,"#FFFFFF");
 	}
 
-	__getset(0,__proto,'fillClockwise',function(){
-		return this._fillClockwise;
+	__getset(0,__proto,'width',_super.prototype._$get_width,function(value){
+		if (this._width!==value){
+			Laya.superSet(Sprite,this,'width',value);
+			this.markChanged(1);
+		}
+	});
+
+	__getset(0,__proto,'fillOrigin',function(){
+		return this._fillOrigin;
 		},function(value){
-		if(this._fillClockwise!=value){
-			this._fillClockwise=value;
+		if(this._fillOrigin!=value){
+			this._fillOrigin=value;
 			if(this._fillMethod!=0)
 				this.markChanged(2);
 		}
 	});
 
-	__getset(0,__proto,'tex',function(){
-		return this._tex;
+	__getset(0,__proto,'height',_super.prototype._$get_height,function(value){
+		if (this._height!==value){
+			Laya.superSet(Sprite,this,'height',value);
+			this.markChanged(1);
+		}
+	});
+
+	__getset(0,__proto,'scaleByTile',function(){
+		return this._scaleByTile;
 		},function(value){
-		if(this._tex!=value){
-			this._tex=value;
-			if(this._tex)
-				this.size(this._tex.width*this._textureScaleX,this._tex.height*this._textureScaleY);
-			else
-			this.size(0,0);
+		if(this._scaleByTile!=value){
+			this._scaleByTile=value;
+			this.markChanged(1);
+		}
+	});
+
+	__getset(0,__proto,'texture',function(){
+		return this._source;
+		},function(value){
+		if(this._source!=value){
+			this._source=value;
+			if(this.width==0){
+				if(this._source)
+					this.size(this._source.width,this._source.height);
+				else
+				this.size(0,0);
+			}
+			this.repaint();
 			this.markChanged(1);
 		}
 	});
@@ -17700,22 +17647,11 @@ var Image$1=(function(_super){
 		this.markChanged(1);
 	});
 
-	__getset(0,__proto,'fillAmount',function(){
-		return this._fillAmount;
+	__getset(0,__proto,'color',function(){
+		return this._color;
 		},function(value){
-		if(this._fillAmount!=value){
-			this._fillAmount=value;
-			if(this._fillMethod!=0)
-				this.markChanged(2);
-		}
-	});
-
-	__getset(0,__proto,'scaleByTile',function(){
-		return this._scaleByTile;
-		},function(value){
-		if(this._scaleByTile!=value){
-			this._scaleByTile=value;
-			this.markChanged(1);
+		if(this._color !=value){
+			this._color=value;
 		}
 	});
 
@@ -17748,11 +17684,21 @@ var Image$1=(function(_super){
 		}
 	});
 
-	__getset(0,__proto,'fillOrigin',function(){
-		return this._fillOrigin;
+	__getset(0,__proto,'fillClockwise',function(){
+		return this._fillClockwise;
 		},function(value){
-		if(this._fillOrigin!=value){
-			this._fillOrigin=value;
+		if(this._fillClockwise!=value){
+			this._fillClockwise=value;
+			if(this._fillMethod!=0)
+				this.markChanged(2);
+		}
+	});
+
+	__getset(0,__proto,'fillAmount',function(){
+		return this._fillAmount;
+		},function(value){
+		if(this._fillAmount!=value){
+			this._fillAmount=value;
 			if(this._fillMethod!=0)
 				this.markChanged(2);
 		}
@@ -17775,20 +17721,17 @@ var Image$1=(function(_super){
 })(Sprite)
 
 
-//class fairygui.display.MovieClip extends laya.display.Sprite
+//class fairygui.display.MovieClip extends fairygui.display.Image
 var MovieClip$1=(function(_super){
 	function MovieClip(){
 		this.interval=0;
 		this.swing=false;
 		this.repeatDelay=0;
 		this.timeScale=1;
-		this._$3__texture=null;
-		this._needRebuild=false;
 		this._playing=true;
 		this._frameCount=0;
 		this._frames=null;
 		this._frame=0;
-		this._boundsRect=null;
 		this._start=0;
 		this._end=0;
 		this._times=0;
@@ -17967,10 +17910,11 @@ var MovieClip$1=(function(_super){
 	__proto.drawFrame=function(){
 		if (this._frameCount>0 && this._frame < this._frames.length){
 			var frame=this._frames[this._frame];
-			this.graphics.cleanByTexture(frame.texture,frame.rect.x,frame.rect.y);
+			this.texture=frame.texture;
 		}
 		else
-		this.graphics.clear();
+		this.texture=null;
+		this.rebuild();
 	}
 
 	__proto.checkTimer=function(){
@@ -17993,20 +17937,24 @@ var MovieClip$1=(function(_super){
 		return this._frames;
 		},function(value){
 		this._frames=value;
-		if (this._frames !=null)
+		this._scaleByTile=false;
+		this._scale9Grid=null;
+		this._fillMethod=0;
+		if (this._frames !=null){
 			this._frameCount=this._frames.length;
+			if(this._end==-1 || this._end > this._frameCount-1)
+				this._end=this._frameCount-1;
+			if(this._endAt==-1 || this._endAt > this._frameCount-1)
+				this._endAt=this._frameCount-1;
+			if(this._frame < 0 || this._frame > this._frameCount-1)
+				this._frame=this._frameCount-1;
+			this._frameElapsed=0;
+			this._repeatedCount=0;
+			this._reversed=false;
+		}
 		else
 		this._frameCount=0;
-		if(this._end==-1 || this._end > this._frameCount-1)
-			this._end=this._frameCount-1;
-		if(this._endAt==-1 || this._endAt > this._frameCount-1)
-			this._endAt=this._frameCount-1;
-		if(this._frame < 0 || this._frame > this._frameCount-1)
-			this._frame=this._frameCount-1;
 		this.drawFrame();
-		this._frameElapsed=0;
-		this._repeatedCount=0;
-		this._reversed=false;
 		this.checkTimer();
 	});
 
@@ -18035,14 +17983,8 @@ var MovieClip$1=(function(_super){
 		}
 	});
 
-	__getset(0,__proto,'boundsRect',function(){
-		return this._boundsRect;
-		},function(value){
-		this._boundsRect=value;
-	});
-
 	return MovieClip;
-})(Sprite)
+})(Image$1)
 
 
 	Laya.__init([GList,Transition,AsyncOperation,UIPackage,RelationItem,GBasicTextField,GearColor,EaseManager,GearAnimation,GearLook,GearSize]);
