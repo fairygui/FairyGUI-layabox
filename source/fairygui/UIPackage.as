@@ -440,7 +440,11 @@ package fairygui {
 						item.decoded = true;
 						var sprite: AtlasSprite = this._sprites[item.id];
 						if (sprite != null)
-							item.texture = this.createSpriteTexture(sprite);
+						{
+							var atlasTexture:Texture = Texture(this.getItemAsset(sprite.atlas));
+							item.texture = Texture.create(atlasTexture,
+								sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height);
+						}
 						else
 							item.texture = null;
 					}
@@ -482,13 +486,7 @@ package fairygui {
 					return null;
 			}
 		}
-		
-		private function createSpriteTexture(sprite: AtlasSprite): Texture {
-			var atlasTexture:Texture = Texture(this.getItemAsset(sprite.atlas));
-			return Texture.createFromTexture(atlasTexture,
-				sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height);
-		}
-		
+
 		private function loadMovieClip(item: PackageItem): void {
 			var buffer:ByteBuffer = item.rawData;
 			
@@ -506,6 +504,8 @@ package fairygui {
 			var spriteId:String;
 			var frame:Frame;
 			var sprite:AtlasSprite;
+			var fx:Number;
+			var fy:Number;
 			
 			for (var i:int = 0; i < frameCount; i++)
 			{
@@ -513,15 +513,20 @@ package fairygui {
 				nextPos += buffer.pos;
 				
 				frame = new Frame();
-				frame.rect.x = buffer.getInt32();
-				frame.rect.y = buffer.getInt32();
-				frame.rect.width = buffer.getInt32();
-				frame.rect.height = buffer.getInt32();
+				fx = buffer.getInt32();
+				fy = buffer.getInt32();
+				buffer.getInt32(); //width
+				buffer.getInt32(); //height
 				frame.addDelay = buffer.getInt32();
 				spriteId = buffer.readS();
 				
 				if (spriteId != null && (sprite=_sprites[spriteId])!=null)
-					frame.texture = this.createSpriteTexture(sprite);
+				{
+					var atlasTexture:Texture = Texture(this.getItemAsset(sprite.atlas));
+					frame.texture = Texture.create(atlasTexture,
+						sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height,
+						fx, fy, item.width, item.height);
+				}
 				item.frames[i] = frame;
 				
 				buffer.pos = nextPos;
@@ -590,7 +595,7 @@ package fairygui {
 				}
 				else
 				{
-					bg.texture = Texture.createFromTexture(mainTexture, 
+					bg.texture = Texture.create(mainTexture, 
 						bx + mainSprite.rect.x, by + mainSprite.rect.y, bg.width, bg.height);
 				}
 				

@@ -1,25 +1,18 @@
 
 package fairygui.display {
-	import laya.display.Sprite;
 	import laya.events.Event;
-	import laya.maths.Rectangle;
-	import laya.resource.Texture;
 	import laya.utils.Handler;
 	
-	public class MovieClip extends Sprite {
+	public class MovieClip extends Image {
 		public var interval: Number = 0;
 		public var swing: Boolean = false;
 		public var repeatDelay: Number = 0;
 		public var timeScale:Number = 1;
 		
-		private var _texture: Texture = null;
-		private var _needRebuild: Boolean = false;
-		
 		private var _playing: Boolean = true;
 		private var _frameCount: Number = 0;
 		private var _frames:Vector.<Frame>;
 		private var _frame: Number = 0;
-		private var _boundsRect: Rectangle;
 		private var _start: Number = 0;
 		private var _end: Number = 0;
 		private var _times: Number = 0;
@@ -48,38 +41,35 @@ package fairygui.display {
 		
 		public function set frames(value:Vector.<Frame>):void {
 			this._frames = value;
+			this._scaleByTile = false;
+			this._scale9Grid = null;
+			this._fillMethod = 0;
+			
 			if (this._frames != null)
+			{
 				this._frameCount = this._frames.length;
+				
+				if(this._end == -1 || this._end > this._frameCount - 1)
+					this._end = this._frameCount - 1;
+				if(this._endAt == -1 || this._endAt > this._frameCount - 1)
+					this._endAt = this._frameCount - 1;
+				
+				if(this._frame < 0 || this._frame > this._frameCount - 1)
+					this._frame = this._frameCount - 1;
+				
+				_frameElapsed = 0;
+				_repeatedCount = 0;
+				_reversed = false;
+			}
 			else
 				this._frameCount = 0;
 			
-			if(this._end == -1 || this._end > this._frameCount - 1)
-				this._end = this._frameCount - 1;
-			if(this._endAt == -1 || this._endAt > this._frameCount - 1)
-				this._endAt = this._frameCount - 1;
-			
-			if(this._frame < 0 || this._frame > this._frameCount - 1)
-				this._frame = this._frameCount - 1;
-			
 			drawFrame();
-			
-			_frameElapsed = 0;
-			_repeatedCount = 0;
-			_reversed = false;
-			
 			checkTimer();
 		}
 		
 		public function get frameCount(): Number {
 			return _frameCount;
-		}
-		
-		public function get boundsRect(): Rectangle {
-			return _boundsRect;
-		}
-		
-		public function set boundsRect(value: Rectangle):void {
-			this._boundsRect = value;
 		}
 		
 		public function get frame(): Number {
@@ -306,11 +296,11 @@ package fairygui.display {
 			if (_frameCount>0 && _frame < _frames.length)
 			{
 				var frame:Frame = _frames[_frame];
-				this.graphics.clear();
-				this.graphics.drawImage(frame.texture, frame.rect.x, frame.rect.y);
+				this.texture = frame.texture;
 			}
 			else
-				this.graphics.clear();
+				this.texture = null;
+			this.rebuild();
 		}
 		
 		private function checkTimer():void

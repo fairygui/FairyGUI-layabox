@@ -53,9 +53,7 @@ package fairygui {
 		
 		protected var _displayObject: Sprite;
 		protected var _yOffset: Number = 0;
-		//Size的实现方式，有两种，0-GObject的w/h等于DisplayObject的w/h。1-GObject的sourceWidth/sourceHeight等于DisplayObject的w/h，剩余部分由scale实现
-		protected var _sizeImplType:int;
-		
+
 		public var minWidth:Number = 0;
 		public var minHeight:Number = 0;
 		public var maxWidth:Number = 0;
@@ -374,14 +372,8 @@ package fairygui {
 			{
 				if(this._displayObject.transform && (this._pivotX!=0 || this._pivotY!=0))
 				{
-					if(this._sizeImplType==0) {
-						GObject.sHelperPoint.x = this._pivotX*_width;
-						GObject.sHelperPoint.y = this._pivotY*_height;
-					}
-					else {
-						GObject.sHelperPoint.x = this._pivotX*this.sourceWidth;
-						GObject.sHelperPoint.y = this._pivotY*this.sourceHeight;
-					}
+					GObject.sHelperPoint.x = this._pivotX*_width;
+					GObject.sHelperPoint.y = this._pivotY*_height;
 					var pt:Point = this._displayObject.transform.transformPoint(GObject.sHelperPoint);
 					this._pivotOffsetX = this._pivotX*_width - pt.x;
 					this._pivotOffsetY = this._pivotY*_height - pt.y;
@@ -1036,25 +1028,13 @@ package fairygui {
 		protected function handleSizeChanged():void
 		{
 			if(this._displayObject!=null)
-			{
-				if(this._sizeImplType==0 || this.sourceWidth==0 || this.sourceHeight==0)
-					this._displayObject.size(this._width, this._height);
-				else
-					this._displayObject.scale(this._width/this.sourceWidth*this._scaleX,
-						this._height/this.sourceHeight*this._scaleY);
-			}
+				this._displayObject.size(this._width, this._height);
 		}
 		
 		protected function handleScaleChanged():void
 		{
 			if(this._displayObject!=null)
-			{
-				if( this._sizeImplType==0 || this.sourceWidth==0 || this.sourceHeight==0)
-					this._displayObject.scale(this._scaleX, this._scaleY);
-				else
-					this._displayObject.scale(this._width/this.sourceWidth*this._scaleX,
-						this._height/this.sourceHeight*this._scaleY);
-			}
+				this._displayObject.scale(this._scaleX, this._scaleY);
 		}
 		
 		private static var grayFilter:ColorFilter = null;

@@ -1,14 +1,10 @@
 package fairygui {
-	import fairygui.display.Image;
 	import fairygui.display.MovieClip;
 	import fairygui.gears.IAnimationGear;
 	import fairygui.gears.IColorGear;
 	import fairygui.utils.ByteBuffer;
 	import fairygui.utils.ToolSet;
 	
-	import laya.display.Node;
-	import laya.display.Sprite;
-	import laya.maths.Rectangle;
 	import laya.net.Loader;
 	import laya.resource.Texture;
 	import laya.utils.Handler;
@@ -21,17 +17,14 @@ package fairygui {
 		private var _fill: int;
 		private var _shrinkOnly:Boolean;
 		private var _showErrorSign: Boolean;
-		private var _playing: Boolean;
-		private var _frame: Number = 0;
-		private var _color: String;
-		
+
 		private var _contentItem: PackageItem;
 		private var _contentSourceWidth: Number = 0;
 		private var _contentSourceHeight: Number = 0;
 		private var _contentWidth: Number = 0;
 		private var _contentHeight: Number = 0;
 		
-		private var _content:Sprite;
+		private var _content:MovieClip;
 		private var _errorSign: GObject;
 		private var _content2:GComponent;
 		
@@ -41,26 +34,24 @@ package fairygui {
 		
 		public function GLoader () {
 			super();
-			this._playing = true;
 			this._url = "";
 			this._fill = LoaderFillType.None;
 			this._align = "left";
 			this._valign = "top";
 			this._showErrorSign = true;
-			this._color = "#FFFFFF";
 		}
 		
 		override protected function createDisplayObject(): void {
 			super.createDisplayObject();
 			
+			this._content = new MovieClip();
+			this._displayObject.addChild(this._content);	
 			this._displayObject.mouseEnabled = true;
 		}
 		
 		override public function dispose(): void {
-			if(this._contentItem == null && (this._content is Image)) {
-				var texture: Texture = Image(this._content).tex;
-				if(texture != null)
-					this.freeExternal(texture);
+			if(this._contentItem == null && this._content.texture!=null) {
+				this.freeExternal(this._content.texture);
 			}
 			
 			if(_content2!=null)
@@ -157,65 +148,51 @@ package fairygui {
 		}
 		
 		public function get playing(): Boolean {
-			return this._playing;
+			return _content.playing;
 		}
 		
 		public function set playing(value: Boolean):void {
-			if (this._playing != value) {
-				this._playing = value;
-				if (this._content is MovieClip)
-					MovieClip(this._content).playing = value;
+			if (_content.playing != value) {
+				_content.playing = value;
 				this.updateGear(5);
 			}
 		}
 		
 		public function get frame(): Number {
-			return this._frame;
+			return _content.frame;
 		}
 		
 		public function set frame(value: Number):void {
-			if (this._frame != value) {
-				this._frame = value;
-				if (this._content is MovieClip)
-					MovieClip(this._content).frame = value;
+			if (_content.frame != value) {
+				_content.frame = value;
 				this.updateGear(5);
 			}
 		}
 		
 		final public function get timeScale():Number
 		{
-			if(_content is MovieClip)
-				return MovieClip(_content).timeScale;
-			else
-				return 1;
+			return _content.timeScale;
 		}
 		
 		public function set timeScale(value:Number):void
 		{
-			if(_content is MovieClip)
-				MovieClip(_content).timeScale = value;
+			_content.timeScale = value;
 		}
 		
 		public function advance(timeInMiniseconds:int):void
 		{
-			if(_content is MovieClip)
-				MovieClip(_content).advance(timeInMiniseconds);
+			_content.advance(timeInMiniseconds);
 		}
 		
 		public function get color(): String {
-			return this._color;
+			return _content.color;
 		}
 		
 		public function set color(value: String):void {
-			if(this._color != value) {
-				this._color = value;
+			if(_content.color != value) {
+				_content.color = value;
 				this.updateGear(4);
-				this.applyColor();
 			}
-		}
-		
-		private function applyColor(): void {
-			//todo:
 		}
 		
 		public function get showErrorSign(): Boolean {
@@ -226,7 +203,7 @@ package fairygui {
 			this._showErrorSign = value;
 		}
 		
-		public function get content(): Node {
+		public function get content(): MovieClip {
 			return this._content;
 		}
 		
@@ -260,35 +237,22 @@ package fairygui {
 						this.setErrorState();
 					}
 					else {
-						if(!(this._content is Image)) {
-							this._content = new Image();
-							this._displayObject.addChild(this._content);
-						}
-						else
-							this._displayObject.addChild(this._content);
-						Image(this._content).tex = this._contentItem.texture;
-						Image(this._content).scale9Grid = this._contentItem.scale9Grid;
-						Image(this._content).scaleByTile = this._contentItem.scaleByTile;
-						Image(this._content).tileGridIndice =  this._contentItem.tileGridIndice;
+						this._content.texture = this._contentItem.texture;
+						this._content.scale9Grid = this._contentItem.scale9Grid;
+						this._content.scaleByTile = this._contentItem.scaleByTile;
+						this._content.tileGridIndice =  this._contentItem.tileGridIndice;
 						this._contentSourceWidth = this._contentItem.width;
 						this._contentSourceHeight = this._contentItem.height;
 						this.updateLayout();
 					}
 				}
 				else if(this._contentItem.type == PackageItemType.MovieClip) {
-					if(!(this._content is MovieClip)) {
-						this._content = new MovieClip();
-						this._displayObject.addChild(this._content);
-					}
-					else
-						this._displayObject.addChild(this._content);
 					this._contentSourceWidth = this._contentItem.width;
 					this._contentSourceHeight = this._contentItem.height;
-					MovieClip(this._content).interval = this._contentItem.interval;
-					MovieClip(this._content).swing = this._contentItem.swing;
-					MovieClip(this._content).repeatDelay = this._contentItem.repeatDelay;
-					MovieClip(this._content).frames = this._contentItem.frames;
-					MovieClip(this._content).boundsRect = new Rectangle(0,0,this._contentSourceWidth,this._contentSourceHeight);
+					this._content.interval = this._contentItem.interval;
+					this._content.swing = this._contentItem.swing;
+					this._content.repeatDelay = this._contentItem.repeatDelay;
+					this._content.frames = this._contentItem.frames;
 					this.updateLayout();
 				}
 				else if(_contentItem.type==PackageItemType.Component)
@@ -325,15 +289,9 @@ package fairygui {
 		}        
 		
 		protected function onExternalLoadSuccess(texture: Texture): void {
-			if(!(this._content is Image)) {
-				this._content = new Image();
-				this._displayObject.addChild(this._content);
-			}
-			else
-				this._displayObject.addChild(this._content);
-			Image(this._content).tex = texture;
-			Image(this._content).scale9Grid = null;
-			Image(this._content).scaleByTile = false;
+			this._content.texture = texture;
+			this._content.scale9Grid = null;
+			this._content.scaleByTile = false;
 			this._contentSourceWidth = texture.width;
 			this._contentSourceHeight = texture.height;
 			this.updateLayout();
@@ -375,7 +333,7 @@ package fairygui {
 		}
 		
 		private function updateLayout(): void {
-			if (_content2==null && this._content == null) {
+			if (_content2==null &&  _content.texture == null && _content.frames==null) {
 				if (this._autoSize) {
 					this._updatingLayout = true;
 					this.setSize(50, 30);
@@ -404,12 +362,7 @@ package fairygui {
 						_content2.setScale(1, 1);
 					}
 					else
-					{
-						_content.x = 0;
-						_content.y = 0;
-						_content.scaleX = 1;
-						_content.scaleY = 1;
-					}
+						_content.pos(0, 0);
 					return;
 				}
 			}
@@ -456,10 +409,8 @@ package fairygui {
 			
 			if(_content2!=null)
 				_content2.setScale(sx, sy);
-			else if (this._content is Image)
-				Image(this._content).scaleTexture(sx, sy);
 			else
-				this._content.scale(sx, sy);
+				_content.size(_contentWidth, _contentHeight);
 			
 			var nx:Number, ny:Number;
 			if (this._align == "center")
@@ -478,23 +429,17 @@ package fairygui {
 			if(_content2!=null)
 				_content2.setXY(nx, ny);
 			else
-			{
-				_content.x = nx;
-				_content.y = ny;
-			}
+				_content.pos(nx, ny);
 		}
 		
 		private function clearContent(): void {
 			this.clearErrorState();
 			
-			if (this._content != null && this._content.parent != null)
-				this._displayObject.removeChild(this._content);
-			
-			if(this._contentItem == null && (this._content is Image)) {
-				var texture: Texture = Image(this._content).tex;
-				if(texture != null)
-					this.freeExternal(texture);
+			if(this._contentItem == null && this._content.texture!=null) {
+				this.freeExternal(this._content.texture);
 			}
+			this._content.texture = null;
+			this._content.frames = null;
 			
 			if(_content2!=null)
 			{
@@ -528,8 +473,8 @@ package fairygui {
 			_shrinkOnly = buffer.readBool();
 			_autoSize = buffer.readBool();
 			_showErrorSign = buffer.readBool();
-			_playing = buffer.readBool();
-			_frame = buffer.getInt32();
+			_content.playing = buffer.readBool();
+			_content.frame = buffer.getInt32();
 			
 			if (buffer.readBool())
 				this.color = buffer.readColorS();
