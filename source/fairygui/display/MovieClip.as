@@ -43,7 +43,6 @@ package fairygui.display {
 			this._frames = value;
 			this._scaleByTile = false;
 			this._scale9Grid = null;
-			this._fillMethod = 0;
 			
 			if (this._frames != null)
 			{

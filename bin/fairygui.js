@@ -17939,7 +17939,6 @@ var MovieClip$1=(function(_super){
 		this._frames=value;
 		this._scaleByTile=false;
 		this._scale9Grid=null;
-		this._fillMethod=0;
 		if (this._frames !=null){
 			this._frameCount=this._frames.length;
 			if(this._end==-1 || this._end > this._frameCount-1)
