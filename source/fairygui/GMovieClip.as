@@ -12,7 +12,6 @@ package fairygui {
 		
 		public function GMovieClip() {
 			super();
-			this._sizeImplType = 1;
 		}
 		
 		public function get color(): String {
@@ -96,7 +95,6 @@ package fairygui {
 			_movieClip.swing = this.packageItem.swing;
 			_movieClip.repeatDelay = this.packageItem.repeatDelay;
 			_movieClip.frames = this.packageItem.frames;
-			_movieClip.boundsRect = new Rectangle(0, 0, this.sourceWidth, this.sourceHeight);
 		}
 		
 		override public function setup_beforeAdd(buffer:ByteBuffer, beginPos:int): void {
