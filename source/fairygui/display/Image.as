@@ -193,8 +193,8 @@ package fairygui.display {
 		}
 		
 		private function doDraw():void {
-			var w:Number=this.width;
-			var h:Number=this.height;
+			var w:Number=this._width;
+			var h:Number=this._height;
 			var g:Graphics = this.graphics;
 			var tex:Texture = this._source;
 			

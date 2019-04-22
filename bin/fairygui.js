@@ -16236,6 +16236,8 @@ var GRichTextField=(function(_super){
 
 	__proto.handleSizeChanged=function(){
 		this.div.size(this.width,this.height);
+		this.div.style.width=this.width;
+		this.div.style.height=this.height;
 	}
 
 	__getset(0,__proto,'bold',function(){
@@ -17563,8 +17565,8 @@ var Image$1=(function(_super){
 	}
 
 	__proto.doDraw=function(){
-		var w=this.width;
-		var h=this.height;
+		var w=this._width;
+		var h=this._height;
 		var g=this.graphics;
 		var tex=this._source;
 		g.clear();
