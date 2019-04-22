@@ -134,6 +134,9 @@ package fairygui {
 		
 		override protected function handleSizeChanged(): void {
 			this.div.size(this.width, this.height);
+			
+			this.div.style.width = this.width;
+			this.div.style.height = this.height;
 		}
 	}
 }
