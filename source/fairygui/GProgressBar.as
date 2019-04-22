@@ -21,8 +21,6 @@ package fairygui {
 		private var _barStartX: Number = 0;
 		private var _barStartY: Number = 0;
 		
-		private var _tweening:Boolean;
-		
 		public function GProgressBar() {
 			super();
 			
@@ -64,13 +62,10 @@ package fairygui {
 		}
 		
 		public function set value(value: Number):void {
-			if(_tweening)
-			{
-				GTween.kill(this, true, this.update);
-				_tweening = false;
-			}
-			
-			if(this._value != value) {
+
+			if(this._value != value) {				
+				GTween.kill(this, false, this.update);
+				
 				this._value = value;
 				this.update(this._value);
 			}
@@ -78,22 +73,19 @@ package fairygui {
 		
 		public function tweenValue(value:Number, duration:Number):GTweener
 		{
-			if(this._value != value) {
-				if(_tweening)
-				{
-					GTween.kill(this, false, this.update);
-					_tweening = false;
-				}
-				
-				var oldValule:Number = _value;
-				_value = value;
-				
-				_tweening = true;
-				return GTween.to(oldValule, _value, duration).setTarget(this, this.update).setEase(EaseType.Linear)
-					.onComplete(function():void { _tweening = false; }, this);
+			var oldValule:Number;
+			
+			var tweener:GTweener = GTween.getTween(this, this.update);
+			if(tweener!=null)
+			{
+				oldValule = tweener.value.x;
+				tweener.kill();
 			}
 			else
-				return null;
+				oldValule = _value;
+			
+			_value = value;
+			return GTween.to(oldValule, _value, duration).setTarget(this, this.update).setEase(EaseType.Linear);
 		}
 		
 		public function update(newValue:Number): void {
@@ -214,12 +206,6 @@ package fairygui {
 			_max = buffer.getInt32();
 			
 			update(this._value);
-		}
-		
-		override public function dispose(): void {
-			if(_tweening)
-				GTween.kill(this);
-			super.dispose();
 		}
 	}
 }

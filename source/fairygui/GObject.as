@@ -857,11 +857,22 @@ package fairygui {
 		public function set icon(value:String):void	{
 		}
 		
+		public function get isDisposed():Boolean
+		{
+			return _displayObject==null;
+		}
+		
 		public function dispose(): void {
 			this.removeFromParent();
 			this._relations.dispose();
 			this._displayObject.destroy();
 			this._displayObject = null;
+			for (var i:int = 0; i < 8; i++)
+			{
+				var gear:GearBase = _gears[i];
+				if (gear != null)
+					gear.dispose();
+			}
 		}
 		
 		public function onClick(thisObj: *, listener: Function, args:Array=null): void {

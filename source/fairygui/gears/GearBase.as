@@ -14,6 +14,15 @@ package fairygui.gears {
 			_owner = owner;
 		}
 		
+		public function dispose():void
+		{
+			if (_tweenConfig != null && _tweenConfig._tweener != null)
+			{
+				_tweenConfig._tweener.kill();
+				_tweenConfig._tweener = null;
+			}
+		}
+		
 		public function get controller(): Controller {
 			return this._controller;
 		}

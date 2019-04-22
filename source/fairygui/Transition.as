@@ -301,6 +301,7 @@ package fairygui
 		public function setValue(label:String, ...args):void
 		{
 			var cnt:int = _items.length;
+			var found:Boolean = false;
 			var value:Object;
 			for (var i:int = 0; i < cnt; i++)
 			{
@@ -311,10 +312,12 @@ package fairygui
 						value = item.tweenConfig.startValue;
 					else
 						value = item.value;
+					found = true;
 				}
 				else if (item.tweenConfig != null && item.tweenConfig.endLabel == label)
 				{
 					value = item.tweenConfig.endValue;
+					found = true;
 				}
 				else
 					continue;
@@ -385,25 +388,34 @@ package fairygui
 						break;
 				}
 			}
+			
+			if (!found)
+				throw new Error("label not exists");
 		}
 		
 		public function setHook(label:String, callback:Handler):void
 		{
 			var cnt:int = _items.length;
+			var found:Boolean = false;
 			for (var i:int = 0; i < cnt; i++)
 			{
 				var item:TransitionItem = _items[i];
 				if (item.label == label)
 				{
 					item.hook = callback;
+					found = true;
 					break;
 				}
 				else if (item.tweenConfig != null && item.tweenConfig.endLabel == label)
 				{
 					item.tweenConfig.endHook = callback;
+					found = true;
 					break;
 				}
 			}
+			
+			if (!found)
+				throw new Error("label not exists");
 		}
 		
 		public function clearHooks():void
@@ -421,26 +433,46 @@ package fairygui
 		public function setTarget(label:String, newTarget:GObject):void
 		{
 			var cnt:int = _items.length;
+			var found:Boolean = false;
 			for (var i:int = 0; i < cnt; i++)
 			{
 				var item:TransitionItem = _items[i];
 				if (item.label == label)
 				{
-					item.targetId = newTarget.id;
-					item.target = null;
+					item.targetId = (newTarget == _owner || newTarget == null) ? "" : newTarget.id;
+					if (_playing)
+					{
+						if (item.targetId.length > 0)
+							item.target = _owner.getChildById(item.targetId);
+						else
+							item.target = _owner;
+					}
+					else
+						item.target = null;
+					found = true;
 				}
 			}
+			
+			if (!found)
+				throw new Error("label not exists");
 		}
 		
 		public function setDuration(label:String, value:Number):void
 		{
 			var cnt:int = _items.length;
+			var found:Boolean = false;
 			for (var i:int = 0; i < cnt; i++)
 			{
 				var item:TransitionItem = _items[i];
 				if (item.tweenConfig != null && item.label == label)
+				{
 					item.tweenConfig.duration = value;
+					found = true;
+				}
 			}
+			
+			if (!found)
+				throw new Error("label not exists");
 		}
 		
 		public function getLabelTime(label:String):Number

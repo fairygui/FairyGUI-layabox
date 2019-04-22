@@ -1,5 +1,7 @@
 package fairygui.tween
 {
+	import fairygui.GObject;
+
 	public class TweenManager
 	{
 		private static var _activeTweens:Array = new Array(30);
@@ -119,7 +121,9 @@ package fairygui.tween
 				}
 				else
 				{
-					if(!tweener._paused)
+					if ((tweener._target is GObject) && GObject(tweener._target).isDisposed)
+						tweener._killed = true;
+					else if(!tweener._paused)
 						tweener._update(dt);
 					
 					if (freePosStart != -1)
