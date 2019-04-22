@@ -35,6 +35,16 @@ package fairygui {
 		//The "rebound" effect in the scolling container. Recommeded true for mobile.
 		public static var defaultScrollBounceEffect: Boolean = true;
 		
+		/**
+		 * 当滚动容器设置为“贴近ITEM”时，判定贴近到哪一个ITEM的滚动距离阀值。
+		 */
+		public static var defaultScrollSnappingThreshold:Number = 0.1;
+		
+		/**
+		 * 当滚动容器设置为“页面模式”时，判定翻到哪一页的滚动距离阀值。
+		 */
+		public static var defaultScrollPagingThreshold:Number = 0.3;
+		
 		//Resources for PopupMenu.
 		public static var popupMenu: String;
 		//Resources for seperator of PopupMenu.

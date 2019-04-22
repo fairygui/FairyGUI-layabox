@@ -928,6 +928,13 @@ package fairygui {
 		}
 		
 		public function getSnappingPosition(xValue: Number, yValue: Number, resultPoint:Point=null): Point {
+			return getSnappingPositionWithDir(xValue, yValue, 0, 0, resultPoint);	
+		}
+		
+		/**
+		 * dir正数表示右移或者下移，负数表示左移或者上移
+		 */
+		public function getSnappingPositionWithDir(xValue: Number, yValue: Number, xDir:int, yDir:int, resultPoint:Point=null): Point {
 			if(!resultPoint)
 				resultPoint = new Point();
 			

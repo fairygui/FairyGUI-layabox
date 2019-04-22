@@ -891,7 +891,14 @@ package fairygui {
 			}
 		}
 		
-		override public function getSnappingPosition(xValue:Number, yValue:Number, resultPoint:Point=null):Point
+		private function shouldSnapToNext(dir:int, delta:Number, size:Number):Boolean
+		{
+			return dir<0 && delta>fairygui.UIConfig.defaultScrollSnappingThreshold*size
+				|| dir>0 && delta>(1-fairygui.UIConfig.defaultScrollSnappingThreshold)*size
+				|| dir==0 && delta>size/2;
+		}
+		
+		override public function getSnappingPositionWithDir(xValue:Number, yValue:Number, xDir:int, yDir:int, resultPoint:Point=null):Point
 		{
 			if (_virtual)
 			{
@@ -900,14 +907,19 @@ package fairygui {
 				
 				var saved:Number;
 				var index:int;
+				var size:Number;
 				if (_layout == ListLayoutType.SingleColumn || _layout == ListLayoutType.FlowHorizontal)
 				{
 					saved = yValue;
 					GList.pos_param = yValue;
 					index = getIndexOnPos1(false);
 					yValue = GList.pos_param;
-					if (index < _virtualItems.length && saved - yValue > _virtualItems[index].height / 2 && index < _realNumItems)
-						yValue += _virtualItems[index].height + _lineGap;
+					if (index < _virtualItems.length && index < _realNumItems)
+					{
+						size = _virtualItems[index].height;
+						if(shouldSnapToNext(yDir, saved-yValue, size))
+							yValue += size + _lineGap;
+					}
 				}
 				else if (_layout == ListLayoutType.SingleRow || _layout == ListLayoutType.FlowVertical)
 				{
@@ -915,8 +927,12 @@ package fairygui {
 					GList.pos_param = xValue;
 					index = getIndexOnPos2(false);
 					xValue = GList.pos_param;
-					if (index < _virtualItems.length && saved - xValue > _virtualItems[index].width / 2 && index < _realNumItems)
-						xValue += _virtualItems[index].width + _columnGap;
+					if (index < _virtualItems.length && index < _realNumItems)
+					{
+						size = _virtualItems[index].width;
+						if(shouldSnapToNext(xDir, saved-xValue, size))
+							xValue += size + _columnGap;
+					}
 				}
 				else
 				{
@@ -924,8 +940,12 @@ package fairygui {
 					GList.pos_param = xValue;
 					index = getIndexOnPos3(false);
 					xValue = GList.pos_param;
-					if (index < _virtualItems.length && saved - xValue > _virtualItems[index].width / 2 && index < _realNumItems)
-						xValue += _virtualItems[index].width + _columnGap;
+					if (index < _virtualItems.length && index < _realNumItems)
+					{
+						size = _virtualItems[index].width;
+						if(shouldSnapToNext(xDir, saved-xValue, size))
+							xValue += size + _columnGap;
+					}
 				}
 				
 				resultPoint.x = xValue;
@@ -933,7 +953,7 @@ package fairygui {
 				return resultPoint;
 			}
 			else
-				return super.getSnappingPosition(xValue, yValue, resultPoint);
+				return super.getSnappingPosition(xValue, yValue, xDir, yDir, resultPoint);
 		}
 		
 		public function scrollToView(index:int, ani:Boolean=false, setFirst:Boolean=false):void

@@ -1144,6 +1144,8 @@ declare module fairygui {
         static defaultScrollBarDisplay: number;
         static defaultScrollTouchEffect: boolean;
         static defaultScrollBounceEffect: boolean;
+        static defaultScrollSnappingThreshold: number;
+        static defaultScrollPagingThreshold: number;
         static popupMenu: string;
         static popupMenu_seperator: string;
         static loaderErrorSign: string;

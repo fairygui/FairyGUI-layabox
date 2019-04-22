@@ -1666,7 +1666,15 @@ package fairygui {
 			}
 			else if (_snapToItem)
 			{
-				var pt:Point = _owner.getSnappingPosition(-pos.x, -pos.y, sHelperPoint);
+				var xDir:int = 0;
+				var yDir:int = 0;
+				if(inertialScrolling)
+				{
+					xDir = pos.x - _containerPos.x;
+					yDir = pos.y - _containerPos.y;
+				}
+				
+				var pt:Point = _owner.getSnappingPositionWithDir(-pos.x, -pos.y, xDir, yDir, sHelperPoint);
 				if (pos.x < 0 && pos.x > -_overlapSize.x)
 					pos.x = -pt.x;
 				if (pos.y < 0 && pos.y > -_overlapSize.y)
@@ -1697,7 +1705,7 @@ package fairygui {
 				}
 				else //否则只需要页面的1/3，当然，需要考虑到左移和右移的情况
 				{
-					if (delta > testPageSize * (change < 0 ? 0.3 : 0.7))
+					if (delta > testPageSize * (change < 0 ? fairygui.UIConfig.defaultScrollPagingThreshold : (1-fairygui.UIConfig.defaultScrollPagingThreshold)))
 						page++;
 				}
 				
