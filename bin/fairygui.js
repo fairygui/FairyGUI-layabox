@@ -17631,8 +17631,8 @@ var Image$1=(function(_super){
 	}
 
 	__proto.doFill=function(){
-		var w=this.width;
-		var h=this.height;
+		var w=this._width;
+		var h=this._height;
 		var g=this._mask.graphics;
 		g.clear();
 		if(w==0 || h==0)
@@ -17684,7 +17684,7 @@ var Image$1=(function(_super){
 		},function(value){
 		if(this._source!=value){
 			this._source=value;
-			if(this.width==0){
+			if(this._width==0){
 				if(this._source)
 					this.size(this._source.width,this._source.height);
 				else
