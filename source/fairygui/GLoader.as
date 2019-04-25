@@ -362,7 +362,10 @@ package fairygui {
 						_content2.setScale(1, 1);
 					}
 					else
+					{
+						_content.size(_contentWidth, _contentHeight);
 						_content.pos(0, 0);
+					}
 					return;
 				}
 			}

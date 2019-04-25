@@ -11970,8 +11970,10 @@ var GLoader=(function(_super){
 					this._content2.setXY(0,0);
 					this._content2.setScale(1,1);
 				}
-				else
-				this._content.pos(0,0);
+				else{
+					this._content.size(this._contentWidth,this._contentHeight);
+					this._content.pos(0,0);
+				}
 				return;
 			}
 		};
