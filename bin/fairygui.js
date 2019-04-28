@@ -1415,16 +1415,16 @@ var UBBParser=(function(){
 
 	__proto.onTag_COLOR=function(tagName,end,attr){
 		if (!end)
-			return "<font color=\""+attr+"\">";
+			return "<span style=\"color:"+attr+"\">";
 		else
-		return "</font>";
+		return "</span>";
 	}
 
 	__proto.onTag_FONT=function(tagName,end,attr){
 		if (!end)
-			return "<font face=\""+attr+"\">";
+			return "<span style=\"font-family:"+attr+"\">";
 		else
-		return "</font>";
+		return "</span>";
 	}
 
 	__proto.onTag_SIZE=function(tagName,end,attr){
@@ -1439,10 +1439,10 @@ var UBBParser=(function(){
 			attr=""+(this.smallFontSize+parseInt(attr.substr(1)));
 			else if (attr.length && attr.charAt(0)=="-")
 			attr=""+(this.smallFontSize-parseInt(attr.substr(1)));
-			return "<font size=\""+attr+"\">";
+			return "<span style=\"font-size:"+attr+"\">";
 		}
 		else
-		return "</font>";
+		return "</span>";
 	}
 
 	__proto.getTagText=function(remove){

@@ -63,16 +63,16 @@ package fairygui.utils {
 		
 		protected function onTag_COLOR(tagName: String, end: Boolean, attr: String): String {
 			if (!end)
-				return "<font color=\"" + attr + "\">";
+				return "<span style=\"color:" + attr + "\">";
 			else
-				return "</font>";
+				return "</span>";
 		}
 		
 		protected function onTag_FONT(tagName: String, end: Boolean, attr: String): String {
 			if (!end)
-				return "<font face=\"" + attr + "\">";
+				return "<span style=\"font-family:" + attr + "\">";
 			else
-				return "</font>";
+				return "</span>";
 		}
 		
 		protected function onTag_SIZE(tagName: String, end: Boolean, attr: String): String {
@@ -87,10 +87,10 @@ package fairygui.utils {
 					attr = "" + (this.smallFontSize + parseInt(attr.substr(1)));
 				else if (attr.length && attr.charAt(0) == "-")
 					attr = "" + (this.smallFontSize - parseInt(attr.substr(1)));
-				return "<font size=\"" + attr + "\">";
+				return "<span style=\"font-size:" + attr + "\">";
 			}
 			else
-				return "</font>";
+				return "</span>";
 		}
 		
 		protected function getTagText(remove:Boolean=false):String {
