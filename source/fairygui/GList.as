@@ -953,7 +953,7 @@ package fairygui {
 				return resultPoint;
 			}
 			else
-				return super.getSnappingPosition(xValue, yValue, xDir, yDir, resultPoint);
+				return super.getSnappingPositionWithDir(xValue, yValue, xDir, yDir, resultPoint);
 		}
 		
 		public function scrollToView(index:int, ani:Boolean=false, setFirst:Boolean=false):void

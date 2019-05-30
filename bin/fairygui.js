@@ -13245,7 +13245,7 @@ var GList=(function(_super){
 			return resultPoint;
 		}
 		else
-		return this.getSnappingPosition(xValue,yValue,xDir,yDir,resultPoint);
+		return _super.prototype.getSnappingPositionWithDir.call(this,xValue,yValue,xDir,yDir,resultPoint);
 	}
 
 	__proto.scrollToView=function(index,ani,setFirst){
