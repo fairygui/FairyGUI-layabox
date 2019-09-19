@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "es6",
+    "target": "es6",
+    "outDir":"./bin/js/",
+    "declaration": true,
+    "declarationDir": "./bin/types/",
+    "sourceMap": false,
+    "removeComments": true
+  },
+  "exclude": [
+    "node_modules", 
+    "bin/**/*.d.ts",
+    "test"
+  ]
+}
