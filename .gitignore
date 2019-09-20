@@ -1,2 +1,4 @@
 /node_modules
 /bin
+.DS_Store
+test/.rpt2_cache

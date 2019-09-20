@@ -1108,6 +1108,9 @@ namespace fgui {
         }
 
         private _refreshVirtualList(): void {
+            if(!this._displayObject)
+                return;
+
             var layoutChanged: boolean = this._virtualListChanged == 2;
             this._virtualListChanged = 0;
             this._eventLocked = true;

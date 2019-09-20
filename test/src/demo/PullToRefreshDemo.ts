@@ -45,6 +45,8 @@ export default class PullToRefreshDemo {
 
             //Simulate a async resquest
             Laya.timer.once(2000, this, function (): void {
+                if(this._view.isDisposed)
+                    return;
                 this._list1.numItems += 5;
 
                 //Refresh completed
@@ -60,13 +62,15 @@ export default class PullToRefreshDemo {
     }
 
     private onPullUpToRefresh(evt: laya.events.Event): void {
-        var footer: fairygui.GComponent = this._list2.scrollPane.footer.asCom;
+        var footer: fgui.GComponent = this._list2.scrollPane.footer.asCom;
 
         footer.getController("c1").selectedIndex = 1;
         this._list2.scrollPane.lockFooter(footer.sourceHeight);
 
         //Simulate a async resquest
         Laya.timer.once(2000, this, function (): void {
+            if(this._view.isDisposed)
+                return;
             this._list2.numItems += 5;
 
             //Refresh completed

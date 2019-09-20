@@ -5861,6 +5861,8 @@ var fgui;
             }
         }
         buildNativeDisplayList() {
+            if (!this._displayObject)
+                return;
             var cnt = this._children.length;
             if (cnt == 0)
                 return;
@@ -9341,6 +9343,8 @@ var fgui;
             Laya.timer.callLater(this, this._refreshVirtualList);
         }
         _refreshVirtualList() {
+            if (!this._displayObject)
+                return;
             var layoutChanged = this._virtualListChanged == 2;
             this._virtualListChanged = 0;
             this._eventLocked = true;

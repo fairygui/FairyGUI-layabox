@@ -409,8 +409,9 @@
             btn.stopDrag();
             fgui.DragDropManager.inst.startDrag(btn, btn.icon, btn.icon);
         }
-        __onDrop(target, data) {
-            target.icon = data;
+        __onDrop(data, evt) {
+            var btn = fgui.GObject.cast(evt.currentTarget);
+            btn.icon = data;
         }
         playDepth() {
             var obj = this._demoObjects["Depth"];
@@ -711,6 +712,8 @@
                 header.setRefreshStatus(2);
                 this._list1.scrollPane.lockHeader(header.sourceHeight);
                 Laya.timer.once(2000, this, function () {
+                    if (this._view.isDisposed)
+                        return;
                     this._list1.numItems += 5;
                     header.setRefreshStatus(3);
                     this._list1.scrollPane.lockHeader(35);
@@ -726,6 +729,8 @@
             footer.getController("c1").selectedIndex = 1;
             this._list2.scrollPane.lockFooter(footer.sourceHeight);
             Laya.timer.once(2000, this, function () {
+                if (this._view.isDisposed)
+                    return;
                 this._list2.numItems += 5;
                 footer.getController("c1").selectedIndex = 0;
                 this._list2.scrollPane.lockFooter(0);

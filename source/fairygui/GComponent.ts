@@ -451,6 +451,8 @@ namespace fgui {
         }
 
         private buildNativeDisplayList(): void {
+            if(!this._displayObject)
+                return;
             var cnt: number = this._children.length;
             if (cnt == 0)
                 return;

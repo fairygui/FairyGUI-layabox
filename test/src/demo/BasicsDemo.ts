@@ -209,14 +209,15 @@ export default class BasicDemo {
         btnD.dragBounds = rect;
     }
 
-    private __onDragStart(evt: Laya.Event): void {
-        var btn: fgui.GObject = fgui.GObject.cast(evt.currentTarget);
+    private __onDragStart(evt:laya.events.Event):void {
+        var btn: fgui.GButton = <fgui.GButton>fgui.GObject.cast(evt.currentTarget);
         btn.stopDrag();//取消对原目标的拖动，换成一个替代品
-        fgui.DragDropManager.inst.startDrag(btn, btn.icon, btn.icon);
+        fgui.DragDropManager.inst.startDrag(btn,btn.icon,btn.icon);
     }
-
-    private __onDrop(target: fgui.GObject, data: any): void {
-        target.icon = data;
+    
+    private __onDrop(data:any, evt:laya.events.Event):void {
+        var btn: fgui.GButton = <fgui.GButton>fgui.GObject.cast(evt.currentTarget);
+        btn.icon = data;
     }
 
     //------------------------------
