@@ -6463,9 +6463,12 @@ var fgui;
             this.setBoundsChangedFlag();
             if (this.packageItem.objectType != fgui.ObjectType.Component)
                 this.constructExtension(buffer);
-            this.constructFromXML(null);
+            this.onConstruct();
         }
         constructExtension(buffer) {
+        }
+        onConstruct() {
+            this.constructFromXML(null);
         }
         constructFromXML(xml) {
         }

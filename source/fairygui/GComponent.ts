@@ -1178,10 +1178,14 @@ namespace fgui {
             if (this.packageItem.objectType != ObjectType.Component)
                 this.constructExtension(buffer);
 
-            this.constructFromXML(null);
+            this.onConstruct();
         }
 
         protected constructExtension(buffer: ByteBuffer): void {
+        }
+
+        protected onConstruct():void {
+            this.constructFromXML(null); //old version
         }
 
         protected constructFromXML(xml: Object): void {

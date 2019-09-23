@@ -38,10 +38,8 @@ class GlobalWaiting extends fgui.GComponent {
         super();
     }
 
-    protected constructFromXML(xml:any):void
-    {
-        super.constructFromXML(xml);
-        
+    protected onConstruct():void
+    {        
         this._obj = this.getChild("n1");
         this.on(Laya.Event.DISPLAY,this,this.onAddedToStage);
         this.on(Laya.Event.UNDISPLAY,this,this.onRemoveFromStage);

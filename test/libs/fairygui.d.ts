@@ -1198,6 +1198,7 @@ declare namespace fgui {
         constructFromResource(): void;
         constructFromResource2(objectPool: GObject[], poolIndex: number): void;
         protected constructExtension(buffer: ByteBuffer): void;
+        protected onConstruct(): void;
         protected constructFromXML(xml: Object): void;
         setup_afterAdd(buffer: ByteBuffer, beginPos: number): void;
         private ___added;

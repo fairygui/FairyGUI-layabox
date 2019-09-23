@@ -572,7 +572,7 @@
         constructor() {
             super();
         }
-        constructFromXML(xml) {
+        onConstruct() {
             this._timeText = this.getChild("timeText").asTextField;
             this._readController = this.getController("IsRead");
             this._fetchController = this.getController("c1");
@@ -660,7 +660,7 @@
         constructor() {
             super();
         }
-        constructFromXML(xml) {
+        onConstruct() {
             this._c1 = this.getController("c1");
             this.on(fgui.Events.SIZE_CHANGED, this, this.onSizeChanged);
         }
@@ -762,8 +762,7 @@
         constructor() {
             super();
         }
-        constructFromXML(xml) {
-            super.constructFromXML(xml);
+        onConstruct() {
             this._obj = this.getChild("n1");
             this.on(Laya.Event.DISPLAY, this, this.onAddedToStage);
             this.on(Laya.Event.UNDISPLAY, this, this.onRemoveFromStage);

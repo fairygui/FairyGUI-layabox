@@ -10,7 +10,7 @@ export default class MailItem extends fgui.GButton {
         super();
     }
 
-    protected constructFromXML(xml: any): void {
+    protected onConstruct(): void {
         this._timeText = this.getChild("timeText").asTextField;
         this._readController = this.getController("IsRead");
         this._fetchController = this.getController("c1");

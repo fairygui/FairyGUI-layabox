@@ -7,7 +7,7 @@ export default class ScrollPaneHeader extends fgui.GComponent {
         super();
     }
 
-    protected constructFromXML(xml:any): void {
+    protected onConstruct(): void {
         this._c1 = this.getController("c1");
         this.on(fgui.Events.SIZE_CHANGED, this, this.onSizeChanged);
     }
