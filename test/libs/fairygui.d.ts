@@ -2156,6 +2156,7 @@ declare namespace fgui {
     class UIObjectFactory {
         static packageItemExtensions: any;
         private static loaderType;
+        static setExtension(url: string, type: any): void;
         static setPackageItemExtension(url: string, type: any): void;
         static setLoaderExtension(type: any): void;
         static resolvePackageItemExtension(pi: PackageItem): void;

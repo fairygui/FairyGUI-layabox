@@ -14808,13 +14808,16 @@ var fgui;
 var fgui;
 (function (fgui) {
     class UIObjectFactory {
-        static setPackageItemExtension(url, type) {
+        static setExtension(url, type) {
             if (url == null)
                 throw new Error("Invaild url: " + url);
             var pi = fgui.UIPackage.getItemByURL(url);
             if (pi != null)
                 pi.extensionType = type;
             UIObjectFactory.packageItemExtensions[url] = type;
+        }
+        static setPackageItemExtension(url, type) {
+            UIObjectFactory.setExtension(url, type);
         }
         static setLoaderExtension(type) {
             UIObjectFactory.loaderType = type;

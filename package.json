@@ -18,6 +18,7 @@
     "gulp": "^3.9.1",
     "gulp-babel": "^8.0.0",
     "gulp-concat": "^2.6.1",
+    "gulp-minify": "^3.1.0",
     "gulp-typescript": "^3.1.6",
     "gulp-uglify": "^3.0.2",
     "tsify": "^3.0.1",

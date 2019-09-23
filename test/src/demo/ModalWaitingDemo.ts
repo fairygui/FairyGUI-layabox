@@ -8,13 +8,13 @@ export default class ModalWaitingDemo {
         fgui.UIConfig.globalModalWaiting = "ui://ModalWaiting/GlobalModalWaiting";
         fgui.UIConfig.windowModalWaiting = "ui://ModalWaiting/WindowModalWaiting";
 
-        fgui.UIObjectFactory.setPackageItemExtension("ui://ModalWaiting/GlobalModalWaiting", GlobalWaiting);
+        fgui.UIObjectFactory.setExtension("ui://ModalWaiting/GlobalModalWaiting", GlobalWaiting);
 
         fgui.UIPackage.loadPackage("res/UI/ModalWaiting", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {
-        fgui.UIObjectFactory.setPackageItemExtension("ui://ModalWaiting/GlobalWaiting", GlobalWaiting);
+        fgui.UIObjectFactory.setExtension("ui://ModalWaiting/GlobalWaiting", GlobalWaiting);
 
         this._view = fgui.UIPackage.createObject("ModalWaiting", "Main").asCom;
         this._view.setSize(fgui.GRoot.inst.width, fgui.GRoot.inst.height);

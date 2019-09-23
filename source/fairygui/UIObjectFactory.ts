@@ -3,7 +3,7 @@ namespace fgui {
         public static packageItemExtensions: any = {};
         private static loaderType: any;
 
-        public static setPackageItemExtension(url: string, type: any): void {
+        public static setExtension(url: string, type: any): void {
             if (url == null)
                 throw new Error("Invaild url: " + url);
 
@@ -12,6 +12,10 @@ namespace fgui {
                 pi.extensionType = type;
 
             UIObjectFactory.packageItemExtensions[url] = type;
+        }
+
+        public static setPackageItemExtension(url: string, type: any): void {
+            UIObjectFactory.setExtension(url, type);
         }
 
         public static setLoaderExtension(type: any): void {

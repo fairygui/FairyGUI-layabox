@@ -6,7 +6,7 @@ export default class PullToRefreshDemo {
     private _list2: fgui.GList;
 
     constructor() {
-        fgui.UIObjectFactory.setPackageItemExtension("ui://PullToRefresh/Header", ScrollPaneHeader);
+        fgui.UIObjectFactory.setExtension("ui://PullToRefresh/Header", ScrollPaneHeader);
         
         fgui.UIPackage.loadPackage("res/UI/PullToRefresh", Laya.Handler.create(this, this.onUILoaded));
     }

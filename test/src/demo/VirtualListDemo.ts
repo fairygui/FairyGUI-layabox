@@ -9,7 +9,7 @@ export default class VirtualListDemo {
     }
 
     onUILoaded() {
-        fgui.UIObjectFactory.setPackageItemExtension("ui://VirtualList/mailItem", MailItem);
+        fgui.UIObjectFactory.setExtension("ui://VirtualList/mailItem", MailItem);
         
         this._view = fgui.UIPackage.createObject("VirtualList", "Main").asCom;
         this._view.makeFullScreen();

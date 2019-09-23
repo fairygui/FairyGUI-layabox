@@ -598,7 +598,7 @@
             fgui.UIPackage.loadPackage("res/UI/VirtualList", Laya.Handler.create(this, this.onUILoaded));
         }
         onUILoaded() {
-            fgui.UIObjectFactory.setPackageItemExtension("ui://VirtualList/mailItem", MailItem);
+            fgui.UIObjectFactory.setExtension("ui://VirtualList/mailItem", MailItem);
             this._view = fgui.UIPackage.createObject("VirtualList", "Main").asCom;
             this._view.makeFullScreen();
             fgui.GRoot.inst.addChild(this._view);
@@ -682,7 +682,7 @@
 
     class PullToRefreshDemo {
         constructor() {
-            fgui.UIObjectFactory.setPackageItemExtension("ui://PullToRefresh/Header", ScrollPaneHeader);
+            fgui.UIObjectFactory.setExtension("ui://PullToRefresh/Header", ScrollPaneHeader);
             fgui.UIPackage.loadPackage("res/UI/PullToRefresh", Laya.Handler.create(this, this.onUILoaded));
         }
         onUILoaded() {
@@ -742,11 +742,11 @@
         constructor() {
             fgui.UIConfig.globalModalWaiting = "ui://ModalWaiting/GlobalModalWaiting";
             fgui.UIConfig.windowModalWaiting = "ui://ModalWaiting/WindowModalWaiting";
-            fgui.UIObjectFactory.setPackageItemExtension("ui://ModalWaiting/GlobalModalWaiting", GlobalWaiting);
+            fgui.UIObjectFactory.setExtension("ui://ModalWaiting/GlobalModalWaiting", GlobalWaiting);
             fgui.UIPackage.loadPackage("res/UI/ModalWaiting", Laya.Handler.create(this, this.onUILoaded));
         }
         onUILoaded() {
-            fgui.UIObjectFactory.setPackageItemExtension("ui://ModalWaiting/GlobalWaiting", GlobalWaiting);
+            fgui.UIObjectFactory.setExtension("ui://ModalWaiting/GlobalWaiting", GlobalWaiting);
             this._view = fgui.UIPackage.createObject("ModalWaiting", "Main").asCom;
             this._view.setSize(fgui.GRoot.inst.width, fgui.GRoot.inst.height);
             fgui.GRoot.inst.addChild(this._view);
@@ -961,7 +961,7 @@
             fgui.UIPackage.loadPackage("res/UI/ListEffect", Laya.Handler.create(this, this.onUILoaded));
         }
         onUILoaded() {
-            fgui.UIObjectFactory.setPackageItemExtension("ui://ListEffect/mailItem", MailItem);
+            fgui.UIObjectFactory.setExtension("ui://ListEffect/mailItem", MailItem);
             this._view = fgui.UIPackage.createObject("ListEffect", "Main").asCom;
             this._view.setSize(fgui.GRoot.inst.width, fgui.GRoot.inst.height);
             fgui.GRoot.inst.addChild(this._view);

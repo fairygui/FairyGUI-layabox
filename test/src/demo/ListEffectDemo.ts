@@ -9,7 +9,7 @@ export default class ListEffectDemo {
     }
 
     onUILoaded() {
-        fgui.UIObjectFactory.setPackageItemExtension("ui://ListEffect/mailItem", MailItem);
+        fgui.UIObjectFactory.setExtension("ui://ListEffect/mailItem", MailItem);
 
         this._view = fgui.UIPackage.createObject("ListEffect", "Main").asCom;
         this._view.setSize(fgui.GRoot.inst.width, fgui.GRoot.inst.height);
