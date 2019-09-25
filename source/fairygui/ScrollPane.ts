@@ -945,26 +945,26 @@ namespace fgui {
                 var posY: number;
 
                 if (this._overlapSize.x > 0)
-                    this.posX = -Math.floor(this._xPos);
+                    posX = -Math.floor(this._xPos);
                 else {
                     if (this._container.x != 0)
                         this._container.x = 0;
-                    this.posX = 0;
+                    posX = 0;
                 }
                 if (this._overlapSize.y > 0)
-                    this.posY = -Math.floor(this._yPos);
+                    posY = -Math.floor(this._yPos);
                 else {
                     if (this._container.y != 0)
                         this._container.y = 0;
-                    this.posY = 0;
+                    posY = 0;
                 }
 
-                if (this.posX != this._container.x || this.posY != this._container.y) {
+                if (posX != this._container.x || posY != this._container.y) {
                     this._tweening = 1;
                     this._tweenTime.setTo(0, 0);
                     this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_GO, ScrollPane.TWEEN_TIME_GO);
                     this._tweenStart.setTo(this._container.x, this._container.y);
-                    this._tweenChange.setTo(this.posX - this._tweenStart.x, this.posY - this._tweenStart.y);
+                    this._tweenChange.setTo(posX - this._tweenStart.x, posY - this._tweenStart.y);
                     Laya.timer.frameLoop(1, this, this.tweenUpdate);
                 }
                 else if (this._tweening != 0)

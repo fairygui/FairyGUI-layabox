@@ -2,6 +2,7 @@
 const gulp = require("gulp");
 const concat = require("gulp-concat");
 const minify = require('gulp-minify');
+const replace = require('gulp-string-replace');
 
 let files = [
     "action/ControllerAction",
@@ -76,8 +77,7 @@ let files = [
 
 let jsFiles = [];
 let dtsFiles = [];
-for(var i in files)
-{
+for (var i in files) {
     jsFiles.push("./bin/js/" + files[i] + ".js");
     dtsFiles.push("./bin/types/" + files[i] + ".d.ts");
 }
@@ -88,16 +88,19 @@ gulp.task('types', function () {
         .pipe(gulp.dest('./test/libs/'));
 });
 
-gulp.task('compress', function() {
+let first = true
+gulp.task('default', ["types"], function () {
     gulp.src(jsFiles)
+        .pipe(replace('var fgui;', function () {
+            if (first) {
+                first = false;
+                return "window.fgui = {};";
+            }
+            else
+                return "";
+        }, { logs: { enabled: false } }))
         .pipe(concat('fairygui.js'))
-        .pipe(minify({ext:{min:".min.js"}}))
-        .pipe(gulp.dest('./test/bin/libs/fairygui/'));
-});
-
-gulp.task('default', ["types", "compress"], function () {
-    gulp.src(jsFiles)
-        .pipe(concat('fairygui.js'))
+        .pipe(minify({ ext: { min: ".min.js" } }))
         .pipe(gulp.dest('./test/bin/libs/fairygui/'));
 });
 

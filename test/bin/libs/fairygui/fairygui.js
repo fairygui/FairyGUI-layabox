@@ -1,4 +1,4 @@
-var fgui;
+window.fgui = {};
 (function (fgui) {
     class ControllerAction {
         constructor() {
@@ -39,7 +39,7 @@ var fgui;
     fgui.ControllerAction = ControllerAction;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class PlayTransitionAction extends fgui.ControllerAction {
         constructor() {
@@ -75,7 +75,7 @@ var fgui;
     fgui.PlayTransitionAction = PlayTransitionAction;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class ChangePageAction extends fgui.ControllerAction {
         constructor() {
@@ -105,7 +105,7 @@ var fgui;
     fgui.ChangePageAction = ChangePageAction;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class BitmapFont {
         constructor() {
@@ -128,7 +128,7 @@ var fgui;
     fgui.BMGlyph = BMGlyph;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class Image extends Laya.Sprite {
         constructor() {
@@ -319,7 +319,7 @@ var fgui;
     fgui.Image = Image;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class MovieClip extends fgui.Image {
         constructor() {
@@ -569,7 +569,7 @@ var fgui;
     fgui.Frame = Frame;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class FillUtils {
         static fill(w, h, method, origin, clockwise, amount) {
@@ -848,7 +848,7 @@ var fgui;
     fgui.FillUtils = FillUtils;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class ByteBuffer extends Laya.Byte {
         constructor(data = null, offset = 0, length = -1) {
@@ -955,7 +955,7 @@ var fgui;
     fgui.ByteBuffer = ByteBuffer;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     let _func = Laya.HitArea["_isHitGraphic"];
     class ChildHitArea extends Laya.HitArea {
@@ -982,7 +982,7 @@ var fgui;
     fgui.ChildHitArea = ChildHitArea;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class UBBParser {
         constructor() {
@@ -1135,7 +1135,7 @@ var fgui;
     fgui.UBBParser = UBBParser;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class PixelHitTest extends Laya.HitArea {
         constructor(data, offsetX = 0, offsetY = 0) {
@@ -1181,7 +1181,7 @@ var fgui;
     fgui.PixelHitTestData = PixelHitTestData;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class ToolSet {
         static getFileName(source) {
@@ -1319,7 +1319,7 @@ var fgui;
     fgui.ToolSet = ToolSet;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class ColorMatrix extends Array {
         constructor() {
@@ -1443,7 +1443,7 @@ var fgui;
     fgui.ColorMatrix = ColorMatrix;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class EaseManager {
         static evaluate(easeType, time, duration, overshootOrAmplitude, period) {
@@ -1604,7 +1604,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class EaseType {
     }
@@ -1643,7 +1643,7 @@ var fgui;
     fgui.EaseType = EaseType;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GTween {
         static to(start, end, duration) {
@@ -1681,7 +1681,7 @@ var fgui;
     fgui.GTween = GTween;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GTweener {
         constructor() {
@@ -2063,7 +2063,7 @@ var fgui;
     fgui.GTweener = GTweener;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class TweenManager {
         static createTween() {
@@ -2171,7 +2171,7 @@ var fgui;
     fgui.TweenManager = TweenManager;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class TweenValue {
         constructor() {
@@ -2225,7 +2225,7 @@ var fgui;
     fgui.TweenValue = TweenValue;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GearBase {
         constructor(owner) {
@@ -2307,7 +2307,7 @@ var fgui;
     fgui.GearTweenConfig = GearTweenConfig;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GearSize extends fgui.GearBase {
         constructor(owner) {
@@ -2416,7 +2416,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GearXY extends fgui.GearBase {
         constructor(owner) {
@@ -2504,7 +2504,7 @@ var fgui;
     fgui.GearXY = GearXY;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GearText extends fgui.GearBase {
         constructor(owner) {
@@ -2536,7 +2536,7 @@ var fgui;
     fgui.GearText = GearText;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GearIcon extends fgui.GearBase {
         constructor(owner) {
@@ -2568,7 +2568,7 @@ var fgui;
     fgui.GearIcon = GearIcon;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GearAnimation extends fgui.GearBase {
         constructor(owner) {
@@ -2617,7 +2617,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GearColor extends fgui.GearBase {
         constructor(owner) {
@@ -2667,7 +2667,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GearDisplay extends fgui.GearBase {
         constructor(owner) {
@@ -2704,7 +2704,7 @@ var fgui;
     fgui.GearDisplay = GearDisplay;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GearLook extends fgui.GearBase {
         constructor(owner) {
@@ -2806,7 +2806,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class AssetProxy {
         constructor() {
@@ -2830,7 +2830,7 @@ var fgui;
     fgui.AssetProxy = AssetProxy;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class AsyncOperation {
         constructor() {
@@ -2999,7 +2999,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class Controller extends Laya.EventDispatcher {
         constructor() {
@@ -3206,7 +3206,7 @@ var fgui;
     fgui.Controller = Controller;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class Events {
         static createEvent(type, target, source = null) {
@@ -3244,7 +3244,7 @@ var fgui;
     fgui.Events = Events;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     let ButtonMode;
     (function (ButtonMode) {
@@ -3469,7 +3469,7 @@ var fgui;
     ;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class Transition {
         constructor(owner) {
@@ -4479,7 +4479,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GObject {
         constructor() {
@@ -5485,7 +5485,7 @@ var fgui;
     fgui.GObject = GObject;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class PackageItem {
         constructor() {
@@ -5505,7 +5505,7 @@ var fgui;
     fgui.PackageItem = PackageItem;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GComponent extends fgui.GObject {
         constructor() {
@@ -6502,7 +6502,7 @@ var fgui;
     fgui.GComponent = GComponent;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GButton extends fgui.GComponent {
         constructor() {
@@ -6945,7 +6945,7 @@ var fgui;
     fgui.GButton = GButton;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GComboBox extends fgui.GComponent {
         constructor() {
@@ -7327,7 +7327,7 @@ var fgui;
     fgui.GComboBox = GComboBox;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GScrollBar extends fgui.GComponent {
         constructor() {
@@ -7448,7 +7448,7 @@ var fgui;
     fgui.GScrollBar = GScrollBar;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GSlider extends fgui.GComponent {
         constructor() {
@@ -7649,7 +7649,7 @@ var fgui;
     fgui.GSlider = GSlider;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GGraph extends fgui.GObject {
         constructor() {
@@ -7806,7 +7806,7 @@ var fgui;
     fgui.GGraph = GGraph;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GGroup extends fgui.GObject {
         constructor() {
@@ -8136,7 +8136,7 @@ var fgui;
     fgui.GGroup = GGroup;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GImage extends fgui.GObject {
         constructor() {
@@ -8245,7 +8245,7 @@ var fgui;
     fgui.GImage = GImage;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GLabel extends fgui.GComponent {
         constructor() {
@@ -8420,7 +8420,7 @@ var fgui;
     fgui.GLabel = GLabel;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GList extends fgui.GComponent {
         constructor() {
@@ -10410,7 +10410,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GObjectPool {
         constructor() {
@@ -10458,7 +10458,7 @@ var fgui;
     fgui.GObjectPool = GObjectPool;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GLoader extends fgui.GObject {
         constructor() {
@@ -10855,7 +10855,7 @@ var fgui;
     fgui.GLoader = GLoader;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GMovieClip extends fgui.GObject {
         constructor() {
@@ -10968,7 +10968,7 @@ var fgui;
     fgui.GMovieClip = GMovieClip;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GProgressBar extends fgui.GComponent {
         constructor() {
@@ -11126,7 +11126,7 @@ var fgui;
     fgui.GProgressBar = GProgressBar;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GTextField extends fgui.GObject {
         constructor() {
@@ -11343,7 +11343,7 @@ var fgui;
     fgui.GTextField = GTextField;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GBasicTextField extends fgui.GTextField {
         constructor() {
@@ -11894,7 +11894,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GRichTextField extends fgui.GTextField {
         constructor() {
@@ -12008,7 +12008,7 @@ var fgui;
     fgui.GRichTextField = GRichTextField;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GTextInput extends fgui.GTextField {
         constructor() {
@@ -12163,7 +12163,7 @@ var fgui;
     fgui.GTextInput = GTextInput;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class GRoot extends fgui.GComponent {
         constructor() {
@@ -12513,7 +12513,7 @@ var fgui;
     fgui.GRoot = GRoot;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class Margin {
         constructor() {
@@ -12533,7 +12533,7 @@ var fgui;
 })(fgui || (fgui = {}));
 
 
-var fgui;
+
 (function (fgui) {
     class PopupMenu {
         constructor(resourceURL = null) {
@@ -12682,7 +12682,7 @@ var fgui;
     fgui.PopupMenu = PopupMenu;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class RelationItem {
         constructor(owner) {
@@ -13224,7 +13224,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class Relations {
         constructor(owner) {
@@ -13357,7 +13357,7 @@ var fgui;
     fgui.Relations = Relations;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class ScrollPane {
         constructor(owner) {
@@ -14087,25 +14087,25 @@ var fgui;
                 var posX;
                 var posY;
                 if (this._overlapSize.x > 0)
-                    this.posX = -Math.floor(this._xPos);
+                    posX = -Math.floor(this._xPos);
                 else {
                     if (this._container.x != 0)
                         this._container.x = 0;
-                    this.posX = 0;
+                    posX = 0;
                 }
                 if (this._overlapSize.y > 0)
-                    this.posY = -Math.floor(this._yPos);
+                    posY = -Math.floor(this._yPos);
                 else {
                     if (this._container.y != 0)
                         this._container.y = 0;
-                    this.posY = 0;
+                    posY = 0;
                 }
-                if (this.posX != this._container.x || this.posY != this._container.y) {
+                if (posX != this._container.x || posY != this._container.y) {
                     this._tweening = 1;
                     this._tweenTime.setTo(0, 0);
                     this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_GO, ScrollPane.TWEEN_TIME_GO);
                     this._tweenStart.setTo(this._container.x, this._container.y);
-                    this._tweenChange.setTo(this.posX - this._tweenStart.x, this.posY - this._tweenStart.y);
+                    this._tweenChange.setTo(posX - this._tweenStart.x, posY - this._tweenStart.y);
                     Laya.timer.frameLoop(1, this, this.tweenUpdate);
                 }
                 else if (this._tweening != 0)
@@ -14781,7 +14781,7 @@ var fgui;
     fgui.ScrollPane = ScrollPane;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class UIConfig {
         constructor() {
@@ -14808,7 +14808,7 @@ var fgui;
     fgui.UIConfig = UIConfig;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class UIObjectFactory {
         static setExtension(url, type) {
@@ -14882,7 +14882,7 @@ var fgui;
     fgui.UIObjectFactory = UIObjectFactory;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class UIPackage {
         constructor() {
@@ -15387,7 +15387,7 @@ var fgui;
     }
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class Window extends fgui.GComponent {
         constructor() {
@@ -15615,7 +15615,7 @@ var fgui;
     fgui.Window = Window;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class DragDropManager {
         constructor() {
@@ -15677,7 +15677,7 @@ var fgui;
     fgui.DragDropManager = DragDropManager;
 })(fgui || (fgui = {}));
 
-var fgui;
+
 (function (fgui) {
     class TranslationHelper {
         constructor() {
