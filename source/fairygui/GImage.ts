@@ -2,7 +2,7 @@ namespace fgui {
     export class GImage extends GObject {
         public image: Image;
 
-        private _flip: number;
+        private _flip: number = 0;
 
         constructor() {
             super();

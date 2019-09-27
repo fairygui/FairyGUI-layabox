@@ -954,7 +954,7 @@ namespace fgui {
 
         protected handleScaleChanged(): void {
             if (this._displayObject != null)
-                this._displayObject.scale(this._scaleX, this._scaleY);
+                this._displayObject.scale(this._scaleX, this._scaleY, true);
         }
 
         private static grayFilter: Laya.ColorFilter = null;
