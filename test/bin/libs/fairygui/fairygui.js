@@ -5247,7 +5247,7 @@ window.fgui = {};
         }
         handleScaleChanged() {
             if (this._displayObject != null)
-                this._displayObject.scale(this._scaleX, this._scaleY);
+                this._displayObject.scale(this._scaleX, this._scaleY, true);
         }
         handleGrayedChanged() {
             if (this._displayObject) {
@@ -8141,6 +8141,7 @@ window.fgui = {};
     class GImage extends fgui.GObject {
         constructor() {
             super();
+            this._flip = 0;
         }
         get color() {
             return this.image.color;
