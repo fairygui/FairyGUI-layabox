@@ -1,4 +1,4 @@
-//<reference path="UBBParser.ts"/>
+///<reference path="UBBParser.ts"/>
 
 namespace fgui {
     export class ToolSet {

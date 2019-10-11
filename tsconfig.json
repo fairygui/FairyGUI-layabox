@@ -1,12 +1,11 @@
 {
   "compilerOptions": {
-    "module": "es6",
+    "module": "system",
     "target": "es6",
-    "outDir":"./bin/js/",
     "declaration": true,
-    "declarationDir": "./bin/types/",
     "sourceMap": false,
-    "removeComments": true
+    "removeComments": true,
+    "outFile": "./fairygui.js",
   },
   "exclude": [
     "node_modules", 

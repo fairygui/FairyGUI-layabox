@@ -1,3210 +1,5 @@
 window.fgui = {};
 (function (fgui) {
-    class ControllerAction {
-        constructor() {
-        }
-        static createAction(type) {
-            switch (type) {
-                case 0:
-                    return new fgui.PlayTransitionAction();
-                case 1:
-                    return new fgui.ChangePageAction();
-            }
-            return null;
-        }
-        run(controller, prevPage, curPage) {
-            if ((this.fromPage == null || this.fromPage.length == 0 || this.fromPage.indexOf(prevPage) != -1)
-                && (this.toPage == null || this.toPage.length == 0 || this.toPage.indexOf(curPage) != -1))
-                this.enter(controller);
-            else
-                this.leave(controller);
-        }
-        enter(controller) {
-        }
-        leave(controller) {
-        }
-        setup(buffer) {
-            var cnt;
-            var i;
-            cnt = buffer.getInt16();
-            this.fromPage = [];
-            for (i = 0; i < cnt; i++)
-                this.fromPage[i] = buffer.readS();
-            cnt = buffer.getInt16();
-            this.toPage = [];
-            for (i = 0; i < cnt; i++)
-                this.toPage[i] = buffer.readS();
-        }
-    }
-    fgui.ControllerAction = ControllerAction;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class PlayTransitionAction extends fgui.ControllerAction {
-        constructor() {
-            super();
-            this.playTimes = 1;
-            this.delay = 0;
-            this.stopOnExit = false;
-        }
-        enter(controller) {
-            var trans = controller.parent.getTransition(this.transitionName);
-            if (trans) {
-                if (this._currentTransition && this._currentTransition.playing)
-                    trans.changePlayTimes(this.playTimes);
-                else
-                    trans.play(null, this.playTimes, this.delay);
-                this._currentTransition = trans;
-            }
-        }
-        leave(controller) {
-            if (this.stopOnExit && this._currentTransition) {
-                this._currentTransition.stop();
-                this._currentTransition = null;
-            }
-        }
-        setup(buffer) {
-            super.setup(buffer);
-            this.transitionName = buffer.readS();
-            this.playTimes = buffer.getInt32();
-            this.delay = buffer.getFloat32();
-            this.stopOnExit = buffer.readBool();
-        }
-    }
-    fgui.PlayTransitionAction = PlayTransitionAction;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class ChangePageAction extends fgui.ControllerAction {
-        constructor() {
-            super();
-        }
-        enter(controller) {
-            if (!this.controllerName)
-                return;
-            var gcom;
-            if (this.objectId)
-                gcom = controller.parent.getChildById(this.objectId);
-            else
-                gcom = controller.parent;
-            if (gcom) {
-                var cc = gcom.getController(this.controllerName);
-                if (cc && cc != controller && !cc.changing) {
-                    if (this.targetPage == "~1") {
-                        if (controller.selectedIndex < cc.pageCount)
-                            cc.selectedIndex = controller.selectedIndex;
-                    }
-                    else if (this.targetPage == "~2")
-                        cc.selectedPage = controller.selectedPage;
-                    else
-                        cc.selectedPageId = this.targetPage;
-                }
-            }
-        }
-        setup(buffer) {
-            super.setup(buffer);
-            this.objectId = buffer.readS();
-            this.controllerName = buffer.readS();
-            this.targetPage = buffer.readS();
-        }
-    }
-    fgui.ChangePageAction = ChangePageAction;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class BitmapFont {
-        constructor() {
-            this.size = 0;
-            this.glyphs = {};
-        }
-    }
-    fgui.BitmapFont = BitmapFont;
-    class BMGlyph {
-        constructor() {
-            this.offsetX = 0;
-            this.offsetY = 0;
-            this.width = 0;
-            this.height = 0;
-            this.advance = 0;
-            this.lineHeight = 0;
-            this.channel = 0;
-        }
-    }
-    fgui.BMGlyph = BMGlyph;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class Image extends Laya.Sprite {
-        constructor() {
-            super();
-            this._scaleByTile = false;
-            this._scale9Grid = null;
-            this._tileGridIndice = 0;
-            this._needRebuild = 0;
-            this._fillMethod = 0;
-            this._fillOrigin = 0;
-            this._fillAmount = 0;
-            this._fillClockwise = false;
-            this._mask = null;
-            this.mouseEnabled = false;
-            this._color = "#FFFFFF";
-        }
-        set width(value) {
-            if (this["_width"] !== value) {
-                super.set_width(value);
-                this.markChanged(1);
-            }
-        }
-        set height(value) {
-            if (this["_height"] !== value) {
-                super.set_height(value);
-                this.markChanged(1);
-            }
-        }
-        get texture() {
-            return this._source;
-        }
-        set texture(value) {
-            if (this._source != value) {
-                this._source = value;
-                if (this["_width"] == 0) {
-                    if (this._source)
-                        this.size(this._source.width, this._source.height);
-                    else
-                        this.size(0, 0);
-                }
-                this.repaint();
-                this.markChanged(1);
-            }
-        }
-        get scale9Grid() {
-            return this._scale9Grid;
-        }
-        set scale9Grid(value) {
-            this._scale9Grid = value;
-            this._sizeGrid = null;
-            this.markChanged(1);
-        }
-        get scaleByTile() {
-            return this._scaleByTile;
-        }
-        set scaleByTile(value) {
-            if (this._scaleByTile != value) {
-                this._scaleByTile = value;
-                this.markChanged(1);
-            }
-        }
-        get tileGridIndice() {
-            return this._tileGridIndice;
-        }
-        set tileGridIndice(value) {
-            if (this._tileGridIndice != value) {
-                this._tileGridIndice = value;
-                this.markChanged(1);
-            }
-        }
-        get fillMethod() {
-            return this._fillMethod;
-        }
-        set fillMethod(value) {
-            if (this._fillMethod != value) {
-                this._fillMethod = value;
-                if (this._fillMethod != 0) {
-                    if (!this._mask) {
-                        this._mask = new Laya.Sprite();
-                        this._mask.mouseEnabled = false;
-                    }
-                    this.mask = this._mask;
-                    this.markChanged(2);
-                }
-                else if (this.mask) {
-                    this._mask.graphics.clear();
-                    this.mask = null;
-                }
-            }
-        }
-        get fillOrigin() {
-            return this._fillOrigin;
-        }
-        set fillOrigin(value) {
-            if (this._fillOrigin != value) {
-                this._fillOrigin = value;
-                if (this._fillMethod != 0)
-                    this.markChanged(2);
-            }
-        }
-        get fillClockwise() {
-            return this._fillClockwise;
-        }
-        set fillClockwise(value) {
-            if (this._fillClockwise != value) {
-                this._fillClockwise = value;
-                if (this._fillMethod != 0)
-                    this.markChanged(2);
-            }
-        }
-        get fillAmount() {
-            return this._fillAmount;
-        }
-        set fillAmount(value) {
-            if (this._fillAmount != value) {
-                this._fillAmount = value;
-                if (this._fillMethod != 0)
-                    this.markChanged(2);
-            }
-        }
-        get color() {
-            return this._color;
-        }
-        set color(value) {
-            if (this._color != value) {
-                this._color = value;
-                fgui.ToolSet.setColorFilter(this, value);
-            }
-        }
-        markChanged(flag) {
-            if (!this._needRebuild) {
-                this._needRebuild = flag;
-                Laya.timer.callLater(this, this.rebuild);
-            }
-            else
-                this._needRebuild |= flag;
-        }
-        rebuild() {
-            if ((this._needRebuild & 1) != 0)
-                this.doDraw();
-            if ((this._needRebuild & 2) != 0 && this._fillMethod != 0)
-                this.doFill();
-            this._needRebuild = 0;
-        }
-        doDraw() {
-            var w = this["_width"];
-            var h = this["_height"];
-            var g = this.graphics;
-            var tex = this._source;
-            g.clear();
-            if (tex == null || w == 0 || h == 0) {
-                return;
-            }
-            if (this._scaleByTile) {
-                g.fillTexture(tex, 0, 0, w, h);
-            }
-            else if (this._scale9Grid != null) {
-                if (!this._sizeGrid) {
-                    var tw = tex.width;
-                    var th = tex.height;
-                    var left = this._scale9Grid.x;
-                    var right = Math.max(tw - this._scale9Grid.right, 0);
-                    var top = this._scale9Grid.y;
-                    var bottom = Math.max(th - this._scale9Grid.bottom, 0);
-                    this._sizeGrid = [top, right, bottom, left];
-                }
-                g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid);
-            }
-            else {
-                g.drawImage(tex, 0, 0, w, h);
-            }
-        }
-        doFill() {
-            var w = this["_width"];
-            var h = this["_height"];
-            var g = this._mask.graphics;
-            g.clear();
-            if (w == 0 || h == 0)
-                return;
-            var points = fgui.FillUtils.fill(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
-            if (points == null) {
-                this.mask = null;
-                this.mask = this._mask;
-                return;
-            }
-            g.drawPoly(0, 0, points, "#FFFFFF");
-        }
-    }
-    fgui.Image = Image;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class MovieClip extends fgui.Image {
-        constructor() {
-            super();
-            this.interval = 0;
-            this.swing = false;
-            this.repeatDelay = 0;
-            this.timeScale = 1;
-            this._playing = true;
-            this._frameCount = 0;
-            this._frame = 0;
-            this._start = 0;
-            this._end = 0;
-            this._times = 0;
-            this._endAt = 0;
-            this._status = 0;
-            this._endHandler = null;
-            this._frameElapsed = 0;
-            this._reversed = false;
-            this._repeatedCount = 0;
-            this.mouseEnabled = false;
-            this.setPlaySettings();
-            this.on(Laya.Event.DISPLAY, this, this.__addToStage);
-            this.on(Laya.Event.UNDISPLAY, this, this.__removeFromStage);
-        }
-        get frames() {
-            return this._frames;
-        }
-        set frames(value) {
-            this._frames = value;
-            this._scaleByTile = false;
-            this._scale9Grid = null;
-            if (this._frames != null) {
-                this._frameCount = this._frames.length;
-                if (this._end == -1 || this._end > this._frameCount - 1)
-                    this._end = this._frameCount - 1;
-                if (this._endAt == -1 || this._endAt > this._frameCount - 1)
-                    this._endAt = this._frameCount - 1;
-                if (this._frame < 0 || this._frame > this._frameCount - 1)
-                    this._frame = this._frameCount - 1;
-                this._frameElapsed = 0;
-                this._repeatedCount = 0;
-                this._reversed = false;
-            }
-            else
-                this._frameCount = 0;
-            this.drawFrame();
-            this.checkTimer();
-        }
-        get frameCount() {
-            return this._frameCount;
-        }
-        get frame() {
-            return this._frame;
-        }
-        set frame(value) {
-            if (this._frame != value) {
-                if (this._frames != null && value >= this._frameCount)
-                    value = this._frameCount - 1;
-                this._frame = value;
-                this._frameElapsed = 0;
-                this.drawFrame();
-            }
-        }
-        get playing() {
-            return this._playing;
-        }
-        set playing(value) {
-            if (this._playing != value) {
-                this._playing = value;
-                this.checkTimer();
-            }
-        }
-        rewind() {
-            this._frame = 0;
-            this._frameElapsed = 0;
-            this._reversed = false;
-            this._repeatedCount = 0;
-            this.drawFrame();
-        }
-        syncStatus(anotherMc) {
-            this._frame = anotherMc._frame;
-            this._frameElapsed = anotherMc._frameElapsed;
-            this._reversed = anotherMc._reversed;
-            this._repeatedCount = anotherMc._repeatedCount;
-            this.drawFrame();
-        }
-        advance(timeInMiniseconds) {
-            var beginFrame = this._frame;
-            var beginReversed = this._reversed;
-            var backupTime = timeInMiniseconds;
-            while (true) {
-                var tt = this.interval + this._frames[this._frame].addDelay;
-                if (this._frame == 0 && this._repeatedCount > 0)
-                    tt += this.repeatDelay;
-                if (timeInMiniseconds < tt) {
-                    this._frameElapsed = 0;
-                    break;
-                }
-                timeInMiniseconds -= tt;
-                if (this.swing) {
-                    if (this._reversed) {
-                        this._frame--;
-                        if (this._frame <= 0) {
-                            this._frame = 0;
-                            this._repeatedCount++;
-                            this._reversed = !this._reversed;
-                        }
-                    }
-                    else {
-                        this._frame++;
-                        if (this._frame > this._frameCount - 1) {
-                            this._frame = Math.max(0, this._frameCount - 2);
-                            this._repeatedCount++;
-                            this._reversed = !this._reversed;
-                        }
-                    }
-                }
-                else {
-                    this._frame++;
-                    if (this._frame > this._frameCount - 1) {
-                        this._frame = 0;
-                        this._repeatedCount++;
-                    }
-                }
-                if (this._frame == beginFrame && this._reversed == beginReversed) {
-                    var roundTime = backupTime - timeInMiniseconds;
-                    timeInMiniseconds -= Math.floor(timeInMiniseconds / roundTime) * roundTime;
-                }
-            }
-            this.drawFrame();
-        }
-        setPlaySettings(start = 0, end = -1, times = 0, endAt = -1, endHandler = null) {
-            this._start = start;
-            this._end = end;
-            if (this._end == -1 || this._end > this._frameCount - 1)
-                this._end = this._frameCount - 1;
-            this._times = times;
-            this._endAt = endAt;
-            if (this._endAt == -1)
-                this._endAt = this._end;
-            this._status = 0;
-            this._endHandler = endHandler;
-            this.frame = start;
-        }
-        update() {
-            if (!this._playing || this._frameCount == 0 || this._status == 3)
-                return;
-            var dt = Laya.timer.delta;
-            if (dt > 100)
-                dt = 100;
-            if (this.timeScale != 1)
-                dt *= this.timeScale;
-            this._frameElapsed += dt;
-            var tt = this.interval + this._frames[this._frame].addDelay;
-            if (this._frame == 0 && this._repeatedCount > 0)
-                tt += this.repeatDelay;
-            if (this._frameElapsed < tt)
-                return;
-            this._frameElapsed -= tt;
-            if (this._frameElapsed > this.interval)
-                this._frameElapsed = this.interval;
-            if (this.swing) {
-                if (this._reversed) {
-                    this._frame--;
-                    if (this._frame <= 0) {
-                        this._frame = 0;
-                        this._repeatedCount++;
-                        this._reversed = !this._reversed;
-                    }
-                }
-                else {
-                    this._frame++;
-                    if (this._frame > this._frameCount - 1) {
-                        this._frame = Math.max(0, this._frameCount - 2);
-                        this._repeatedCount++;
-                        this._reversed = !this._reversed;
-                    }
-                }
-            }
-            else {
-                this._frame++;
-                if (this._frame > this._frameCount - 1) {
-                    this._frame = 0;
-                    this._repeatedCount++;
-                }
-            }
-            if (this._status == 1) {
-                this._frame = this._start;
-                this._frameElapsed = 0;
-                this._status = 0;
-            }
-            else if (this._status == 2) {
-                this._frame = this._endAt;
-                this._frameElapsed = 0;
-                this._status = 3;
-                if (this._endHandler != null) {
-                    var handler = this._endHandler;
-                    this._endHandler = null;
-                    handler.run();
-                }
-            }
-            else {
-                if (this._frame == this._end) {
-                    if (this._times > 0) {
-                        this._times--;
-                        if (this._times == 0)
-                            this._status = 2;
-                        else
-                            this._status = 1;
-                    }
-                    else if (this._start != 0)
-                        this._status = 1;
-                }
-            }
-            this.drawFrame();
-        }
-        drawFrame() {
-            if (this._frameCount > 0 && this._frame < this._frames.length) {
-                var frame = this._frames[this._frame];
-                this.texture = frame.texture;
-            }
-            else
-                this.texture = null;
-            this.rebuild();
-        }
-        checkTimer() {
-            if (this._playing && this._frameCount > 0 && this.stage != null)
-                Laya.timer.frameLoop(1, this, this.update);
-            else
-                Laya.timer.clear(this, this.update);
-        }
-        __addToStage() {
-            if (this._playing && this._frameCount > 0)
-                Laya.timer.frameLoop(1, this, this.update);
-        }
-        __removeFromStage() {
-            Laya.timer.clear(this, this.update);
-        }
-    }
-    fgui.MovieClip = MovieClip;
-    class Frame {
-        constructor() {
-            this.addDelay = 0;
-        }
-    }
-    fgui.Frame = Frame;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class FillUtils {
-        static fill(w, h, method, origin, clockwise, amount) {
-            if (amount <= 0)
-                return null;
-            else if (amount >= 0.9999)
-                return [0, 0, w, 0, w, h, 0, h];
-            var points;
-            switch (method) {
-                case fgui.FillMethod.Horizontal:
-                    points = FillUtils.fillHorizontal(w, h, origin, amount);
-                    break;
-                case fgui.FillMethod.Vertical:
-                    points = FillUtils.fillVertical(w, h, origin, amount);
-                    break;
-                case fgui.FillMethod.Radial90:
-                    points = FillUtils.fillRadial90(w, h, origin, clockwise, amount);
-                    break;
-                case fgui.FillMethod.Radial180:
-                    points = FillUtils.fillRadial180(w, h, origin, clockwise, amount);
-                    break;
-                case fgui.FillMethod.Radial360:
-                    points = FillUtils.fillRadial360(w, h, origin, clockwise, amount);
-                    break;
-            }
-            return points;
-        }
-        static fillHorizontal(w, h, origin, amount) {
-            var w2 = w * amount;
-            if (origin == fgui.FillOrigin.Left || origin == fgui.FillOrigin.Top)
-                return [0, 0, w2, 0, w2, h, 0, h];
-            else
-                return [w, 0, w, h, w - w2, h, w - w2, 0];
-        }
-        static fillVertical(w, h, origin, amount) {
-            var h2 = h * amount;
-            if (origin == fgui.FillOrigin.Left || origin == fgui.FillOrigin.Top)
-                return [0, 0, 0, h2, w, h2, w, 0];
-            else
-                return [0, h, w, h, w, h - h2, 0, h - h2];
-        }
-        static fillRadial90(w, h, origin, clockwise, amount) {
-            if (clockwise && (origin == fgui.FillOrigin.TopRight || origin == fgui.FillOrigin.BottomLeft)
-                || !clockwise && (origin == fgui.FillOrigin.TopLeft || origin == fgui.FillOrigin.BottomRight)) {
-                amount = 1 - amount;
-            }
-            var v, v2, h2;
-            v = Math.tan(Math.PI / 2 * amount);
-            h2 = w * v;
-            v2 = (h2 - h) / h2;
-            var points;
-            switch (origin) {
-                case fgui.FillOrigin.TopLeft:
-                    if (clockwise) {
-                        if (h2 <= h)
-                            points = [0, 0, w, h2, w, 0];
-                        else
-                            points = [0, 0, w * (1 - v2), h, w, h, w, 0];
-                    }
-                    else {
-                        if (h2 <= h)
-                            points = [0, 0, w, h2, w, h, 0, h];
-                        else
-                            points = [0, 0, w * (1 - v2), h, 0, h];
-                    }
-                    break;
-                case fgui.FillOrigin.TopRight:
-                    if (clockwise) {
-                        if (h2 <= h)
-                            points = [w, 0, 0, h2, 0, h, w, h];
-                        else
-                            points = [w, 0, w * v2, h, w, h];
-                    }
-                    else {
-                        if (h2 <= h)
-                            points = [w, 0, 0, h2, 0, 0];
-                        else
-                            points = [w, 0, w * v2, h, 0, h, 0, 0];
-                    }
-                    break;
-                case fgui.FillOrigin.BottomLeft:
-                    if (clockwise) {
-                        if (h2 <= h)
-                            points = [0, h, w, h - h2, w, 0, 0, 0];
-                        else
-                            points = [0, h, w * (1 - v2), 0, 0, 0];
-                    }
-                    else {
-                        if (h2 <= h)
-                            points = [0, h, w, h - h2, w, h];
-                        else
-                            points = [0, h, w * (1 - v2), 0, w, 0, w, h];
-                    }
-                    break;
-                case fgui.FillOrigin.BottomRight:
-                    if (clockwise) {
-                        if (h2 <= h)
-                            points = [w, h, 0, h - h2, 0, h];
-                        else
-                            points = [w, h, w * v2, 0, 0, 0, 0, h];
-                    }
-                    else {
-                        if (h2 <= h)
-                            points = [w, h, 0, h - h2, 0, 0, w, 0];
-                        else
-                            points = [w, h, w * v2, 0, w, 0];
-                    }
-                    break;
-            }
-            return points;
-        }
-        static movePoints(points, offsetX, offsetY) {
-            var cnt = points.length;
-            for (var i = 0; i < cnt; i += 2) {
-                points[i] += offsetX;
-                points[i + 1] += offsetY;
-            }
-        }
-        static fillRadial180(w, h, origin, clockwise, amount) {
-            var points;
-            switch (origin) {
-                case fgui.FillOrigin.Top:
-                    if (amount <= 0.5) {
-                        amount = amount / 0.5;
-                        points = FillUtils.fillRadial90(w / 2, h, clockwise ? fgui.FillOrigin.TopLeft : fgui.FillOrigin.TopRight, clockwise, amount);
-                        if (clockwise)
-                            FillUtils.movePoints(points, w / 2, 0);
-                    }
-                    else {
-                        amount = (amount - 0.5) / 0.5;
-                        points = FillUtils.fillRadial90(w / 2, h, clockwise ? fgui.FillOrigin.TopRight : fgui.FillOrigin.TopLeft, clockwise, amount);
-                        if (clockwise)
-                            points.push(w, h, w, 0);
-                        else {
-                            FillUtils.movePoints(points, w / 2, 0);
-                            points.push(0, h, 0, 0);
-                        }
-                    }
-                    break;
-                case fgui.FillOrigin.Bottom:
-                    if (amount <= 0.5) {
-                        amount = amount / 0.5;
-                        points = FillUtils.fillRadial90(w / 2, h, clockwise ? fgui.FillOrigin.BottomRight : fgui.FillOrigin.BottomLeft, clockwise, amount);
-                        if (!clockwise)
-                            FillUtils.movePoints(points, w / 2, 0);
-                    }
-                    else {
-                        amount = (amount - 0.5) / 0.5;
-                        points = FillUtils.fillRadial90(w / 2, h, clockwise ? fgui.FillOrigin.BottomLeft : fgui.FillOrigin.BottomRight, clockwise, amount);
-                        if (clockwise) {
-                            FillUtils.movePoints(points, w / 2, 0);
-                            points.push(0, 0, 0, h);
-                        }
-                        else
-                            points.push(w, 0, w, h);
-                    }
-                    break;
-                case fgui.FillOrigin.Left:
-                    if (amount <= 0.5) {
-                        amount = amount / 0.5;
-                        points = FillUtils.fillRadial90(w, h / 2, clockwise ? fgui.FillOrigin.BottomLeft : fgui.FillOrigin.TopLeft, clockwise, amount);
-                        if (!clockwise)
-                            FillUtils.movePoints(points, 0, h / 2);
-                    }
-                    else {
-                        amount = (amount - 0.5) / 0.5;
-                        points = FillUtils.fillRadial90(w, h / 2, clockwise ? fgui.FillOrigin.TopLeft : fgui.FillOrigin.BottomLeft, clockwise, amount);
-                        if (clockwise) {
-                            FillUtils.movePoints(points, 0, h / 2);
-                            points.push(w, 0, 0, 0);
-                        }
-                        else
-                            points.push(w, h, 0, h);
-                    }
-                    break;
-                case fgui.FillOrigin.Right:
-                    if (amount <= 0.5) {
-                        amount = amount / 0.5;
-                        points = FillUtils.fillRadial90(w, h / 2, clockwise ? fgui.FillOrigin.TopRight : fgui.FillOrigin.BottomRight, clockwise, amount);
-                        if (clockwise)
-                            FillUtils.movePoints(points, 0, h / 2);
-                    }
-                    else {
-                        amount = (amount - 0.5) / 0.5;
-                        points = FillUtils.fillRadial90(w, h / 2, clockwise ? fgui.FillOrigin.BottomRight : fgui.FillOrigin.TopRight, clockwise, amount);
-                        if (clockwise)
-                            points.push(0, h, w, h);
-                        else {
-                            FillUtils.movePoints(points, 0, h / 2);
-                            points.push(0, 0, w, 0);
-                        }
-                    }
-                    break;
-            }
-            return points;
-        }
-        static fillRadial360(w, h, origin, clockwise, amount) {
-            var points;
-            switch (origin) {
-                case fgui.FillOrigin.Top:
-                    if (amount <= 0.5) {
-                        amount = amount / 0.5;
-                        points = FillUtils.fillRadial180(w / 2, h, clockwise ? fgui.FillOrigin.Left : fgui.FillOrigin.Right, clockwise, amount);
-                        if (clockwise)
-                            FillUtils.movePoints(points, w / 2, 0);
-                    }
-                    else {
-                        amount = (amount - 0.5) / 0.5;
-                        points = FillUtils.fillRadial180(w / 2, h, clockwise ? fgui.FillOrigin.Right : fgui.FillOrigin.Left, clockwise, amount);
-                        if (clockwise)
-                            points.push(w, h, w, 0, w / 2, 0);
-                        else {
-                            FillUtils.movePoints(points, w / 2, 0);
-                            points.push(0, h, 0, 0, w / 2, 0);
-                        }
-                    }
-                    break;
-                case fgui.FillOrigin.Bottom:
-                    if (amount <= 0.5) {
-                        amount = amount / 0.5;
-                        points = FillUtils.fillRadial180(w / 2, h, clockwise ? fgui.FillOrigin.Right : fgui.FillOrigin.Left, clockwise, amount);
-                        if (!clockwise)
-                            FillUtils.movePoints(points, w / 2, 0);
-                    }
-                    else {
-                        amount = (amount - 0.5) / 0.5;
-                        points = FillUtils.fillRadial180(w / 2, h, clockwise ? fgui.FillOrigin.Left : fgui.FillOrigin.Right, clockwise, amount);
-                        if (clockwise) {
-                            FillUtils.movePoints(points, w / 2, 0);
-                            points.push(0, 0, 0, h, w / 2, h);
-                        }
-                        else
-                            points.push(w, 0, w, h, w / 2, h);
-                    }
-                    break;
-                case fgui.FillOrigin.Left:
-                    if (amount <= 0.5) {
-                        amount = amount / 0.5;
-                        points = FillUtils.fillRadial180(w, h / 2, clockwise ? fgui.FillOrigin.Bottom : fgui.FillOrigin.Top, clockwise, amount);
-                        if (!clockwise)
-                            FillUtils.movePoints(points, 0, h / 2);
-                    }
-                    else {
-                        amount = (amount - 0.5) / 0.5;
-                        points = FillUtils.fillRadial180(w, h / 2, clockwise ? fgui.FillOrigin.Top : fgui.FillOrigin.Bottom, clockwise, amount);
-                        if (clockwise) {
-                            FillUtils.movePoints(points, 0, h / 2);
-                            points.push(w, 0, 0, 0, 0, h / 2);
-                        }
-                        else
-                            points.push(w, h, 0, h, 0, h / 2);
-                    }
-                    break;
-                case fgui.FillOrigin.Right:
-                    if (amount <= 0.5) {
-                        amount = amount / 0.5;
-                        points = FillUtils.fillRadial180(w, h / 2, clockwise ? fgui.FillOrigin.Top : fgui.FillOrigin.Bottom, clockwise, amount);
-                        if (clockwise)
-                            FillUtils.movePoints(points, 0, h / 2);
-                    }
-                    else {
-                        amount = (amount - 0.5) / 0.5;
-                        points = FillUtils.fillRadial180(w, h / 2, clockwise ? fgui.FillOrigin.Bottom : fgui.FillOrigin.Top, clockwise, amount);
-                        if (clockwise)
-                            points.push(0, h, w, h, w, h / 2);
-                        else {
-                            FillUtils.movePoints(points, 0, h / 2);
-                            points.push(0, 0, w, 0, w, h / 2);
-                        }
-                    }
-                    break;
-            }
-            return points;
-        }
-    }
-    fgui.FillUtils = FillUtils;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class ByteBuffer extends Laya.Byte {
-        constructor(data = null, offset = 0, length = -1) {
-            if (length == -1)
-                length = data.byteLength - offset;
-            if (offset == 0 && length == data.byteLength)
-                super(data);
-            else {
-                super();
-                this._u8d_ = new Uint8Array(data, offset, length);
-                this._d_ = new DataView(this._u8d_.buffer, offset, length);
-                this._length = length;
-            }
-            this.endian = Laya.Byte.BIG_ENDIAN;
-        }
-        skip(count) {
-            this.pos += count;
-        }
-        readBool() {
-            return this.getUint8() == 1;
-        }
-        readS() {
-            var index = this.getUint16();
-            if (index == 65534)
-                return null;
-            else if (index == 65533)
-                return "";
-            else
-                return this.stringTable[index];
-        }
-        readSArray(cnt) {
-            var ret = new Array(cnt);
-            for (var i = 0; i < cnt; i++)
-                ret[i] = this.readS();
-            return ret;
-        }
-        writeS(value) {
-            var index = this.getUint16();
-            if (index != 65534 && index != 65533)
-                this.stringTable[index] = value;
-        }
-        readColor(hasAlpha = false) {
-            var r = this.getUint8();
-            var g = this.getUint8();
-            var b = this.getUint8();
-            var a = this.getUint8();
-            return (hasAlpha ? (a << 24) : 0) + (r << 16) + (g << 8) + b;
-        }
-        readColorS(hasAlpha = false) {
-            var r = this.getUint8();
-            var g = this.getUint8();
-            var b = this.getUint8();
-            var a = this.getUint8();
-            if (hasAlpha && a != 255)
-                return "rgba(" + r + "," + g + "," + b + "," + (a / 255) + ")";
-            else {
-                var sr = r.toString(16);
-                var sg = g.toString(16);
-                var sb = b.toString(16);
-                if (sr.length == 1)
-                    sr = "0" + sr;
-                if (sg.length == 1)
-                    sg = "0" + sg;
-                if (sb.length == 1)
-                    sb = "0" + sb;
-                return "#" + sr + sg + sb;
-            }
-        }
-        readChar() {
-            var i = this.getUint16();
-            return String.fromCharCode(i);
-        }
-        readBuffer() {
-            var count = this.getUint32();
-            var ba = new ByteBuffer(this.buffer, this._pos_, count);
-            ba.stringTable = this.stringTable;
-            ba.version = this.version;
-            return ba;
-        }
-        seek(indexTablePos, blockIndex) {
-            var tmp = this._pos_;
-            this.pos = indexTablePos;
-            var segCount = this.getUint8();
-            if (blockIndex < segCount) {
-                var useShort = this.getUint8() == 1;
-                var newPos;
-                if (useShort) {
-                    this.pos += 2 * blockIndex;
-                    newPos = this.getUint16();
-                }
-                else {
-                    this.pos += 4 * blockIndex;
-                    newPos = this.getUint32();
-                }
-                if (newPos > 0) {
-                    this.pos = indexTablePos + newPos;
-                    return true;
-                }
-                else {
-                    this.pos = tmp;
-                    return false;
-                }
-            }
-            else {
-                this.pos = tmp;
-                return false;
-            }
-        }
-    }
-    fgui.ByteBuffer = ByteBuffer;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    let _func = Laya.HitArea["_isHitGraphic"];
-    class ChildHitArea extends Laya.HitArea {
-        constructor(child, reversed) {
-            super();
-            this._child = child;
-            this._reversed = reversed;
-            if (this._reversed)
-                this.unHit = child.hitArea.hit;
-            else
-                this.hit = child.hitArea.hit;
-        }
-        contains(x, y) {
-            var tPos;
-            tPos = Laya.Point.TEMP;
-            tPos.setTo(0, 0);
-            tPos = this._child.toParentPoint(tPos);
-            if (this._reversed)
-                return !_func(x - tPos.x, y - tPos.y, this.unHit);
-            else
-                return _func(x - tPos.x, y - tPos.y, this.hit);
-        }
-    }
-    fgui.ChildHitArea = ChildHitArea;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class UBBParser {
-        constructor() {
-            this._readPos = 0;
-            this.defaultImgWidth = 0;
-            this.defaultImgHeight = 0;
-            this._handlers = {};
-            this._handlers["url"] = this.onTag_URL;
-            this._handlers["img"] = this.onTag_IMG;
-            this._handlers["b"] = this.onTag_B;
-            this._handlers["i"] = this.onTag_I;
-            this._handlers["u"] = this.onTag_U;
-            this._handlers["sup"] = this.onTag_Simple;
-            this._handlers["sub"] = this.onTag_Simple;
-            this._handlers["color"] = this.onTag_COLOR;
-            this._handlers["font"] = this.onTag_FONT;
-            this._handlers["size"] = this.onTag_SIZE;
-        }
-        onTag_URL(tagName, end, attr) {
-            if (!end) {
-                if (attr != null)
-                    return "<a href=\"" + attr + "\" target=\"_blank\">";
-                else {
-                    var href = this.getTagText();
-                    return "<a href=\"" + href + "\" target=\"_blank\">";
-                }
-            }
-            else
-                return "</a>";
-        }
-        onTag_IMG(tagName, end, attr) {
-            if (!end) {
-                var src = this.getTagText(true);
-                if (!src)
-                    return null;
-                if (this.defaultImgWidth)
-                    return "<img src=\"" + src + "\" width=\"" + this.defaultImgWidth + "\" height=\"" + this.defaultImgHeight + "\"/>";
-                else
-                    return "<img src=\"" + src + "\"/>";
-            }
-            else
-                return null;
-        }
-        onTag_B(tagName, end, attr) {
-            return end ? ("</span>") : ("<span style='font-weight:bold'>");
-        }
-        onTag_I(tagName, end, attr) {
-            return end ? ("</span>") : ("<span style='font-style:italic'>");
-        }
-        onTag_U(tagName, end, attr) {
-            return end ? ("</span>") : ("<span style='text-decoration:underline'>");
-        }
-        onTag_Simple(tagName, end, attr) {
-            return end ? ("</" + tagName + ">") : ("<" + tagName + ">");
-        }
-        onTag_COLOR(tagName, end, attr) {
-            if (!end) {
-                this.lastColor = attr;
-                return "<span style=\"color:" + attr + "\">";
-            }
-            else
-                return "</span>";
-        }
-        onTag_FONT(tagName, end, attr) {
-            if (!end)
-                return "<span style=\"font-family:" + attr + "\">";
-            else
-                return "</span>";
-        }
-        onTag_SIZE(tagName, end, attr) {
-            if (!end) {
-                this.lastSize = attr;
-                return "<span style=\"font-size:" + attr + "\">";
-            }
-            else
-                return "</span>";
-        }
-        getTagText(remove = false) {
-            var pos1 = this._readPos;
-            var pos2;
-            var result = "";
-            while ((pos2 = this._text.indexOf("[", pos1)) != -1) {
-                if (this._text.charCodeAt(pos2 - 1) == 92) {
-                    result += this._text.substring(pos1, pos2 - 1);
-                    result += "[";
-                    pos1 = pos2 + 1;
-                }
-                else {
-                    result += this._text.substring(pos1, pos2);
-                    break;
-                }
-            }
-            if (pos2 == -1)
-                return null;
-            if (remove)
-                this._readPos = pos2;
-            return result;
-        }
-        parse(text, remove = false) {
-            this._text = text;
-            this.lastColor = null;
-            this.lastSize = null;
-            var pos1 = 0, pos2, pos3;
-            var end;
-            var tag, attr;
-            var repl;
-            var func;
-            var result = "";
-            while ((pos2 = this._text.indexOf("[", pos1)) != -1) {
-                if (pos2 > 0 && this._text.charCodeAt(pos2 - 1) == 92) {
-                    result += this._text.substring(pos1, pos2 - 1);
-                    result += "[";
-                    pos1 = pos2 + 1;
-                    continue;
-                }
-                result += this._text.substring(pos1, pos2);
-                pos1 = pos2;
-                pos2 = this._text.indexOf("]", pos1);
-                if (pos2 == -1)
-                    break;
-                end = this._text.charAt(pos1 + 1) == '/';
-                tag = this._text.substring(end ? pos1 + 2 : pos1 + 1, pos2);
-                this._readPos = pos2 + 1;
-                attr = null;
-                repl = null;
-                pos3 = tag.indexOf("=");
-                if (pos3 != -1) {
-                    attr = tag.substring(pos3 + 1);
-                    tag = tag.substring(0, pos3);
-                }
-                tag = tag.toLowerCase();
-                func = this._handlers[tag];
-                if (func != null) {
-                    if (!remove) {
-                        repl = func.call(this, tag, end, attr);
-                        if (repl != null)
-                            result += repl;
-                    }
-                }
-                else
-                    result += this._text.substring(pos1, this._readPos);
-                pos1 = this._readPos;
-            }
-            if (pos1 < this._text.length)
-                result += this._text.substr(pos1);
-            this._text = null;
-            return result;
-        }
-    }
-    UBBParser.inst = new UBBParser();
-    fgui.UBBParser = UBBParser;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class PixelHitTest extends Laya.HitArea {
-        constructor(data, offsetX = 0, offsetY = 0) {
-            super();
-            this._data = data;
-            this.offsetX = offsetX;
-            this.offsetY = offsetY;
-            this.scaleX = 1;
-            this.scaleY = 1;
-        }
-        contains(x, y) {
-            x = Math.floor((x / this.scaleX - this.offsetX) * this._data.scale);
-            y = Math.floor((y / this.scaleY - this.offsetY) * this._data.scale);
-            if (x < 0 || y < 0 || x >= this._data.pixelWidth)
-                return false;
-            var pos = y * this._data.pixelWidth + x;
-            var pos2 = Math.floor(pos / 8);
-            var pos3 = pos % 8;
-            if (pos2 >= 0 && pos2 < this._data.pixels.length)
-                return ((this._data.pixels[pos2] >> pos3) & 0x1) == 1;
-            else
-                return false;
-        }
-    }
-    fgui.PixelHitTest = PixelHitTest;
-    class PixelHitTestData {
-        constructor() {
-        }
-        load(ba) {
-            ba.getInt32();
-            this.pixelWidth = ba.getInt32();
-            this.scale = 1 / ba.readByte();
-            var len = ba.getInt32();
-            this.pixels = [];
-            for (var i = 0; i < len; i++) {
-                var j = ba.readByte();
-                if (j < 0)
-                    j += 256;
-                this.pixels[i] = j;
-            }
-        }
-    }
-    fgui.PixelHitTestData = PixelHitTestData;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class ToolSet {
-        static getFileName(source) {
-            var i = source.lastIndexOf("/");
-            if (i != -1)
-                source = source.substr(i + 1);
-            i = source.lastIndexOf("\\");
-            if (i != -1)
-                source = source.substr(i + 1);
-            i = source.lastIndexOf(".");
-            if (i != -1)
-                return source.substring(0, i);
-            else
-                return source;
-        }
-        static startsWith(source, str, ignoreCase = false) {
-            if (!source)
-                return false;
-            else if (source.length < str.length)
-                return false;
-            else {
-                source = source.substring(0, str.length);
-                if (!ignoreCase)
-                    return source == str;
-                else
-                    return source.toLowerCase() == str.toLowerCase();
-            }
-        }
-        static endsWith(source, str, ignoreCase = false) {
-            if (!source)
-                return false;
-            else if (source.length < str.length)
-                return false;
-            else {
-                source = source.substring(source.length - str.length);
-                if (!ignoreCase)
-                    return source == str;
-                else
-                    return source.toLowerCase() == str.toLowerCase();
-            }
-        }
-        static trim(targetString) {
-            return ToolSet.trimLeft(ToolSet.trimRight(targetString));
-        }
-        static trimLeft(targetString) {
-            var tempChar = "";
-            for (var i = 0; i < targetString.length; i++) {
-                tempChar = targetString.charAt(i);
-                if (tempChar != " " && tempChar != "\n" && tempChar != "\r") {
-                    break;
-                }
-            }
-            return targetString.substr(i);
-        }
-        static trimRight(targetString) {
-            var tempChar = "";
-            for (var i = targetString.length - 1; i >= 0; i--) {
-                tempChar = targetString.charAt(i);
-                if (tempChar != " " && tempChar != "\n" && tempChar != "\r") {
-                    break;
-                }
-            }
-            return targetString.substring(0, i + 1);
-        }
-        static convertToHtmlColor(argb, hasAlpha = false) {
-            var alpha;
-            if (hasAlpha)
-                alpha = (argb >> 24 & 0xFF).toString(16);
-            else
-                alpha = "";
-            var red = (argb >> 16 & 0xFF).toString(16);
-            var green = (argb >> 8 & 0xFF).toString(16);
-            var blue = (argb & 0xFF).toString(16);
-            if (alpha.length == 1)
-                alpha = "0" + alpha;
-            if (red.length == 1)
-                red = "0" + red;
-            if (green.length == 1)
-                green = "0" + green;
-            if (blue.length == 1)
-                blue = "0" + blue;
-            return "#" + alpha + red + green + blue;
-        }
-        static convertFromHtmlColor(str, hasAlpha = false) {
-            if (str.length < 1)
-                return 0;
-            if (str.charAt(0) == "#")
-                str = str.substr(1);
-            if (str.length == 8)
-                return (parseInt(str.substr(0, 2), 16) << 24) + parseInt(str.substr(2), 16);
-            else if (hasAlpha)
-                return 0xFF000000 + parseInt(str, 16);
-            else
-                return parseInt(str, 16);
-        }
-        static displayObjectToGObject(obj) {
-            while (obj != null && !(obj instanceof Laya.Stage)) {
-                if (obj["$owner"])
-                    return obj["$owner"];
-                obj = obj.parent;
-            }
-            return null;
-        }
-        static encodeHTML(str) {
-            if (!str)
-                return "";
-            else
-                return str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&apos;");
-        }
-        static parseUBB(text) {
-            return ToolSet.defaultUBBParser.parse(text);
-        }
-        static removeUBB(text) {
-            return ToolSet.defaultUBBParser.parse(text, true);
-        }
-        static clamp(value, min, max) {
-            if (value < min)
-                value = min;
-            else if (value > max)
-                value = max;
-            return value;
-        }
-        static clamp01(value) {
-            if (isNaN(value))
-                value = 0;
-            else if (value > 1)
-                value = 1;
-            else if (value < 0)
-                value = 0;
-            return value;
-        }
-        static lerp(start, end, percent) {
-            return (start + percent * (end - start));
-        }
-        static repeat(t, length) {
-            return t - Math.floor(t / length) * length;
-        }
-        static distance(x1, y1, x2, y2) {
-            return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
-        }
-        static setColorFilter(obj, color) {
-            var filters = obj.filters;
-            var filter;
-            if (filters) {
-                for (var i = 0; i < filters.length; i++) {
-                    var fs = filters[i];
-                    if (fs instanceof Laya.ColorFilter) {
-                        filter = fs;
-                        break;
-                    }
-                }
-            }
-            var tp = typeof (color);
-            var toApplyColor;
-            var toApplyGray;
-            if (tp == "boolean") {
-                toApplyColor = filter ? filter["_color_"] : null;
-                toApplyGray = color;
-            }
-            else {
-                if (typeof (color) == "string") {
-                    var arr = Laya.ColorUtils.create(color).arrColor;
-                    if (arr[0] == 1 && arr[1] == 1 && arr[2] == 1)
-                        color = null;
-                    else {
-                        color = [arr[0], 0, 0, 0, 0,
-                            0, arr[1], 0, 0, 0,
-                            0, 0, arr[2], 0, 0,
-                            0, 0, 0, 1, 0];
-                    }
-                }
-                toApplyColor = color;
-                toApplyGray = filter ? filter["_grayed_"] : false;
-            }
-            if (!toApplyColor && !toApplyGray) {
-                if (filters) {
-                    var i = filters.indexOf(filter);
-                    if (i != -1) {
-                        filters.splice(i, 1);
-                        if (filters.length > 0)
-                            obj.filters = filters;
-                        else
-                            obj.filters = null;
-                    }
-                }
-                return;
-            }
-            if (!filter) {
-                filter = new Laya.ColorFilter();
-                if (!filters)
-                    filters = [filter];
-                else
-                    filters.push(filter);
-                obj.filters = filters;
-            }
-            filter.reset();
-            filter["_color_"] = toApplyColor;
-            filter["_grayed_"] = toApplyGray;
-            if (toApplyGray) {
-                filter.gray();
-            }
-            else if (toApplyColor) {
-                if (toApplyColor.length == 20) {
-                    filter.setByMatrix(toApplyColor);
-                }
-                else {
-                    filter.adjustBrightness(toApplyColor[0]);
-                    filter.adjustContrast(toApplyColor[1]);
-                    filter.adjustSaturation(toApplyColor[2]);
-                    filter.adjustHue(toApplyColor[3]);
-                }
-            }
-        }
-    }
-    ToolSet.defaultUBBParser = new fgui.UBBParser();
-    fgui.ToolSet = ToolSet;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class EaseManager {
-        static evaluate(easeType, time, duration, overshootOrAmplitude, period) {
-            switch (easeType) {
-                case fgui.EaseType.Linear:
-                    return time / duration;
-                case fgui.EaseType.SineIn:
-                    return -Math.cos(time / duration * EaseManager._PiOver2) + 1;
-                case fgui.EaseType.SineOut:
-                    return Math.sin(time / duration * EaseManager._PiOver2);
-                case fgui.EaseType.SineInOut:
-                    return -0.5 * (Math.cos(Math.PI * time / duration) - 1);
-                case fgui.EaseType.QuadIn:
-                    return (time /= duration) * time;
-                case fgui.EaseType.QuadOut:
-                    return -(time /= duration) * (time - 2);
-                case fgui.EaseType.QuadInOut:
-                    if ((time /= duration * 0.5) < 1)
-                        return 0.5 * time * time;
-                    return -0.5 * ((--time) * (time - 2) - 1);
-                case fgui.EaseType.CubicIn:
-                    return (time /= duration) * time * time;
-                case fgui.EaseType.CubicOut:
-                    return ((time = time / duration - 1) * time * time + 1);
-                case fgui.EaseType.CubicInOut:
-                    if ((time /= duration * 0.5) < 1)
-                        return 0.5 * time * time * time;
-                    return 0.5 * ((time -= 2) * time * time + 2);
-                case fgui.EaseType.QuartIn:
-                    return (time /= duration) * time * time * time;
-                case fgui.EaseType.QuartOut:
-                    return -((time = time / duration - 1) * time * time * time - 1);
-                case fgui.EaseType.QuartInOut:
-                    if ((time /= duration * 0.5) < 1)
-                        return 0.5 * time * time * time * time;
-                    return -0.5 * ((time -= 2) * time * time * time - 2);
-                case fgui.EaseType.QuintIn:
-                    return (time /= duration) * time * time * time * time;
-                case fgui.EaseType.QuintOut:
-                    return ((time = time / duration - 1) * time * time * time * time + 1);
-                case fgui.EaseType.QuintInOut:
-                    if ((time /= duration * 0.5) < 1)
-                        return 0.5 * time * time * time * time * time;
-                    return 0.5 * ((time -= 2) * time * time * time * time + 2);
-                case fgui.EaseType.ExpoIn:
-                    return (time == 0) ? 0 : Math.pow(2, 10 * (time / duration - 1));
-                case fgui.EaseType.ExpoOut:
-                    if (time == duration)
-                        return 1;
-                    return (-Math.pow(2, -10 * time / duration) + 1);
-                case fgui.EaseType.ExpoInOut:
-                    if (time == 0)
-                        return 0;
-                    if (time == duration)
-                        return 1;
-                    if ((time /= duration * 0.5) < 1)
-                        return 0.5 * Math.pow(2, 10 * (time - 1));
-                    return 0.5 * (-Math.pow(2, -10 * --time) + 2);
-                case fgui.EaseType.CircIn:
-                    return -(Math.sqrt(1 - (time /= duration) * time) - 1);
-                case fgui.EaseType.CircOut:
-                    return Math.sqrt(1 - (time = time / duration - 1) * time);
-                case fgui.EaseType.CircInOut:
-                    if ((time /= duration * 0.5) < 1)
-                        return -0.5 * (Math.sqrt(1 - time * time) - 1);
-                    return 0.5 * (Math.sqrt(1 - (time -= 2) * time) + 1);
-                case fgui.EaseType.ElasticIn:
-                    var s0;
-                    if (time == 0)
-                        return 0;
-                    if ((time /= duration) == 1)
-                        return 1;
-                    if (period == 0)
-                        period = duration * 0.3;
-                    if (overshootOrAmplitude < 1) {
-                        overshootOrAmplitude = 1;
-                        s0 = period / 4;
-                    }
-                    else
-                        s0 = period / EaseManager._TwoPi * Math.asin(1 / overshootOrAmplitude);
-                    return -(overshootOrAmplitude * Math.pow(2, 10 * (time -= 1)) * Math.sin((time * duration - s0) * EaseManager._TwoPi / period));
-                case fgui.EaseType.ElasticOut:
-                    var s1;
-                    if (time == 0)
-                        return 0;
-                    if ((time /= duration) == 1)
-                        return 1;
-                    if (period == 0)
-                        period = duration * 0.3;
-                    if (overshootOrAmplitude < 1) {
-                        overshootOrAmplitude = 1;
-                        s1 = period / 4;
-                    }
-                    else
-                        s1 = period / EaseManager._TwoPi * Math.asin(1 / overshootOrAmplitude);
-                    return (overshootOrAmplitude * Math.pow(2, -10 * time) * Math.sin((time * duration - s1) * EaseManager._TwoPi / period) + 1);
-                case fgui.EaseType.ElasticInOut:
-                    var s;
-                    if (time == 0)
-                        return 0;
-                    if ((time /= duration * 0.5) == 2)
-                        return 1;
-                    if (period == 0)
-                        period = duration * (0.3 * 1.5);
-                    if (overshootOrAmplitude < 1) {
-                        overshootOrAmplitude = 1;
-                        s = period / 4;
-                    }
-                    else
-                        s = period / EaseManager._TwoPi * Math.asin(1 / overshootOrAmplitude);
-                    if (time < 1)
-                        return -0.5 * (overshootOrAmplitude * Math.pow(2, 10 * (time -= 1)) * Math.sin((time * duration - s) * EaseManager._TwoPi / period));
-                    return overshootOrAmplitude * Math.pow(2, -10 * (time -= 1)) * Math.sin((time * duration - s) * EaseManager._TwoPi / period) * 0.5 + 1;
-                case fgui.EaseType.BackIn:
-                    return (time /= duration) * time * ((overshootOrAmplitude + 1) * time - overshootOrAmplitude);
-                case fgui.EaseType.BackOut:
-                    return ((time = time / duration - 1) * time * ((overshootOrAmplitude + 1) * time + overshootOrAmplitude) + 1);
-                case fgui.EaseType.BackInOut:
-                    if ((time /= duration * 0.5) < 1)
-                        return 0.5 * (time * time * (((overshootOrAmplitude *= (1.525)) + 1) * time - overshootOrAmplitude));
-                    return 0.5 * ((time -= 2) * time * (((overshootOrAmplitude *= (1.525)) + 1) * time + overshootOrAmplitude) + 2);
-                case fgui.EaseType.BounceIn:
-                    return Bounce.easeIn(time, duration);
-                case fgui.EaseType.BounceOut:
-                    return Bounce.easeOut(time, duration);
-                case fgui.EaseType.BounceInOut:
-                    return Bounce.easeInOut(time, duration);
-                default:
-                    return -(time /= duration) * (time - 2);
-            }
-        }
-    }
-    EaseManager._PiOver2 = Math.PI * 0.5;
-    EaseManager._TwoPi = Math.PI * 2;
-    fgui.EaseManager = EaseManager;
-    class Bounce {
-        static easeIn(time, duration) {
-            return 1 - Bounce.easeOut(duration - time, duration);
-        }
-        static easeOut(time, duration) {
-            if ((time /= duration) < (1 / 2.75)) {
-                return (7.5625 * time * time);
-            }
-            if (time < (2 / 2.75)) {
-                return (7.5625 * (time -= (1.5 / 2.75)) * time + 0.75);
-            }
-            if (time < (2.5 / 2.75)) {
-                return (7.5625 * (time -= (2.25 / 2.75)) * time + 0.9375);
-            }
-            return (7.5625 * (time -= (2.625 / 2.75)) * time + 0.984375);
-        }
-        static easeInOut(time, duration) {
-            if (time < duration * 0.5) {
-                return Bounce.easeIn(time * 2, duration) * 0.5;
-            }
-            return Bounce.easeOut(time * 2 - duration, duration) * 0.5 + 0.5;
-        }
-    }
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class EaseType {
-    }
-    EaseType.Linear = 0;
-    EaseType.SineIn = 1;
-    EaseType.SineOut = 2;
-    EaseType.SineInOut = 3;
-    EaseType.QuadIn = 4;
-    EaseType.QuadOut = 5;
-    EaseType.QuadInOut = 6;
-    EaseType.CubicIn = 7;
-    EaseType.CubicOut = 8;
-    EaseType.CubicInOut = 9;
-    EaseType.QuartIn = 10;
-    EaseType.QuartOut = 11;
-    EaseType.QuartInOut = 12;
-    EaseType.QuintIn = 13;
-    EaseType.QuintOut = 14;
-    EaseType.QuintInOut = 15;
-    EaseType.ExpoIn = 16;
-    EaseType.ExpoOut = 17;
-    EaseType.ExpoInOut = 18;
-    EaseType.CircIn = 19;
-    EaseType.CircOut = 20;
-    EaseType.CircInOut = 21;
-    EaseType.ElasticIn = 22;
-    EaseType.ElasticOut = 23;
-    EaseType.ElasticInOut = 24;
-    EaseType.BackIn = 25;
-    EaseType.BackOut = 26;
-    EaseType.BackInOut = 27;
-    EaseType.BounceIn = 28;
-    EaseType.BounceOut = 29;
-    EaseType.BounceInOut = 30;
-    EaseType.Custom = 31;
-    fgui.EaseType = EaseType;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GPath {
-        constructor() {
-            this._segments = new Array();
-            this._points = new Array();
-        }
-        get length() {
-            return this._fullLength;
-        }
-        create2(pt1, pt2, pt3, pt4) {
-            var points = new Array();
-            points.push(pt1);
-            points.push(pt2);
-            if (pt3)
-                points.push(pt3);
-            if (pt4)
-                points.push(pt4);
-            this.create(points);
-        }
-        create(points) {
-            this._segments.length = 0;
-            this._points.length = 0;
-            this._fullLength = 0;
-            var cnt = points.length;
-            if (cnt == 0)
-                return;
-            var splinePoints = GPath.helperPoints;
-            splinePoints.length = 0;
-            var prev = points[0];
-            if (prev.curveType == fgui.CurveType.CRSpline)
-                splinePoints.push(new Laya.Point(prev.x, prev.y));
-            for (var i = 1; i < cnt; i++) {
-                var current = points[i];
-                if (prev.curveType != fgui.CurveType.CRSpline) {
-                    var seg = new Segment();
-                    seg.type = prev.curveType;
-                    seg.ptStart = this._points.length;
-                    if (prev.curveType == fgui.CurveType.Straight) {
-                        seg.ptCount = 2;
-                        this._points.push(new Laya.Point(prev.x, prev.y));
-                        this._points.push(new Laya.Point(current.x, current.y));
-                    }
-                    else if (prev.curveType == fgui.CurveType.Bezier) {
-                        seg.ptCount = 3;
-                        this._points.push(new Laya.Point(prev.x, prev.y));
-                        this._points.push(new Laya.Point(current.x, current.y));
-                        this._points.push(new Laya.Point(prev.control1_x, prev.control1_y));
-                    }
-                    else if (prev.curveType == fgui.CurveType.CubicBezier) {
-                        seg.ptCount = 4;
-                        this._points.push(new Laya.Point(prev.x, prev.y));
-                        this._points.push(new Laya.Point(current.x, current.y));
-                        this._points.push(new Laya.Point(prev.control1_x, prev.control1_y));
-                        this._points.push(new Laya.Point(prev.control2_x, prev.control2_y));
-                    }
-                    seg.length = fgui.ToolSet.distance(prev.x, prev.y, current.x, current.y);
-                    this._fullLength += seg.length;
-                    this._segments.push(seg);
-                }
-                if (current.curveType != fgui.CurveType.CRSpline) {
-                    if (splinePoints.length > 0) {
-                        splinePoints.push(new Laya.Point(current.x, current.y));
-                        this.createSplineSegment();
-                    }
-                }
-                else
-                    splinePoints.push(new Laya.Point(current.x, current.y));
-                prev = current;
-            }
-            if (splinePoints.length > 1)
-                this.createSplineSegment();
-        }
-        createSplineSegment() {
-            var splinePoints = GPath.helperPoints;
-            var cnt = splinePoints.length;
-            splinePoints.splice(0, 0, splinePoints[0]);
-            splinePoints.push(splinePoints[cnt]);
-            splinePoints.push(splinePoints[cnt]);
-            cnt += 3;
-            var seg = new Segment();
-            seg.type = fgui.CurveType.CRSpline;
-            seg.ptStart = this._points.length;
-            seg.ptCount = cnt;
-            this._points = this._points.concat(splinePoints);
-            seg.length = 0;
-            for (var i = 1; i < cnt; i++) {
-                seg.length += fgui.ToolSet.distance(splinePoints[i - 1].x, splinePoints[i - 1].y, splinePoints[i].x, splinePoints[i].y);
-            }
-            this._fullLength += seg.length;
-            this._segments.push(seg);
-            splinePoints.length = 0;
-        }
-        clear() {
-            this._segments.length = 0;
-            this._points.length = 0;
-        }
-        getPointAt(t, result) {
-            if (!result)
-                result = new Laya.Point();
-            else
-                result.setTo(0, 0);
-            t = fgui.ToolSet.clamp01(t);
-            var cnt = this._segments.length;
-            if (cnt == 0) {
-                return result;
-            }
-            var seg;
-            if (t == 1) {
-                seg = this._segments[cnt - 1];
-                if (seg.type == fgui.CurveType.Straight) {
-                    result.x = fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t);
-                    result.y = fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t);
-                    return result;
-                }
-                else if (seg.type == fgui.CurveType.Bezier || seg.type == fgui.CurveType.CubicBezier)
-                    return this.onBezierCurve(seg.ptStart, seg.ptCount, t, result);
-                else
-                    return this.onCRSplineCurve(seg.ptStart, seg.ptCount, t, result);
-            }
-            var len = t * this._fullLength;
-            for (var i = 0; i < cnt; i++) {
-                seg = this._segments[i];
-                len -= seg.length;
-                if (len < 0) {
-                    t = 1 + len / seg.length;
-                    if (seg.type == fgui.CurveType.Straight) {
-                        result.x = fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t);
-                        result.y = fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t);
-                    }
-                    else if (seg.type == fgui.CurveType.Bezier || seg.type == fgui.CurveType.CubicBezier)
-                        result = this.onBezierCurve(seg.ptStart, seg.ptCount, t, result);
-                    else
-                        result = this.onCRSplineCurve(seg.ptStart, seg.ptCount, t, result);
-                    break;
-                }
-            }
-            return result;
-        }
-        get segmentCount() {
-            return this._segments.length;
-        }
-        getAnchorsInSegment(segmentIndex, points) {
-            if (points == null)
-                points = new Array();
-            var seg = this._segments[segmentIndex];
-            for (var i = 0; i < seg.ptCount; i++)
-                points.push(new Laya.Point(this._points[seg.ptStart + i].x, this._points[seg.ptStart + i].y));
-            return points;
-        }
-        getPointsInSegment(segmentIndex, t0, t1, points, ts, pointDensity) {
-            if (points == null)
-                points = new Array();
-            if (!pointDensity || isNaN(pointDensity))
-                pointDensity = 0.1;
-            if (ts)
-                ts.push(t0);
-            var seg = this._segments[segmentIndex];
-            if (seg.type == fgui.CurveType.Straight) {
-                points.push(new Laya.Point(fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t0), fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t0)));
-                points.push(new Laya.Point(fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t1), fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t1)));
-            }
-            else {
-                var func;
-                if (seg.type == fgui.CurveType.Bezier || seg.type == fgui.CurveType.CubicBezier)
-                    func = this.onBezierCurve;
-                else
-                    func = this.onCRSplineCurve;
-                points.push(func.call(this, seg.ptStart, seg.ptCount, t0, new Laya.Point()));
-                var SmoothAmount = Math.min(seg.length * pointDensity, 50);
-                for (var j = 0; j <= SmoothAmount; j++) {
-                    var t = j / SmoothAmount;
-                    if (t > t0 && t < t1) {
-                        points.push(func.call(this, seg.ptStart, seg.ptCount, t, new Laya.Point()));
-                        if (ts != null)
-                            ts.push(t);
-                    }
-                }
-                points.push(func.call(this, seg.ptStart, seg.ptCount, t1, new Laya.Point()));
-            }
-            if (ts != null)
-                ts.push(t1);
-            return points;
-        }
-        getAllPoints(points, ts, pointDensity) {
-            if (points == null)
-                points = new Array();
-            if (!pointDensity || isNaN(pointDensity))
-                pointDensity = 0.1;
-            var cnt = this._segments.length;
-            for (var i = 0; i < cnt; i++)
-                this.getPointsInSegment(i, 0, 1, points, ts, pointDensity);
-            return points;
-        }
-        onCRSplineCurve(ptStart, ptCount, t, result) {
-            var adjustedIndex = Math.floor(t * (ptCount - 4)) + ptStart;
-            var p0x = this._points[adjustedIndex].x;
-            var p0y = this._points[adjustedIndex].y;
-            var p1x = this._points[adjustedIndex + 1].x;
-            var p1y = this._points[adjustedIndex + 1].y;
-            var p2x = this._points[adjustedIndex + 2].x;
-            var p2y = this._points[adjustedIndex + 2].y;
-            var p3x = this._points[adjustedIndex + 3].x;
-            var p3y = this._points[adjustedIndex + 3].y;
-            var adjustedT = (t == 1) ? 1 : fgui.ToolSet.repeat(t * (ptCount - 4), 1);
-            var t0 = ((-adjustedT + 2) * adjustedT - 1) * adjustedT * 0.5;
-            var t1 = (((3 * adjustedT - 5) * adjustedT) * adjustedT + 2) * 0.5;
-            var t2 = ((-3 * adjustedT + 4) * adjustedT + 1) * adjustedT * 0.5;
-            var t3 = ((adjustedT - 1) * adjustedT * adjustedT) * 0.5;
-            result.x = p0x * t0 + p1x * t1 + p2x * t2 + p3x * t3;
-            result.y = p0y * t0 + p1y * t1 + p2y * t2 + p3y * t3;
-            return result;
-        }
-        onBezierCurve(ptStart, ptCount, t, result) {
-            var t2 = 1 - t;
-            var p0x = this._points[ptStart].x;
-            var p0y = this._points[ptStart].y;
-            var p1x = this._points[ptStart + 1].x;
-            var p1y = this._points[ptStart + 1].y;
-            var cp0x = this._points[ptStart + 2].x;
-            var cp0y = this._points[ptStart + 2].y;
-            if (ptCount == 4) {
-                var cp1x = this._points[ptStart + 3].x;
-                var cp1y = this._points[ptStart + 3].y;
-                result.x = t2 * t2 * t2 * p0x + 3 * t2 * t2 * t * cp0x + 3 * t2 * t * t * cp1x + t * t * t * p1x;
-                result.y = t2 * t2 * t2 * p0y + 3 * t2 * t2 * t * cp0y + 3 * t2 * t * t * cp1y + t * t * t * p1y;
-            }
-            else {
-                result.x = t2 * t2 * p0x + 2 * t2 * t * cp0x + t * t * p1x;
-                result.y = t2 * t2 * p0y + 2 * t2 * t * cp0y + t * t * p1y;
-            }
-            return result;
-        }
-    }
-    GPath.helperPoints = new Array();
-    fgui.GPath = GPath;
-    class Segment {
-    }
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    let CurveType;
-    (function (CurveType) {
-        CurveType[CurveType["CRSpline"] = 0] = "CRSpline";
-        CurveType[CurveType["Bezier"] = 1] = "Bezier";
-        CurveType[CurveType["CubicBezier"] = 2] = "CubicBezier";
-        CurveType[CurveType["Straight"] = 3] = "Straight";
-    })(CurveType = fgui.CurveType || (fgui.CurveType = {}));
-    class GPathPoint {
-        constructor() {
-            this.x = 0;
-            this.y = 0;
-            this.control1_x = 0;
-            this.control1_y = 0;
-            this.control2_x = 0;
-            this.control2_y = 0;
-            this.curveType = 0;
-        }
-        static newPoint(x = 0, y = 0, curveType = 0) {
-            var pt = new GPathPoint();
-            pt.x = x;
-            pt.y = y;
-            pt.control1_x = 0;
-            pt.control1_y = 0;
-            pt.control2_x = 0;
-            pt.control2_y = 0;
-            pt.curveType = curveType;
-            return pt;
-        }
-        static newBezierPoint(x = 0, y = 0, control1_x = 0, control1_y = 0) {
-            var pt = new GPathPoint();
-            pt.x = x;
-            pt.y = y;
-            pt.control1_x = control1_x;
-            pt.control1_y = control1_y;
-            pt.control2_x = 0;
-            pt.control2_y = 0;
-            pt.curveType = CurveType.Bezier;
-            return pt;
-        }
-        static newCubicBezierPoint(x = 0, y = 0, control1_x = 0, control1_y = 0, control2_x = 0, control2_y = 0) {
-            var pt = new GPathPoint();
-            pt.x = x;
-            pt.y = y;
-            pt.control1_x = control1_x;
-            pt.control1_y = control1_y;
-            pt.control2_x = control2_x;
-            pt.control2_y = control2_y;
-            pt.curveType = CurveType.CubicBezier;
-            return pt;
-        }
-        clone() {
-            var ret = new GPathPoint();
-            ret.x = this.x;
-            ret.y = this.y;
-            ret.control1_x = this.control1_x;
-            ret.control1_y = this.control1_y;
-            ret.control2_x = this.control2_x;
-            ret.control2_y = this.control2_y;
-            ret.curveType = this.curveType;
-            return ret;
-        }
-    }
-    fgui.GPathPoint = GPathPoint;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GTween {
-        static to(start, end, duration) {
-            return fgui.TweenManager.createTween()._to(start, end, duration);
-        }
-        static to2(start, start2, end, end2, duration) {
-            return fgui.TweenManager.createTween()._to2(start, start2, end, end2, duration);
-        }
-        static to3(start, start2, start3, end, end2, end3, duration) {
-            return fgui.TweenManager.createTween()._to3(start, start2, start3, end, end2, end3, duration);
-        }
-        static to4(start, start2, start3, start4, end, end2, end3, end4, duration) {
-            return fgui.TweenManager.createTween()._to4(start, start2, start3, start4, end, end2, end3, end4, duration);
-        }
-        static toColor(start, end, duration) {
-            return fgui.TweenManager.createTween()._toColor(start, end, duration);
-        }
-        static delayedCall(delay) {
-            return fgui.TweenManager.createTween().setDelay(delay);
-        }
-        static shake(startX, startY, amplitude, duration) {
-            return fgui.TweenManager.createTween()._shake(startX, startY, amplitude, duration);
-        }
-        static isTweening(target, propType) {
-            return fgui.TweenManager.isTweening(target, propType);
-        }
-        static kill(target, complete, propType) {
-            fgui.TweenManager.killTweens(target, complete, propType);
-        }
-        static getTween(target, propType) {
-            return fgui.TweenManager.getTween(target, propType);
-        }
-    }
-    GTween.catchCallbackExceptions = true;
-    fgui.GTween = GTween;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GTweener {
-        constructor() {
-            this._startValue = new fgui.TweenValue();
-            this._endValue = new fgui.TweenValue();
-            this._value = new fgui.TweenValue();
-            this._deltaValue = new fgui.TweenValue();
-            this._reset();
-        }
-        setDelay(value) {
-            this._delay = value;
-            return this;
-        }
-        get delay() {
-            return this._delay;
-        }
-        setDuration(value) {
-            this._duration = value;
-            return this;
-        }
-        get duration() {
-            return this._duration;
-        }
-        setBreakpoint(value) {
-            this._breakpoint = value;
-            return this;
-        }
-        setEase(value) {
-            this._easeType = value;
-            return this;
-        }
-        setEasePeriod(value) {
-            this._easePeriod = value;
-            return this;
-        }
-        setEaseOvershootOrAmplitude(value) {
-            this._easeOvershootOrAmplitude = value;
-            return this;
-        }
-        setRepeat(repeat, yoyo = false) {
-            this._repeat = repeat;
-            this._yoyo = yoyo;
-            return this;
-        }
-        get repeat() {
-            return this._repeat;
-        }
-        setTimeScale(value) {
-            this._timeScale = value;
-            return this;
-        }
-        setSnapping(value) {
-            this._snapping = value;
-            return this;
-        }
-        setTarget(value, propType) {
-            this._target = value;
-            this._propType = propType;
-            return this;
-        }
-        setPath(value) {
-            this._path = value;
-            return this;
-        }
-        get target() {
-            return this._target;
-        }
-        setUserData(value) {
-            this._userData = value;
-            return this;
-        }
-        get userData() {
-            return this._userData;
-        }
-        onUpdate(callback, caller) {
-            this._onUpdate = callback;
-            this._onUpdateCaller = caller;
-            return this;
-        }
-        onStart(callback, caller) {
-            this._onStart = callback;
-            this._onStartCaller = caller;
-            return this;
-        }
-        onComplete(callback, caller) {
-            this._onComplete = callback;
-            this._onCompleteCaller = caller;
-            return this;
-        }
-        get startValue() {
-            return this._startValue;
-        }
-        get endValue() {
-            return this._endValue;
-        }
-        get value() {
-            return this._value;
-        }
-        get deltaValue() {
-            return this._deltaValue;
-        }
-        get normalizedTime() {
-            return this._normalizedTime;
-        }
-        get completed() {
-            return this._ended != 0;
-        }
-        get allCompleted() {
-            return this._ended == 1;
-        }
-        setPaused(paused) {
-            this._paused = paused;
-            return this;
-        }
-        seek(time) {
-            if (this._killed)
-                return;
-            this._elapsedTime = time;
-            if (this._elapsedTime < this._delay) {
-                if (this._started)
-                    this._elapsedTime = this._delay;
-                else
-                    return;
-            }
-            this.update();
-        }
-        kill(complete) {
-            if (this._killed)
-                return;
-            if (complete) {
-                if (this._ended == 0) {
-                    if (this._breakpoint >= 0)
-                        this._elapsedTime = this._delay + this._breakpoint;
-                    else if (this._repeat >= 0)
-                        this._elapsedTime = this._delay + this._duration * (this._repeat + 1);
-                    else
-                        this._elapsedTime = this._delay + this._duration * 2;
-                    this.update();
-                }
-                this.callCompleteCallback();
-            }
-            this._killed = true;
-        }
-        _to(start, end, duration) {
-            this._valueSize = 1;
-            this._startValue.x = start;
-            this._endValue.x = end;
-            this._value.x = start;
-            this._duration = duration;
-            return this;
-        }
-        _to2(start, start2, end, end2, duration) {
-            this._valueSize = 2;
-            this._startValue.x = start;
-            this._endValue.x = end;
-            this._startValue.y = start2;
-            this._endValue.y = end2;
-            this._value.x = start;
-            this._value.y = start2;
-            this._duration = duration;
-            return this;
-        }
-        _to3(start, start2, start3, end, end2, end3, duration) {
-            this._valueSize = 3;
-            this._startValue.x = start;
-            this._endValue.x = end;
-            this._startValue.y = start2;
-            this._endValue.y = end2;
-            this._startValue.z = start3;
-            this._endValue.z = end3;
-            this._value.x = start;
-            this._value.y = start2;
-            this._value.z = start3;
-            this._duration = duration;
-            return this;
-        }
-        _to4(start, start2, start3, start4, end, end2, end3, end4, duration) {
-            this._valueSize = 4;
-            this._startValue.x = start;
-            this._endValue.x = end;
-            this._startValue.y = start2;
-            this._endValue.y = end2;
-            this._startValue.z = start3;
-            this._endValue.z = end3;
-            this._startValue.w = start4;
-            this._endValue.w = end4;
-            this._value.x = start;
-            this._value.y = start2;
-            this._value.z = start3;
-            this._value.w = start4;
-            this._duration = duration;
-            return this;
-        }
-        _toColor(start, end, duration) {
-            this._valueSize = 4;
-            this._startValue.color = start;
-            this._endValue.color = end;
-            this._value.color = start;
-            this._duration = duration;
-            return this;
-        }
-        _shake(startX, startY, amplitude, duration) {
-            this._valueSize = 5;
-            this._startValue.x = startX;
-            this._startValue.y = startY;
-            this._startValue.w = amplitude;
-            this._duration = duration;
-            return this;
-        }
-        _init() {
-            this._delay = 0;
-            this._duration = 0;
-            this._breakpoint = -1;
-            this._easeType = fgui.EaseType.QuadOut;
-            this._timeScale = 1;
-            this._easePeriod = 0;
-            this._easeOvershootOrAmplitude = 1.70158;
-            this._snapping = false;
-            this._repeat = 0;
-            this._yoyo = false;
-            this._valueSize = 0;
-            this._started = false;
-            this._paused = false;
-            this._killed = false;
-            this._elapsedTime = 0;
-            this._normalizedTime = 0;
-            this._ended = 0;
-        }
-        _reset() {
-            this._target = null;
-            this._userData = null;
-            this._path = null;
-            this._onStart = this._onUpdate = this._onComplete = null;
-            this._onStartCaller = this._onUpdateCaller = this._onCompleteCaller = null;
-        }
-        _update(dt) {
-            if (this._timeScale != 1)
-                dt *= this._timeScale;
-            if (dt == 0)
-                return;
-            if (this._ended != 0) {
-                this.callCompleteCallback();
-                this._killed = true;
-                return;
-            }
-            this._elapsedTime += dt;
-            this.update();
-            if (this._ended != 0) {
-                if (!this._killed) {
-                    this.callCompleteCallback();
-                    this._killed = true;
-                }
-            }
-        }
-        update() {
-            this._ended = 0;
-            if (this._valueSize == 0) {
-                if (this._elapsedTime >= this._delay + this._duration)
-                    this._ended = 1;
-                return;
-            }
-            if (!this._started) {
-                if (this._elapsedTime < this._delay)
-                    return;
-                this._started = true;
-                this.callStartCallback();
-                if (this._killed)
-                    return;
-            }
-            var reversed = false;
-            var tt = this._elapsedTime - this._delay;
-            if (this._breakpoint >= 0 && tt >= this._breakpoint) {
-                tt = this._breakpoint;
-                this._ended = 2;
-            }
-            if (this._repeat != 0) {
-                var round = Math.floor(tt / this._duration);
-                tt -= this._duration * round;
-                if (this._yoyo)
-                    reversed = round % 2 == 1;
-                if (this._repeat > 0 && this._repeat - round < 0) {
-                    if (this._yoyo)
-                        reversed = this._repeat % 2 == 1;
-                    tt = this._duration;
-                    this._ended = 1;
-                }
-            }
-            else if (tt >= this._duration) {
-                tt = this._duration;
-                this._ended = 1;
-            }
-            this._normalizedTime = fgui.EaseManager.evaluate(this._easeType, reversed ? (this._duration - tt) : tt, this._duration, this._easeOvershootOrAmplitude, this._easePeriod);
-            this._value.setZero();
-            this._deltaValue.setZero();
-            if (this._valueSize == 5) {
-                if (this._ended == 0) {
-                    var r = this._startValue.w * (1 - this._normalizedTime);
-                    var rx = r * (Math.random() > 0.5 ? 1 : -1);
-                    var ry = r * (Math.random() > 0.5 ? 1 : -1);
-                    this._deltaValue.x = rx;
-                    this._deltaValue.y = ry;
-                    this._value.x = this._startValue.x + rx;
-                    this._value.y = this._startValue.y + ry;
-                }
-                else {
-                    this._value.x = this._startValue.x;
-                    this._value.y = this._startValue.y;
-                }
-            }
-            else if (this._path) {
-                var pt = GTweener.helperPoint;
-                this._path.getPointAt(this._normalizedTime, pt);
-                if (this._snapping) {
-                    pt.x = Math.round(pt.x);
-                    pt.y = Math.round(pt.y);
-                }
-                this._deltaValue.x = pt.x - this._value.x;
-                this._deltaValue.y = pt.y - this._value.y;
-                this._value.x = pt.x;
-                this._value.y = pt.y;
-            }
-            else {
-                for (var i = 0; i < this._valueSize; i++) {
-                    var n1 = this._startValue.getField(i);
-                    var n2 = this._endValue.getField(i);
-                    var f = n1 + (n2 - n1) * this._normalizedTime;
-                    if (this._snapping)
-                        f = Math.round(f);
-                    this._deltaValue.setField(i, f - this._value.getField(i));
-                    this._value.setField(i, f);
-                }
-            }
-            if (this._target != null && this._propType) {
-                if (this._propType instanceof Function) {
-                    switch (this._valueSize) {
-                        case 1:
-                            this._propType.call(this._target, this._value.x);
-                            break;
-                        case 2:
-                            this._propType.call(this._target, this._value.x, this._value.y);
-                            break;
-                        case 3:
-                            this._propType.call(this._target, this._value.x, this._value.y, this._value.z);
-                            break;
-                        case 4:
-                            this._propType.call(this._target, this._value.x, this._value.y, this._value.z, this._value.w);
-                            break;
-                        case 5:
-                            this._propType.call(this._target, this._value.color);
-                            break;
-                        case 6:
-                            this._propType.call(this._target, this._value.x, this._value.y);
-                            break;
-                    }
-                }
-                else {
-                    if (this._valueSize == 5)
-                        this._target[this._propType] = this._value.color;
-                    else
-                        this._target[this._propType] = this._value.x;
-                }
-            }
-            this.callUpdateCallback();
-        }
-        callStartCallback() {
-            if (this._onStart != null) {
-                try {
-                    this._onStart.call(this._onStartCaller, this);
-                }
-                catch (err) {
-                    console.log("FairyGUI: error in start callback > " + err);
-                }
-            }
-        }
-        callUpdateCallback() {
-            if (this._onUpdate != null) {
-                try {
-                    this._onUpdate.call(this._onUpdateCaller, this);
-                }
-                catch (err) {
-                    console.log("FairyGUI: error in update callback > " + err);
-                }
-            }
-        }
-        callCompleteCallback() {
-            if (this._onComplete != null) {
-                try {
-                    this._onComplete.call(this._onCompleteCaller, this);
-                }
-                catch (err) {
-                    console.log("FairyGUI: error in complete callback > " + err);
-                }
-            }
-        }
-    }
-    GTweener.helperPoint = new Laya.Point();
-    fgui.GTweener = GTweener;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class TweenManager {
-        static createTween() {
-            if (!TweenManager._inited) {
-                Laya.timer.frameLoop(1, null, TweenManager.update);
-                TweenManager._inited = true;
-            }
-            var tweener;
-            var cnt = TweenManager._tweenerPool.length;
-            if (cnt > 0) {
-                tweener = TweenManager._tweenerPool.pop();
-            }
-            else
-                tweener = new fgui.GTweener();
-            tweener._init();
-            TweenManager._activeTweens[TweenManager._totalActiveTweens++] = tweener;
-            return tweener;
-        }
-        static isTweening(target, propType) {
-            if (target == null)
-                return false;
-            var anyType = !propType;
-            for (var i = 0; i < TweenManager._totalActiveTweens; i++) {
-                var tweener = TweenManager._activeTweens[i];
-                if (tweener != null && tweener.target == target && !tweener._killed
-                    && (anyType || tweener._propType == propType))
-                    return true;
-            }
-            return false;
-        }
-        static killTweens(target, completed, propType) {
-            if (target == null)
-                return false;
-            var flag = false;
-            var cnt = TweenManager._totalActiveTweens;
-            var anyType = !propType;
-            for (var i = 0; i < cnt; i++) {
-                var tweener = TweenManager._activeTweens[i];
-                if (tweener != null && tweener.target == target && !tweener._killed
-                    && (anyType || tweener._propType == propType)) {
-                    tweener.kill(completed);
-                    flag = true;
-                }
-            }
-            return flag;
-        }
-        static getTween(target, propType) {
-            if (target == null)
-                return null;
-            var cnt = TweenManager._totalActiveTweens;
-            var anyType = !propType;
-            for (var i = 0; i < cnt; i++) {
-                var tweener = TweenManager._activeTweens[i];
-                if (tweener != null && tweener.target == target && !tweener._killed
-                    && (anyType || tweener._propType == propType)) {
-                    return tweener;
-                }
-            }
-            return null;
-        }
-        static update() {
-            var dt = Laya.timer.delta / 1000;
-            var cnt = TweenManager._totalActiveTweens;
-            var freePosStart = -1;
-            for (var i = 0; i < cnt; i++) {
-                var tweener = TweenManager._activeTweens[i];
-                if (tweener == null) {
-                    if (freePosStart == -1)
-                        freePosStart = i;
-                }
-                else if (tweener._killed) {
-                    tweener._reset();
-                    TweenManager._tweenerPool.push(tweener);
-                    TweenManager._activeTweens[i] = null;
-                    if (freePosStart == -1)
-                        freePosStart = i;
-                }
-                else {
-                    if ((tweener._target instanceof fgui.GObject) && (tweener._target).isDisposed)
-                        tweener._killed = true;
-                    else if (!tweener._paused)
-                        tweener._update(dt);
-                    if (freePosStart != -1) {
-                        TweenManager._activeTweens[freePosStart] = tweener;
-                        TweenManager._activeTweens[i] = null;
-                        freePosStart++;
-                    }
-                }
-            }
-            if (freePosStart >= 0) {
-                if (TweenManager._totalActiveTweens != cnt) {
-                    var j = cnt;
-                    cnt = TweenManager._totalActiveTweens - cnt;
-                    for (i = 0; i < cnt; i++)
-                        TweenManager._activeTweens[freePosStart++] = TweenManager._activeTweens[j++];
-                }
-                TweenManager._totalActiveTweens = freePosStart;
-            }
-        }
-    }
-    TweenManager._activeTweens = new Array();
-    TweenManager._tweenerPool = [];
-    TweenManager._totalActiveTweens = 0;
-    TweenManager._inited = false;
-    fgui.TweenManager = TweenManager;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class TweenValue {
-        constructor() {
-            this.x = this.y = this.z = this.w = 0;
-        }
-        get color() {
-            return (this.w << 24) + (this.x << 16) + (this.y << 8) + this.z;
-        }
-        set color(value) {
-            this.x = (value & 0xFF0000) >> 16;
-            this.y = (value & 0x00FF00) >> 8;
-            this.z = (value & 0x0000FF);
-            this.w = (value & 0xFF000000) >> 24;
-        }
-        getField(index) {
-            switch (index) {
-                case 0:
-                    return this.x;
-                case 1:
-                    return this.y;
-                case 2:
-                    return this.z;
-                case 3:
-                    return this.w;
-                default:
-                    throw new Error("Index out of bounds: " + index);
-            }
-        }
-        setField(index, value) {
-            switch (index) {
-                case 0:
-                    this.x = value;
-                    break;
-                case 1:
-                    this.y = value;
-                    break;
-                case 2:
-                    this.z = value;
-                    break;
-                case 3:
-                    this.w = value;
-                    break;
-                default:
-                    throw new Error("Index out of bounds: " + index);
-            }
-        }
-        setZero() {
-            this.x = this.y = this.z = this.w = 0;
-        }
-    }
-    fgui.TweenValue = TweenValue;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearBase {
-        constructor(owner) {
-            this._owner = owner;
-        }
-        static create(owner, index) {
-            if (!GearBase.Classes)
-                GearBase.Classes = [
-                    fgui.GearDisplay, fgui.GearXY, fgui.GearSize, fgui.GearLook, fgui.GearColor,
-                    fgui.GearAnimation, fgui.GearText, fgui.GearIcon, fgui.GearDisplay2, fgui.GearFontSize
-                ];
-            return new (GearBase.Classes[index])(owner);
-        }
-        dispose() {
-            if (this._tweenConfig != null && this._tweenConfig._tweener != null) {
-                this._tweenConfig._tweener.kill();
-                this._tweenConfig._tweener = null;
-            }
-        }
-        get controller() {
-            return this._controller;
-        }
-        set controller(val) {
-            if (val != this._controller) {
-                this._controller = val;
-                if (this._controller)
-                    this.init();
-            }
-        }
-        get tweenConfig() {
-            if (this._tweenConfig == null)
-                this._tweenConfig = new GearTweenConfig();
-            return this._tweenConfig;
-        }
-        setup(buffer) {
-            this._controller = this._owner.parent.getControllerAt(buffer.getInt16());
-            this.init();
-            var i;
-            var page;
-            var cnt = buffer.getInt16();
-            if (this instanceof fgui.GearDisplay) {
-                this.pages = buffer.readSArray(cnt);
-            }
-            else if (this instanceof fgui.GearDisplay2) {
-                this.pages = buffer.readSArray(cnt);
-            }
-            else {
-                for (i = 0; i < cnt; i++) {
-                    page = buffer.readS();
-                    if (page == null)
-                        continue;
-                    this.addStatus(page, buffer);
-                }
-                if (buffer.readBool())
-                    this.addStatus(null, buffer);
-            }
-            if (buffer.readBool()) {
-                this._tweenConfig = new GearTweenConfig();
-                this._tweenConfig.easeType = buffer.readByte();
-                this._tweenConfig.duration = buffer.getFloat32();
-                this._tweenConfig.delay = buffer.getFloat32();
-            }
-            if (buffer.version >= 2) {
-                if (this instanceof fgui.GearXY)
-                    this.positionsInPercent = buffer.readBool();
-                else if (this instanceof fgui.GearDisplay2)
-                    this.condition = buffer.readByte();
-            }
-        }
-        updateFromRelations(dx, dy) {
-        }
-        addStatus(pageId, buffer) {
-        }
-        init() {
-        }
-        apply() {
-        }
-        updateState() {
-        }
-    }
-    GearBase.disableAllTweenEffect = false;
-    fgui.GearBase = GearBase;
-    class GearTweenConfig {
-        constructor() {
-            this.tween = true;
-            this.easeType = fgui.EaseType.QuadOut;
-            this.duration = 0.3;
-            this.delay = 0;
-        }
-    }
-    fgui.GearTweenConfig = GearTweenConfig;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearSize extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-        }
-        init() {
-            this._default = new GearSizeValue(this._owner.width, this._owner.height, this._owner.scaleX, this._owner.scaleY);
-            this._storage = {};
-        }
-        addStatus(pageId, buffer) {
-            var gv;
-            if (pageId == null)
-                gv = this._default;
-            else {
-                gv = new GearSizeValue();
-                this._storage[pageId] = gv;
-            }
-            gv.width = buffer.getInt32();
-            gv.height = buffer.getInt32();
-            gv.scaleX = buffer.getFloat32();
-            gv.scaleY = buffer.getFloat32();
-        }
-        apply() {
-            var gv = this._storage[this._controller.selectedPageId];
-            if (!gv)
-                gv = this._default;
-            if (this._tweenConfig != null && this._tweenConfig.tween && !fgui.UIPackage._constructing && !fgui.GearBase.disableAllTweenEffect) {
-                if (this._tweenConfig._tweener != null) {
-                    if (this._tweenConfig._tweener.endValue.x != gv.width || this._tweenConfig._tweener.endValue.y != gv.height
-                        || this._tweenConfig._tweener.endValue.z != gv.scaleX || this._tweenConfig._tweener.endValue.w != gv.scaleY) {
-                        this._tweenConfig._tweener.kill(true);
-                        this._tweenConfig._tweener = null;
-                    }
-                    else
-                        return;
-                }
-                var a = gv.width != this._owner.width || gv.height != this._owner.height;
-                var b = gv.scaleX != this._owner.scaleX || gv.scaleY != this._owner.scaleY;
-                if (a || b) {
-                    if (this._owner.checkGearController(0, this._controller))
-                        this._tweenConfig._displayLockToken = this._owner.addDisplayLock();
-                    this._tweenConfig._tweener = fgui.GTween.to4(this._owner.width, this._owner.height, this._owner.scaleX, this._owner.scaleY, gv.width, gv.height, gv.scaleX, gv.scaleY, this._tweenConfig.duration)
-                        .setDelay(this._tweenConfig.delay)
-                        .setEase(this._tweenConfig.easeType)
-                        .setUserData((a ? 1 : 0) + (b ? 2 : 0))
-                        .setTarget(this)
-                        .onUpdate(this.__tweenUpdate, this)
-                        .onComplete(this.__tweenComplete, this);
-                }
-            }
-            else {
-                this._owner._gearLocked = true;
-                this._owner.setSize(gv.width, gv.height, this._owner.checkGearController(1, this._controller));
-                this._owner.setScale(gv.scaleX, gv.scaleY);
-                this._owner._gearLocked = false;
-            }
-        }
-        __tweenUpdate(tweener) {
-            var flag = tweener.userData;
-            this._owner._gearLocked = true;
-            if ((flag & 1) != 0)
-                this._owner.setSize(tweener.value.x, tweener.value.y, this._owner.checkGearController(1, this._controller));
-            if ((flag & 2) != 0)
-                this._owner.setScale(tweener.value.z, tweener.value.w);
-            this._owner._gearLocked = false;
-        }
-        __tweenComplete() {
-            if (this._tweenConfig._displayLockToken != 0) {
-                this._owner.releaseDisplayLock(this._tweenConfig._displayLockToken);
-                this._tweenConfig._displayLockToken = 0;
-            }
-            this._tweenConfig._tweener = null;
-        }
-        updateState() {
-            var gv = this._storage[this._controller.selectedPageId];
-            if (!gv) {
-                gv = new GearSizeValue();
-                this._storage[this._controller.selectedPageId] = gv;
-            }
-            gv.width = this._owner.width;
-            gv.height = this._owner.height;
-            gv.scaleX = this._owner.scaleX;
-            gv.scaleY = this._owner.scaleY;
-        }
-        updateFromRelations(dx, dy) {
-            if (this._controller == null || this._storage == null)
-                return;
-            for (var key in this._storage) {
-                var gv = this._storage[key];
-                gv.width += dx;
-                gv.height += dy;
-            }
-            this._default.width += dx;
-            this._default.height += dy;
-            this.updateState();
-        }
-    }
-    fgui.GearSize = GearSize;
-    class GearSizeValue {
-        constructor(width = 0, height = 0, scaleX = 0, scaleY = 0) {
-            this.width = width;
-            this.height = height;
-            this.scaleX = scaleX;
-            this.scaleY = scaleY;
-        }
-    }
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearXY extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-        }
-        init() {
-            this._default = {
-                x: this._owner.x, y: this._owner.y,
-                px: this._owner.x / this._owner.parent.width, py: this._owner.y / this._owner.parent.height
-            };
-            this._storage = {};
-        }
-        addStatus(pageId, buffer) {
-            var gv;
-            if (pageId == null)
-                gv = this._default;
-            else {
-                gv = {};
-                this._storage[pageId] = gv;
-            }
-            gv.x = buffer.getInt32();
-            gv.y = buffer.getInt32();
-            if (buffer.version >= 2) {
-                gv.px = buffer.getFloat32();
-                gv.py = buffer.getFloat32();
-            }
-            else {
-                gv.px = gv.x / this._owner.parent.width;
-                gv.py = gv.y / this._owner.parent.height;
-            }
-        }
-        apply() {
-            var pt = this._storage[this._controller.selectedPageId];
-            if (!pt)
-                pt = this._default;
-            var ex;
-            var ey;
-            if (this.positionsInPercent && this._owner.parent) {
-                ex = pt.px * this._owner.parent.width;
-                ey = pt.py * this._owner.parent.height;
-            }
-            else {
-                ex = pt.x;
-                ey = pt.y;
-            }
-            if (this._tweenConfig != null && this._tweenConfig.tween && !fgui.UIPackage._constructing && !fgui.GearBase.disableAllTweenEffect) {
-                if (this._tweenConfig._tweener != null) {
-                    if (this._tweenConfig._tweener.endValue.x != ex || this._tweenConfig._tweener.endValue.y != ey) {
-                        this._tweenConfig._tweener.kill(true);
-                        this._tweenConfig._tweener = null;
-                    }
-                    else
-                        return;
-                }
-                var ox = this._owner.x;
-                var oy = this._owner.y;
-                if (ox != ex || oy != ey) {
-                    if (this._owner.checkGearController(0, this._controller))
-                        this._tweenConfig._displayLockToken = this._owner.addDisplayLock();
-                    this._tweenConfig._tweener = fgui.GTween.to2(ox, oy, ex, ey, this._tweenConfig.duration)
-                        .setDelay(this._tweenConfig.delay)
-                        .setEase(this._tweenConfig.easeType)
-                        .setTarget(this)
-                        .onUpdate(this.__tweenUpdate, this)
-                        .onComplete(this.__tweenComplete, this);
-                }
-            }
-            else {
-                this._owner._gearLocked = true;
-                this._owner.setXY(ex, ey);
-                this._owner._gearLocked = false;
-            }
-        }
-        __tweenUpdate(tweener) {
-            this._owner._gearLocked = true;
-            this._owner.setXY(tweener.value.x, tweener.value.y);
-            this._owner._gearLocked = false;
-        }
-        __tweenComplete() {
-            if (this._tweenConfig._displayLockToken != 0) {
-                this._owner.releaseDisplayLock(this._tweenConfig._displayLockToken);
-                this._tweenConfig._displayLockToken = 0;
-            }
-            this._tweenConfig._tweener = null;
-        }
-        updateState() {
-            var pt = this._storage[this._controller.selectedPageId];
-            if (!pt) {
-                pt = {};
-                this._storage[this._controller.selectedPageId] = pt;
-            }
-            pt.x = this._owner.x;
-            pt.y = this._owner.y;
-            pt.px = this._owner.x / this._owner.parent.width;
-            pt.py = this._owner.y / this._owner.parent.height;
-        }
-        updateFromRelations(dx, dy) {
-            if (this._controller == null || this._storage == null || this.positionsInPercent)
-                return;
-            for (var key in this._storage) {
-                var pt = this._storage[key];
-                pt.x += dx;
-                pt.y += dy;
-            }
-            this._default.x += dx;
-            this._default.y += dy;
-            this.updateState();
-        }
-    }
-    fgui.GearXY = GearXY;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearText extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-        }
-        init() {
-            this._default = this._owner.text;
-            this._storage = {};
-        }
-        addStatus(pageId, buffer) {
-            if (pageId == null)
-                this._default = buffer.readS();
-            else
-                this._storage[pageId] = buffer.readS();
-        }
-        apply() {
-            this._owner._gearLocked = true;
-            var data = this._storage[this._controller.selectedPageId];
-            if (data !== undefined)
-                this._owner.text = data;
-            else
-                this._owner.text = this._default;
-            this._owner._gearLocked = false;
-        }
-        updateState() {
-            this._storage[this._controller.selectedPageId] = this._owner.text;
-        }
-    }
-    fgui.GearText = GearText;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearIcon extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-        }
-        init() {
-            this._default = this._owner.icon;
-            this._storage = {};
-        }
-        addStatus(pageId, buffer) {
-            if (pageId == null)
-                this._default = buffer.readS();
-            else
-                this._storage[pageId] = buffer.readS();
-        }
-        apply() {
-            this._owner._gearLocked = true;
-            var data = this._storage[this._controller.selectedPageId];
-            if (data !== undefined)
-                this._owner.icon = data;
-            else
-                this._owner.icon = this._default;
-            this._owner._gearLocked = false;
-        }
-        updateState() {
-            this._storage[this._controller.selectedPageId] = this._owner.icon;
-        }
-    }
-    fgui.GearIcon = GearIcon;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearAnimation extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-        }
-        init() {
-            this._default = new GearAnimationValue(this._owner.getProp(fgui.ObjectPropID.Playing), this._owner.getProp(fgui.ObjectPropID.Frame));
-            this._storage = {};
-        }
-        addStatus(pageId, buffer) {
-            var gv;
-            if (pageId == null)
-                gv = this._default;
-            else {
-                gv = new GearAnimationValue();
-                this._storage[pageId] = gv;
-            }
-            gv.playing = buffer.readBool();
-            gv.frame = buffer.getInt32();
-        }
-        apply() {
-            this._owner._gearLocked = true;
-            var gv = this._storage[this._controller.selectedPageId];
-            if (!gv)
-                gv = this._default;
-            this._owner.setProp(fgui.ObjectPropID.Playing, gv.playing);
-            this._owner.setProp(fgui.ObjectPropID.Frame, gv.frame);
-            this._owner._gearLocked = false;
-        }
-        updateState() {
-            var gv = this._storage[this._controller.selectedPageId];
-            if (!gv) {
-                gv = new GearAnimationValue();
-                this._storage[this._controller.selectedPageId] = gv;
-            }
-            gv.playing = this._owner.getProp(fgui.ObjectPropID.Playing);
-            gv.frame = this._owner.getProp(fgui.ObjectPropID.Frame);
-        }
-    }
-    fgui.GearAnimation = GearAnimation;
-    class GearAnimationValue {
-        constructor(playing = true, frame = 0) {
-            this.playing = playing;
-            this.frame = frame;
-        }
-    }
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearColor extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-        }
-        init() {
-            this._default = new GearColorValue(this._owner.getProp(fgui.ObjectPropID.Color), this._owner.getProp(fgui.ObjectPropID.OutlineColor));
-            this._storage = {};
-        }
-        addStatus(pageId, buffer) {
-            var gv;
-            if (pageId == null)
-                gv = this._default;
-            else {
-                gv = new GearColorValue();
-                this._storage[pageId] = gv;
-            }
-            gv.color = buffer.readColorS();
-            gv.strokeColor = buffer.readColorS();
-        }
-        apply() {
-            this._owner._gearLocked = true;
-            var gv = this._storage[this._controller.selectedPageId];
-            if (!gv)
-                gv = this._default;
-            this._owner.setProp(fgui.ObjectPropID.Color, gv.color);
-            if (gv.strokeColor != null)
-                this._owner.setProp(fgui.ObjectPropID.OutlineColor, gv.strokeColor);
-            this._owner._gearLocked = false;
-        }
-        updateState() {
-            var gv = this._storage[this._controller.selectedPageId];
-            if (!gv) {
-                gv = new GearColorValue(null, null);
-                this._storage[this._controller.selectedPageId] = gv;
-            }
-            gv.color = this._owner.getProp(fgui.ObjectPropID.Color);
-            gv.strokeColor = this._owner.getProp(fgui.ObjectPropID.OutlineColor);
-        }
-    }
-    fgui.GearColor = GearColor;
-    class GearColorValue {
-        constructor(color = null, strokeColor = null) {
-            this.color = color;
-            this.strokeColor = strokeColor;
-        }
-    }
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearDisplay extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-            this._visible = 0;
-            this._displayLockToken = 0;
-            this._displayLockToken = 1;
-        }
-        init() {
-            this.pages = null;
-        }
-        addLock() {
-            this._visible++;
-            return this._displayLockToken;
-        }
-        releaseLock(token) {
-            if (token == this._displayLockToken)
-                this._visible--;
-        }
-        get connected() {
-            return this._controller == null || this._visible > 0;
-        }
-        apply() {
-            this._displayLockToken++;
-            if (this._displayLockToken <= 0)
-                this._displayLockToken = 1;
-            if (this.pages == null || this.pages.length == 0
-                || this.pages.indexOf(this._controller.selectedPageId) != -1)
-                this._visible = 1;
-            else
-                this._visible = 0;
-        }
-    }
-    fgui.GearDisplay = GearDisplay;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearDisplay2 extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-            this._visible = 0;
-        }
-        init() {
-            this.pages = null;
-        }
-        apply() {
-            if (this.pages == null || this.pages.length == 0
-                || this.pages.indexOf(this._controller.selectedPageId) != -1)
-                this._visible = 1;
-            else
-                this._visible = 0;
-        }
-        evaluate(connected) {
-            var v = this._controller == null || this._visible > 0;
-            if (this.condition == 0)
-                v = v && connected;
-            else
-                v = v || connected;
-            return v;
-        }
-    }
-    fgui.GearDisplay2 = GearDisplay2;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearLook extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-        }
-        init() {
-            this._default = new GearLookValue(this._owner.alpha, this._owner.rotation, this._owner.grayed, this._owner.touchable);
-            this._storage = {};
-        }
-        addStatus(pageId, buffer) {
-            var gv;
-            if (pageId == null)
-                gv = this._default;
-            else {
-                gv = new GearLookValue();
-                this._storage[pageId] = gv;
-            }
-            gv.alpha = buffer.getFloat32();
-            gv.rotation = buffer.getFloat32();
-            gv.grayed = buffer.readBool();
-            gv.touchable = buffer.readBool();
-        }
-        apply() {
-            var gv = this._storage[this._controller.selectedPageId];
-            if (!gv)
-                gv = this._default;
-            if (this._tweenConfig != null && this._tweenConfig.tween && !fgui.UIPackage._constructing && !fgui.GearBase.disableAllTweenEffect) {
-                this._owner._gearLocked = true;
-                this._owner.grayed = gv.grayed;
-                this._owner.touchable = gv.touchable;
-                this._owner._gearLocked = false;
-                if (this._tweenConfig._tweener != null) {
-                    if (this._tweenConfig._tweener.endValue.x != gv.alpha || this._tweenConfig._tweener.endValue.y != gv.rotation) {
-                        this._tweenConfig._tweener.kill(true);
-                        this._tweenConfig._tweener = null;
-                    }
-                    else
-                        return;
-                }
-                var a = gv.alpha != this._owner.alpha;
-                var b = gv.rotation != this._owner.rotation;
-                if (a || b) {
-                    if (this._owner.checkGearController(0, this._controller))
-                        this._tweenConfig._displayLockToken = this._owner.addDisplayLock();
-                    this._tweenConfig._tweener = fgui.GTween.to2(this._owner.alpha, this._owner.rotation, gv.alpha, gv.rotation, this._tweenConfig.duration)
-                        .setDelay(this._tweenConfig.delay)
-                        .setEase(this._tweenConfig.easeType)
-                        .setUserData((a ? 1 : 0) + (b ? 2 : 0))
-                        .setTarget(this)
-                        .onUpdate(this.__tweenUpdate, this)
-                        .onComplete(this.__tweenComplete, this);
-                }
-            }
-            else {
-                this._owner._gearLocked = true;
-                this._owner.grayed = gv.grayed;
-                this._owner.alpha = gv.alpha;
-                this._owner.rotation = gv.rotation;
-                this._owner.touchable = gv.touchable;
-                this._owner._gearLocked = false;
-            }
-        }
-        __tweenUpdate(tweener) {
-            var flag = tweener.userData;
-            this._owner._gearLocked = true;
-            if ((flag & 1) != 0)
-                this._owner.alpha = tweener.value.x;
-            if ((flag & 2) != 0)
-                this._owner.rotation = tweener.value.y;
-            this._owner._gearLocked = false;
-        }
-        __tweenComplete() {
-            if (this._tweenConfig._displayLockToken != 0) {
-                this._owner.releaseDisplayLock(this._tweenConfig._displayLockToken);
-                this._tweenConfig._displayLockToken = 0;
-            }
-            this._tweenConfig._tweener = null;
-        }
-        updateState() {
-            var gv = this._storage[this._controller.selectedPageId];
-            if (!gv) {
-                gv = new GearLookValue();
-                this._storage[this._controller.selectedPageId] = gv;
-            }
-            gv.alpha = this._owner.alpha;
-            gv.rotation = this._owner.rotation;
-            gv.grayed = this._owner.grayed;
-            gv.touchable = this._owner.touchable;
-        }
-    }
-    fgui.GearLook = GearLook;
-    class GearLookValue {
-        constructor(alpha = 0, rotation = 0, grayed = false, touchable = true) {
-            this.alpha = alpha;
-            this.rotation = rotation;
-            this.grayed = grayed;
-            this.touchable = touchable;
-        }
-    }
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GearFontSize extends fgui.GearBase {
-        constructor(owner) {
-            super(owner);
-            this._default = 0;
-        }
-        init() {
-            this._default = this._owner.getProp(fgui.ObjectPropID.FontSize);
-            this._storage = {};
-        }
-        addStatus(pageId, buffer) {
-            if (pageId == null)
-                this._default = buffer.getInt32();
-            else
-                this._storage[pageId] = buffer.getInt32();
-        }
-        apply() {
-            this._owner._gearLocked = true;
-            var data = this._storage[this._controller.selectedPageId];
-            if (data != undefined)
-                this._owner.setProp(fgui.ObjectPropID.FontSize, data);
-            else
-                this._owner.setProp(fgui.ObjectPropID.FontSize, this._default);
-            this._owner._gearLocked = false;
-        }
-        updateState() {
-            this._storage[this._controller.selectedPageId] = this._owner.text;
-        }
-    }
-    fgui.GearFontSize = GearFontSize;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
     class AssetProxy {
         constructor() {
             this._asset = Laya.loader;
@@ -3226,7 +21,6 @@ window.fgui = {};
     }
     fgui.AssetProxy = AssetProxy;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class AsyncOperation {
@@ -3395,7 +189,6 @@ window.fgui = {};
         }
     }
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class Controller extends Laya.EventDispatcher {
@@ -3622,6 +415,66 @@ window.fgui = {};
     fgui.Controller = Controller;
 })(fgui || (fgui = {}));
 
+(function (fgui) {
+    class DragDropManager {
+        constructor() {
+            this._agent = new fgui.GLoader();
+            this._agent.draggable = true;
+            this._agent.touchable = false;
+            this._agent.setSize(100, 100);
+            this._agent.setPivot(0.5, 0.5, true);
+            this._agent.align = "center";
+            this._agent.verticalAlign = "middle";
+            this._agent.sortingOrder = 1000000;
+            this._agent.on(fgui.Events.DRAG_END, this, this.__dragEnd);
+        }
+        static get inst() {
+            if (DragDropManager._inst == null)
+                DragDropManager._inst = new DragDropManager();
+            return DragDropManager._inst;
+        }
+        get dragAgent() {
+            return this._agent;
+        }
+        get dragging() {
+            return this._agent.parent != null;
+        }
+        startDrag(source, icon, sourceData, touchPointID = -1) {
+            if (this._agent.parent != null)
+                return;
+            this._sourceData = sourceData;
+            this._agent.url = icon;
+            fgui.GRoot.inst.addChild(this._agent);
+            var pt = fgui.GRoot.inst.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY);
+            this._agent.setXY(pt.x, pt.y);
+            this._agent.startDrag(touchPointID);
+        }
+        cancel() {
+            if (this._agent.parent != null) {
+                this._agent.stopDrag();
+                fgui.GRoot.inst.removeChild(this._agent);
+                this._sourceData = null;
+            }
+        }
+        __dragEnd(evt) {
+            if (this._agent.parent == null)
+                return;
+            fgui.GRoot.inst.removeChild(this._agent);
+            var sourceData = this._sourceData;
+            this._sourceData = null;
+            var obj = fgui.GObject.cast(evt.target);
+            while (obj != null) {
+                if (obj.displayObject.hasListener(fgui.Events.DROP)) {
+                    obj.requestFocus();
+                    obj.displayObject.event(fgui.Events.DROP, [sourceData, fgui.Events.createEvent(fgui.Events.DROP, obj.displayObject, evt)]);
+                    return;
+                }
+                obj = obj.parent;
+            }
+        }
+    }
+    fgui.DragDropManager = DragDropManager;
+})(fgui || (fgui = {}));
 
 (function (fgui) {
     class Events {
@@ -3659,7 +512,6 @@ window.fgui = {};
     Events.$event = new Laya.Event();
     fgui.Events = Events;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     let ButtonMode;
@@ -3885,1062 +737,6 @@ window.fgui = {};
     })(ObjectPropID = fgui.ObjectPropID || (fgui.ObjectPropID = {}));
     ;
 })(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class Transition {
-        constructor(owner) {
-            this._owner = owner;
-            this._items = new Array();
-            this._totalDuration = 0;
-            this._autoPlayTimes = 1;
-            this._autoPlayDelay = 0;
-            this._timeScale = 1;
-            this._startTime = 0;
-            this._endTime = 0;
-        }
-        play(onComplete = null, times = 1, delay = 0, startTime = 0, endTime = -1) {
-            this._play(onComplete, times, delay, startTime, endTime, false);
-        }
-        playReverse(onComplete = null, times = 1, delay = 0, startTime = 0, endTime = -1) {
-            this._play(onComplete, 1, delay, startTime, endTime, true);
-        }
-        changePlayTimes(value) {
-            this._totalTimes = value;
-        }
-        setAutoPlay(value, times = 1, delay = 0) {
-            if (this._autoPlay != value) {
-                this._autoPlay = value;
-                this._autoPlayTimes = times;
-                this._autoPlayDelay = delay;
-                if (this._autoPlay) {
-                    if (this._owner.onStage)
-                        this.play(null, null, this._autoPlayTimes, this._autoPlayDelay);
-                }
-                else {
-                    if (!this._owner.onStage)
-                        this.stop(false, true);
-                }
-            }
-        }
-        _play(onComplete = null, times = 1, delay = 0, startTime = 0, endTime = -1, reversed = false) {
-            this.stop(true, true);
-            this._totalTimes = times;
-            this._reversed = reversed;
-            this._startTime = startTime;
-            this._endTime = endTime;
-            this._playing = true;
-            this._paused = false;
-            this._onComplete = onComplete;
-            var cnt = this._items.length;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                if (item.target == null) {
-                    if (item.targetId)
-                        item.target = this._owner.getChildById(item.targetId);
-                    else
-                        item.target = this._owner;
-                }
-                else if (item.target != this._owner && item.target.parent != this._owner)
-                    item.target = null;
-                if (item.target != null && item.type == TransitionActionType.Transition) {
-                    var trans = item.target.getTransition(item.value.transName);
-                    if (trans == this)
-                        trans = null;
-                    if (trans != null) {
-                        if (item.value.playTimes == 0) {
-                            var j;
-                            for (j = i - 1; j >= 0; j--) {
-                                var item2 = this._items[j];
-                                if (item2.type == TransitionActionType.Transition) {
-                                    if (item2.value.trans == trans) {
-                                        item2.value.stopTime = item.time - item2.time;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (j < 0)
-                                item.value.stopTime = 0;
-                            else
-                                trans = null;
-                        }
-                        else
-                            item.value.stopTime = -1;
-                    }
-                    item.value.trans = trans;
-                }
-            }
-            if (delay == 0)
-                this.onDelayedPlay();
-            else
-                fgui.GTween.delayedCall(delay).onComplete(this.onDelayedPlay, this);
-        }
-        stop(setToComplete = true, processCallback = false) {
-            if (!this._playing)
-                return;
-            this._playing = false;
-            this._totalTasks = 0;
-            this._totalTimes = 0;
-            var handler = this._onComplete;
-            this._onComplete = null;
-            fgui.GTween.kill(this);
-            var cnt = this._items.length;
-            if (this._reversed) {
-                for (var i = cnt - 1; i >= 0; i--) {
-                    var item = this._items[i];
-                    if (item.target == null)
-                        continue;
-                    this.stopItem(item, setToComplete);
-                }
-            }
-            else {
-                for (i = 0; i < cnt; i++) {
-                    item = this._items[i];
-                    if (item.target == null)
-                        continue;
-                    this.stopItem(item, setToComplete);
-                }
-            }
-            if (processCallback && handler != null) {
-                handler.run();
-            }
-        }
-        stopItem(item, setToComplete) {
-            if (item.displayLockToken != 0) {
-                item.target.releaseDisplayLock(item.displayLockToken);
-                item.displayLockToken = 0;
-            }
-            if (item.tweener != null) {
-                item.tweener.kill(setToComplete);
-                item.tweener = null;
-                if (item.type == TransitionActionType.Shake && !setToComplete) {
-                    item.target._gearLocked = true;
-                    item.target.setXY(item.target.x - item.value.lastOffsetX, item.target.y - item.value.lastOffsetY);
-                    item.target._gearLocked = false;
-                }
-            }
-            if (item.type == TransitionActionType.Transition) {
-                var trans = item.value.trans;
-                if (trans != null)
-                    trans.stop(setToComplete, false);
-            }
-        }
-        setPaused(paused) {
-            if (!this._playing || this._paused == paused)
-                return;
-            this._paused = paused;
-            var tweener = fgui.GTween.getTween(this);
-            if (tweener != null)
-                tweener.setPaused(paused);
-            var cnt = this._items.length;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                if (item.target == null)
-                    continue;
-                if (item.type == TransitionActionType.Transition) {
-                    if (item.value.trans != null)
-                        item.value.trans.setPaused(paused);
-                }
-                else if (item.type == TransitionActionType.Animation) {
-                    if (paused) {
-                        item.value.flag = item.target.getProp(fgui.ObjectPropID.Playing);
-                        item.target.setProp(fgui.ObjectPropID.Playing, false);
-                    }
-                    else
-                        item.target.setProp(fgui.ObjectPropID.Playing, item.value.flag);
-                }
-                if (item.tweener != null)
-                    item.tweener.setPaused(paused);
-            }
-        }
-        dispose() {
-            if (this._playing)
-                fgui.GTween.kill(this);
-            var cnt = this._items.length;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                if (item.tweener != null) {
-                    item.tweener.kill();
-                    item.tweener = null;
-                }
-                item.target = null;
-                item.hook = null;
-                if (item.tweenConfig != null)
-                    item.tweenConfig.endHook = null;
-            }
-            this._items.length = 0;
-            this._playing = false;
-            this._onComplete = null;
-        }
-        get playing() {
-            return this._playing;
-        }
-        setValue(label, ...args) {
-            var cnt = this._items.length;
-            var found = false;
-            var value;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                if (item.label == label) {
-                    if (item.tweenConfig != null)
-                        value = item.tweenConfig.startValue;
-                    else
-                        value = item.value;
-                    found = true;
-                }
-                else if (item.tweenConfig != null && item.tweenConfig.endLabel == label) {
-                    value = item.tweenConfig.endValue;
-                    found = true;
-                }
-                else
-                    continue;
-                switch (item.type) {
-                    case TransitionActionType.XY:
-                    case TransitionActionType.Size:
-                    case TransitionActionType.Pivot:
-                    case TransitionActionType.Scale:
-                    case TransitionActionType.Skew:
-                        value.b1 = true;
-                        value.b2 = true;
-                        value.f1 = parseFloat(args[0]);
-                        value.f2 = parseFloat(args[1]);
-                        break;
-                    case TransitionActionType.Alpha:
-                        value.f1 = parseFloat(args[0]);
-                        break;
-                    case TransitionActionType.Rotation:
-                        value.f1 = parseFloat(args[0]);
-                        break;
-                    case TransitionActionType.Color:
-                        value.f1 = parseFloat(args[0]);
-                        break;
-                    case TransitionActionType.Animation:
-                        value.frame = parseInt(args[0]);
-                        if (args.length > 1)
-                            value.playing = args[1];
-                        break;
-                    case TransitionActionType.Visible:
-                        value.visible = args[0];
-                        break;
-                    case TransitionActionType.Sound:
-                        value.sound = args[0];
-                        if (args.length > 1)
-                            value.volume = parseFloat(args[1]);
-                        break;
-                    case TransitionActionType.Transition:
-                        value.transName = args[0];
-                        if (args.length > 1)
-                            value.playTimes = parseInt(args[1]);
-                        break;
-                    case TransitionActionType.Shake:
-                        value.amplitude = parseFloat(args[0]);
-                        if (args.length > 1)
-                            value.duration = parseFloat(args[1]);
-                        break;
-                    case TransitionActionType.ColorFilter:
-                        value.f1 = parseFloat(args[0]);
-                        value.f2 = parseFloat(args[1]);
-                        value.f3 = parseFloat(args[2]);
-                        value.f4 = parseFloat(args[3]);
-                        break;
-                    case TransitionActionType.Text:
-                    case TransitionActionType.Icon:
-                        value.text = args[0];
-                        break;
-                }
-            }
-            if (!found)
-                throw new Error("this.label not exists");
-        }
-        setHook(label, callback) {
-            var cnt = this._items.length;
-            var found = false;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                if (item.label == label) {
-                    item.hook = callback;
-                    found = true;
-                    break;
-                }
-                else if (item.tweenConfig != null && item.tweenConfig.endLabel == label) {
-                    item.tweenConfig.endHook = callback;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-                throw new Error("this.label not exists");
-        }
-        clearHooks() {
-            var cnt = this._items.length;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                item.hook = null;
-                if (item.tweenConfig != null)
-                    item.tweenConfig.endHook = null;
-            }
-        }
-        setTarget(label, newTarget) {
-            var cnt = this._items.length;
-            var found = false;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                if (item.label == label) {
-                    item.targetId = (newTarget == this._owner || newTarget == null) ? "" : newTarget.id;
-                    if (this._playing) {
-                        if (item.targetId.length > 0)
-                            item.target = this._owner.getChildById(item.targetId);
-                        else
-                            item.target = this._owner;
-                    }
-                    else
-                        item.target = null;
-                    found = true;
-                }
-            }
-            if (!found)
-                throw new Error("this.label not exists");
-        }
-        setDuration(label, value) {
-            var cnt = this._items.length;
-            var found = false;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                if (item.tweenConfig != null && item.label == label) {
-                    item.tweenConfig.duration = value;
-                    found = true;
-                }
-            }
-            if (!found)
-                throw new Error("this.label not exists");
-        }
-        getLabelTime(label) {
-            var cnt = this._items.length;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                if (item.label == label)
-                    return item.time;
-                else if (item.tweenConfig != null && item.tweenConfig.endLabel == label)
-                    return item.time + item.tweenConfig.duration;
-            }
-            return NaN;
-        }
-        get timeScale() {
-            return this._timeScale;
-        }
-        set timeScale(value) {
-            if (this._timeScale != value) {
-                this._timeScale = value;
-                if (this._playing) {
-                    var cnt = this._items.length;
-                    for (var i = 0; i < cnt; i++) {
-                        var item = this._items[i];
-                        if (item.tweener != null)
-                            item.tweener.setTimeScale(value);
-                        else if (item.type == TransitionActionType.Transition) {
-                            if (item.value.trans != null)
-                                item.value.trans.timeScale = value;
-                        }
-                        else if (item.type == TransitionActionType.Animation) {
-                            if (item.target != null)
-                                item.target.setProp(fgui.ObjectPropID.TimeScale, value);
-                        }
-                    }
-                }
-            }
-        }
-        updateFromRelations(targetId, dx, dy) {
-            var cnt = this._items.length;
-            if (cnt == 0)
-                return;
-            for (var i = 0; i < cnt; i++) {
-                var item = this._items[i];
-                if (item.type == TransitionActionType.XY && item.targetId == targetId) {
-                    if (item.tweenConfig != null) {
-                        item.tweenConfig.startValue.f1 += dx;
-                        item.tweenConfig.startValue.f2 += dy;
-                        item.tweenConfig.endValue.f1 += dx;
-                        item.tweenConfig.endValue.f2 += dy;
-                    }
-                    else {
-                        item.value.f1 += dx;
-                        item.value.f2 += dy;
-                    }
-                }
-            }
-        }
-        onOwnerAddedToStage() {
-            if (this._autoPlay && !this._playing)
-                this.play(null, this._autoPlayTimes, this._autoPlayDelay);
-        }
-        onOwnerRemovedFromStage() {
-            if ((this._options & Transition.OPTION_AUTO_STOP_DISABLED) == 0)
-                this.stop((this._options & Transition.OPTION_AUTO_STOP_AT_END) != 0 ? true : false, false);
-        }
-        onDelayedPlay() {
-            this.internalPlay();
-            this._playing = this._totalTasks > 0;
-            if (this._playing) {
-                if ((this._options & Transition.OPTION_IGNORE_DISPLAY_CONTROLLER) != 0) {
-                    var cnt = this._items.length;
-                    for (var i = 0; i < cnt; i++) {
-                        var item = this._items[i];
-                        if (item.target != null && item.target != this._owner)
-                            item.displayLockToken = item.target.addDisplayLock();
-                    }
-                }
-            }
-            else if (this._onComplete != null) {
-                var handler = this._onComplete;
-                this._onComplete = null;
-                handler.run();
-            }
-        }
-        internalPlay() {
-            this._ownerBaseX = this._owner.x;
-            this._ownerBaseY = this._owner.y;
-            this._totalTasks = 0;
-            var cnt = this._items.length;
-            var item;
-            var needSkipAnimations = false;
-            if (!this._reversed) {
-                for (var i = 0; i < cnt; i++) {
-                    item = this._items[i];
-                    if (item.target == null)
-                        continue;
-                    if (item.type == TransitionActionType.Animation && this._startTime != 0 && item.time <= this._startTime) {
-                        needSkipAnimations = true;
-                        item.value.flag = false;
-                    }
-                    else
-                        this.playItem(item);
-                }
-            }
-            else {
-                for (i = cnt - 1; i >= 0; i--) {
-                    item = this._items[i];
-                    if (item.target == null)
-                        continue;
-                    this.playItem(item);
-                }
-            }
-            if (needSkipAnimations)
-                this.skipAnimations();
-        }
-        playItem(item) {
-            var time;
-            if (item.tweenConfig != null) {
-                if (this._reversed)
-                    time = (this._totalDuration - item.time - item.tweenConfig.duration);
-                else
-                    time = item.time;
-                if (this._endTime == -1 || time <= this._endTime) {
-                    var startValue;
-                    var endValue;
-                    if (this._reversed) {
-                        startValue = item.tweenConfig.endValue;
-                        endValue = item.tweenConfig.startValue;
-                    }
-                    else {
-                        startValue = item.tweenConfig.startValue;
-                        endValue = item.tweenConfig.endValue;
-                    }
-                    item.value.b1 = startValue.b1 || endValue.b1;
-                    item.value.b2 = startValue.b2 || endValue.b2;
-                    switch (item.type) {
-                        case TransitionActionType.XY:
-                        case TransitionActionType.Size:
-                        case TransitionActionType.Scale:
-                        case TransitionActionType.Skew:
-                            item.tweener = fgui.GTween.to2(startValue.f1, startValue.f2, endValue.f1, endValue.f2, item.tweenConfig.duration);
-                            break;
-                        case TransitionActionType.Alpha:
-                        case TransitionActionType.Rotation:
-                            item.tweener = fgui.GTween.to(startValue.f1, endValue.f1, item.tweenConfig.duration);
-                            break;
-                        case TransitionActionType.Color:
-                            item.tweener = fgui.GTween.toColor(startValue.f1, endValue.f1, item.tweenConfig.duration);
-                            break;
-                        case TransitionActionType.ColorFilter:
-                            item.tweener = fgui.GTween.to4(startValue.f1, startValue.f2, startValue.f3, startValue.f4, endValue.f1, endValue.f2, endValue.f3, endValue.f4, item.tweenConfig.duration);
-                            break;
-                    }
-                    item.tweener.setDelay(time)
-                        .setEase(item.tweenConfig.easeType)
-                        .setRepeat(item.tweenConfig.repeat, item.tweenConfig.yoyo)
-                        .setTimeScale(this._timeScale)
-                        .setTarget(item)
-                        .onStart(this.onTweenStart, this)
-                        .onUpdate(this.onTweenUpdate, this)
-                        .onComplete(this.onTweenComplete, this);
-                    if (this._endTime >= 0)
-                        item.tweener.setBreakpoint(this._endTime - time);
-                    this._totalTasks++;
-                }
-            }
-            else if (item.type == TransitionActionType.Shake) {
-                if (this._reversed)
-                    time = (this._totalDuration - item.time - item.value.duration);
-                else
-                    time = item.time;
-                item.value.offsetX = item.value.offsetY = 0;
-                item.value.lastOffsetX = item.value.lastOffsetY = 0;
-                item.tweener = fgui.GTween.shake(0, 0, item.value.amplitude, item.value.duration)
-                    .setDelay(time)
-                    .setTimeScale(this._timeScale)
-                    .setTarget(item)
-                    .onUpdate(this.onTweenUpdate, this)
-                    .onComplete(this.onTweenComplete, this);
-                if (this._endTime >= 0)
-                    item.tweener.setBreakpoint(this._endTime - item.time);
-                this._totalTasks++;
-            }
-            else {
-                if (this._reversed)
-                    time = (this._totalDuration - item.time);
-                else
-                    time = item.time;
-                if (time <= this._startTime) {
-                    this.applyValue(item);
-                    this.callHook(item, false);
-                }
-                else if (this._endTime == -1 || time <= this._endTime) {
-                    this._totalTasks++;
-                    item.tweener = fgui.GTween.delayedCall(time)
-                        .setTimeScale(this._timeScale)
-                        .setTarget(item)
-                        .onComplete(this.onDelayedPlayItem, this);
-                }
-            }
-            if (item.tweener != null)
-                item.tweener.seek(this._startTime);
-        }
-        skipAnimations() {
-            var frame;
-            var playStartTime;
-            var playTotalTime;
-            var value;
-            var target;
-            var item;
-            var cnt = this._items.length;
-            for (var i = 0; i < cnt; i++) {
-                item = this._items[i];
-                if (item.type != TransitionActionType.Animation || item.time > this._startTime)
-                    continue;
-                value = item.value;
-                if (value.flag)
-                    continue;
-                target = item.target;
-                frame = target.getProp(fgui.ObjectPropID.Frame);
-                playStartTime = target.getProp(fgui.ObjectPropID.Playing) ? 0 : -1;
-                playTotalTime = 0;
-                for (var j = i; j < cnt; j++) {
-                    item = this._items[j];
-                    if (item.type != TransitionActionType.Animation || item.target != target || item.time > this._startTime)
-                        continue;
-                    value = item.value;
-                    value.flag = true;
-                    if (value.frame != -1) {
-                        frame = value.frame;
-                        if (value.playing)
-                            playStartTime = item.time;
-                        else
-                            playStartTime = -1;
-                        playTotalTime = 0;
-                    }
-                    else {
-                        if (value.playing) {
-                            if (playStartTime < 0)
-                                playStartTime = item.time;
-                        }
-                        else {
-                            if (playStartTime >= 0)
-                                playTotalTime += (item.time - playStartTime);
-                            playStartTime = -1;
-                        }
-                    }
-                    this.callHook(item, false);
-                }
-                if (playStartTime >= 0)
-                    playTotalTime += (this._startTime - playStartTime);
-                target.setProp(fgui.ObjectPropID.Playing, playStartTime >= 0);
-                target.setProp(fgui.ObjectPropID.Frame, frame);
-                if (playTotalTime > 0)
-                    target.setProp(fgui.ObjectPropID.DeltaTime, playTotalTime * 1000);
-            }
-        }
-        onDelayedPlayItem(tweener) {
-            var item = tweener.target;
-            item.tweener = null;
-            this._totalTasks--;
-            this.applyValue(item);
-            this.callHook(item, false);
-            this.checkAllComplete();
-        }
-        onTweenStart(tweener) {
-            var item = tweener.target;
-            if (item.type == TransitionActionType.XY || item.type == TransitionActionType.Size) {
-                var startValue;
-                var endValue;
-                if (this._reversed) {
-                    startValue = item.tweenConfig.endValue;
-                    endValue = item.tweenConfig.startValue;
-                }
-                else {
-                    startValue = item.tweenConfig.startValue;
-                    endValue = item.tweenConfig.endValue;
-                }
-                if (item.type == TransitionActionType.XY) {
-                    if (item.target != this._owner) {
-                        if (!startValue.b1)
-                            tweener.startValue.x = item.target.x;
-                        else if (startValue.b3)
-                            tweener.startValue.x = startValue.f1 * this._owner.width;
-                        if (!startValue.b2)
-                            tweener.startValue.y = item.target.y;
-                        else if (startValue.b3)
-                            tweener.startValue.y = startValue.f2 * this._owner.height;
-                        if (!endValue.b1)
-                            tweener.endValue.x = tweener.startValue.x;
-                        else if (endValue.b3)
-                            tweener.endValue.x = endValue.f1 * this._owner.width;
-                        if (!endValue.b2)
-                            tweener.endValue.y = tweener.startValue.y;
-                        else if (endValue.b3)
-                            tweener.endValue.y = endValue.f2 * this._owner.height;
-                    }
-                    else {
-                        if (!startValue.b1)
-                            tweener.startValue.x = item.target.x - this._ownerBaseX;
-                        if (!startValue.b2)
-                            tweener.startValue.y = item.target.y - this._ownerBaseY;
-                        if (!endValue.b1)
-                            tweener.endValue.x = tweener.startValue.x;
-                        if (!endValue.b2)
-                            tweener.endValue.y = tweener.startValue.y;
-                    }
-                }
-                else {
-                    if (!startValue.b1)
-                        tweener.startValue.x = item.target.width;
-                    if (!startValue.b2)
-                        tweener.startValue.y = item.target.height;
-                    if (!endValue.b1)
-                        tweener.endValue.x = tweener.startValue.x;
-                    if (!endValue.b2)
-                        tweener.endValue.y = tweener.startValue.y;
-                }
-                if (item.tweenConfig.path) {
-                    item.value.b1 = item.value.b2 = true;
-                    tweener.setPath(item.tweenConfig.path);
-                }
-            }
-            this.callHook(item, false);
-        }
-        onTweenUpdate(tweener) {
-            var item = tweener.target;
-            switch (item.type) {
-                case TransitionActionType.XY:
-                case TransitionActionType.Size:
-                case TransitionActionType.Scale:
-                case TransitionActionType.Skew:
-                    item.value.f1 = tweener.value.x;
-                    item.value.f2 = tweener.value.y;
-                    if (item.tweenConfig.path) {
-                        item.value.f1 += tweener.startValue.x;
-                        item.value.f2 += tweener.startValue.y;
-                    }
-                    break;
-                case TransitionActionType.Alpha:
-                case TransitionActionType.Rotation:
-                    item.value.f1 = tweener.value.x;
-                    break;
-                case TransitionActionType.Color:
-                    item.value.f1 = tweener.value.color;
-                    break;
-                case TransitionActionType.ColorFilter:
-                    item.value.f1 = tweener.value.x;
-                    item.value.f2 = tweener.value.y;
-                    item.value.f3 = tweener.value.z;
-                    item.value.f4 = tweener.value.w;
-                    break;
-                case TransitionActionType.Shake:
-                    item.value.offsetX = tweener.deltaValue.x;
-                    item.value.offsetY = tweener.deltaValue.y;
-                    break;
-            }
-            this.applyValue(item);
-        }
-        onTweenComplete(tweener) {
-            var item = tweener.target;
-            item.tweener = null;
-            this._totalTasks--;
-            if (tweener.allCompleted)
-                this.callHook(item, true);
-            this.checkAllComplete();
-        }
-        onPlayTransCompleted(item) {
-            this._totalTasks--;
-            this.checkAllComplete();
-        }
-        callHook(item, tweenEnd) {
-            if (tweenEnd) {
-                if (item.tweenConfig != null && item.tweenConfig.endHook != null)
-                    item.tweenConfig.endHook.run();
-            }
-            else {
-                if (item.time >= this._startTime && item.hook != null)
-                    item.hook.run();
-            }
-        }
-        checkAllComplete() {
-            if (this._playing && this._totalTasks == 0) {
-                if (this._totalTimes < 0) {
-                    this.internalPlay();
-                }
-                else {
-                    this._totalTimes--;
-                    if (this._totalTimes > 0)
-                        this.internalPlay();
-                    else {
-                        this._playing = false;
-                        var cnt = this._items.length;
-                        for (var i = 0; i < cnt; i++) {
-                            var item = this._items[i];
-                            if (item.target != null && item.displayLockToken != 0) {
-                                item.target.releaseDisplayLock(item.displayLockToken);
-                                item.displayLockToken = 0;
-                            }
-                        }
-                        if (this._onComplete != null) {
-                            var handler = this._onComplete;
-                            this._onComplete = null;
-                            handler.run();
-                        }
-                    }
-                }
-            }
-        }
-        applyValue(item) {
-            item.target._gearLocked = true;
-            var value = item.value;
-            switch (item.type) {
-                case TransitionActionType.XY:
-                    if (item.target == this._owner) {
-                        if (value.b1 && value.b2)
-                            item.target.setXY(value.f1 + this._ownerBaseX, value.f2 + this._ownerBaseY);
-                        else if (value.b1)
-                            item.target.x = value.f1 + this._ownerBaseX;
-                        else
-                            item.target.y = value.f2 + this._ownerBaseY;
-                    }
-                    else {
-                        if (value.b3) {
-                            if (value.b1 && value.b2)
-                                item.target.setXY(value.f1 * this._owner.width, value.f2 * this._owner.height);
-                            else if (value.b1)
-                                item.target.x = value.f1 * this._owner.width;
-                            else if (value.b2)
-                                item.target.y = value.f2 * this._owner.height;
-                        }
-                        else {
-                            if (value.b1 && value.b2)
-                                item.target.setXY(value.f1, value.f2);
-                            else if (value.b1)
-                                item.target.x = value.f1;
-                            else if (value.b2)
-                                item.target.y = value.f2;
-                        }
-                    }
-                    break;
-                case TransitionActionType.Size:
-                    if (!value.b1)
-                        value.f1 = item.target.width;
-                    if (!value.b2)
-                        value.f2 = item.target.height;
-                    item.target.setSize(value.f1, value.f2);
-                    break;
-                case TransitionActionType.Pivot:
-                    item.target.setPivot(value.f1, value.f2, item.target.pivotAsAnchor);
-                    break;
-                case TransitionActionType.Alpha:
-                    item.target.alpha = value.f1;
-                    break;
-                case TransitionActionType.Rotation:
-                    item.target.rotation = value.f1;
-                    break;
-                case TransitionActionType.Scale:
-                    item.target.setScale(value.f1, value.f2);
-                    break;
-                case TransitionActionType.Skew:
-                    item.target.setSkew(value.f1, value.f2);
-                    break;
-                case TransitionActionType.Color:
-                    item.target.setProp(fgui.ObjectPropID.Color, fgui.ToolSet.convertToHtmlColor(value.f1, false));
-                    break;
-                case TransitionActionType.Animation:
-                    if (value.frame >= 0)
-                        item.target.setProp(fgui.ObjectPropID.Frame, value.frame);
-                    item.target.setProp(fgui.ObjectPropID.Playing, value.playing);
-                    item.target.setProp(fgui.ObjectPropID.TimeScale, this._timeScale);
-                    break;
-                case TransitionActionType.Visible:
-                    item.target.visible = value.visible;
-                    break;
-                case TransitionActionType.Transition:
-                    if (this._playing) {
-                        var trans = value.trans;
-                        if (trans != null) {
-                            this._totalTasks++;
-                            var startTime = this._startTime > item.time ? (this._startTime - item.time) : 0;
-                            var endTime = this._endTime >= 0 ? (this._endTime - item.time) : -1;
-                            if (value.stopTime >= 0 && (endTime < 0 || endTime > value.stopTime))
-                                endTime = value.stopTime;
-                            trans.timeScale = this._timeScale;
-                            trans._play(Laya.Handler.create(this, this.onPlayTransCompleted, [item]), value.playTimes, 0, startTime, endTime, this._reversed);
-                        }
-                    }
-                    break;
-                case TransitionActionType.Sound:
-                    if (this._playing && item.time >= this._startTime) {
-                        if (value.audioClip == null) {
-                            var pi = fgui.UIPackage.getItemByURL(value.sound);
-                            if (pi)
-                                value.audioClip = pi.file;
-                            else
-                                value.audioClip = value.sound;
-                        }
-                        if (value.audioClip)
-                            fgui.GRoot.inst.playOneShotSound(value.audioClip, value.volume);
-                    }
-                    break;
-                case TransitionActionType.Shake:
-                    item.target.setXY(item.target.x - value.lastOffsetX + value.offsetX, item.target.y - value.lastOffsetY + value.offsetY);
-                    value.lastOffsetX = value.offsetX;
-                    value.lastOffsetY = value.offsetY;
-                    break;
-                case TransitionActionType.ColorFilter:
-                    {
-                        fgui.ToolSet.setColorFilter(item.target.displayObject, [value.f1, value.f2, value.f3, value.f4]);
-                        break;
-                    }
-                case TransitionActionType.Text:
-                    item.target.text = value.text;
-                    break;
-                case TransitionActionType.Icon:
-                    item.target.icon = value.text;
-                    break;
-            }
-            item.target._gearLocked = false;
-        }
-        setup(buffer) {
-            this.name = buffer.readS();
-            this._options = buffer.getInt32();
-            this._autoPlay = buffer.readBool();
-            this._autoPlayTimes = buffer.getInt32();
-            this._autoPlayDelay = buffer.getFloat32();
-            var cnt = buffer.getInt16();
-            for (var i = 0; i < cnt; i++) {
-                var dataLen = buffer.getInt16();
-                var curPos = buffer.pos;
-                buffer.seek(curPos, 0);
-                var item = new TransitionItem(buffer.readByte());
-                this._items[i] = item;
-                item.time = buffer.getFloat32();
-                var targetId = buffer.getInt16();
-                if (targetId < 0)
-                    item.targetId = "";
-                else
-                    item.targetId = this._owner.getChildAt(targetId).id;
-                item.label = buffer.readS();
-                if (buffer.readBool()) {
-                    buffer.seek(curPos, 1);
-                    item.tweenConfig = new TweenConfig();
-                    item.tweenConfig.duration = buffer.getFloat32();
-                    if (item.time + item.tweenConfig.duration > this._totalDuration)
-                        this._totalDuration = item.time + item.tweenConfig.duration;
-                    item.tweenConfig.easeType = buffer.readByte();
-                    item.tweenConfig.repeat = buffer.getInt32();
-                    item.tweenConfig.yoyo = buffer.readBool();
-                    item.tweenConfig.endLabel = buffer.readS();
-                    buffer.seek(curPos, 2);
-                    this.decodeValue(item, buffer, item.tweenConfig.startValue);
-                    buffer.seek(curPos, 3);
-                    this.decodeValue(item, buffer, item.tweenConfig.endValue);
-                    if (buffer.version >= 2) {
-                        var pathLen = buffer.getInt32();
-                        if (pathLen > 0) {
-                            item.tweenConfig.path = new fgui.GPath();
-                            var pts = new Array();
-                            for (i = 0; i < pathLen; i++) {
-                                var curveType = buffer.getUint8();
-                                switch (curveType) {
-                                    case fgui.CurveType.Bezier:
-                                        pts.push(fgui.GPathPoint.newBezierPoint(buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()));
-                                        break;
-                                    case fgui.CurveType.CubicBezier:
-                                        pts.push(fgui.GPathPoint.newCubicBezierPoint(buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()));
-                                        break;
-                                    default:
-                                        pts.push(fgui.GPathPoint.newPoint(buffer.getFloat32(), buffer.getFloat32(), curveType));
-                                        break;
-                                }
-                            }
-                            item.tweenConfig.path.create(pts);
-                        }
-                    }
-                }
-                else {
-                    if (item.time > this._totalDuration)
-                        this._totalDuration = item.time;
-                    buffer.seek(curPos, 2);
-                    this.decodeValue(item, buffer, item.value);
-                }
-                buffer.pos = curPos + dataLen;
-            }
-        }
-        decodeValue(item, buffer, value) {
-            switch (item.type) {
-                case TransitionActionType.XY:
-                case TransitionActionType.Size:
-                case TransitionActionType.Pivot:
-                case TransitionActionType.Skew:
-                    value.b1 = buffer.readBool();
-                    value.b2 = buffer.readBool();
-                    value.f1 = buffer.getFloat32();
-                    value.f2 = buffer.getFloat32();
-                    if (buffer.version >= 2 && item.type == TransitionActionType.XY)
-                        value.b3 = buffer.readBool();
-                    break;
-                case TransitionActionType.Alpha:
-                case TransitionActionType.Rotation:
-                    value.f1 = buffer.getFloat32();
-                    break;
-                case TransitionActionType.Scale:
-                    value.f1 = buffer.getFloat32();
-                    value.f2 = buffer.getFloat32();
-                    break;
-                case TransitionActionType.Color:
-                    value.f1 = buffer.readColor();
-                    break;
-                case TransitionActionType.Animation:
-                    value.playing = buffer.readBool();
-                    value.frame = buffer.getInt32();
-                    break;
-                case TransitionActionType.Visible:
-                    value.visible = buffer.readBool();
-                    break;
-                case TransitionActionType.Sound:
-                    value.sound = buffer.readS();
-                    value.volume = buffer.getFloat32();
-                    break;
-                case TransitionActionType.Transition:
-                    value.transName = buffer.readS();
-                    value.playTimes = buffer.getInt32();
-                    break;
-                case TransitionActionType.Shake:
-                    value.amplitude = buffer.getFloat32();
-                    value.duration = buffer.getFloat32();
-                    break;
-                case TransitionActionType.ColorFilter:
-                    value.f1 = buffer.getFloat32();
-                    value.f2 = buffer.getFloat32();
-                    value.f3 = buffer.getFloat32();
-                    value.f4 = buffer.getFloat32();
-                    break;
-                case TransitionActionType.Text:
-                case TransitionActionType.Icon:
-                    value.text = buffer.readS();
-                    break;
-            }
-        }
-    }
-    Transition.OPTION_IGNORE_DISPLAY_CONTROLLER = 1;
-    Transition.OPTION_AUTO_STOP_DISABLED = 2;
-    Transition.OPTION_AUTO_STOP_AT_END = 4;
-    fgui.Transition = Transition;
-    class TransitionActionType {
-    }
-    TransitionActionType.XY = 0;
-    TransitionActionType.Size = 1;
-    TransitionActionType.Scale = 2;
-    TransitionActionType.Pivot = 3;
-    TransitionActionType.Alpha = 4;
-    TransitionActionType.Rotation = 5;
-    TransitionActionType.Color = 6;
-    TransitionActionType.Animation = 7;
-    TransitionActionType.Visible = 8;
-    TransitionActionType.Sound = 9;
-    TransitionActionType.Transition = 10;
-    TransitionActionType.Shake = 11;
-    TransitionActionType.ColorFilter = 12;
-    TransitionActionType.Skew = 13;
-    TransitionActionType.Text = 14;
-    TransitionActionType.Icon = 15;
-    TransitionActionType.Unknown = 16;
-    class TransitionItem {
-        constructor(type) {
-            this.type = type;
-            switch (type) {
-                case TransitionActionType.XY:
-                case TransitionActionType.Size:
-                case TransitionActionType.Scale:
-                case TransitionActionType.Pivot:
-                case TransitionActionType.Skew:
-                case TransitionActionType.Alpha:
-                case TransitionActionType.Rotation:
-                case TransitionActionType.Color:
-                case TransitionActionType.ColorFilter:
-                    this.value = new TValue();
-                    break;
-                case TransitionActionType.Animation:
-                    this.value = new TValue_Animation();
-                    break;
-                case TransitionActionType.Shake:
-                    this.value = new TValue_Shake();
-                    break;
-                case TransitionActionType.Sound:
-                    this.value = new TValue_Sound();
-                    break;
-                case TransitionActionType.Transition:
-                    this.value = new TValue_Transition();
-                    break;
-                case TransitionActionType.Visible:
-                    this.value = new TValue_Visible();
-                    break;
-                case TransitionActionType.Text:
-                case TransitionActionType.Icon:
-                    this.value = new TValue_Text();
-                    break;
-            }
-        }
-    }
-    class TweenConfig {
-        constructor() {
-            this.easeType = fgui.EaseType.QuadOut;
-            this.startValue = new TValue();
-            this.endValue = new TValue();
-        }
-    }
-    class TValue_Visible {
-    }
-    class TValue_Animation {
-    }
-    class TValue_Sound {
-    }
-    class TValue_Transition {
-    }
-    class TValue_Shake {
-    }
-    class TValue_Text {
-    }
-    class TValue {
-        constructor() {
-            this.b1 = this.b2 = true;
-        }
-    }
-})(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class GObject {
@@ -5915,42 +1711,783 @@ window.fgui = {};
     fgui.GObject = GObject;
 })(fgui || (fgui = {}));
 
+(function (fgui) {
+    class GTextField extends fgui.GObject {
+        constructor() {
+            super();
+            this._gearColor = new fgui.GearColor(this);
+        }
+        get font() {
+            return null;
+        }
+        set font(value) {
+        }
+        get fontSize() {
+            return 0;
+        }
+        set fontSize(value) {
+        }
+        get color() {
+            return null;
+        }
+        set color(value) {
+        }
+        get align() {
+            return null;
+        }
+        set align(value) {
+        }
+        get valign() {
+            return null;
+        }
+        set valign(value) {
+        }
+        get leading() {
+            return 0;
+        }
+        set leading(value) {
+        }
+        get letterSpacing() {
+            return 0;
+        }
+        set letterSpacing(value) {
+        }
+        get bold() {
+            return false;
+        }
+        set bold(value) {
+        }
+        get italic() {
+            return false;
+        }
+        set italic(value) {
+        }
+        get underline() {
+            return false;
+        }
+        set underline(value) {
+        }
+        get singleLine() {
+            return false;
+        }
+        set singleLine(value) {
+        }
+        get stroke() {
+            return 0;
+        }
+        set stroke(value) {
+        }
+        get strokeColor() {
+            return null;
+        }
+        set strokeColor(value) {
+        }
+        set ubbEnabled(value) {
+            this._ubbEnabled = value;
+        }
+        get ubbEnabled() {
+            return this._ubbEnabled;
+        }
+        get autoSize() {
+            return this._autoSize;
+        }
+        set autoSize(value) {
+            if (this._autoSize != value) {
+                this._autoSize = value;
+                this._widthAutoSize = this._autoSize == fgui.AutoSizeType.Both;
+                this._heightAutoSize = this._autoSize == fgui.AutoSizeType.Both || this._autoSize == fgui.AutoSizeType.Height;
+                this.updateAutoSize();
+            }
+        }
+        updateAutoSize() {
+        }
+        get textWidth() {
+            return 0;
+        }
+        parseTemplate(template) {
+            var pos1 = 0, pos2, pos3;
+            var tag;
+            var value;
+            var result = "";
+            while ((pos2 = template.indexOf("{", pos1)) != -1) {
+                if (pos2 > 0 && template.charCodeAt(pos2 - 1) == 92) {
+                    result += template.substring(pos1, pos2 - 1);
+                    result += "{";
+                    pos1 = pos2 + 1;
+                    continue;
+                }
+                result += template.substring(pos1, pos2);
+                pos1 = pos2;
+                pos2 = template.indexOf("}", pos1);
+                if (pos2 == -1)
+                    break;
+                if (pos2 == pos1 + 1) {
+                    result += template.substr(pos1, 2);
+                    pos1 = pos2 + 1;
+                    continue;
+                }
+                tag = template.substring(pos1 + 1, pos2);
+                pos3 = tag.indexOf("=");
+                if (pos3 != -1) {
+                    value = this._templateVars[tag.substring(0, pos3)];
+                    if (value == null)
+                        result += tag.substring(pos3 + 1);
+                    else
+                        result += value;
+                }
+                else {
+                    value = this._templateVars[tag];
+                    if (value != null)
+                        result += value;
+                }
+                pos1 = pos2 + 1;
+            }
+            if (pos1 < template.length)
+                result += template.substr(pos1);
+            return result;
+        }
+        get templateVars() {
+            return this._templateVars;
+        }
+        set templateVars(value) {
+            if (this._templateVars == null && value == null)
+                return;
+            this._templateVars = value;
+            this.flushVars();
+        }
+        setVar(name, value) {
+            if (!this._templateVars)
+                this._templateVars = {};
+            this._templateVars[name] = value;
+            return this;
+        }
+        flushVars() {
+            this.text = this._text;
+        }
+        handleControllerChanged(c) {
+            super.handleControllerChanged(c);
+            if (this._gearColor.controller == c)
+                this._gearColor.apply();
+        }
+        getProp(index) {
+            switch (index) {
+                case fgui.ObjectPropID.Color:
+                    return this.color;
+                case fgui.ObjectPropID.OutlineColor:
+                    return this.strokeColor;
+                case fgui.ObjectPropID.FontSize:
+                    return this.fontSize;
+                default:
+                    return super.getProp(index);
+            }
+        }
+        setProp(index, value) {
+            switch (index) {
+                case fgui.ObjectPropID.Color:
+                    this.color = value;
+                    break;
+                case fgui.ObjectPropID.OutlineColor:
+                    this.strokeColor = value;
+                    break;
+                case fgui.ObjectPropID.FontSize:
+                    this.fontSize = value;
+                    break;
+                default:
+                    super.setProp(index, value);
+                    break;
+            }
+        }
+        setup_beforeAdd(buffer, beginPos) {
+            super.setup_beforeAdd(buffer, beginPos);
+            buffer.seek(beginPos, 5);
+            var iv;
+            this.font = buffer.readS();
+            this.fontSize = buffer.getInt16();
+            this.color = buffer.readColorS();
+            iv = buffer.readByte();
+            this.align = iv == 0 ? "left" : (iv == 1 ? "center" : "right");
+            iv = buffer.readByte();
+            this.valign = iv == 0 ? "top" : (iv == 1 ? "middle" : "bottom");
+            this.leading = buffer.getInt16();
+            this.letterSpacing = buffer.getInt16();
+            this.ubbEnabled = buffer.readBool();
+            this.autoSize = buffer.readByte();
+            this.underline = buffer.readBool();
+            this.italic = buffer.readBool();
+            this.bold = buffer.readBool();
+            this.singleLine = buffer.readBool();
+            if (buffer.readBool()) {
+                this.strokeColor = buffer.readColorS();
+                this.stroke = buffer.getFloat32() + 1;
+            }
+            if (buffer.readBool())
+                buffer.skip(12);
+            if (buffer.readBool())
+                this._templateVars = {};
+        }
+        setup_afterAdd(buffer, beginPos) {
+            super.setup_afterAdd(buffer, beginPos);
+            buffer.seek(beginPos, 6);
+            var str = buffer.readS();
+            if (str != null)
+                this.text = str;
+        }
+    }
+    fgui.GTextField = GTextField;
+})(fgui || (fgui = {}));
 
 (function (fgui) {
-    class PackageItem {
+    class GBasicTextField extends fgui.GTextField {
+        constructor() {
+            super();
+            this._letterSpacing = 0;
+            this._textWidth = 0;
+            this._textHeight = 0;
+            this._text = "";
+            this._color = "#000000";
+            this._textField.align = "left";
+            this._textField.font = fgui.UIConfig.defaultFont;
+            this._autoSize = fgui.AutoSizeType.Both;
+            this._widthAutoSize = this._heightAutoSize = true;
+            this._textField["_sizeDirty"] = false;
+        }
+        createDisplayObject() {
+            this._displayObject = this._textField = new TextExt(this);
+            this._displayObject["$owner"] = this;
+            this._displayObject.mouseEnabled = false;
+        }
+        get nativeText() {
+            return this._textField;
+        }
+        set text(value) {
+            this._text = value;
+            if (this._text == null)
+                this._text = "";
+            if (this._bitmapFont == null) {
+                if (this._widthAutoSize)
+                    this._textField.width = 10000;
+                var text2 = this._text;
+                if (this._templateVars != null)
+                    text2 = this.parseTemplate(text2);
+                if (this._ubbEnabled)
+                    this._textField.text = fgui.ToolSet.removeUBB(fgui.ToolSet.encodeHTML(text2));
+                else
+                    this._textField.text = text2;
+            }
+            else {
+                this._textField.text = "";
+                this._textField["setChanged"]();
+            }
+            if (this.parent && this.parent._underConstruct)
+                this._textField.typeset();
+        }
+        get text() {
+            return this._text;
+        }
+        get font() {
+            return this._textField.font;
+        }
+        set font(value) {
+            this._font = value;
+            if (fgui.ToolSet.startsWith(this._font, "ui://"))
+                this._bitmapFont = fgui.UIPackage.getItemAssetByURL(this._font);
+            else
+                this._bitmapFont = null;
+            if (this._bitmapFont != null) {
+                this._textField["setChanged"]();
+            }
+            else {
+                if (this._font)
+                    this._textField.font = this._font;
+                else
+                    this._textField.font = fgui.UIConfig.defaultFont;
+            }
+        }
+        get fontSize() {
+            return this._textField.fontSize;
+        }
+        set fontSize(value) {
+            this._textField.fontSize = value;
+        }
+        get color() {
+            return this._color;
+        }
+        set color(value) {
+            if (this._color != value) {
+                this._color = value;
+                if (this._gearColor.controller)
+                    this._gearColor.updateState();
+                if (this.grayed)
+                    this._textField.color = "#AAAAAA";
+                else
+                    this._textField.color = this._color;
+            }
+        }
+        get align() {
+            return this._textField.align;
+        }
+        set align(value) {
+            this._textField.align = value;
+        }
+        get valign() {
+            return this._textField.valign;
+        }
+        set valign(value) {
+            this._textField.valign = value;
+        }
+        get leading() {
+            return this._textField.leading;
+        }
+        set leading(value) {
+            this._textField.leading = value;
+        }
+        get letterSpacing() {
+            return this._letterSpacing;
+        }
+        set letterSpacing(value) {
+            this._letterSpacing = value;
+        }
+        get bold() {
+            return this._textField.bold;
+        }
+        set bold(value) {
+            this._textField.bold = value;
+        }
+        get italic() {
+            return this._textField.italic;
+        }
+        set italic(value) {
+            this._textField.italic = value;
+        }
+        get underline() {
+            return this._textField.underline;
+        }
+        set underline(value) {
+            this._textField.underline = value;
+        }
+        get singleLine() {
+            return this._singleLine;
+        }
+        set singleLine(value) {
+            this._singleLine = value;
+            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
+        }
+        get stroke() {
+            return this._textField.stroke;
+        }
+        set stroke(value) {
+            this._textField.stroke = value;
+        }
+        get strokeColor() {
+            return this._textField.strokeColor;
+        }
+        set strokeColor(value) {
+            this._textField.strokeColor = value;
+            this.updateGear(4);
+        }
+        updateAutoSize() {
+            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
+            if (!this._underConstruct) {
+                if (!this._heightAutoSize)
+                    this._textField.size(this.width, this.height);
+                else if (!this._widthAutoSize)
+                    this._textField.width = this.width;
+            }
+        }
+        get textWidth() {
+            if (this._textField["_isChanged"])
+                this._textField.typeset();
+            return this._textWidth;
+        }
+        ensureSizeCorrect() {
+            if (!this._underConstruct && this._textField["_isChanged"])
+                this._textField.typeset();
+        }
+        typeset() {
+            if (this._bitmapFont != null)
+                this.renderWithBitmapFont();
+            else if (this._widthAutoSize || this._heightAutoSize)
+                this.updateSize();
+        }
+        updateSize() {
+            this._textWidth = Math.ceil(this._textField.textWidth);
+            this._textHeight = Math.ceil(this._textField.textHeight);
+            var w, h = 0;
+            if (this._widthAutoSize) {
+                w = this._textWidth;
+                if (this._textField.width != w) {
+                    this._textField.width = w;
+                    if (this._textField.align != "left")
+                        this._textField["baseTypeset"]();
+                }
+            }
+            else
+                w = this.width;
+            if (this._heightAutoSize) {
+                h = this._textHeight;
+                if (!this._widthAutoSize) {
+                    if (this._textField.height != this._textHeight)
+                        this._textField.height = this._textHeight;
+                }
+            }
+            else {
+                h = this.height;
+                if (this._textHeight > h)
+                    this._textHeight = h;
+                if (this._textField.height != this._textHeight)
+                    this._textField.height = this._textHeight;
+            }
+            this._updatingSize = true;
+            this.setSize(w, h);
+            this._updatingSize = false;
+        }
+        renderWithBitmapFont() {
+            var gr = this._displayObject.graphics;
+            gr.clear();
+            if (!this._lines)
+                this._lines = new Array();
+            else
+                LineInfo.returnList(this._lines);
+            var lineSpacing = this.leading - 1;
+            var rectWidth = this.width - GBasicTextField.GUTTER_X * 2;
+            var lineWidth = 0, lineHeight = 0, lineTextHeight = 0;
+            var glyphWidth = 0, glyphHeight = 0;
+            var wordChars = 0, wordStart = 0, wordEnd = 0;
+            var lastLineHeight = 0;
+            var lineBuffer = "";
+            var lineY = GBasicTextField.GUTTER_Y;
+            var line;
+            var wordWrap = !this._widthAutoSize && !this._singleLine;
+            var fontSize = this.fontSize;
+            var fontScale = this._bitmapFont.resizable ? fontSize / this._bitmapFont.size : 1;
+            this._textWidth = 0;
+            this._textHeight = 0;
+            var text2 = this._text;
+            if (this._templateVars != null)
+                text2 = this.parseTemplate(text2);
+            var textLength = text2.length;
+            for (var offset = 0; offset < textLength; ++offset) {
+                var ch = text2.charAt(offset);
+                var cc = ch.charCodeAt(0);
+                if (cc == 10) {
+                    lineBuffer += ch;
+                    line = LineInfo.borrow();
+                    line.width = lineWidth;
+                    if (lineTextHeight == 0) {
+                        if (lastLineHeight == 0)
+                            lastLineHeight = fontSize;
+                        if (lineHeight == 0)
+                            lineHeight = lastLineHeight;
+                        lineTextHeight = lineHeight;
+                    }
+                    line.height = lineHeight;
+                    lastLineHeight = lineHeight;
+                    line.textHeight = lineTextHeight;
+                    line.text = lineBuffer;
+                    line.y = lineY;
+                    lineY += (line.height + lineSpacing);
+                    if (line.width > this._textWidth)
+                        this._textWidth = line.width;
+                    this._lines.push(line);
+                    lineBuffer = "";
+                    lineWidth = 0;
+                    lineHeight = 0;
+                    lineTextHeight = 0;
+                    wordChars = 0;
+                    wordStart = 0;
+                    wordEnd = 0;
+                    continue;
+                }
+                if (cc >= 65 && cc <= 90 || cc >= 97 && cc <= 122) {
+                    if (wordChars == 0)
+                        wordStart = lineWidth;
+                    wordChars++;
+                }
+                else {
+                    if (wordChars > 0)
+                        wordEnd = lineWidth;
+                    wordChars = 0;
+                }
+                if (cc == 32) {
+                    glyphWidth = Math.ceil(fontSize / 2);
+                    glyphHeight = fontSize;
+                }
+                else {
+                    var glyph = this._bitmapFont.glyphs[ch];
+                    if (glyph) {
+                        glyphWidth = Math.ceil(glyph.advance * fontScale);
+                        glyphHeight = Math.ceil(glyph.lineHeight * fontScale);
+                    }
+                    else {
+                        glyphWidth = 0;
+                        glyphHeight = 0;
+                    }
+                }
+                if (glyphHeight > lineTextHeight)
+                    lineTextHeight = glyphHeight;
+                if (glyphHeight > lineHeight)
+                    lineHeight = glyphHeight;
+                if (lineWidth != 0)
+                    lineWidth += this._letterSpacing;
+                lineWidth += glyphWidth;
+                if (!wordWrap || lineWidth <= rectWidth) {
+                    lineBuffer += ch;
+                }
+                else {
+                    line = LineInfo.borrow();
+                    line.height = lineHeight;
+                    line.textHeight = lineTextHeight;
+                    if (lineBuffer.length == 0) {
+                        line.text = ch;
+                    }
+                    else if (wordChars > 0 && wordEnd > 0) {
+                        lineBuffer += ch;
+                        var len = lineBuffer.length - wordChars;
+                        line.text = fgui.ToolSet.trimRight(lineBuffer.substr(0, len));
+                        line.width = wordEnd;
+                        lineBuffer = lineBuffer.substr(len);
+                        lineWidth -= wordStart;
+                    }
+                    else {
+                        line.text = lineBuffer;
+                        line.width = lineWidth - (glyphWidth + this._letterSpacing);
+                        lineBuffer = ch;
+                        lineWidth = glyphWidth;
+                        lineHeight = glyphHeight;
+                        lineTextHeight = glyphHeight;
+                    }
+                    line.y = lineY;
+                    lineY += (line.height + lineSpacing);
+                    if (line.width > this._textWidth)
+                        this._textWidth = line.width;
+                    wordChars = 0;
+                    wordStart = 0;
+                    wordEnd = 0;
+                    this._lines.push(line);
+                }
+            }
+            if (lineBuffer.length > 0) {
+                line = LineInfo.borrow();
+                line.width = lineWidth;
+                if (lineHeight == 0)
+                    lineHeight = lastLineHeight;
+                if (lineTextHeight == 0)
+                    lineTextHeight = lineHeight;
+                line.height = lineHeight;
+                line.textHeight = lineTextHeight;
+                line.text = lineBuffer;
+                line.y = lineY;
+                if (line.width > this._textWidth)
+                    this._textWidth = line.width;
+                this._lines.push(line);
+            }
+            if (this._textWidth > 0)
+                this._textWidth += GBasicTextField.GUTTER_X * 2;
+            var count = this._lines.length;
+            if (count == 0) {
+                this._textHeight = 0;
+            }
+            else {
+                line = this._lines[this._lines.length - 1];
+                this._textHeight = line.y + line.height + GBasicTextField.GUTTER_Y;
+            }
+            var w, h = 0;
+            if (this._widthAutoSize) {
+                if (this._textWidth == 0)
+                    w = 0;
+                else
+                    w = this._textWidth;
+            }
+            else
+                w = this.width;
+            if (this._heightAutoSize) {
+                if (this._textHeight == 0)
+                    h = 0;
+                else
+                    h = this._textHeight;
+            }
+            else
+                h = this.height;
+            this._updatingSize = true;
+            this.setSize(w, h);
+            this._updatingSize = false;
+            this.doAlign();
+            if (w == 0 || h == 0)
+                return;
+            var charX = GBasicTextField.GUTTER_X;
+            var lineIndent = 0;
+            var charIndent = 0;
+            rectWidth = this.width - GBasicTextField.GUTTER_X * 2;
+            var lineCount = this._lines.length;
+            for (var i = 0; i < lineCount; i++) {
+                line = this._lines[i];
+                charX = GBasicTextField.GUTTER_X;
+                if (this.align == "center")
+                    lineIndent = (rectWidth - line.width) / 2;
+                else if (this.align == "right")
+                    lineIndent = rectWidth - line.width;
+                else
+                    lineIndent = 0;
+                textLength = line.text.length;
+                for (var j = 0; j < textLength; j++) {
+                    ch = line.text.charAt(j);
+                    cc = ch.charCodeAt(0);
+                    if (cc == 10)
+                        continue;
+                    if (cc == 32) {
+                        charX += this._letterSpacing + Math.ceil(fontSize / 2);
+                        continue;
+                    }
+                    glyph = this._bitmapFont.glyphs[ch];
+                    if (glyph != null) {
+                        charIndent = (line.height + line.textHeight) / 2 - Math.ceil(glyph.lineHeight * fontScale);
+                        if (glyph.texture) {
+                            gr.drawTexture(glyph.texture, charX + lineIndent + Math.ceil(glyph.offsetX * fontScale), line.y + charIndent + Math.ceil(glyph.offsetY * fontScale), glyph.texture.width * fontScale, glyph.texture.height * fontScale);
+                        }
+                        charX += this._letterSpacing + Math.ceil(glyph.advance * fontScale);
+                    }
+                    else {
+                        charX += this._letterSpacing;
+                    }
+                }
+            }
+        }
+        handleSizeChanged() {
+            if (this._updatingSize)
+                return;
+            if (this._underConstruct)
+                this._textField.size(this._width, this._height);
+            else {
+                if (this._bitmapFont != null) {
+                    if (!this._widthAutoSize)
+                        this._textField["setChanged"]();
+                    else
+                        this.doAlign();
+                }
+                else {
+                    if (!this._widthAutoSize) {
+                        if (!this._heightAutoSize)
+                            this._textField.size(this._width, this._height);
+                        else
+                            this._textField.width = this._width;
+                    }
+                }
+            }
+        }
+        handleGrayedChanged() {
+            super.handleGrayedChanged();
+            if (this.grayed)
+                this._textField.color = "#AAAAAA";
+            else
+                this._textField.color = this._color;
+        }
+        doAlign() {
+            if (this.valign == "top" || this._textHeight == 0)
+                this._yOffset = GBasicTextField.GUTTER_Y;
+            else {
+                var dh = this.height - this._textHeight;
+                if (dh < 0)
+                    dh = 0;
+                if (this.valign == "middle")
+                    this._yOffset = Math.floor(dh / 2);
+                else
+                    this._yOffset = Math.floor(dh);
+            }
+            this.handleXYChanged();
+        }
+        flushVars() {
+            this.text = this._text;
+        }
+    }
+    GBasicTextField.GUTTER_X = 2;
+    GBasicTextField.GUTTER_Y = 2;
+    fgui.GBasicTextField = GBasicTextField;
+    class LineInfo {
         constructor() {
             this.width = 0;
             this.height = 0;
-            this.tileGridIndice = 0;
-            this.interval = 0;
-            this.repeatDelay = 0;
+            this.textHeight = 0;
+            this.y = 0;
         }
-        load() {
-            return this.owner.getItemAsset(this);
-        }
-        getBranch() {
-            if (this.branches && this.owner._branchIndex != -1) {
-                var itemId = this.branches[this.owner._branchIndex];
-                if (itemId)
-                    return this.owner.getItemById(itemId);
+        static borrow() {
+            if (LineInfo.pool.length) {
+                var ret = LineInfo.pool.pop();
+                ret.width = 0;
+                ret.height = 0;
+                ret.textHeight = 0;
+                ret.text = null;
+                ret.y = 0;
+                return ret;
             }
-            return this;
+            else
+                return new LineInfo();
         }
-        getHighResolution() {
-            if (this.highResolution && fgui.GRoot.contentScaleLevel > 0) {
-                var itemId = this.highResolution[fgui.GRoot.contentScaleLevel - 1];
-                if (itemId)
-                    return this.owner.getItemById(itemId);
+        static returns(value) {
+            LineInfo.pool.push(value);
+        }
+        static returnList(value) {
+            var length = value.length;
+            for (var i = 0; i < length; i++) {
+                var li = value[i];
+                LineInfo.pool.push(li);
             }
-            return this;
-        }
-        toString() {
-            return this.name;
+            value.length = 0;
         }
     }
-    fgui.PackageItem = PackageItem;
+    LineInfo.pool = [];
+    class TextExt extends Laya.Text {
+        constructor(owner) {
+            super();
+            this._owner = owner;
+        }
+        baseTypeset() {
+            this._lock = true;
+            this.typeset();
+            this._lock = false;
+        }
+        typeset() {
+            this._sizeDirty = true;
+            super.typeset();
+            if (!this._lock)
+                this._owner.typeset();
+            if (this._isChanged) {
+                Laya.timer.clear(this, this.typeset);
+                this._isChanged = false;
+            }
+            this._sizeDirty = false;
+        }
+        setChanged() {
+            this.isChanged = true;
+        }
+        set isChanged(value) {
+            if (value && !this._sizeDirty) {
+                if (this._owner.autoSize != fgui.AutoSizeType.None && this._owner.parent) {
+                    this._sizeDirty = true;
+                    this.event(fgui.Events.SIZE_DELAY_CHANGE);
+                }
+            }
+            super["isChanged"] = value;
+        }
+    }
 })(fgui || (fgui = {}));
 
+(function (fgui) {
+    class Margin {
+        constructor() {
+            this.left = 0;
+            this.right = 0;
+            this.top = 0;
+            this.bottom = 0;
+        }
+        copy(source) {
+            this.top = source.top;
+            this.bottom = source.bottom;
+            this.left = source.left;
+            this.right = source.right;
+        }
+    }
+    fgui.Margin = Margin;
+})(fgui || (fgui = {}));
 
 (function (fgui) {
     class GComponent extends fgui.GObject {
@@ -6988,7 +3525,6 @@ window.fgui = {};
     fgui.GComponent = GComponent;
 })(fgui || (fgui = {}));
 
-
 (function (fgui) {
     class GButton extends fgui.GComponent {
         constructor() {
@@ -7429,7 +3965,6 @@ window.fgui = {};
     fgui.GButton = GButton;
 })(fgui || (fgui = {}));
 
-
 (function (fgui) {
     class GComboBox extends fgui.GComponent {
         constructor() {
@@ -7814,354 +4349,6 @@ window.fgui = {};
     fgui.GComboBox = GComboBox;
 })(fgui || (fgui = {}));
 
-
-(function (fgui) {
-    class GScrollBar extends fgui.GComponent {
-        constructor() {
-            super();
-            this._scrollPerc = 0;
-            this._dragOffset = new Laya.Point();
-            this._scrollPerc = 0;
-        }
-        setScrollPane(target, vertical) {
-            this._target = target;
-            this._vertical = vertical;
-        }
-        setDisplayPerc(value) {
-            if (this._vertical) {
-                if (!this._fixedGripSize)
-                    this._grip.height = Math.floor(value * this._bar.height);
-                this._grip.y = this._bar.y + (this._bar.height - this._grip.height) * this._scrollPerc;
-            }
-            else {
-                if (!this._fixedGripSize)
-                    this._grip.width = Math.floor(value * this._bar.width);
-                this._grip.x = this._bar.x + (this._bar.width - this._grip.width) * this._scrollPerc;
-            }
-            this._grip.visible = value != 0 && value != 1;
-        }
-        setScrollPerc(val) {
-            this._scrollPerc = val;
-            if (this._vertical)
-                this._grip.y = this._bar.y + (this._bar.height - this._grip.height) * this._scrollPerc;
-            else
-                this._grip.x = this._bar.x + (this._bar.width - this._grip.width) * this._scrollPerc;
-        }
-        get minSize() {
-            if (this._vertical)
-                return (this._arrowButton1 != null ? this._arrowButton1.height : 0) + (this._arrowButton2 != null ? this._arrowButton2.height : 0);
-            else
-                return (this._arrowButton1 != null ? this._arrowButton1.width : 0) + (this._arrowButton2 != null ? this._arrowButton2.width : 0);
-        }
-        get gripDragging() {
-            return this._gripDragging;
-        }
-        constructExtension(buffer) {
-            buffer.seek(0, 6);
-            this._fixedGripSize = buffer.readBool();
-            this._grip = this.getChild("grip");
-            if (!this._grip) {
-                Laya.Log.print("需要定义grip");
-                return;
-            }
-            this._bar = this.getChild("bar");
-            if (!this._bar) {
-                Laya.Log.print("需要定义bar");
-                return;
-            }
-            this._arrowButton1 = this.getChild("arrow1");
-            this._arrowButton2 = this.getChild("arrow2");
-            this._grip.on(Laya.Event.MOUSE_DOWN, this, this.__gripMouseDown);
-            if (this._arrowButton1)
-                this._arrowButton1.on(Laya.Event.MOUSE_DOWN, this, this.__arrowButton1Click);
-            if (this._arrowButton2)
-                this._arrowButton2.on(Laya.Event.MOUSE_DOWN, this, this.__arrowButton2Click);
-            this.on(Laya.Event.MOUSE_DOWN, this, this.__barMouseDown);
-        }
-        __gripMouseDown(evt) {
-            if (!this._bar)
-                return;
-            evt.stopPropagation();
-            this._gripDragging = true;
-            this._target.updateScrollBarVisible();
-            Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
-            Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
-            this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, this._dragOffset);
-            this._dragOffset.x -= this._grip.x;
-            this._dragOffset.y -= this._grip.y;
-        }
-        __gripMouseMove() {
-            var pt = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GScrollBar.sScrollbarHelperPoint);
-            if (this._vertical) {
-                var curY = pt.y - this._dragOffset.y;
-                this._target.setPercY((curY - this._bar.y) / (this._bar.height - this._grip.height), false);
-            }
-            else {
-                var curX = pt.x - this._dragOffset.x;
-                this._target.setPercX((curX - this._bar.x) / (this._bar.width - this._grip.width), false);
-            }
-        }
-        __gripMouseUp(evt) {
-            if (!this._bar)
-                return;
-            Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
-            Laya.stage.off(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
-            this._gripDragging = false;
-            this._target.updateScrollBarVisible();
-        }
-        __arrowButton1Click(evt) {
-            evt.stopPropagation();
-            if (this._vertical)
-                this._target.scrollUp();
-            else
-                this._target.scrollLeft();
-        }
-        __arrowButton2Click(evt) {
-            evt.stopPropagation();
-            if (this._vertical)
-                this._target.scrollDown();
-            else
-                this._target.scrollRight();
-        }
-        __barMouseDown(evt) {
-            var pt = this._grip.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GScrollBar.sScrollbarHelperPoint);
-            if (this._vertical) {
-                if (pt.y < 0)
-                    this._target.scrollUp(4);
-                else
-                    this._target.scrollDown(4);
-            }
-            else {
-                if (pt.x < 0)
-                    this._target.scrollLeft(4);
-                else
-                    this._target.scrollRight(4);
-            }
-        }
-    }
-    GScrollBar.sScrollbarHelperPoint = new Laya.Point();
-    fgui.GScrollBar = GScrollBar;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GSlider extends fgui.GComponent {
-        constructor() {
-            super();
-            this._min = 0;
-            this._max = 0;
-            this._value = 0;
-            this._barMaxWidth = 0;
-            this._barMaxHeight = 0;
-            this._barMaxWidthDelta = 0;
-            this._barMaxHeightDelta = 0;
-            this._clickPercent = 0;
-            this._barStartX = 0;
-            this._barStartY = 0;
-            this.changeOnClick = true;
-            this.canDrag = true;
-            this._titleType = fgui.ProgressTitleType.Percent;
-            this._value = 50;
-            this._max = 100;
-            this._clickPos = new Laya.Point();
-        }
-        get titleType() {
-            return this._titleType;
-        }
-        set titleType(value) {
-            this._titleType = value;
-        }
-        get wholeNumbers() {
-            return this._wholeNumbers;
-        }
-        set wholeNumbers(value) {
-            if (this._wholeNumbers != value) {
-                this._wholeNumbers = value;
-                this.update();
-            }
-        }
-        get min() {
-            return this._min;
-        }
-        set min(value) {
-            if (this._min != value) {
-                this._min = value;
-                this.update();
-            }
-        }
-        get max() {
-            return this._max;
-        }
-        set max(value) {
-            if (this._max != value) {
-                this._max = value;
-                this.update();
-            }
-        }
-        get value() {
-            return this._value;
-        }
-        set value(value) {
-            if (this._value != value) {
-                this._value = value;
-                this.update();
-            }
-        }
-        update() {
-            this.updateWithPercent((this._value - this._min) / (this._max - this._min));
-        }
-        updateWithPercent(percent, evt) {
-            percent = fgui.ToolSet.clamp01(percent);
-            if (evt) {
-                var newValue = fgui.ToolSet.clamp(this._min + (this._max - this._min) * percent, this._min, this._max);
-                if (this._wholeNumbers) {
-                    newValue = Math.round(newValue);
-                    percent = fgui.ToolSet.clamp01((newValue - this._min) / (this._max - this._min));
-                }
-                if (newValue != this._value) {
-                    this._value = newValue;
-                    fgui.Events.dispatch(fgui.Events.STATE_CHANGED, this.displayObject, evt);
-                }
-            }
-            if (this._titleObject) {
-                switch (this._titleType) {
-                    case fgui.ProgressTitleType.Percent:
-                        this._titleObject.text = Math.round(percent * 100) + "%";
-                        break;
-                    case fgui.ProgressTitleType.ValueAndMax:
-                        this._titleObject.text = this._value + "/" + this._max;
-                        break;
-                    case fgui.ProgressTitleType.Value:
-                        this._titleObject.text = "" + this._value;
-                        break;
-                    case fgui.ProgressTitleType.Max:
-                        this._titleObject.text = "" + this._max;
-                        break;
-                }
-            }
-            var fullWidth = this.width - this._barMaxWidthDelta;
-            var fullHeight = this.height - this._barMaxHeightDelta;
-            if (!this._reverse) {
-                if (this._barObjectH)
-                    this._barObjectH.width = Math.round(fullWidth * percent);
-                if (this._barObjectV)
-                    this._barObjectV.height = Math.round(fullHeight * percent);
-            }
-            else {
-                if (this._barObjectH) {
-                    this._barObjectH.width = Math.round(fullWidth * percent);
-                    this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
-                }
-                if (this._barObjectV) {
-                    this._barObjectV.height = Math.round(fullHeight * percent);
-                    this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
-                }
-            }
-        }
-        constructExtension(buffer) {
-            buffer.seek(0, 6);
-            this._titleType = buffer.readByte();
-            this._reverse = buffer.readBool();
-            if (buffer.version >= 2) {
-                this._wholeNumbers = buffer.readBool();
-                this.changeOnClick = buffer.readBool();
-            }
-            this._titleObject = this.getChild("title");
-            this._barObjectH = this.getChild("bar");
-            this._barObjectV = this.getChild("bar_v");
-            this._gripObject = this.getChild("grip");
-            if (this._barObjectH) {
-                this._barMaxWidth = this._barObjectH.width;
-                this._barMaxWidthDelta = this.width - this._barMaxWidth;
-                this._barStartX = this._barObjectH.x;
-            }
-            if (this._barObjectV) {
-                this._barMaxHeight = this._barObjectV.height;
-                this._barMaxHeightDelta = this.height - this._barMaxHeight;
-                this._barStartY = this._barObjectV.y;
-            }
-            if (this._gripObject) {
-                this._gripObject.on(Laya.Event.MOUSE_DOWN, this, this.__gripMouseDown);
-            }
-            this.displayObject.on(Laya.Event.MOUSE_DOWN, this, this.__barMouseDown);
-        }
-        handleSizeChanged() {
-            super.handleSizeChanged();
-            if (this._barObjectH)
-                this._barMaxWidth = this.width - this._barMaxWidthDelta;
-            if (this._barObjectV)
-                this._barMaxHeight = this.height - this._barMaxHeightDelta;
-            if (!this._underConstruct)
-                this.update();
-        }
-        setup_afterAdd(buffer, beginPos) {
-            super.setup_afterAdd(buffer, beginPos);
-            if (!buffer.seek(beginPos, 6)) {
-                this.update();
-                return;
-            }
-            if (buffer.readByte() != this.packageItem.objectType) {
-                this.update();
-                return;
-            }
-            this._value = buffer.getInt32();
-            this._max = buffer.getInt32();
-            if (buffer.version >= 2)
-                this._min = buffer.getInt32();
-            this.update();
-        }
-        __gripMouseDown(evt) {
-            this.canDrag = true;
-            evt.stopPropagation();
-            this._clickPos = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY);
-            this._clickPercent = fgui.ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
-            Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
-            Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
-        }
-        __gripMouseMove(evt) {
-            if (!this.canDrag) {
-                return;
-            }
-            var pt = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GSlider.sSilderHelperPoint);
-            var deltaX = pt.x - this._clickPos.x;
-            var deltaY = pt.y - this._clickPos.y;
-            if (this._reverse) {
-                deltaX = -deltaX;
-                deltaY = -deltaY;
-            }
-            var percent;
-            if (this._barObjectH)
-                percent = this._clickPercent + deltaX / this._barMaxWidth;
-            else
-                percent = this._clickPercent + deltaY / this._barMaxHeight;
-            this.updateWithPercent(percent, evt);
-        }
-        __gripMouseUp(evt) {
-            Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
-            Laya.stage.off(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
-        }
-        __barMouseDown(evt) {
-            if (!this.changeOnClick)
-                return;
-            var pt = this._gripObject.globalToLocal(evt.stageX, evt.stageY, GSlider.sSilderHelperPoint);
-            var percent = fgui.ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
-            var delta;
-            if (this._barObjectH)
-                delta = pt.x / this._barMaxWidth;
-            if (this._barObjectV)
-                delta = pt.y / this._barMaxHeight;
-            if (this._reverse)
-                percent -= delta;
-            else
-                percent += delta;
-            this.updateWithPercent(percent, evt);
-        }
-    }
-    GSlider.sSilderHelperPoint = new Laya.Point();
-    fgui.GSlider = GSlider;
-})(fgui || (fgui = {}));
-
-
 (function (fgui) {
     class GGraph extends fgui.GObject {
         constructor() {
@@ -8390,7 +4577,6 @@ window.fgui = {};
     }
     fgui.GGraph = GGraph;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class GGroup extends fgui.GObject {
@@ -8763,7 +4949,6 @@ window.fgui = {};
     fgui.GGroup = GGroup;
 })(fgui || (fgui = {}));
 
-
 (function (fgui) {
     class GImage extends fgui.GObject {
         constructor() {
@@ -8877,7 +5062,6 @@ window.fgui = {};
     }
     fgui.GImage = GImage;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class GLabel extends fgui.GComponent {
@@ -9052,7 +5236,6 @@ window.fgui = {};
     }
     fgui.GLabel = GLabel;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class GList extends fgui.GComponent {
@@ -11091,506 +7274,6 @@ window.fgui = {};
     }
 })(fgui || (fgui = {}));
 
-
-(function (fgui) {
-    class GTree extends fgui.GList {
-        constructor() {
-            super();
-            this._indent = 15;
-            this._rootNode = new fgui.GTreeNode(true);
-            this._rootNode._setTree(this);
-            this._rootNode.expanded = true;
-        }
-        get rootNode() {
-            return this._rootNode;
-        }
-        get indent() {
-            return this._indent;
-        }
-        set indent(value) {
-            this._indent = value;
-        }
-        get clickToExpand() {
-            return this._clickToExpand;
-        }
-        set clickToExpand(value) {
-            this._clickToExpand = value;
-        }
-        getSelectedNode() {
-            if (this.selectedIndex != -1)
-                return this.getChildAt(this.selectedIndex)._treeNode;
-            else
-                return null;
-        }
-        getSelectedNodes(result) {
-            if (!result)
-                result = new Array();
-            GTree.helperIntList.length = 0;
-            super.getSelection(GTree.helperIntList);
-            var cnt = GTree.helperIntList.length;
-            var ret = new Array();
-            for (var i = 0; i < cnt; i++) {
-                var node = this.getChildAt(GTree.helperIntList[i])._treeNode;
-                ret.push(node);
-            }
-            return ret;
-        }
-        selectNode(node, scrollItToView) {
-            var parentNode = node.parent;
-            while (parentNode != null && parentNode != this._rootNode) {
-                parentNode.expanded = true;
-                parentNode = parentNode.parent;
-            }
-            if (!node._cell)
-                return;
-            this.addSelection(this.getChildIndex(node._cell), scrollItToView);
-        }
-        unselectNode(node) {
-            if (!node._cell)
-                return;
-            this.removeSelection(this.getChildIndex(node._cell));
-        }
-        expandAll(folderNode) {
-            if (!folderNode)
-                folderNode = this._rootNode;
-            folderNode.expanded = true;
-            var cnt = folderNode.numChildren;
-            for (var i = 0; i < cnt; i++) {
-                var node = folderNode.getChildAt(i);
-                if (node.isFolder)
-                    this.expandAll(node);
-            }
-        }
-        collapseAll(folderNode) {
-            if (!folderNode)
-                folderNode = this._rootNode;
-            if (folderNode != this._rootNode)
-                folderNode.expanded = false;
-            var cnt = folderNode.numChildren;
-            for (var i = 0; i < cnt; i++) {
-                var node = folderNode.getChildAt(i);
-                if (node.isFolder)
-                    this.collapseAll(node);
-            }
-        }
-        createCell(node) {
-            var child = this.getFromPool(node._resURL);
-            if (!child)
-                throw new Error("cannot create tree node object.");
-            child._treeNode = node;
-            node._cell = child;
-            var indentObj = child.getChild("indent");
-            if (indentObj != null)
-                indentObj.width = (node.level - 1) * this._indent;
-            var cc;
-            cc = child.getController("expanded");
-            if (cc) {
-                cc.on(fgui.Events.STATE_CHANGED, this, this.__expandedStateChanged);
-                cc.selectedIndex = node.expanded ? 1 : 0;
-            }
-            cc = child.getController("leaf");
-            if (cc)
-                cc.selectedIndex = node.isFolder ? 0 : 1;
-            if (this.treeNodeRender)
-                this.treeNodeRender.runWith([node, child]);
-        }
-        _afterInserted(node) {
-            if (!node._cell)
-                this.createCell(node);
-            var index = this.getInsertIndexForNode(node);
-            this.addChildAt(node._cell, index);
-            if (this.treeNodeRender)
-                this.treeNodeRender.runWith([node, node._cell]);
-            if (node.isFolder && node.expanded)
-                this.checkChildren(node, index);
-        }
-        getInsertIndexForNode(node) {
-            var prevNode = node.getPrevSibling();
-            if (prevNode == null)
-                prevNode = node.parent;
-            var insertIndex = this.getChildIndex(prevNode._cell) + 1;
-            var myLevel = node.level;
-            var cnt = this.numChildren;
-            for (var i = insertIndex; i < cnt; i++) {
-                var testNode = this.getChildAt(i)._treeNode;
-                if (testNode.level <= myLevel)
-                    break;
-                insertIndex++;
-            }
-            return insertIndex;
-        }
-        _afterRemoved(node) {
-            this.removeNode(node);
-        }
-        _afterExpanded(node) {
-            if (node == this._rootNode) {
-                this.checkChildren(this._rootNode, 0);
-                return;
-            }
-            if (this.treeNodeWillExpand != null)
-                this.treeNodeWillExpand.runWith([node, true]);
-            if (node._cell == null)
-                return;
-            if (this.treeNodeRender)
-                this.treeNodeRender.runWith([node, node._cell]);
-            var cc = node._cell.getController("expanded");
-            if (cc)
-                cc.selectedIndex = 1;
-            if (node._cell.parent != null)
-                this.checkChildren(node, this.getChildIndex(node._cell));
-        }
-        _afterCollapsed(node) {
-            if (node == this._rootNode) {
-                this.checkChildren(this._rootNode, 0);
-                return;
-            }
-            if (this.treeNodeWillExpand)
-                this.treeNodeWillExpand.runWith([node, false]);
-            if (node._cell == null)
-                return;
-            if (this.treeNodeRender)
-                this.treeNodeRender.runWith([node, node._cell]);
-            var cc = node._cell.getController("expanded");
-            if (cc)
-                cc.selectedIndex = 0;
-            if (node._cell.parent != null)
-                this.hideFolderNode(node);
-        }
-        _afterMoved(node) {
-            var startIndex = this.getChildIndex(node._cell);
-            var endIndex;
-            if (node.isFolder)
-                endIndex = this.getFolderEndIndex(startIndex, node.level);
-            else
-                endIndex = startIndex + 1;
-            var insertIndex = this.getInsertIndexForNode(node);
-            var i;
-            var cnt = endIndex - startIndex;
-            var obj;
-            if (insertIndex < startIndex) {
-                for (i = 0; i < cnt; i++) {
-                    obj = this.getChildAt(startIndex + i);
-                    this.setChildIndex(obj, insertIndex + i);
-                }
-            }
-            else {
-                for (i = 0; i < cnt; i++) {
-                    obj = this.getChildAt(startIndex);
-                    this.setChildIndex(obj, insertIndex);
-                }
-            }
-        }
-        getFolderEndIndex(startIndex, level) {
-            var cnt = this.numChildren;
-            for (var i = startIndex + 1; i < cnt; i++) {
-                var node = this.getChildAt(i)._treeNode;
-                if (node.level <= level)
-                    return i;
-            }
-            return cnt;
-        }
-        checkChildren(folderNode, index) {
-            var cnt = folderNode.numChildren;
-            for (var i = 0; i < cnt; i++) {
-                index++;
-                var node = folderNode.getChildAt(i);
-                if (node._cell == null)
-                    this.createCell(node);
-                if (!node._cell.parent)
-                    this.addChildAt(node._cell, index);
-                if (node.isFolder && node.expanded)
-                    index = this.checkChildren(node, index);
-            }
-            return index;
-        }
-        hideFolderNode(folderNode) {
-            var cnt = folderNode.numChildren;
-            for (var i = 0; i < cnt; i++) {
-                var node = folderNode.getChildAt(i);
-                if (node._cell && node._cell.parent != null)
-                    this.removeChild(node._cell);
-                if (node.isFolder && node.expanded)
-                    this.hideFolderNode(node);
-            }
-        }
-        removeNode(node) {
-            if (node._cell != null) {
-                if (node._cell.parent != null)
-                    this.removeChild(node._cell);
-                this.returnToPool(node._cell);
-                node._cell._treeNode = null;
-                node._cell = null;
-            }
-            if (node.isFolder) {
-                var cnt = node.numChildren;
-                for (var i = 0; i < cnt; i++) {
-                    var node2 = node.getChildAt(i);
-                    this.removeNode(node2);
-                }
-            }
-        }
-        __expandedStateChanged(cc) {
-            var node = cc.parent._treeNode;
-            node.expanded = cc.selectedIndex == 1;
-        }
-        dispatchItemEvent(item, evt) {
-            if (this._clickToExpand != 0) {
-                var node = item._treeNode;
-                if (node) {
-                    if (this._clickToExpand == 2) {
-                    }
-                    else
-                        node.expanded = !node.expanded;
-                }
-            }
-            super.dispatchItemEvent(item, evt);
-        }
-        setup_beforeAdd(buffer, beginPos) {
-            super.setup_beforeAdd(buffer, beginPos);
-            buffer.seek(beginPos, 9);
-            this._indent = buffer.getInt32();
-            this._clickToExpand = buffer.getUint8();
-        }
-        readItems(buffer) {
-            var cnt;
-            var i;
-            var nextPos;
-            var str;
-            var isFolder;
-            var lastNode;
-            var level;
-            var prevLevel = 0;
-            cnt = buffer.getInt16();
-            for (i = 0; i < cnt; i++) {
-                nextPos = buffer.getInt16();
-                nextPos += buffer.pos;
-                str = buffer.readS();
-                if (str == null) {
-                    str = this.defaultItem;
-                    if (!str) {
-                        buffer.pos = nextPos;
-                        continue;
-                    }
-                }
-                isFolder = buffer.readBool();
-                level = buffer.getUint8();
-                var node = new fgui.GTreeNode(isFolder, str);
-                node.expanded = true;
-                if (i == 0)
-                    this._rootNode.addChild(node);
-                else {
-                    if (level > prevLevel)
-                        lastNode.addChild(node);
-                    else if (level < prevLevel) {
-                        for (var j = level; j <= prevLevel; j++)
-                            lastNode = lastNode.parent;
-                        lastNode.addChild(node);
-                    }
-                    else
-                        lastNode.parent.addChild(node);
-                }
-                lastNode = node;
-                prevLevel = level;
-                this.setupItem(buffer, node.cell);
-                buffer.pos = nextPos;
-            }
-        }
-    }
-    GTree.helperIntList = new Array();
-    fgui.GTree = GTree;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GTreeNode {
-        constructor(hasChild, resURL) {
-            this._level = 0;
-            this._resURL = resURL;
-            if (hasChild)
-                this._children = new Array();
-        }
-        set expanded(value) {
-            if (this._children == null)
-                return;
-            if (this._expanded != value) {
-                this._expanded = value;
-                if (this._tree != null) {
-                    if (this._expanded)
-                        this._tree._afterExpanded(this);
-                    else
-                        this._tree._afterCollapsed(this);
-                }
-            }
-        }
-        get expanded() {
-            return this._expanded;
-        }
-        get isFolder() {
-            return this._children != null;
-        }
-        get parent() {
-            return this._parent;
-        }
-        get text() {
-            if (this._cell != null)
-                return this._cell.text;
-            else
-                return null;
-        }
-        get cell() {
-            return this._cell;
-        }
-        get level() {
-            return this._level;
-        }
-        _setLevel(value) {
-            this._level = value;
-        }
-        addChild(child) {
-            this.addChildAt(child, this._children.length);
-            return child;
-        }
-        addChildAt(child, index) {
-            if (!child)
-                throw new Error("child is null");
-            var numChildren = this._children.length;
-            if (index >= 0 && index <= numChildren) {
-                if (child._parent == this) {
-                    this.setChildIndex(child, index);
-                }
-                else {
-                    if (child._parent)
-                        child._parent.removeChild(child);
-                    var cnt = this._children.length;
-                    if (index == cnt)
-                        this._children.push(child);
-                    else
-                        this._children.splice(index, 0, child);
-                    child._parent = this;
-                    child._level = this._level + 1;
-                    child._setTree(this._tree);
-                    if (this._tree != null && this == this._tree.rootNode || this._cell != null && this._cell.parent != null && this._expanded)
-                        this._tree._afterInserted(child);
-                }
-                return child;
-            }
-            else {
-                throw new RangeError("Invalid child index");
-            }
-        }
-        removeChild(child) {
-            var childIndex = this._children.indexOf(child);
-            if (childIndex != -1) {
-                this.removeChildAt(childIndex);
-            }
-            return child;
-        }
-        removeChildAt(index) {
-            if (index >= 0 && index < this.numChildren) {
-                var child = this._children[index];
-                this._children.splice(index, 1);
-                child._parent = null;
-                if (this._tree != null) {
-                    child._setTree(null);
-                    this._tree._afterRemoved(child);
-                }
-                return child;
-            }
-            else {
-                throw "Invalid child index";
-            }
-        }
-        removeChildren(beginIndex = 0, endIndex = -1) {
-            if (endIndex < 0 || endIndex >= this.numChildren)
-                endIndex = this.numChildren - 1;
-            for (var i = beginIndex; i <= endIndex; ++i)
-                this.removeChildAt(beginIndex);
-        }
-        getChildAt(index) {
-            if (index >= 0 && index < this.numChildren)
-                return this._children[index];
-            else
-                throw "Invalid child index";
-        }
-        getChildIndex(child) {
-            return this._children.indexOf(child);
-        }
-        getPrevSibling() {
-            if (this._parent == null)
-                return null;
-            var i = this._parent._children.indexOf(this);
-            if (i <= 0)
-                return null;
-            return this._parent._children[i - 1];
-        }
-        getNextSibling() {
-            if (this._parent == null)
-                return null;
-            var i = this._parent._children.indexOf(this);
-            if (i < 0 || i >= this._parent._children.length - 1)
-                return null;
-            return this._parent._children[i + 1];
-        }
-        setChildIndex(child, index) {
-            var oldIndex = this._children.indexOf(child);
-            if (oldIndex == -1)
-                throw "Not a child of this container";
-            var cnt = this._children.length;
-            if (index < 0)
-                index = 0;
-            else if (index > cnt)
-                index = cnt;
-            if (oldIndex == index)
-                return;
-            this._children.splice(oldIndex, 1);
-            this._children.splice(index, 0, child);
-            if (this._tree != null && this == this._tree.rootNode || this._cell != null && this._cell.parent != null && this._expanded)
-                this._tree._afterMoved(child);
-        }
-        swapChildren(child1, child2) {
-            var index1 = this._children.indexOf(child1);
-            var index2 = this._children.indexOf(child2);
-            if (index1 == -1 || index2 == -1)
-                throw "Not a child of this container";
-            this.swapChildrenAt(index1, index2);
-        }
-        swapChildrenAt(index1, index2) {
-            var child1 = this._children[index1];
-            var child2 = this._children[index2];
-            this.setChildIndex(child1, index2);
-            this.setChildIndex(child2, index1);
-        }
-        get numChildren() {
-            return this._children.length;
-        }
-        expandToRoot() {
-            var p = this;
-            while (p) {
-                p.expanded = true;
-                p = p.parent;
-            }
-        }
-        get tree() {
-            return this._tree;
-        }
-        _setTree(value) {
-            this._tree = value;
-            if (this._tree != null && this._tree.treeNodeWillExpand && this._expanded)
-                this._tree.treeNodeWillExpand.runWith([this, true]);
-            if (this._children != null) {
-                var cnt = this._children.length;
-                for (var i = 0; i < cnt; i++) {
-                    var node = this._children[i];
-                    node._level = this._level + 1;
-                    node._setTree(value);
-                }
-            }
-        }
-    }
-    fgui.GTreeNode = GTreeNode;
-})(fgui || (fgui = {}));
-
-
 (function (fgui) {
     class GObjectPool {
         constructor() {
@@ -11637,7 +7320,6 @@ window.fgui = {};
     }
     fgui.GObjectPool = GObjectPool;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class GLoader extends fgui.GObject {
@@ -12037,7 +7719,6 @@ window.fgui = {};
     fgui.GLoader = GLoader;
 })(fgui || (fgui = {}));
 
-
 (function (fgui) {
     class GMovieClip extends fgui.GObject {
         constructor() {
@@ -12152,7 +7833,6 @@ window.fgui = {};
     }
     fgui.GMovieClip = GMovieClip;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class GProgressBar extends fgui.GComponent {
@@ -12323,769 +8003,6 @@ window.fgui = {};
     fgui.GProgressBar = GProgressBar;
 })(fgui || (fgui = {}));
 
-
-(function (fgui) {
-    class GTextField extends fgui.GObject {
-        constructor() {
-            super();
-            this._gearColor = new fgui.GearColor(this);
-        }
-        get font() {
-            return null;
-        }
-        set font(value) {
-        }
-        get fontSize() {
-            return 0;
-        }
-        set fontSize(value) {
-        }
-        get color() {
-            return null;
-        }
-        set color(value) {
-        }
-        get align() {
-            return null;
-        }
-        set align(value) {
-        }
-        get valign() {
-            return null;
-        }
-        set valign(value) {
-        }
-        get leading() {
-            return 0;
-        }
-        set leading(value) {
-        }
-        get letterSpacing() {
-            return 0;
-        }
-        set letterSpacing(value) {
-        }
-        get bold() {
-            return false;
-        }
-        set bold(value) {
-        }
-        get italic() {
-            return false;
-        }
-        set italic(value) {
-        }
-        get underline() {
-            return false;
-        }
-        set underline(value) {
-        }
-        get singleLine() {
-            return false;
-        }
-        set singleLine(value) {
-        }
-        get stroke() {
-            return 0;
-        }
-        set stroke(value) {
-        }
-        get strokeColor() {
-            return null;
-        }
-        set strokeColor(value) {
-        }
-        set ubbEnabled(value) {
-            this._ubbEnabled = value;
-        }
-        get ubbEnabled() {
-            return this._ubbEnabled;
-        }
-        get autoSize() {
-            return this._autoSize;
-        }
-        set autoSize(value) {
-            if (this._autoSize != value) {
-                this._autoSize = value;
-                this._widthAutoSize = this._autoSize == fgui.AutoSizeType.Both;
-                this._heightAutoSize = this._autoSize == fgui.AutoSizeType.Both || this._autoSize == fgui.AutoSizeType.Height;
-                this.updateAutoSize();
-            }
-        }
-        updateAutoSize() {
-        }
-        get textWidth() {
-            return 0;
-        }
-        parseTemplate(template) {
-            var pos1 = 0, pos2, pos3;
-            var tag;
-            var value;
-            var result = "";
-            while ((pos2 = template.indexOf("{", pos1)) != -1) {
-                if (pos2 > 0 && template.charCodeAt(pos2 - 1) == 92) {
-                    result += template.substring(pos1, pos2 - 1);
-                    result += "{";
-                    pos1 = pos2 + 1;
-                    continue;
-                }
-                result += template.substring(pos1, pos2);
-                pos1 = pos2;
-                pos2 = template.indexOf("}", pos1);
-                if (pos2 == -1)
-                    break;
-                if (pos2 == pos1 + 1) {
-                    result += template.substr(pos1, 2);
-                    pos1 = pos2 + 1;
-                    continue;
-                }
-                tag = template.substring(pos1 + 1, pos2);
-                pos3 = tag.indexOf("=");
-                if (pos3 != -1) {
-                    value = this._templateVars[tag.substring(0, pos3)];
-                    if (value == null)
-                        result += tag.substring(pos3 + 1);
-                    else
-                        result += value;
-                }
-                else {
-                    value = this._templateVars[tag];
-                    if (value != null)
-                        result += value;
-                }
-                pos1 = pos2 + 1;
-            }
-            if (pos1 < template.length)
-                result += template.substr(pos1);
-            return result;
-        }
-        get templateVars() {
-            return this._templateVars;
-        }
-        set templateVars(value) {
-            if (this._templateVars == null && value == null)
-                return;
-            this._templateVars = value;
-            this.flushVars();
-        }
-        setVar(name, value) {
-            if (!this._templateVars)
-                this._templateVars = {};
-            this._templateVars[name] = value;
-            return this;
-        }
-        flushVars() {
-            this.text = this._text;
-        }
-        handleControllerChanged(c) {
-            super.handleControllerChanged(c);
-            if (this._gearColor.controller == c)
-                this._gearColor.apply();
-        }
-        getProp(index) {
-            switch (index) {
-                case fgui.ObjectPropID.Color:
-                    return this.color;
-                case fgui.ObjectPropID.OutlineColor:
-                    return this.strokeColor;
-                case fgui.ObjectPropID.FontSize:
-                    return this.fontSize;
-                default:
-                    return super.getProp(index);
-            }
-        }
-        setProp(index, value) {
-            switch (index) {
-                case fgui.ObjectPropID.Color:
-                    this.color = value;
-                    break;
-                case fgui.ObjectPropID.OutlineColor:
-                    this.strokeColor = value;
-                    break;
-                case fgui.ObjectPropID.FontSize:
-                    this.fontSize = value;
-                    break;
-                default:
-                    super.setProp(index, value);
-                    break;
-            }
-        }
-        setup_beforeAdd(buffer, beginPos) {
-            super.setup_beforeAdd(buffer, beginPos);
-            buffer.seek(beginPos, 5);
-            var iv;
-            this.font = buffer.readS();
-            this.fontSize = buffer.getInt16();
-            this.color = buffer.readColorS();
-            iv = buffer.readByte();
-            this.align = iv == 0 ? "left" : (iv == 1 ? "center" : "right");
-            iv = buffer.readByte();
-            this.valign = iv == 0 ? "top" : (iv == 1 ? "middle" : "bottom");
-            this.leading = buffer.getInt16();
-            this.letterSpacing = buffer.getInt16();
-            this.ubbEnabled = buffer.readBool();
-            this.autoSize = buffer.readByte();
-            this.underline = buffer.readBool();
-            this.italic = buffer.readBool();
-            this.bold = buffer.readBool();
-            this.singleLine = buffer.readBool();
-            if (buffer.readBool()) {
-                this.strokeColor = buffer.readColorS();
-                this.stroke = buffer.getFloat32() + 1;
-            }
-            if (buffer.readBool())
-                buffer.skip(12);
-            if (buffer.readBool())
-                this._templateVars = {};
-        }
-        setup_afterAdd(buffer, beginPos) {
-            super.setup_afterAdd(buffer, beginPos);
-            buffer.seek(beginPos, 6);
-            var str = buffer.readS();
-            if (str != null)
-                this.text = str;
-        }
-    }
-    fgui.GTextField = GTextField;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GBasicTextField extends fgui.GTextField {
-        constructor() {
-            super();
-            this._letterSpacing = 0;
-            this._textWidth = 0;
-            this._textHeight = 0;
-            this._text = "";
-            this._color = "#000000";
-            this._textField.align = "left";
-            this._textField.font = fgui.UIConfig.defaultFont;
-            this._autoSize = fgui.AutoSizeType.Both;
-            this._widthAutoSize = this._heightAutoSize = true;
-            this._textField["_sizeDirty"] = false;
-        }
-        createDisplayObject() {
-            this._displayObject = this._textField = new TextExt(this);
-            this._displayObject["$owner"] = this;
-            this._displayObject.mouseEnabled = false;
-        }
-        get nativeText() {
-            return this._textField;
-        }
-        set text(value) {
-            this._text = value;
-            if (this._text == null)
-                this._text = "";
-            if (this._bitmapFont == null) {
-                if (this._widthAutoSize)
-                    this._textField.width = 10000;
-                var text2 = this._text;
-                if (this._templateVars != null)
-                    text2 = this.parseTemplate(text2);
-                if (this._ubbEnabled)
-                    this._textField.text = fgui.ToolSet.removeUBB(fgui.ToolSet.encodeHTML(text2));
-                else
-                    this._textField.text = text2;
-            }
-            else {
-                this._textField.text = "";
-                this._textField["setChanged"]();
-            }
-            if (this.parent && this.parent._underConstruct)
-                this._textField.typeset();
-        }
-        get text() {
-            return this._text;
-        }
-        get font() {
-            return this._textField.font;
-        }
-        set font(value) {
-            this._font = value;
-            if (fgui.ToolSet.startsWith(this._font, "ui://"))
-                this._bitmapFont = fgui.UIPackage.getItemAssetByURL(this._font);
-            else
-                this._bitmapFont = null;
-            if (this._bitmapFont != null) {
-                this._textField["setChanged"]();
-            }
-            else {
-                if (this._font)
-                    this._textField.font = this._font;
-                else
-                    this._textField.font = fgui.UIConfig.defaultFont;
-            }
-        }
-        get fontSize() {
-            return this._textField.fontSize;
-        }
-        set fontSize(value) {
-            this._textField.fontSize = value;
-        }
-        get color() {
-            return this._color;
-        }
-        set color(value) {
-            if (this._color != value) {
-                this._color = value;
-                if (this._gearColor.controller)
-                    this._gearColor.updateState();
-                if (this.grayed)
-                    this._textField.color = "#AAAAAA";
-                else
-                    this._textField.color = this._color;
-            }
-        }
-        get align() {
-            return this._textField.align;
-        }
-        set align(value) {
-            this._textField.align = value;
-        }
-        get valign() {
-            return this._textField.valign;
-        }
-        set valign(value) {
-            this._textField.valign = value;
-        }
-        get leading() {
-            return this._textField.leading;
-        }
-        set leading(value) {
-            this._textField.leading = value;
-        }
-        get letterSpacing() {
-            return this._letterSpacing;
-        }
-        set letterSpacing(value) {
-            this._letterSpacing = value;
-        }
-        get bold() {
-            return this._textField.bold;
-        }
-        set bold(value) {
-            this._textField.bold = value;
-        }
-        get italic() {
-            return this._textField.italic;
-        }
-        set italic(value) {
-            this._textField.italic = value;
-        }
-        get underline() {
-            return this._textField.underline;
-        }
-        set underline(value) {
-            this._textField.underline = value;
-        }
-        get singleLine() {
-            return this._singleLine;
-        }
-        set singleLine(value) {
-            this._singleLine = value;
-            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
-        }
-        get stroke() {
-            return this._textField.stroke;
-        }
-        set stroke(value) {
-            this._textField.stroke = value;
-        }
-        get strokeColor() {
-            return this._textField.strokeColor;
-        }
-        set strokeColor(value) {
-            this._textField.strokeColor = value;
-            this.updateGear(4);
-        }
-        updateAutoSize() {
-            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
-            if (!this._underConstruct) {
-                if (!this._heightAutoSize)
-                    this._textField.size(this.width, this.height);
-                else if (!this._widthAutoSize)
-                    this._textField.width = this.width;
-            }
-        }
-        get textWidth() {
-            if (this._textField["_isChanged"])
-                this._textField.typeset();
-            return this._textWidth;
-        }
-        ensureSizeCorrect() {
-            if (!this._underConstruct && this._textField["_isChanged"])
-                this._textField.typeset();
-        }
-        typeset() {
-            if (this._bitmapFont != null)
-                this.renderWithBitmapFont();
-            else if (this._widthAutoSize || this._heightAutoSize)
-                this.updateSize();
-        }
-        updateSize() {
-            this._textWidth = Math.ceil(this._textField.textWidth);
-            this._textHeight = Math.ceil(this._textField.textHeight);
-            var w, h = 0;
-            if (this._widthAutoSize) {
-                w = this._textWidth;
-                if (this._textField.width != w) {
-                    this._textField.width = w;
-                    if (this._textField.align != "left")
-                        this._textField["baseTypeset"]();
-                }
-            }
-            else
-                w = this.width;
-            if (this._heightAutoSize) {
-                h = this._textHeight;
-                if (!this._widthAutoSize) {
-                    if (this._textField.height != this._textHeight)
-                        this._textField.height = this._textHeight;
-                }
-            }
-            else {
-                h = this.height;
-                if (this._textHeight > h)
-                    this._textHeight = h;
-                if (this._textField.height != this._textHeight)
-                    this._textField.height = this._textHeight;
-            }
-            this._updatingSize = true;
-            this.setSize(w, h);
-            this._updatingSize = false;
-        }
-        renderWithBitmapFont() {
-            var gr = this._displayObject.graphics;
-            gr.clear();
-            if (!this._lines)
-                this._lines = new Array();
-            else
-                LineInfo.returnList(this._lines);
-            var lineSpacing = this.leading - 1;
-            var rectWidth = this.width - GBasicTextField.GUTTER_X * 2;
-            var lineWidth = 0, lineHeight = 0, lineTextHeight = 0;
-            var glyphWidth = 0, glyphHeight = 0;
-            var wordChars = 0, wordStart = 0, wordEnd = 0;
-            var lastLineHeight = 0;
-            var lineBuffer = "";
-            var lineY = GBasicTextField.GUTTER_Y;
-            var line;
-            var wordWrap = !this._widthAutoSize && !this._singleLine;
-            var fontSize = this.fontSize;
-            var fontScale = this._bitmapFont.resizable ? fontSize / this._bitmapFont.size : 1;
-            this._textWidth = 0;
-            this._textHeight = 0;
-            var text2 = this._text;
-            if (this._templateVars != null)
-                text2 = this.parseTemplate(text2);
-            var textLength = text2.length;
-            for (var offset = 0; offset < textLength; ++offset) {
-                var ch = text2.charAt(offset);
-                var cc = ch.charCodeAt(0);
-                if (cc == 10) {
-                    lineBuffer += ch;
-                    line = LineInfo.borrow();
-                    line.width = lineWidth;
-                    if (lineTextHeight == 0) {
-                        if (lastLineHeight == 0)
-                            lastLineHeight = fontSize;
-                        if (lineHeight == 0)
-                            lineHeight = lastLineHeight;
-                        lineTextHeight = lineHeight;
-                    }
-                    line.height = lineHeight;
-                    lastLineHeight = lineHeight;
-                    line.textHeight = lineTextHeight;
-                    line.text = lineBuffer;
-                    line.y = lineY;
-                    lineY += (line.height + lineSpacing);
-                    if (line.width > this._textWidth)
-                        this._textWidth = line.width;
-                    this._lines.push(line);
-                    lineBuffer = "";
-                    lineWidth = 0;
-                    lineHeight = 0;
-                    lineTextHeight = 0;
-                    wordChars = 0;
-                    wordStart = 0;
-                    wordEnd = 0;
-                    continue;
-                }
-                if (cc >= 65 && cc <= 90 || cc >= 97 && cc <= 122) {
-                    if (wordChars == 0)
-                        wordStart = lineWidth;
-                    wordChars++;
-                }
-                else {
-                    if (wordChars > 0)
-                        wordEnd = lineWidth;
-                    wordChars = 0;
-                }
-                if (cc == 32) {
-                    glyphWidth = Math.ceil(fontSize / 2);
-                    glyphHeight = fontSize;
-                }
-                else {
-                    var glyph = this._bitmapFont.glyphs[ch];
-                    if (glyph) {
-                        glyphWidth = Math.ceil(glyph.advance * fontScale);
-                        glyphHeight = Math.ceil(glyph.lineHeight * fontScale);
-                    }
-                    else {
-                        glyphWidth = 0;
-                        glyphHeight = 0;
-                    }
-                }
-                if (glyphHeight > lineTextHeight)
-                    lineTextHeight = glyphHeight;
-                if (glyphHeight > lineHeight)
-                    lineHeight = glyphHeight;
-                if (lineWidth != 0)
-                    lineWidth += this._letterSpacing;
-                lineWidth += glyphWidth;
-                if (!wordWrap || lineWidth <= rectWidth) {
-                    lineBuffer += ch;
-                }
-                else {
-                    line = LineInfo.borrow();
-                    line.height = lineHeight;
-                    line.textHeight = lineTextHeight;
-                    if (lineBuffer.length == 0) {
-                        line.text = ch;
-                    }
-                    else if (wordChars > 0 && wordEnd > 0) {
-                        lineBuffer += ch;
-                        var len = lineBuffer.length - wordChars;
-                        line.text = fgui.ToolSet.trimRight(lineBuffer.substr(0, len));
-                        line.width = wordEnd;
-                        lineBuffer = lineBuffer.substr(len);
-                        lineWidth -= wordStart;
-                    }
-                    else {
-                        line.text = lineBuffer;
-                        line.width = lineWidth - (glyphWidth + this._letterSpacing);
-                        lineBuffer = ch;
-                        lineWidth = glyphWidth;
-                        lineHeight = glyphHeight;
-                        lineTextHeight = glyphHeight;
-                    }
-                    line.y = lineY;
-                    lineY += (line.height + lineSpacing);
-                    if (line.width > this._textWidth)
-                        this._textWidth = line.width;
-                    wordChars = 0;
-                    wordStart = 0;
-                    wordEnd = 0;
-                    this._lines.push(line);
-                }
-            }
-            if (lineBuffer.length > 0) {
-                line = LineInfo.borrow();
-                line.width = lineWidth;
-                if (lineHeight == 0)
-                    lineHeight = lastLineHeight;
-                if (lineTextHeight == 0)
-                    lineTextHeight = lineHeight;
-                line.height = lineHeight;
-                line.textHeight = lineTextHeight;
-                line.text = lineBuffer;
-                line.y = lineY;
-                if (line.width > this._textWidth)
-                    this._textWidth = line.width;
-                this._lines.push(line);
-            }
-            if (this._textWidth > 0)
-                this._textWidth += GBasicTextField.GUTTER_X * 2;
-            var count = this._lines.length;
-            if (count == 0) {
-                this._textHeight = 0;
-            }
-            else {
-                line = this._lines[this._lines.length - 1];
-                this._textHeight = line.y + line.height + GBasicTextField.GUTTER_Y;
-            }
-            var w, h = 0;
-            if (this._widthAutoSize) {
-                if (this._textWidth == 0)
-                    w = 0;
-                else
-                    w = this._textWidth;
-            }
-            else
-                w = this.width;
-            if (this._heightAutoSize) {
-                if (this._textHeight == 0)
-                    h = 0;
-                else
-                    h = this._textHeight;
-            }
-            else
-                h = this.height;
-            this._updatingSize = true;
-            this.setSize(w, h);
-            this._updatingSize = false;
-            this.doAlign();
-            if (w == 0 || h == 0)
-                return;
-            var charX = GBasicTextField.GUTTER_X;
-            var lineIndent = 0;
-            var charIndent = 0;
-            rectWidth = this.width - GBasicTextField.GUTTER_X * 2;
-            var lineCount = this._lines.length;
-            for (var i = 0; i < lineCount; i++) {
-                line = this._lines[i];
-                charX = GBasicTextField.GUTTER_X;
-                if (this.align == "center")
-                    lineIndent = (rectWidth - line.width) / 2;
-                else if (this.align == "right")
-                    lineIndent = rectWidth - line.width;
-                else
-                    lineIndent = 0;
-                textLength = line.text.length;
-                for (var j = 0; j < textLength; j++) {
-                    ch = line.text.charAt(j);
-                    cc = ch.charCodeAt(0);
-                    if (cc == 10)
-                        continue;
-                    if (cc == 32) {
-                        charX += this._letterSpacing + Math.ceil(fontSize / 2);
-                        continue;
-                    }
-                    glyph = this._bitmapFont.glyphs[ch];
-                    if (glyph != null) {
-                        charIndent = (line.height + line.textHeight) / 2 - Math.ceil(glyph.lineHeight * fontScale);
-                        if (glyph.texture) {
-                            gr.drawTexture(glyph.texture, charX + lineIndent + Math.ceil(glyph.offsetX * fontScale), line.y + charIndent + Math.ceil(glyph.offsetY * fontScale), glyph.texture.width * fontScale, glyph.texture.height * fontScale);
-                        }
-                        charX += this._letterSpacing + Math.ceil(glyph.advance * fontScale);
-                    }
-                    else {
-                        charX += this._letterSpacing;
-                    }
-                }
-            }
-        }
-        handleSizeChanged() {
-            if (this._updatingSize)
-                return;
-            if (this._underConstruct)
-                this._textField.size(this._width, this._height);
-            else {
-                if (this._bitmapFont != null) {
-                    if (!this._widthAutoSize)
-                        this._textField["setChanged"]();
-                    else
-                        this.doAlign();
-                }
-                else {
-                    if (!this._widthAutoSize) {
-                        if (!this._heightAutoSize)
-                            this._textField.size(this._width, this._height);
-                        else
-                            this._textField.width = this._width;
-                    }
-                }
-            }
-        }
-        handleGrayedChanged() {
-            super.handleGrayedChanged();
-            if (this.grayed)
-                this._textField.color = "#AAAAAA";
-            else
-                this._textField.color = this._color;
-        }
-        doAlign() {
-            if (this.valign == "top" || this._textHeight == 0)
-                this._yOffset = GBasicTextField.GUTTER_Y;
-            else {
-                var dh = this.height - this._textHeight;
-                if (dh < 0)
-                    dh = 0;
-                if (this.valign == "middle")
-                    this._yOffset = Math.floor(dh / 2);
-                else
-                    this._yOffset = Math.floor(dh);
-            }
-            this.handleXYChanged();
-        }
-        flushVars() {
-            this.text = this._text;
-        }
-    }
-    GBasicTextField.GUTTER_X = 2;
-    GBasicTextField.GUTTER_Y = 2;
-    fgui.GBasicTextField = GBasicTextField;
-    class LineInfo {
-        constructor() {
-            this.width = 0;
-            this.height = 0;
-            this.textHeight = 0;
-            this.y = 0;
-        }
-        static borrow() {
-            if (LineInfo.pool.length) {
-                var ret = LineInfo.pool.pop();
-                ret.width = 0;
-                ret.height = 0;
-                ret.textHeight = 0;
-                ret.text = null;
-                ret.y = 0;
-                return ret;
-            }
-            else
-                return new LineInfo();
-        }
-        static returns(value) {
-            LineInfo.pool.push(value);
-        }
-        static returnList(value) {
-            var length = value.length;
-            for (var i = 0; i < length; i++) {
-                var li = value[i];
-                LineInfo.pool.push(li);
-            }
-            value.length = 0;
-        }
-    }
-    LineInfo.pool = [];
-    class TextExt extends Laya.Text {
-        constructor(owner) {
-            super();
-            this._owner = owner;
-        }
-        baseTypeset() {
-            this._lock = true;
-            this.typeset();
-            this._lock = false;
-        }
-        typeset() {
-            this._sizeDirty = true;
-            super.typeset();
-            if (!this._lock)
-                this._owner.typeset();
-            if (this._isChanged) {
-                Laya.timer.clear(this, this.typeset);
-                this._isChanged = false;
-            }
-            this._sizeDirty = false;
-        }
-        setChanged() {
-            this.isChanged = true;
-        }
-        set isChanged(value) {
-            if (value && !this._sizeDirty) {
-                if (this._owner.autoSize != fgui.AutoSizeType.None && this._owner.parent) {
-                    this._sizeDirty = true;
-                    this.event(fgui.Events.SIZE_DELAY_CHANGE);
-                }
-            }
-            super["isChanged"] = value;
-        }
-    }
-})(fgui || (fgui = {}));
-
-
 (function (fgui) {
     class GRichTextField extends fgui.GTextField {
         constructor() {
@@ -13229,169 +8146,6 @@ window.fgui = {};
     }
     fgui.GRichTextField = GRichTextField;
 })(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class GTextInput extends fgui.GTextField {
-        constructor() {
-            super();
-        }
-        createDisplayObject() {
-            this._displayObject = this._input = new Laya.Input();
-            this._displayObject.mouseEnabled = true;
-            this._displayObject["$owner"] = this;
-        }
-        get nativeInput() {
-            return this._input;
-        }
-        set text(value) {
-            this._input.text = value;
-        }
-        get text() {
-            return this._input.text;
-        }
-        get font() {
-            return this._input.font;
-        }
-        set font(value) {
-            this._input.font = value;
-        }
-        get fontSize() {
-            return this._input.fontSize;
-        }
-        set fontSize(value) {
-            this._input.fontSize = value;
-        }
-        get color() {
-            return this._input.color;
-        }
-        set color(value) {
-            this._input.color = value;
-        }
-        get align() {
-            return this._input.align;
-        }
-        set align(value) {
-            this._input.align = value;
-        }
-        get valign() {
-            return this._input.valign;
-        }
-        set valign(value) {
-            this._input.valign = value;
-        }
-        get leading() {
-            return this._input.leading;
-        }
-        set leading(value) {
-            this._input.leading = value;
-        }
-        get bold() {
-            return this._input.bold;
-        }
-        set bold(value) {
-            this._input.bold = value;
-        }
-        get italic() {
-            return this._input.italic;
-        }
-        set italic(value) {
-            this._input.italic = value;
-        }
-        get singleLine() {
-            return !this._input.multiline;
-        }
-        set singleLine(value) {
-            this._input.multiline = !value;
-        }
-        get stroke() {
-            return this._input.stroke;
-        }
-        set stroke(value) {
-            this._input.stroke = value;
-        }
-        get strokeColor() {
-            return this._input.strokeColor;
-        }
-        set strokeColor(value) {
-            this._input.strokeColor = value;
-            this.updateGear(4);
-        }
-        get password() {
-            return this._input.type == "password";
-        }
-        set password(value) {
-            if (value)
-                this._input.type = "password";
-            else
-                this._input.type = "text";
-        }
-        get keyboardType() {
-            return this._input.type;
-        }
-        set keyboardType(value) {
-            this._input.type = value;
-        }
-        set editable(value) {
-            this._input.editable = value;
-        }
-        get editable() {
-            return this._input.editable;
-        }
-        set maxLength(value) {
-            this._input.maxChars = value;
-        }
-        get maxLength() {
-            return this._input.maxChars;
-        }
-        set promptText(value) {
-            this._prompt = value;
-            var str = fgui.UBBParser.inst.parse(value, true);
-            this._input.prompt = str;
-            if (fgui.UBBParser.inst.lastColor)
-                this._input.promptColor = fgui.UBBParser.inst.lastColor;
-        }
-        get promptText() {
-            return this._prompt;
-        }
-        set restrict(value) {
-            this._input.restrict = value;
-        }
-        get restrict() {
-            return this._input.restrict;
-        }
-        get textWidth() {
-            return this._input.textWidth;
-        }
-        handleSizeChanged() {
-            this._input.size(this._width, this._height);
-        }
-        setup_beforeAdd(buffer, beginPos) {
-            super.setup_beforeAdd(buffer, beginPos);
-            buffer.seek(beginPos, 4);
-            var str = buffer.readS();
-            if (str != null)
-                this.promptText = str;
-            str = buffer.readS();
-            if (str != null)
-                this._input.restrict = str;
-            var iv = buffer.getInt32();
-            if (iv != 0)
-                this._input.maxChars = iv;
-            iv = buffer.getInt32();
-            if (iv != 0) {
-                if (iv == 4)
-                    this.keyboardType = Laya.Input.TYPE_NUMBER;
-                else if (iv == 3)
-                    this.keyboardType = Laya.Input.TYPE_URL;
-            }
-            if (buffer.readBool())
-                this.password = true;
-        }
-    }
-    fgui.GTextInput = GTextInput;
-})(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class GRoot extends fgui.GComponent {
@@ -13756,26 +8510,1043 @@ window.fgui = {};
     fgui.GRoot = GRoot;
 })(fgui || (fgui = {}));
 
-
 (function (fgui) {
-    class Margin {
+    class GScrollBar extends fgui.GComponent {
         constructor() {
-            this.left = 0;
-            this.right = 0;
-            this.top = 0;
-            this.bottom = 0;
+            super();
+            this._scrollPerc = 0;
+            this._dragOffset = new Laya.Point();
+            this._scrollPerc = 0;
         }
-        copy(source) {
-            this.top = source.top;
-            this.bottom = source.bottom;
-            this.left = source.left;
-            this.right = source.right;
+        setScrollPane(target, vertical) {
+            this._target = target;
+            this._vertical = vertical;
+        }
+        setDisplayPerc(value) {
+            if (this._vertical) {
+                if (!this._fixedGripSize)
+                    this._grip.height = Math.floor(value * this._bar.height);
+                this._grip.y = this._bar.y + (this._bar.height - this._grip.height) * this._scrollPerc;
+            }
+            else {
+                if (!this._fixedGripSize)
+                    this._grip.width = Math.floor(value * this._bar.width);
+                this._grip.x = this._bar.x + (this._bar.width - this._grip.width) * this._scrollPerc;
+            }
+            this._grip.visible = value != 0 && value != 1;
+        }
+        setScrollPerc(val) {
+            this._scrollPerc = val;
+            if (this._vertical)
+                this._grip.y = this._bar.y + (this._bar.height - this._grip.height) * this._scrollPerc;
+            else
+                this._grip.x = this._bar.x + (this._bar.width - this._grip.width) * this._scrollPerc;
+        }
+        get minSize() {
+            if (this._vertical)
+                return (this._arrowButton1 != null ? this._arrowButton1.height : 0) + (this._arrowButton2 != null ? this._arrowButton2.height : 0);
+            else
+                return (this._arrowButton1 != null ? this._arrowButton1.width : 0) + (this._arrowButton2 != null ? this._arrowButton2.width : 0);
+        }
+        get gripDragging() {
+            return this._gripDragging;
+        }
+        constructExtension(buffer) {
+            buffer.seek(0, 6);
+            this._fixedGripSize = buffer.readBool();
+            this._grip = this.getChild("grip");
+            if (!this._grip) {
+                Laya.Log.print("需要定义grip");
+                return;
+            }
+            this._bar = this.getChild("bar");
+            if (!this._bar) {
+                Laya.Log.print("需要定义bar");
+                return;
+            }
+            this._arrowButton1 = this.getChild("arrow1");
+            this._arrowButton2 = this.getChild("arrow2");
+            this._grip.on(Laya.Event.MOUSE_DOWN, this, this.__gripMouseDown);
+            if (this._arrowButton1)
+                this._arrowButton1.on(Laya.Event.MOUSE_DOWN, this, this.__arrowButton1Click);
+            if (this._arrowButton2)
+                this._arrowButton2.on(Laya.Event.MOUSE_DOWN, this, this.__arrowButton2Click);
+            this.on(Laya.Event.MOUSE_DOWN, this, this.__barMouseDown);
+        }
+        __gripMouseDown(evt) {
+            if (!this._bar)
+                return;
+            evt.stopPropagation();
+            this._gripDragging = true;
+            this._target.updateScrollBarVisible();
+            Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
+            Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
+            this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, this._dragOffset);
+            this._dragOffset.x -= this._grip.x;
+            this._dragOffset.y -= this._grip.y;
+        }
+        __gripMouseMove() {
+            var pt = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GScrollBar.sScrollbarHelperPoint);
+            if (this._vertical) {
+                var curY = pt.y - this._dragOffset.y;
+                this._target.setPercY((curY - this._bar.y) / (this._bar.height - this._grip.height), false);
+            }
+            else {
+                var curX = pt.x - this._dragOffset.x;
+                this._target.setPercX((curX - this._bar.x) / (this._bar.width - this._grip.width), false);
+            }
+        }
+        __gripMouseUp(evt) {
+            if (!this._bar)
+                return;
+            Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
+            Laya.stage.off(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
+            this._gripDragging = false;
+            this._target.updateScrollBarVisible();
+        }
+        __arrowButton1Click(evt) {
+            evt.stopPropagation();
+            if (this._vertical)
+                this._target.scrollUp();
+            else
+                this._target.scrollLeft();
+        }
+        __arrowButton2Click(evt) {
+            evt.stopPropagation();
+            if (this._vertical)
+                this._target.scrollDown();
+            else
+                this._target.scrollRight();
+        }
+        __barMouseDown(evt) {
+            var pt = this._grip.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GScrollBar.sScrollbarHelperPoint);
+            if (this._vertical) {
+                if (pt.y < 0)
+                    this._target.scrollUp(4);
+                else
+                    this._target.scrollDown(4);
+            }
+            else {
+                if (pt.x < 0)
+                    this._target.scrollLeft(4);
+                else
+                    this._target.scrollRight(4);
+            }
         }
     }
-    fgui.Margin = Margin;
+    GScrollBar.sScrollbarHelperPoint = new Laya.Point();
+    fgui.GScrollBar = GScrollBar;
 })(fgui || (fgui = {}));
 
+(function (fgui) {
+    class GSlider extends fgui.GComponent {
+        constructor() {
+            super();
+            this._min = 0;
+            this._max = 0;
+            this._value = 0;
+            this._barMaxWidth = 0;
+            this._barMaxHeight = 0;
+            this._barMaxWidthDelta = 0;
+            this._barMaxHeightDelta = 0;
+            this._clickPercent = 0;
+            this._barStartX = 0;
+            this._barStartY = 0;
+            this.changeOnClick = true;
+            this.canDrag = true;
+            this._titleType = fgui.ProgressTitleType.Percent;
+            this._value = 50;
+            this._max = 100;
+            this._clickPos = new Laya.Point();
+        }
+        get titleType() {
+            return this._titleType;
+        }
+        set titleType(value) {
+            this._titleType = value;
+        }
+        get wholeNumbers() {
+            return this._wholeNumbers;
+        }
+        set wholeNumbers(value) {
+            if (this._wholeNumbers != value) {
+                this._wholeNumbers = value;
+                this.update();
+            }
+        }
+        get min() {
+            return this._min;
+        }
+        set min(value) {
+            if (this._min != value) {
+                this._min = value;
+                this.update();
+            }
+        }
+        get max() {
+            return this._max;
+        }
+        set max(value) {
+            if (this._max != value) {
+                this._max = value;
+                this.update();
+            }
+        }
+        get value() {
+            return this._value;
+        }
+        set value(value) {
+            if (this._value != value) {
+                this._value = value;
+                this.update();
+            }
+        }
+        update() {
+            this.updateWithPercent((this._value - this._min) / (this._max - this._min));
+        }
+        updateWithPercent(percent, evt) {
+            percent = fgui.ToolSet.clamp01(percent);
+            if (evt) {
+                var newValue = fgui.ToolSet.clamp(this._min + (this._max - this._min) * percent, this._min, this._max);
+                if (this._wholeNumbers) {
+                    newValue = Math.round(newValue);
+                    percent = fgui.ToolSet.clamp01((newValue - this._min) / (this._max - this._min));
+                }
+                if (newValue != this._value) {
+                    this._value = newValue;
+                    fgui.Events.dispatch(fgui.Events.STATE_CHANGED, this.displayObject, evt);
+                }
+            }
+            if (this._titleObject) {
+                switch (this._titleType) {
+                    case fgui.ProgressTitleType.Percent:
+                        this._titleObject.text = Math.round(percent * 100) + "%";
+                        break;
+                    case fgui.ProgressTitleType.ValueAndMax:
+                        this._titleObject.text = this._value + "/" + this._max;
+                        break;
+                    case fgui.ProgressTitleType.Value:
+                        this._titleObject.text = "" + this._value;
+                        break;
+                    case fgui.ProgressTitleType.Max:
+                        this._titleObject.text = "" + this._max;
+                        break;
+                }
+            }
+            var fullWidth = this.width - this._barMaxWidthDelta;
+            var fullHeight = this.height - this._barMaxHeightDelta;
+            if (!this._reverse) {
+                if (this._barObjectH)
+                    this._barObjectH.width = Math.round(fullWidth * percent);
+                if (this._barObjectV)
+                    this._barObjectV.height = Math.round(fullHeight * percent);
+            }
+            else {
+                if (this._barObjectH) {
+                    this._barObjectH.width = Math.round(fullWidth * percent);
+                    this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
+                }
+                if (this._barObjectV) {
+                    this._barObjectV.height = Math.round(fullHeight * percent);
+                    this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
+                }
+            }
+        }
+        constructExtension(buffer) {
+            buffer.seek(0, 6);
+            this._titleType = buffer.readByte();
+            this._reverse = buffer.readBool();
+            if (buffer.version >= 2) {
+                this._wholeNumbers = buffer.readBool();
+                this.changeOnClick = buffer.readBool();
+            }
+            this._titleObject = this.getChild("title");
+            this._barObjectH = this.getChild("bar");
+            this._barObjectV = this.getChild("bar_v");
+            this._gripObject = this.getChild("grip");
+            if (this._barObjectH) {
+                this._barMaxWidth = this._barObjectH.width;
+                this._barMaxWidthDelta = this.width - this._barMaxWidth;
+                this._barStartX = this._barObjectH.x;
+            }
+            if (this._barObjectV) {
+                this._barMaxHeight = this._barObjectV.height;
+                this._barMaxHeightDelta = this.height - this._barMaxHeight;
+                this._barStartY = this._barObjectV.y;
+            }
+            if (this._gripObject) {
+                this._gripObject.on(Laya.Event.MOUSE_DOWN, this, this.__gripMouseDown);
+            }
+            this.displayObject.on(Laya.Event.MOUSE_DOWN, this, this.__barMouseDown);
+        }
+        handleSizeChanged() {
+            super.handleSizeChanged();
+            if (this._barObjectH)
+                this._barMaxWidth = this.width - this._barMaxWidthDelta;
+            if (this._barObjectV)
+                this._barMaxHeight = this.height - this._barMaxHeightDelta;
+            if (!this._underConstruct)
+                this.update();
+        }
+        setup_afterAdd(buffer, beginPos) {
+            super.setup_afterAdd(buffer, beginPos);
+            if (!buffer.seek(beginPos, 6)) {
+                this.update();
+                return;
+            }
+            if (buffer.readByte() != this.packageItem.objectType) {
+                this.update();
+                return;
+            }
+            this._value = buffer.getInt32();
+            this._max = buffer.getInt32();
+            if (buffer.version >= 2)
+                this._min = buffer.getInt32();
+            this.update();
+        }
+        __gripMouseDown(evt) {
+            this.canDrag = true;
+            evt.stopPropagation();
+            this._clickPos = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY);
+            this._clickPercent = fgui.ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
+            Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
+            Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
+        }
+        __gripMouseMove(evt) {
+            if (!this.canDrag) {
+                return;
+            }
+            var pt = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GSlider.sSilderHelperPoint);
+            var deltaX = pt.x - this._clickPos.x;
+            var deltaY = pt.y - this._clickPos.y;
+            if (this._reverse) {
+                deltaX = -deltaX;
+                deltaY = -deltaY;
+            }
+            var percent;
+            if (this._barObjectH)
+                percent = this._clickPercent + deltaX / this._barMaxWidth;
+            else
+                percent = this._clickPercent + deltaY / this._barMaxHeight;
+            this.updateWithPercent(percent, evt);
+        }
+        __gripMouseUp(evt) {
+            Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
+            Laya.stage.off(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
+        }
+        __barMouseDown(evt) {
+            if (!this.changeOnClick)
+                return;
+            var pt = this._gripObject.globalToLocal(evt.stageX, evt.stageY, GSlider.sSilderHelperPoint);
+            var percent = fgui.ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
+            var delta;
+            if (this._barObjectH)
+                delta = pt.x / this._barMaxWidth;
+            if (this._barObjectV)
+                delta = pt.y / this._barMaxHeight;
+            if (this._reverse)
+                percent -= delta;
+            else
+                percent += delta;
+            this.updateWithPercent(percent, evt);
+        }
+    }
+    GSlider.sSilderHelperPoint = new Laya.Point();
+    fgui.GSlider = GSlider;
+})(fgui || (fgui = {}));
 
+(function (fgui) {
+    class GTextInput extends fgui.GTextField {
+        constructor() {
+            super();
+        }
+        createDisplayObject() {
+            this._displayObject = this._input = new Laya.Input();
+            this._displayObject.mouseEnabled = true;
+            this._displayObject["$owner"] = this;
+        }
+        get nativeInput() {
+            return this._input;
+        }
+        set text(value) {
+            this._input.text = value;
+        }
+        get text() {
+            return this._input.text;
+        }
+        get font() {
+            return this._input.font;
+        }
+        set font(value) {
+            this._input.font = value;
+        }
+        get fontSize() {
+            return this._input.fontSize;
+        }
+        set fontSize(value) {
+            this._input.fontSize = value;
+        }
+        get color() {
+            return this._input.color;
+        }
+        set color(value) {
+            this._input.color = value;
+        }
+        get align() {
+            return this._input.align;
+        }
+        set align(value) {
+            this._input.align = value;
+        }
+        get valign() {
+            return this._input.valign;
+        }
+        set valign(value) {
+            this._input.valign = value;
+        }
+        get leading() {
+            return this._input.leading;
+        }
+        set leading(value) {
+            this._input.leading = value;
+        }
+        get bold() {
+            return this._input.bold;
+        }
+        set bold(value) {
+            this._input.bold = value;
+        }
+        get italic() {
+            return this._input.italic;
+        }
+        set italic(value) {
+            this._input.italic = value;
+        }
+        get singleLine() {
+            return !this._input.multiline;
+        }
+        set singleLine(value) {
+            this._input.multiline = !value;
+        }
+        get stroke() {
+            return this._input.stroke;
+        }
+        set stroke(value) {
+            this._input.stroke = value;
+        }
+        get strokeColor() {
+            return this._input.strokeColor;
+        }
+        set strokeColor(value) {
+            this._input.strokeColor = value;
+            this.updateGear(4);
+        }
+        get password() {
+            return this._input.type == "password";
+        }
+        set password(value) {
+            if (value)
+                this._input.type = "password";
+            else
+                this._input.type = "text";
+        }
+        get keyboardType() {
+            return this._input.type;
+        }
+        set keyboardType(value) {
+            this._input.type = value;
+        }
+        set editable(value) {
+            this._input.editable = value;
+        }
+        get editable() {
+            return this._input.editable;
+        }
+        set maxLength(value) {
+            this._input.maxChars = value;
+        }
+        get maxLength() {
+            return this._input.maxChars;
+        }
+        set promptText(value) {
+            this._prompt = value;
+            var str = fgui.ToolSet.removeUBB(value);
+            this._input.prompt = str;
+            if (fgui.ToolSet.defaultUBBParser.lastColor)
+                this._input.promptColor = fgui.ToolSet.defaultUBBParser.lastColor;
+        }
+        get promptText() {
+            return this._prompt;
+        }
+        set restrict(value) {
+            this._input.restrict = value;
+        }
+        get restrict() {
+            return this._input.restrict;
+        }
+        get textWidth() {
+            return this._input.textWidth;
+        }
+        handleSizeChanged() {
+            this._input.size(this._width, this._height);
+        }
+        setup_beforeAdd(buffer, beginPos) {
+            super.setup_beforeAdd(buffer, beginPos);
+            buffer.seek(beginPos, 4);
+            var str = buffer.readS();
+            if (str != null)
+                this.promptText = str;
+            str = buffer.readS();
+            if (str != null)
+                this._input.restrict = str;
+            var iv = buffer.getInt32();
+            if (iv != 0)
+                this._input.maxChars = iv;
+            iv = buffer.getInt32();
+            if (iv != 0) {
+                if (iv == 4)
+                    this.keyboardType = Laya.Input.TYPE_NUMBER;
+                else if (iv == 3)
+                    this.keyboardType = Laya.Input.TYPE_URL;
+            }
+            if (buffer.readBool())
+                this.password = true;
+        }
+    }
+    fgui.GTextInput = GTextInput;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GTree extends fgui.GList {
+        constructor() {
+            super();
+            this._indent = 15;
+            this._rootNode = new fgui.GTreeNode(true);
+            this._rootNode._setTree(this);
+            this._rootNode.expanded = true;
+        }
+        get rootNode() {
+            return this._rootNode;
+        }
+        get indent() {
+            return this._indent;
+        }
+        set indent(value) {
+            this._indent = value;
+        }
+        get clickToExpand() {
+            return this._clickToExpand;
+        }
+        set clickToExpand(value) {
+            this._clickToExpand = value;
+        }
+        getSelectedNode() {
+            if (this.selectedIndex != -1)
+                return this.getChildAt(this.selectedIndex)._treeNode;
+            else
+                return null;
+        }
+        getSelectedNodes(result) {
+            if (!result)
+                result = new Array();
+            GTree.helperIntList.length = 0;
+            super.getSelection(GTree.helperIntList);
+            var cnt = GTree.helperIntList.length;
+            var ret = new Array();
+            for (var i = 0; i < cnt; i++) {
+                var node = this.getChildAt(GTree.helperIntList[i])._treeNode;
+                ret.push(node);
+            }
+            return ret;
+        }
+        selectNode(node, scrollItToView) {
+            var parentNode = node.parent;
+            while (parentNode != null && parentNode != this._rootNode) {
+                parentNode.expanded = true;
+                parentNode = parentNode.parent;
+            }
+            if (!node._cell)
+                return;
+            this.addSelection(this.getChildIndex(node._cell), scrollItToView);
+        }
+        unselectNode(node) {
+            if (!node._cell)
+                return;
+            this.removeSelection(this.getChildIndex(node._cell));
+        }
+        expandAll(folderNode) {
+            if (!folderNode)
+                folderNode = this._rootNode;
+            folderNode.expanded = true;
+            var cnt = folderNode.numChildren;
+            for (var i = 0; i < cnt; i++) {
+                var node = folderNode.getChildAt(i);
+                if (node.isFolder)
+                    this.expandAll(node);
+            }
+        }
+        collapseAll(folderNode) {
+            if (!folderNode)
+                folderNode = this._rootNode;
+            if (folderNode != this._rootNode)
+                folderNode.expanded = false;
+            var cnt = folderNode.numChildren;
+            for (var i = 0; i < cnt; i++) {
+                var node = folderNode.getChildAt(i);
+                if (node.isFolder)
+                    this.collapseAll(node);
+            }
+        }
+        createCell(node) {
+            var child = this.getFromPool(node._resURL);
+            if (!child)
+                throw new Error("cannot create tree node object.");
+            child._treeNode = node;
+            node._cell = child;
+            var indentObj = child.getChild("indent");
+            if (indentObj != null)
+                indentObj.width = (node.level - 1) * this._indent;
+            var cc;
+            cc = child.getController("expanded");
+            if (cc) {
+                cc.on(fgui.Events.STATE_CHANGED, this, this.__expandedStateChanged);
+                cc.selectedIndex = node.expanded ? 1 : 0;
+            }
+            cc = child.getController("leaf");
+            if (cc)
+                cc.selectedIndex = node.isFolder ? 0 : 1;
+            if (this.treeNodeRender)
+                this.treeNodeRender.runWith([node, child]);
+        }
+        _afterInserted(node) {
+            if (!node._cell)
+                this.createCell(node);
+            var index = this.getInsertIndexForNode(node);
+            this.addChildAt(node._cell, index);
+            if (this.treeNodeRender)
+                this.treeNodeRender.runWith([node, node._cell]);
+            if (node.isFolder && node.expanded)
+                this.checkChildren(node, index);
+        }
+        getInsertIndexForNode(node) {
+            var prevNode = node.getPrevSibling();
+            if (prevNode == null)
+                prevNode = node.parent;
+            var insertIndex = this.getChildIndex(prevNode._cell) + 1;
+            var myLevel = node.level;
+            var cnt = this.numChildren;
+            for (var i = insertIndex; i < cnt; i++) {
+                var testNode = this.getChildAt(i)._treeNode;
+                if (testNode.level <= myLevel)
+                    break;
+                insertIndex++;
+            }
+            return insertIndex;
+        }
+        _afterRemoved(node) {
+            this.removeNode(node);
+        }
+        _afterExpanded(node) {
+            if (node == this._rootNode) {
+                this.checkChildren(this._rootNode, 0);
+                return;
+            }
+            if (this.treeNodeWillExpand != null)
+                this.treeNodeWillExpand.runWith([node, true]);
+            if (node._cell == null)
+                return;
+            if (this.treeNodeRender)
+                this.treeNodeRender.runWith([node, node._cell]);
+            var cc = node._cell.getController("expanded");
+            if (cc)
+                cc.selectedIndex = 1;
+            if (node._cell.parent != null)
+                this.checkChildren(node, this.getChildIndex(node._cell));
+        }
+        _afterCollapsed(node) {
+            if (node == this._rootNode) {
+                this.checkChildren(this._rootNode, 0);
+                return;
+            }
+            if (this.treeNodeWillExpand)
+                this.treeNodeWillExpand.runWith([node, false]);
+            if (node._cell == null)
+                return;
+            if (this.treeNodeRender)
+                this.treeNodeRender.runWith([node, node._cell]);
+            var cc = node._cell.getController("expanded");
+            if (cc)
+                cc.selectedIndex = 0;
+            if (node._cell.parent != null)
+                this.hideFolderNode(node);
+        }
+        _afterMoved(node) {
+            var startIndex = this.getChildIndex(node._cell);
+            var endIndex;
+            if (node.isFolder)
+                endIndex = this.getFolderEndIndex(startIndex, node.level);
+            else
+                endIndex = startIndex + 1;
+            var insertIndex = this.getInsertIndexForNode(node);
+            var i;
+            var cnt = endIndex - startIndex;
+            var obj;
+            if (insertIndex < startIndex) {
+                for (i = 0; i < cnt; i++) {
+                    obj = this.getChildAt(startIndex + i);
+                    this.setChildIndex(obj, insertIndex + i);
+                }
+            }
+            else {
+                for (i = 0; i < cnt; i++) {
+                    obj = this.getChildAt(startIndex);
+                    this.setChildIndex(obj, insertIndex);
+                }
+            }
+        }
+        getFolderEndIndex(startIndex, level) {
+            var cnt = this.numChildren;
+            for (var i = startIndex + 1; i < cnt; i++) {
+                var node = this.getChildAt(i)._treeNode;
+                if (node.level <= level)
+                    return i;
+            }
+            return cnt;
+        }
+        checkChildren(folderNode, index) {
+            var cnt = folderNode.numChildren;
+            for (var i = 0; i < cnt; i++) {
+                index++;
+                var node = folderNode.getChildAt(i);
+                if (node._cell == null)
+                    this.createCell(node);
+                if (!node._cell.parent)
+                    this.addChildAt(node._cell, index);
+                if (node.isFolder && node.expanded)
+                    index = this.checkChildren(node, index);
+            }
+            return index;
+        }
+        hideFolderNode(folderNode) {
+            var cnt = folderNode.numChildren;
+            for (var i = 0; i < cnt; i++) {
+                var node = folderNode.getChildAt(i);
+                if (node._cell && node._cell.parent != null)
+                    this.removeChild(node._cell);
+                if (node.isFolder && node.expanded)
+                    this.hideFolderNode(node);
+            }
+        }
+        removeNode(node) {
+            if (node._cell != null) {
+                if (node._cell.parent != null)
+                    this.removeChild(node._cell);
+                this.returnToPool(node._cell);
+                node._cell._treeNode = null;
+                node._cell = null;
+            }
+            if (node.isFolder) {
+                var cnt = node.numChildren;
+                for (var i = 0; i < cnt; i++) {
+                    var node2 = node.getChildAt(i);
+                    this.removeNode(node2);
+                }
+            }
+        }
+        __expandedStateChanged(cc) {
+            var node = cc.parent._treeNode;
+            node.expanded = cc.selectedIndex == 1;
+        }
+        dispatchItemEvent(item, evt) {
+            if (this._clickToExpand != 0) {
+                var node = item._treeNode;
+                if (node) {
+                    if (this._clickToExpand == 2) {
+                    }
+                    else
+                        node.expanded = !node.expanded;
+                }
+            }
+            super.dispatchItemEvent(item, evt);
+        }
+        setup_beforeAdd(buffer, beginPos) {
+            super.setup_beforeAdd(buffer, beginPos);
+            buffer.seek(beginPos, 9);
+            this._indent = buffer.getInt32();
+            this._clickToExpand = buffer.getUint8();
+        }
+        readItems(buffer) {
+            var cnt;
+            var i;
+            var nextPos;
+            var str;
+            var isFolder;
+            var lastNode;
+            var level;
+            var prevLevel = 0;
+            cnt = buffer.getInt16();
+            for (i = 0; i < cnt; i++) {
+                nextPos = buffer.getInt16();
+                nextPos += buffer.pos;
+                str = buffer.readS();
+                if (str == null) {
+                    str = this.defaultItem;
+                    if (!str) {
+                        buffer.pos = nextPos;
+                        continue;
+                    }
+                }
+                isFolder = buffer.readBool();
+                level = buffer.getUint8();
+                var node = new fgui.GTreeNode(isFolder, str);
+                node.expanded = true;
+                if (i == 0)
+                    this._rootNode.addChild(node);
+                else {
+                    if (level > prevLevel)
+                        lastNode.addChild(node);
+                    else if (level < prevLevel) {
+                        for (var j = level; j <= prevLevel; j++)
+                            lastNode = lastNode.parent;
+                        lastNode.addChild(node);
+                    }
+                    else
+                        lastNode.parent.addChild(node);
+                }
+                lastNode = node;
+                prevLevel = level;
+                this.setupItem(buffer, node.cell);
+                buffer.pos = nextPos;
+            }
+        }
+    }
+    GTree.helperIntList = new Array();
+    fgui.GTree = GTree;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GTreeNode {
+        constructor(hasChild, resURL) {
+            this._level = 0;
+            this._resURL = resURL;
+            if (hasChild)
+                this._children = new Array();
+        }
+        set expanded(value) {
+            if (this._children == null)
+                return;
+            if (this._expanded != value) {
+                this._expanded = value;
+                if (this._tree != null) {
+                    if (this._expanded)
+                        this._tree._afterExpanded(this);
+                    else
+                        this._tree._afterCollapsed(this);
+                }
+            }
+        }
+        get expanded() {
+            return this._expanded;
+        }
+        get isFolder() {
+            return this._children != null;
+        }
+        get parent() {
+            return this._parent;
+        }
+        get text() {
+            if (this._cell != null)
+                return this._cell.text;
+            else
+                return null;
+        }
+        get cell() {
+            return this._cell;
+        }
+        get level() {
+            return this._level;
+        }
+        _setLevel(value) {
+            this._level = value;
+        }
+        addChild(child) {
+            this.addChildAt(child, this._children.length);
+            return child;
+        }
+        addChildAt(child, index) {
+            if (!child)
+                throw new Error("child is null");
+            var numChildren = this._children.length;
+            if (index >= 0 && index <= numChildren) {
+                if (child._parent == this) {
+                    this.setChildIndex(child, index);
+                }
+                else {
+                    if (child._parent)
+                        child._parent.removeChild(child);
+                    var cnt = this._children.length;
+                    if (index == cnt)
+                        this._children.push(child);
+                    else
+                        this._children.splice(index, 0, child);
+                    child._parent = this;
+                    child._level = this._level + 1;
+                    child._setTree(this._tree);
+                    if (this._tree != null && this == this._tree.rootNode || this._cell != null && this._cell.parent != null && this._expanded)
+                        this._tree._afterInserted(child);
+                }
+                return child;
+            }
+            else {
+                throw new RangeError("Invalid child index");
+            }
+        }
+        removeChild(child) {
+            var childIndex = this._children.indexOf(child);
+            if (childIndex != -1) {
+                this.removeChildAt(childIndex);
+            }
+            return child;
+        }
+        removeChildAt(index) {
+            if (index >= 0 && index < this.numChildren) {
+                var child = this._children[index];
+                this._children.splice(index, 1);
+                child._parent = null;
+                if (this._tree != null) {
+                    child._setTree(null);
+                    this._tree._afterRemoved(child);
+                }
+                return child;
+            }
+            else {
+                throw "Invalid child index";
+            }
+        }
+        removeChildren(beginIndex = 0, endIndex = -1) {
+            if (endIndex < 0 || endIndex >= this.numChildren)
+                endIndex = this.numChildren - 1;
+            for (var i = beginIndex; i <= endIndex; ++i)
+                this.removeChildAt(beginIndex);
+        }
+        getChildAt(index) {
+            if (index >= 0 && index < this.numChildren)
+                return this._children[index];
+            else
+                throw "Invalid child index";
+        }
+        getChildIndex(child) {
+            return this._children.indexOf(child);
+        }
+        getPrevSibling() {
+            if (this._parent == null)
+                return null;
+            var i = this._parent._children.indexOf(this);
+            if (i <= 0)
+                return null;
+            return this._parent._children[i - 1];
+        }
+        getNextSibling() {
+            if (this._parent == null)
+                return null;
+            var i = this._parent._children.indexOf(this);
+            if (i < 0 || i >= this._parent._children.length - 1)
+                return null;
+            return this._parent._children[i + 1];
+        }
+        setChildIndex(child, index) {
+            var oldIndex = this._children.indexOf(child);
+            if (oldIndex == -1)
+                throw "Not a child of this container";
+            var cnt = this._children.length;
+            if (index < 0)
+                index = 0;
+            else if (index > cnt)
+                index = cnt;
+            if (oldIndex == index)
+                return;
+            this._children.splice(oldIndex, 1);
+            this._children.splice(index, 0, child);
+            if (this._tree != null && this == this._tree.rootNode || this._cell != null && this._cell.parent != null && this._expanded)
+                this._tree._afterMoved(child);
+        }
+        swapChildren(child1, child2) {
+            var index1 = this._children.indexOf(child1);
+            var index2 = this._children.indexOf(child2);
+            if (index1 == -1 || index2 == -1)
+                throw "Not a child of this container";
+            this.swapChildrenAt(index1, index2);
+        }
+        swapChildrenAt(index1, index2) {
+            var child1 = this._children[index1];
+            var child2 = this._children[index2];
+            this.setChildIndex(child1, index2);
+            this.setChildIndex(child2, index1);
+        }
+        get numChildren() {
+            return this._children.length;
+        }
+        expandToRoot() {
+            var p = this;
+            while (p) {
+                p.expanded = true;
+                p = p.parent;
+            }
+        }
+        get tree() {
+            return this._tree;
+        }
+        _setTree(value) {
+            this._tree = value;
+            if (this._tree != null && this._tree.treeNodeWillExpand && this._expanded)
+                this._tree.treeNodeWillExpand.runWith([this, true]);
+            if (this._children != null) {
+                var cnt = this._children.length;
+                for (var i = 0; i < cnt; i++) {
+                    var node = this._children[i];
+                    node._level = this._level + 1;
+                    node._setTree(value);
+                }
+            }
+        }
+    }
+    fgui.GTreeNode = GTreeNode;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class PackageItem {
+        constructor() {
+            this.width = 0;
+            this.height = 0;
+            this.tileGridIndice = 0;
+            this.interval = 0;
+            this.repeatDelay = 0;
+        }
+        load() {
+            return this.owner.getItemAsset(this);
+        }
+        getBranch() {
+            if (this.branches && this.owner._branchIndex != -1) {
+                var itemId = this.branches[this.owner._branchIndex];
+                if (itemId)
+                    return this.owner.getItemById(itemId);
+            }
+            return this;
+        }
+        getHighResolution() {
+            if (this.highResolution && fgui.GRoot.contentScaleLevel > 0) {
+                var itemId = this.highResolution[fgui.GRoot.contentScaleLevel - 1];
+                if (itemId)
+                    return this.owner.getItemById(itemId);
+            }
+            return this;
+        }
+        toString() {
+            return this.name;
+        }
+    }
+    fgui.PackageItem = PackageItem;
+})(fgui || (fgui = {}));
 
 (function (fgui) {
     class PopupMenu {
@@ -13924,7 +9695,6 @@ window.fgui = {};
     }
     fgui.PopupMenu = PopupMenu;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class RelationItem {
@@ -14469,7 +10239,6 @@ window.fgui = {};
     }
 })(fgui || (fgui = {}));
 
-
 (function (fgui) {
     class Relations {
         constructor(owner) {
@@ -14601,7 +10370,6 @@ window.fgui = {};
     }
     fgui.Relations = Relations;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class ScrollPane {
@@ -15994,6 +11762,1241 @@ window.fgui = {};
     fgui.ScrollPane = ScrollPane;
 })(fgui || (fgui = {}));
 
+(function (fgui) {
+    class Transition {
+        constructor(owner) {
+            this._owner = owner;
+            this._items = new Array();
+            this._totalDuration = 0;
+            this._autoPlayTimes = 1;
+            this._autoPlayDelay = 0;
+            this._timeScale = 1;
+            this._startTime = 0;
+            this._endTime = 0;
+        }
+        play(onComplete = null, times = 1, delay = 0, startTime = 0, endTime = -1) {
+            this._play(onComplete, times, delay, startTime, endTime, false);
+        }
+        playReverse(onComplete = null, times = 1, delay = 0, startTime = 0, endTime = -1) {
+            this._play(onComplete, 1, delay, startTime, endTime, true);
+        }
+        changePlayTimes(value) {
+            this._totalTimes = value;
+        }
+        setAutoPlay(value, times = 1, delay = 0) {
+            if (this._autoPlay != value) {
+                this._autoPlay = value;
+                this._autoPlayTimes = times;
+                this._autoPlayDelay = delay;
+                if (this._autoPlay) {
+                    if (this._owner.onStage)
+                        this.play(null, null, this._autoPlayTimes, this._autoPlayDelay);
+                }
+                else {
+                    if (!this._owner.onStage)
+                        this.stop(false, true);
+                }
+            }
+        }
+        _play(onComplete = null, times = 1, delay = 0, startTime = 0, endTime = -1, reversed = false) {
+            this.stop(true, true);
+            this._totalTimes = times;
+            this._reversed = reversed;
+            this._startTime = startTime;
+            this._endTime = endTime;
+            this._playing = true;
+            this._paused = false;
+            this._onComplete = onComplete;
+            var cnt = this._items.length;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                if (item.target == null) {
+                    if (item.targetId)
+                        item.target = this._owner.getChildById(item.targetId);
+                    else
+                        item.target = this._owner;
+                }
+                else if (item.target != this._owner && item.target.parent != this._owner)
+                    item.target = null;
+                if (item.target != null && item.type == TransitionActionType.Transition) {
+                    var trans = item.target.getTransition(item.value.transName);
+                    if (trans == this)
+                        trans = null;
+                    if (trans != null) {
+                        if (item.value.playTimes == 0) {
+                            var j;
+                            for (j = i - 1; j >= 0; j--) {
+                                var item2 = this._items[j];
+                                if (item2.type == TransitionActionType.Transition) {
+                                    if (item2.value.trans == trans) {
+                                        item2.value.stopTime = item.time - item2.time;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (j < 0)
+                                item.value.stopTime = 0;
+                            else
+                                trans = null;
+                        }
+                        else
+                            item.value.stopTime = -1;
+                    }
+                    item.value.trans = trans;
+                }
+            }
+            if (delay == 0)
+                this.onDelayedPlay();
+            else
+                fgui.GTween.delayedCall(delay).onComplete(this.onDelayedPlay, this);
+        }
+        stop(setToComplete = true, processCallback = false) {
+            if (!this._playing)
+                return;
+            this._playing = false;
+            this._totalTasks = 0;
+            this._totalTimes = 0;
+            var handler = this._onComplete;
+            this._onComplete = null;
+            fgui.GTween.kill(this);
+            var cnt = this._items.length;
+            if (this._reversed) {
+                for (var i = cnt - 1; i >= 0; i--) {
+                    var item = this._items[i];
+                    if (item.target == null)
+                        continue;
+                    this.stopItem(item, setToComplete);
+                }
+            }
+            else {
+                for (i = 0; i < cnt; i++) {
+                    item = this._items[i];
+                    if (item.target == null)
+                        continue;
+                    this.stopItem(item, setToComplete);
+                }
+            }
+            if (processCallback && handler != null) {
+                handler.run();
+            }
+        }
+        stopItem(item, setToComplete) {
+            if (item.displayLockToken != 0) {
+                item.target.releaseDisplayLock(item.displayLockToken);
+                item.displayLockToken = 0;
+            }
+            if (item.tweener != null) {
+                item.tweener.kill(setToComplete);
+                item.tweener = null;
+                if (item.type == TransitionActionType.Shake && !setToComplete) {
+                    item.target._gearLocked = true;
+                    item.target.setXY(item.target.x - item.value.lastOffsetX, item.target.y - item.value.lastOffsetY);
+                    item.target._gearLocked = false;
+                }
+            }
+            if (item.type == TransitionActionType.Transition) {
+                var trans = item.value.trans;
+                if (trans != null)
+                    trans.stop(setToComplete, false);
+            }
+        }
+        setPaused(paused) {
+            if (!this._playing || this._paused == paused)
+                return;
+            this._paused = paused;
+            var tweener = fgui.GTween.getTween(this);
+            if (tweener != null)
+                tweener.setPaused(paused);
+            var cnt = this._items.length;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                if (item.target == null)
+                    continue;
+                if (item.type == TransitionActionType.Transition) {
+                    if (item.value.trans != null)
+                        item.value.trans.setPaused(paused);
+                }
+                else if (item.type == TransitionActionType.Animation) {
+                    if (paused) {
+                        item.value.flag = item.target.getProp(fgui.ObjectPropID.Playing);
+                        item.target.setProp(fgui.ObjectPropID.Playing, false);
+                    }
+                    else
+                        item.target.setProp(fgui.ObjectPropID.Playing, item.value.flag);
+                }
+                if (item.tweener != null)
+                    item.tweener.setPaused(paused);
+            }
+        }
+        dispose() {
+            if (this._playing)
+                fgui.GTween.kill(this);
+            var cnt = this._items.length;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                if (item.tweener != null) {
+                    item.tweener.kill();
+                    item.tweener = null;
+                }
+                item.target = null;
+                item.hook = null;
+                if (item.tweenConfig != null)
+                    item.tweenConfig.endHook = null;
+            }
+            this._items.length = 0;
+            this._playing = false;
+            this._onComplete = null;
+        }
+        get playing() {
+            return this._playing;
+        }
+        setValue(label, ...args) {
+            var cnt = this._items.length;
+            var found = false;
+            var value;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                if (item.label == label) {
+                    if (item.tweenConfig != null)
+                        value = item.tweenConfig.startValue;
+                    else
+                        value = item.value;
+                    found = true;
+                }
+                else if (item.tweenConfig != null && item.tweenConfig.endLabel == label) {
+                    value = item.tweenConfig.endValue;
+                    found = true;
+                }
+                else
+                    continue;
+                switch (item.type) {
+                    case TransitionActionType.XY:
+                    case TransitionActionType.Size:
+                    case TransitionActionType.Pivot:
+                    case TransitionActionType.Scale:
+                    case TransitionActionType.Skew:
+                        value.b1 = true;
+                        value.b2 = true;
+                        value.f1 = parseFloat(args[0]);
+                        value.f2 = parseFloat(args[1]);
+                        break;
+                    case TransitionActionType.Alpha:
+                        value.f1 = parseFloat(args[0]);
+                        break;
+                    case TransitionActionType.Rotation:
+                        value.f1 = parseFloat(args[0]);
+                        break;
+                    case TransitionActionType.Color:
+                        value.f1 = parseFloat(args[0]);
+                        break;
+                    case TransitionActionType.Animation:
+                        value.frame = parseInt(args[0]);
+                        if (args.length > 1)
+                            value.playing = args[1];
+                        break;
+                    case TransitionActionType.Visible:
+                        value.visible = args[0];
+                        break;
+                    case TransitionActionType.Sound:
+                        value.sound = args[0];
+                        if (args.length > 1)
+                            value.volume = parseFloat(args[1]);
+                        break;
+                    case TransitionActionType.Transition:
+                        value.transName = args[0];
+                        if (args.length > 1)
+                            value.playTimes = parseInt(args[1]);
+                        break;
+                    case TransitionActionType.Shake:
+                        value.amplitude = parseFloat(args[0]);
+                        if (args.length > 1)
+                            value.duration = parseFloat(args[1]);
+                        break;
+                    case TransitionActionType.ColorFilter:
+                        value.f1 = parseFloat(args[0]);
+                        value.f2 = parseFloat(args[1]);
+                        value.f3 = parseFloat(args[2]);
+                        value.f4 = parseFloat(args[3]);
+                        break;
+                    case TransitionActionType.Text:
+                    case TransitionActionType.Icon:
+                        value.text = args[0];
+                        break;
+                }
+            }
+            if (!found)
+                throw new Error("this.label not exists");
+        }
+        setHook(label, callback) {
+            var cnt = this._items.length;
+            var found = false;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                if (item.label == label) {
+                    item.hook = callback;
+                    found = true;
+                    break;
+                }
+                else if (item.tweenConfig != null && item.tweenConfig.endLabel == label) {
+                    item.tweenConfig.endHook = callback;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                throw new Error("this.label not exists");
+        }
+        clearHooks() {
+            var cnt = this._items.length;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                item.hook = null;
+                if (item.tweenConfig != null)
+                    item.tweenConfig.endHook = null;
+            }
+        }
+        setTarget(label, newTarget) {
+            var cnt = this._items.length;
+            var found = false;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                if (item.label == label) {
+                    item.targetId = (newTarget == this._owner || newTarget == null) ? "" : newTarget.id;
+                    if (this._playing) {
+                        if (item.targetId.length > 0)
+                            item.target = this._owner.getChildById(item.targetId);
+                        else
+                            item.target = this._owner;
+                    }
+                    else
+                        item.target = null;
+                    found = true;
+                }
+            }
+            if (!found)
+                throw new Error("this.label not exists");
+        }
+        setDuration(label, value) {
+            var cnt = this._items.length;
+            var found = false;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                if (item.tweenConfig != null && item.label == label) {
+                    item.tweenConfig.duration = value;
+                    found = true;
+                }
+            }
+            if (!found)
+                throw new Error("this.label not exists");
+        }
+        getLabelTime(label) {
+            var cnt = this._items.length;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                if (item.label == label)
+                    return item.time;
+                else if (item.tweenConfig != null && item.tweenConfig.endLabel == label)
+                    return item.time + item.tweenConfig.duration;
+            }
+            return NaN;
+        }
+        get timeScale() {
+            return this._timeScale;
+        }
+        set timeScale(value) {
+            if (this._timeScale != value) {
+                this._timeScale = value;
+                if (this._playing) {
+                    var cnt = this._items.length;
+                    for (var i = 0; i < cnt; i++) {
+                        var item = this._items[i];
+                        if (item.tweener != null)
+                            item.tweener.setTimeScale(value);
+                        else if (item.type == TransitionActionType.Transition) {
+                            if (item.value.trans != null)
+                                item.value.trans.timeScale = value;
+                        }
+                        else if (item.type == TransitionActionType.Animation) {
+                            if (item.target != null)
+                                item.target.setProp(fgui.ObjectPropID.TimeScale, value);
+                        }
+                    }
+                }
+            }
+        }
+        updateFromRelations(targetId, dx, dy) {
+            var cnt = this._items.length;
+            if (cnt == 0)
+                return;
+            for (var i = 0; i < cnt; i++) {
+                var item = this._items[i];
+                if (item.type == TransitionActionType.XY && item.targetId == targetId) {
+                    if (item.tweenConfig != null) {
+                        item.tweenConfig.startValue.f1 += dx;
+                        item.tweenConfig.startValue.f2 += dy;
+                        item.tweenConfig.endValue.f1 += dx;
+                        item.tweenConfig.endValue.f2 += dy;
+                    }
+                    else {
+                        item.value.f1 += dx;
+                        item.value.f2 += dy;
+                    }
+                }
+            }
+        }
+        onOwnerAddedToStage() {
+            if (this._autoPlay && !this._playing)
+                this.play(null, this._autoPlayTimes, this._autoPlayDelay);
+        }
+        onOwnerRemovedFromStage() {
+            if ((this._options & Transition.OPTION_AUTO_STOP_DISABLED) == 0)
+                this.stop((this._options & Transition.OPTION_AUTO_STOP_AT_END) != 0 ? true : false, false);
+        }
+        onDelayedPlay() {
+            this.internalPlay();
+            this._playing = this._totalTasks > 0;
+            if (this._playing) {
+                if ((this._options & Transition.OPTION_IGNORE_DISPLAY_CONTROLLER) != 0) {
+                    var cnt = this._items.length;
+                    for (var i = 0; i < cnt; i++) {
+                        var item = this._items[i];
+                        if (item.target != null && item.target != this._owner)
+                            item.displayLockToken = item.target.addDisplayLock();
+                    }
+                }
+            }
+            else if (this._onComplete != null) {
+                var handler = this._onComplete;
+                this._onComplete = null;
+                handler.run();
+            }
+        }
+        internalPlay() {
+            this._ownerBaseX = this._owner.x;
+            this._ownerBaseY = this._owner.y;
+            this._totalTasks = 0;
+            var cnt = this._items.length;
+            var item;
+            var needSkipAnimations = false;
+            if (!this._reversed) {
+                for (var i = 0; i < cnt; i++) {
+                    item = this._items[i];
+                    if (item.target == null)
+                        continue;
+                    if (item.type == TransitionActionType.Animation && this._startTime != 0 && item.time <= this._startTime) {
+                        needSkipAnimations = true;
+                        item.value.flag = false;
+                    }
+                    else
+                        this.playItem(item);
+                }
+            }
+            else {
+                for (i = cnt - 1; i >= 0; i--) {
+                    item = this._items[i];
+                    if (item.target == null)
+                        continue;
+                    this.playItem(item);
+                }
+            }
+            if (needSkipAnimations)
+                this.skipAnimations();
+        }
+        playItem(item) {
+            var time;
+            if (item.tweenConfig != null) {
+                if (this._reversed)
+                    time = (this._totalDuration - item.time - item.tweenConfig.duration);
+                else
+                    time = item.time;
+                if (this._endTime == -1 || time <= this._endTime) {
+                    var startValue;
+                    var endValue;
+                    if (this._reversed) {
+                        startValue = item.tweenConfig.endValue;
+                        endValue = item.tweenConfig.startValue;
+                    }
+                    else {
+                        startValue = item.tweenConfig.startValue;
+                        endValue = item.tweenConfig.endValue;
+                    }
+                    item.value.b1 = startValue.b1 || endValue.b1;
+                    item.value.b2 = startValue.b2 || endValue.b2;
+                    switch (item.type) {
+                        case TransitionActionType.XY:
+                        case TransitionActionType.Size:
+                        case TransitionActionType.Scale:
+                        case TransitionActionType.Skew:
+                            item.tweener = fgui.GTween.to2(startValue.f1, startValue.f2, endValue.f1, endValue.f2, item.tweenConfig.duration);
+                            break;
+                        case TransitionActionType.Alpha:
+                        case TransitionActionType.Rotation:
+                            item.tweener = fgui.GTween.to(startValue.f1, endValue.f1, item.tweenConfig.duration);
+                            break;
+                        case TransitionActionType.Color:
+                            item.tweener = fgui.GTween.toColor(startValue.f1, endValue.f1, item.tweenConfig.duration);
+                            break;
+                        case TransitionActionType.ColorFilter:
+                            item.tweener = fgui.GTween.to4(startValue.f1, startValue.f2, startValue.f3, startValue.f4, endValue.f1, endValue.f2, endValue.f3, endValue.f4, item.tweenConfig.duration);
+                            break;
+                    }
+                    item.tweener.setDelay(time)
+                        .setEase(item.tweenConfig.easeType)
+                        .setRepeat(item.tweenConfig.repeat, item.tweenConfig.yoyo)
+                        .setTimeScale(this._timeScale)
+                        .setTarget(item)
+                        .onStart(this.onTweenStart, this)
+                        .onUpdate(this.onTweenUpdate, this)
+                        .onComplete(this.onTweenComplete, this);
+                    if (this._endTime >= 0)
+                        item.tweener.setBreakpoint(this._endTime - time);
+                    this._totalTasks++;
+                }
+            }
+            else if (item.type == TransitionActionType.Shake) {
+                if (this._reversed)
+                    time = (this._totalDuration - item.time - item.value.duration);
+                else
+                    time = item.time;
+                item.value.offsetX = item.value.offsetY = 0;
+                item.value.lastOffsetX = item.value.lastOffsetY = 0;
+                item.tweener = fgui.GTween.shake(0, 0, item.value.amplitude, item.value.duration)
+                    .setDelay(time)
+                    .setTimeScale(this._timeScale)
+                    .setTarget(item)
+                    .onUpdate(this.onTweenUpdate, this)
+                    .onComplete(this.onTweenComplete, this);
+                if (this._endTime >= 0)
+                    item.tweener.setBreakpoint(this._endTime - item.time);
+                this._totalTasks++;
+            }
+            else {
+                if (this._reversed)
+                    time = (this._totalDuration - item.time);
+                else
+                    time = item.time;
+                if (time <= this._startTime) {
+                    this.applyValue(item);
+                    this.callHook(item, false);
+                }
+                else if (this._endTime == -1 || time <= this._endTime) {
+                    this._totalTasks++;
+                    item.tweener = fgui.GTween.delayedCall(time)
+                        .setTimeScale(this._timeScale)
+                        .setTarget(item)
+                        .onComplete(this.onDelayedPlayItem, this);
+                }
+            }
+            if (item.tweener != null)
+                item.tweener.seek(this._startTime);
+        }
+        skipAnimations() {
+            var frame;
+            var playStartTime;
+            var playTotalTime;
+            var value;
+            var target;
+            var item;
+            var cnt = this._items.length;
+            for (var i = 0; i < cnt; i++) {
+                item = this._items[i];
+                if (item.type != TransitionActionType.Animation || item.time > this._startTime)
+                    continue;
+                value = item.value;
+                if (value.flag)
+                    continue;
+                target = item.target;
+                frame = target.getProp(fgui.ObjectPropID.Frame);
+                playStartTime = target.getProp(fgui.ObjectPropID.Playing) ? 0 : -1;
+                playTotalTime = 0;
+                for (var j = i; j < cnt; j++) {
+                    item = this._items[j];
+                    if (item.type != TransitionActionType.Animation || item.target != target || item.time > this._startTime)
+                        continue;
+                    value = item.value;
+                    value.flag = true;
+                    if (value.frame != -1) {
+                        frame = value.frame;
+                        if (value.playing)
+                            playStartTime = item.time;
+                        else
+                            playStartTime = -1;
+                        playTotalTime = 0;
+                    }
+                    else {
+                        if (value.playing) {
+                            if (playStartTime < 0)
+                                playStartTime = item.time;
+                        }
+                        else {
+                            if (playStartTime >= 0)
+                                playTotalTime += (item.time - playStartTime);
+                            playStartTime = -1;
+                        }
+                    }
+                    this.callHook(item, false);
+                }
+                if (playStartTime >= 0)
+                    playTotalTime += (this._startTime - playStartTime);
+                target.setProp(fgui.ObjectPropID.Playing, playStartTime >= 0);
+                target.setProp(fgui.ObjectPropID.Frame, frame);
+                if (playTotalTime > 0)
+                    target.setProp(fgui.ObjectPropID.DeltaTime, playTotalTime * 1000);
+            }
+        }
+        onDelayedPlayItem(tweener) {
+            var item = tweener.target;
+            item.tweener = null;
+            this._totalTasks--;
+            this.applyValue(item);
+            this.callHook(item, false);
+            this.checkAllComplete();
+        }
+        onTweenStart(tweener) {
+            var item = tweener.target;
+            if (item.type == TransitionActionType.XY || item.type == TransitionActionType.Size) {
+                var startValue;
+                var endValue;
+                if (this._reversed) {
+                    startValue = item.tweenConfig.endValue;
+                    endValue = item.tweenConfig.startValue;
+                }
+                else {
+                    startValue = item.tweenConfig.startValue;
+                    endValue = item.tweenConfig.endValue;
+                }
+                if (item.type == TransitionActionType.XY) {
+                    if (item.target != this._owner) {
+                        if (!startValue.b1)
+                            tweener.startValue.x = item.target.x;
+                        else if (startValue.b3)
+                            tweener.startValue.x = startValue.f1 * this._owner.width;
+                        if (!startValue.b2)
+                            tweener.startValue.y = item.target.y;
+                        else if (startValue.b3)
+                            tweener.startValue.y = startValue.f2 * this._owner.height;
+                        if (!endValue.b1)
+                            tweener.endValue.x = tweener.startValue.x;
+                        else if (endValue.b3)
+                            tweener.endValue.x = endValue.f1 * this._owner.width;
+                        if (!endValue.b2)
+                            tweener.endValue.y = tweener.startValue.y;
+                        else if (endValue.b3)
+                            tweener.endValue.y = endValue.f2 * this._owner.height;
+                    }
+                    else {
+                        if (!startValue.b1)
+                            tweener.startValue.x = item.target.x - this._ownerBaseX;
+                        if (!startValue.b2)
+                            tweener.startValue.y = item.target.y - this._ownerBaseY;
+                        if (!endValue.b1)
+                            tweener.endValue.x = tweener.startValue.x;
+                        if (!endValue.b2)
+                            tweener.endValue.y = tweener.startValue.y;
+                    }
+                }
+                else {
+                    if (!startValue.b1)
+                        tweener.startValue.x = item.target.width;
+                    if (!startValue.b2)
+                        tweener.startValue.y = item.target.height;
+                    if (!endValue.b1)
+                        tweener.endValue.x = tweener.startValue.x;
+                    if (!endValue.b2)
+                        tweener.endValue.y = tweener.startValue.y;
+                }
+                if (item.tweenConfig.path) {
+                    item.value.b1 = item.value.b2 = true;
+                    tweener.setPath(item.tweenConfig.path);
+                }
+            }
+            this.callHook(item, false);
+        }
+        onTweenUpdate(tweener) {
+            var item = tweener.target;
+            switch (item.type) {
+                case TransitionActionType.XY:
+                case TransitionActionType.Size:
+                case TransitionActionType.Scale:
+                case TransitionActionType.Skew:
+                    item.value.f1 = tweener.value.x;
+                    item.value.f2 = tweener.value.y;
+                    if (item.tweenConfig.path) {
+                        item.value.f1 += tweener.startValue.x;
+                        item.value.f2 += tweener.startValue.y;
+                    }
+                    break;
+                case TransitionActionType.Alpha:
+                case TransitionActionType.Rotation:
+                    item.value.f1 = tweener.value.x;
+                    break;
+                case TransitionActionType.Color:
+                    item.value.f1 = tweener.value.color;
+                    break;
+                case TransitionActionType.ColorFilter:
+                    item.value.f1 = tweener.value.x;
+                    item.value.f2 = tweener.value.y;
+                    item.value.f3 = tweener.value.z;
+                    item.value.f4 = tweener.value.w;
+                    break;
+                case TransitionActionType.Shake:
+                    item.value.offsetX = tweener.deltaValue.x;
+                    item.value.offsetY = tweener.deltaValue.y;
+                    break;
+            }
+            this.applyValue(item);
+        }
+        onTweenComplete(tweener) {
+            var item = tweener.target;
+            item.tweener = null;
+            this._totalTasks--;
+            if (tweener.allCompleted)
+                this.callHook(item, true);
+            this.checkAllComplete();
+        }
+        onPlayTransCompleted(item) {
+            this._totalTasks--;
+            this.checkAllComplete();
+        }
+        callHook(item, tweenEnd) {
+            if (tweenEnd) {
+                if (item.tweenConfig != null && item.tweenConfig.endHook != null)
+                    item.tweenConfig.endHook.run();
+            }
+            else {
+                if (item.time >= this._startTime && item.hook != null)
+                    item.hook.run();
+            }
+        }
+        checkAllComplete() {
+            if (this._playing && this._totalTasks == 0) {
+                if (this._totalTimes < 0) {
+                    this.internalPlay();
+                }
+                else {
+                    this._totalTimes--;
+                    if (this._totalTimes > 0)
+                        this.internalPlay();
+                    else {
+                        this._playing = false;
+                        var cnt = this._items.length;
+                        for (var i = 0; i < cnt; i++) {
+                            var item = this._items[i];
+                            if (item.target != null && item.displayLockToken != 0) {
+                                item.target.releaseDisplayLock(item.displayLockToken);
+                                item.displayLockToken = 0;
+                            }
+                        }
+                        if (this._onComplete != null) {
+                            var handler = this._onComplete;
+                            this._onComplete = null;
+                            handler.run();
+                        }
+                    }
+                }
+            }
+        }
+        applyValue(item) {
+            item.target._gearLocked = true;
+            var value = item.value;
+            switch (item.type) {
+                case TransitionActionType.XY:
+                    if (item.target == this._owner) {
+                        if (value.b1 && value.b2)
+                            item.target.setXY(value.f1 + this._ownerBaseX, value.f2 + this._ownerBaseY);
+                        else if (value.b1)
+                            item.target.x = value.f1 + this._ownerBaseX;
+                        else
+                            item.target.y = value.f2 + this._ownerBaseY;
+                    }
+                    else {
+                        if (value.b3) {
+                            if (value.b1 && value.b2)
+                                item.target.setXY(value.f1 * this._owner.width, value.f2 * this._owner.height);
+                            else if (value.b1)
+                                item.target.x = value.f1 * this._owner.width;
+                            else if (value.b2)
+                                item.target.y = value.f2 * this._owner.height;
+                        }
+                        else {
+                            if (value.b1 && value.b2)
+                                item.target.setXY(value.f1, value.f2);
+                            else if (value.b1)
+                                item.target.x = value.f1;
+                            else if (value.b2)
+                                item.target.y = value.f2;
+                        }
+                    }
+                    break;
+                case TransitionActionType.Size:
+                    if (!value.b1)
+                        value.f1 = item.target.width;
+                    if (!value.b2)
+                        value.f2 = item.target.height;
+                    item.target.setSize(value.f1, value.f2);
+                    break;
+                case TransitionActionType.Pivot:
+                    item.target.setPivot(value.f1, value.f2, item.target.pivotAsAnchor);
+                    break;
+                case TransitionActionType.Alpha:
+                    item.target.alpha = value.f1;
+                    break;
+                case TransitionActionType.Rotation:
+                    item.target.rotation = value.f1;
+                    break;
+                case TransitionActionType.Scale:
+                    item.target.setScale(value.f1, value.f2);
+                    break;
+                case TransitionActionType.Skew:
+                    item.target.setSkew(value.f1, value.f2);
+                    break;
+                case TransitionActionType.Color:
+                    item.target.setProp(fgui.ObjectPropID.Color, fgui.ToolSet.convertToHtmlColor(value.f1, false));
+                    break;
+                case TransitionActionType.Animation:
+                    if (value.frame >= 0)
+                        item.target.setProp(fgui.ObjectPropID.Frame, value.frame);
+                    item.target.setProp(fgui.ObjectPropID.Playing, value.playing);
+                    item.target.setProp(fgui.ObjectPropID.TimeScale, this._timeScale);
+                    break;
+                case TransitionActionType.Visible:
+                    item.target.visible = value.visible;
+                    break;
+                case TransitionActionType.Transition:
+                    if (this._playing) {
+                        var trans = value.trans;
+                        if (trans != null) {
+                            this._totalTasks++;
+                            var startTime = this._startTime > item.time ? (this._startTime - item.time) : 0;
+                            var endTime = this._endTime >= 0 ? (this._endTime - item.time) : -1;
+                            if (value.stopTime >= 0 && (endTime < 0 || endTime > value.stopTime))
+                                endTime = value.stopTime;
+                            trans.timeScale = this._timeScale;
+                            trans._play(Laya.Handler.create(this, this.onPlayTransCompleted, [item]), value.playTimes, 0, startTime, endTime, this._reversed);
+                        }
+                    }
+                    break;
+                case TransitionActionType.Sound:
+                    if (this._playing && item.time >= this._startTime) {
+                        if (value.audioClip == null) {
+                            var pi = fgui.UIPackage.getItemByURL(value.sound);
+                            if (pi)
+                                value.audioClip = pi.file;
+                            else
+                                value.audioClip = value.sound;
+                        }
+                        if (value.audioClip)
+                            fgui.GRoot.inst.playOneShotSound(value.audioClip, value.volume);
+                    }
+                    break;
+                case TransitionActionType.Shake:
+                    item.target.setXY(item.target.x - value.lastOffsetX + value.offsetX, item.target.y - value.lastOffsetY + value.offsetY);
+                    value.lastOffsetX = value.offsetX;
+                    value.lastOffsetY = value.offsetY;
+                    break;
+                case TransitionActionType.ColorFilter:
+                    {
+                        fgui.ToolSet.setColorFilter(item.target.displayObject, [value.f1, value.f2, value.f3, value.f4]);
+                        break;
+                    }
+                case TransitionActionType.Text:
+                    item.target.text = value.text;
+                    break;
+                case TransitionActionType.Icon:
+                    item.target.icon = value.text;
+                    break;
+            }
+            item.target._gearLocked = false;
+        }
+        setup(buffer) {
+            this.name = buffer.readS();
+            this._options = buffer.getInt32();
+            this._autoPlay = buffer.readBool();
+            this._autoPlayTimes = buffer.getInt32();
+            this._autoPlayDelay = buffer.getFloat32();
+            var cnt = buffer.getInt16();
+            for (var i = 0; i < cnt; i++) {
+                var dataLen = buffer.getInt16();
+                var curPos = buffer.pos;
+                buffer.seek(curPos, 0);
+                var item = new TransitionItem(buffer.readByte());
+                this._items[i] = item;
+                item.time = buffer.getFloat32();
+                var targetId = buffer.getInt16();
+                if (targetId < 0)
+                    item.targetId = "";
+                else
+                    item.targetId = this._owner.getChildAt(targetId).id;
+                item.label = buffer.readS();
+                if (buffer.readBool()) {
+                    buffer.seek(curPos, 1);
+                    item.tweenConfig = new TweenConfig();
+                    item.tweenConfig.duration = buffer.getFloat32();
+                    if (item.time + item.tweenConfig.duration > this._totalDuration)
+                        this._totalDuration = item.time + item.tweenConfig.duration;
+                    item.tweenConfig.easeType = buffer.readByte();
+                    item.tweenConfig.repeat = buffer.getInt32();
+                    item.tweenConfig.yoyo = buffer.readBool();
+                    item.tweenConfig.endLabel = buffer.readS();
+                    buffer.seek(curPos, 2);
+                    this.decodeValue(item, buffer, item.tweenConfig.startValue);
+                    buffer.seek(curPos, 3);
+                    this.decodeValue(item, buffer, item.tweenConfig.endValue);
+                    if (buffer.version >= 2) {
+                        var pathLen = buffer.getInt32();
+                        if (pathLen > 0) {
+                            item.tweenConfig.path = new fgui.GPath();
+                            var pts = new Array();
+                            for (i = 0; i < pathLen; i++) {
+                                var curveType = buffer.getUint8();
+                                switch (curveType) {
+                                    case fgui.CurveType.Bezier:
+                                        pts.push(fgui.GPathPoint.newBezierPoint(buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()));
+                                        break;
+                                    case fgui.CurveType.CubicBezier:
+                                        pts.push(fgui.GPathPoint.newCubicBezierPoint(buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()));
+                                        break;
+                                    default:
+                                        pts.push(fgui.GPathPoint.newPoint(buffer.getFloat32(), buffer.getFloat32(), curveType));
+                                        break;
+                                }
+                            }
+                            item.tweenConfig.path.create(pts);
+                        }
+                    }
+                }
+                else {
+                    if (item.time > this._totalDuration)
+                        this._totalDuration = item.time;
+                    buffer.seek(curPos, 2);
+                    this.decodeValue(item, buffer, item.value);
+                }
+                buffer.pos = curPos + dataLen;
+            }
+        }
+        decodeValue(item, buffer, value) {
+            switch (item.type) {
+                case TransitionActionType.XY:
+                case TransitionActionType.Size:
+                case TransitionActionType.Pivot:
+                case TransitionActionType.Skew:
+                    value.b1 = buffer.readBool();
+                    value.b2 = buffer.readBool();
+                    value.f1 = buffer.getFloat32();
+                    value.f2 = buffer.getFloat32();
+                    if (buffer.version >= 2 && item.type == TransitionActionType.XY)
+                        value.b3 = buffer.readBool();
+                    break;
+                case TransitionActionType.Alpha:
+                case TransitionActionType.Rotation:
+                    value.f1 = buffer.getFloat32();
+                    break;
+                case TransitionActionType.Scale:
+                    value.f1 = buffer.getFloat32();
+                    value.f2 = buffer.getFloat32();
+                    break;
+                case TransitionActionType.Color:
+                    value.f1 = buffer.readColor();
+                    break;
+                case TransitionActionType.Animation:
+                    value.playing = buffer.readBool();
+                    value.frame = buffer.getInt32();
+                    break;
+                case TransitionActionType.Visible:
+                    value.visible = buffer.readBool();
+                    break;
+                case TransitionActionType.Sound:
+                    value.sound = buffer.readS();
+                    value.volume = buffer.getFloat32();
+                    break;
+                case TransitionActionType.Transition:
+                    value.transName = buffer.readS();
+                    value.playTimes = buffer.getInt32();
+                    break;
+                case TransitionActionType.Shake:
+                    value.amplitude = buffer.getFloat32();
+                    value.duration = buffer.getFloat32();
+                    break;
+                case TransitionActionType.ColorFilter:
+                    value.f1 = buffer.getFloat32();
+                    value.f2 = buffer.getFloat32();
+                    value.f3 = buffer.getFloat32();
+                    value.f4 = buffer.getFloat32();
+                    break;
+                case TransitionActionType.Text:
+                case TransitionActionType.Icon:
+                    value.text = buffer.readS();
+                    break;
+            }
+        }
+    }
+    Transition.OPTION_IGNORE_DISPLAY_CONTROLLER = 1;
+    Transition.OPTION_AUTO_STOP_DISABLED = 2;
+    Transition.OPTION_AUTO_STOP_AT_END = 4;
+    fgui.Transition = Transition;
+    class TransitionActionType {
+    }
+    TransitionActionType.XY = 0;
+    TransitionActionType.Size = 1;
+    TransitionActionType.Scale = 2;
+    TransitionActionType.Pivot = 3;
+    TransitionActionType.Alpha = 4;
+    TransitionActionType.Rotation = 5;
+    TransitionActionType.Color = 6;
+    TransitionActionType.Animation = 7;
+    TransitionActionType.Visible = 8;
+    TransitionActionType.Sound = 9;
+    TransitionActionType.Transition = 10;
+    TransitionActionType.Shake = 11;
+    TransitionActionType.ColorFilter = 12;
+    TransitionActionType.Skew = 13;
+    TransitionActionType.Text = 14;
+    TransitionActionType.Icon = 15;
+    TransitionActionType.Unknown = 16;
+    class TransitionItem {
+        constructor(type) {
+            this.type = type;
+            switch (type) {
+                case TransitionActionType.XY:
+                case TransitionActionType.Size:
+                case TransitionActionType.Scale:
+                case TransitionActionType.Pivot:
+                case TransitionActionType.Skew:
+                case TransitionActionType.Alpha:
+                case TransitionActionType.Rotation:
+                case TransitionActionType.Color:
+                case TransitionActionType.ColorFilter:
+                    this.value = new TValue();
+                    break;
+                case TransitionActionType.Animation:
+                    this.value = new TValue_Animation();
+                    break;
+                case TransitionActionType.Shake:
+                    this.value = new TValue_Shake();
+                    break;
+                case TransitionActionType.Sound:
+                    this.value = new TValue_Sound();
+                    break;
+                case TransitionActionType.Transition:
+                    this.value = new TValue_Transition();
+                    break;
+                case TransitionActionType.Visible:
+                    this.value = new TValue_Visible();
+                    break;
+                case TransitionActionType.Text:
+                case TransitionActionType.Icon:
+                    this.value = new TValue_Text();
+                    break;
+            }
+        }
+    }
+    class TweenConfig {
+        constructor() {
+            this.easeType = fgui.EaseType.QuadOut;
+            this.startValue = new TValue();
+            this.endValue = new TValue();
+        }
+    }
+    class TValue_Visible {
+    }
+    class TValue_Animation {
+    }
+    class TValue_Sound {
+    }
+    class TValue_Transition {
+    }
+    class TValue_Shake {
+    }
+    class TValue_Text {
+    }
+    class TValue {
+        constructor() {
+            this.b1 = this.b2 = true;
+        }
+    }
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class TranslationHelper {
+        constructor() {
+        }
+        static loadFromXML(source) {
+            TranslationHelper.strings = {};
+            var xml = Laya.Utils.parseXMLFromString(source);
+            var resNode = TranslationHelper.findChildNode(xml, "resources");
+            var nodes = resNode.childNodes;
+            var length1 = nodes.length;
+            for (var i1 = 0; i1 < length1; i1++) {
+                var cxml = nodes[i1];
+                if (cxml.nodeName == "string") {
+                    var key = cxml.getAttribute("name");
+                    var text = cxml.textContent;
+                    var i = key.indexOf("-");
+                    if (i == -1)
+                        continue;
+                    var key2 = key.substr(0, i);
+                    var key3 = key.substr(i + 1);
+                    var col = TranslationHelper.strings[key2];
+                    if (!col) {
+                        col = {};
+                        TranslationHelper.strings[key2] = col;
+                    }
+                    col[key3] = text;
+                }
+            }
+        }
+        static translateComponent(item) {
+            if (TranslationHelper.strings == null)
+                return;
+            var compStrings = TranslationHelper.strings[item.owner.id + item.id];
+            if (compStrings == null)
+                return;
+            var elementId, value;
+            var buffer = item.rawData;
+            var nextPos;
+            var itemCount;
+            var i, j, k;
+            var dataLen;
+            var curPos;
+            var valueCnt;
+            var page;
+            buffer.seek(0, 2);
+            var childCount = buffer.getInt16();
+            for (i = 0; i < childCount; i++) {
+                dataLen = buffer.getInt16();
+                curPos = buffer.pos;
+                buffer.seek(curPos, 0);
+                var type = buffer.readByte();
+                buffer.skip(4);
+                elementId = buffer.readS();
+                if (type == fgui.ObjectType.Component) {
+                    if (buffer.seek(curPos, 6))
+                        type = buffer.readByte();
+                }
+                buffer.seek(curPos, 1);
+                if ((value = compStrings[elementId + "-tips"]) != null)
+                    buffer.writeS(value);
+                buffer.seek(curPos, 2);
+                var gearCnt = buffer.getInt16();
+                for (j = 0; j < gearCnt; j++) {
+                    nextPos = buffer.getInt16();
+                    nextPos += buffer.pos;
+                    if (buffer.readByte() == 6) {
+                        buffer.skip(2);
+                        valueCnt = buffer.getInt16();
+                        for (k = 0; k < valueCnt; k++) {
+                            page = buffer.readS();
+                            if (page != null) {
+                                if ((value = compStrings[elementId + "-texts_" + k]) != null)
+                                    buffer.writeS(value);
+                                else
+                                    buffer.skip(2);
+                            }
+                        }
+                        if (buffer.readBool() && (value = compStrings[elementId + "-texts_def"]) != null)
+                            buffer.writeS(value);
+                    }
+                    buffer.pos = nextPos;
+                }
+                switch (type) {
+                    case fgui.ObjectType.Text:
+                    case fgui.ObjectType.RichText:
+                    case fgui.ObjectType.InputText:
+                        {
+                            if ((value = compStrings[elementId]) != null) {
+                                buffer.seek(curPos, 6);
+                                buffer.writeS(value);
+                            }
+                            if ((value = compStrings[elementId + "-prompt"]) != null) {
+                                buffer.seek(curPos, 4);
+                                buffer.writeS(value);
+                            }
+                            break;
+                        }
+                    case fgui.ObjectType.List:
+                        {
+                            buffer.seek(curPos, 8);
+                            buffer.skip(2);
+                            itemCount = buffer.getInt16();
+                            for (j = 0; j < itemCount; j++) {
+                                nextPos = buffer.getInt16();
+                                nextPos += buffer.pos;
+                                buffer.skip(2);
+                                if ((value = compStrings[elementId + "-" + j]) != null)
+                                    buffer.writeS(value);
+                                else
+                                    buffer.skip(2);
+                                if ((value = compStrings[elementId + "-" + j + "-0"]) != null)
+                                    buffer.writeS(value);
+                                buffer.pos = nextPos;
+                            }
+                            break;
+                        }
+                    case fgui.ObjectType.Label:
+                        {
+                            if (buffer.seek(curPos, 6) && buffer.readByte() == type) {
+                                if ((value = compStrings[elementId]) != null)
+                                    buffer.writeS(value);
+                                else
+                                    buffer.skip(2);
+                                buffer.skip(2);
+                                if (buffer.readBool())
+                                    buffer.skip(4);
+                                buffer.skip(4);
+                                if (buffer.readBool() && (value = compStrings[elementId + "-prompt"]) != null)
+                                    buffer.writeS(value);
+                            }
+                            break;
+                        }
+                    case fgui.ObjectType.Button:
+                        {
+                            if (buffer.seek(curPos, 6) && buffer.readByte() == type) {
+                                if ((value = compStrings[elementId]) != null)
+                                    buffer.writeS(value);
+                                else
+                                    buffer.skip(2);
+                                if ((value = compStrings[elementId + "-0"]) != null)
+                                    buffer.writeS(value);
+                            }
+                            break;
+                        }
+                    case fgui.ObjectType.ComboBox:
+                        {
+                            if (buffer.seek(curPos, 6) && buffer.readByte() == type) {
+                                itemCount = buffer.getInt16();
+                                for (j = 0; j < itemCount; j++) {
+                                    nextPos = buffer.getInt16();
+                                    nextPos += buffer.pos;
+                                    if ((value = compStrings[elementId + "-" + j]) != null)
+                                        buffer.writeS(value);
+                                    buffer.pos = nextPos;
+                                }
+                                if ((value = compStrings[elementId]) != null)
+                                    buffer.writeS(value);
+                            }
+                            break;
+                        }
+                }
+                buffer.pos = curPos + dataLen;
+            }
+        }
+        static findChildNode(xml, name) {
+            var col = xml.childNodes;
+            var length1 = col.length;
+            if (length1 > 0) {
+                for (var i1 = 0; i1 < length1; i1++) {
+                    var cxml = col[i1];
+                    if (cxml.nodeName == name) {
+                        return cxml;
+                    }
+                }
+            }
+            return null;
+        }
+    }
+    TranslationHelper.strings = null;
+    fgui.TranslationHelper = TranslationHelper;
+})(fgui || (fgui = {}));
 
 (function (fgui) {
     class UIConfig {
@@ -16020,7 +13023,6 @@ window.fgui = {};
     UIConfig.packageFileExtension = "fui";
     fgui.UIConfig = UIConfig;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class UIObjectFactory {
@@ -16098,7 +13100,6 @@ window.fgui = {};
     UIObjectFactory.packageItemExtensions = {};
     fgui.UIObjectFactory = UIObjectFactory;
 })(fgui || (fgui = {}));
-
 
 (function (fgui) {
     class UIPackage {
@@ -16663,7 +13664,6 @@ window.fgui = {};
     }
 })(fgui || (fgui = {}));
 
-
 (function (fgui) {
     class Window extends fgui.GComponent {
         constructor() {
@@ -16891,247 +13891,3176 @@ window.fgui = {};
     fgui.Window = Window;
 })(fgui || (fgui = {}));
 
+(function (fgui) {
+    class ControllerAction {
+        constructor() {
+        }
+        static createAction(type) {
+            switch (type) {
+                case 0:
+                    return new fgui.PlayTransitionAction();
+                case 1:
+                    return new fgui.ChangePageAction();
+            }
+            return null;
+        }
+        run(controller, prevPage, curPage) {
+            if ((this.fromPage == null || this.fromPage.length == 0 || this.fromPage.indexOf(prevPage) != -1)
+                && (this.toPage == null || this.toPage.length == 0 || this.toPage.indexOf(curPage) != -1))
+                this.enter(controller);
+            else
+                this.leave(controller);
+        }
+        enter(controller) {
+        }
+        leave(controller) {
+        }
+        setup(buffer) {
+            var cnt;
+            var i;
+            cnt = buffer.getInt16();
+            this.fromPage = [];
+            for (i = 0; i < cnt; i++)
+                this.fromPage[i] = buffer.readS();
+            cnt = buffer.getInt16();
+            this.toPage = [];
+            for (i = 0; i < cnt; i++)
+                this.toPage[i] = buffer.readS();
+        }
+    }
+    fgui.ControllerAction = ControllerAction;
+})(fgui || (fgui = {}));
 
 (function (fgui) {
-    class DragDropManager {
+    class ChangePageAction extends fgui.ControllerAction {
         constructor() {
-            this._agent = new fgui.GLoader();
-            this._agent.draggable = true;
-            this._agent.touchable = false;
-            this._agent.setSize(100, 100);
-            this._agent.setPivot(0.5, 0.5, true);
-            this._agent.align = "center";
-            this._agent.verticalAlign = "middle";
-            this._agent.sortingOrder = 1000000;
-            this._agent.on(fgui.Events.DRAG_END, this, this.__dragEnd);
+            super();
         }
-        static get inst() {
-            if (DragDropManager._inst == null)
-                DragDropManager._inst = new DragDropManager();
-            return DragDropManager._inst;
-        }
-        get dragAgent() {
-            return this._agent;
-        }
-        get dragging() {
-            return this._agent.parent != null;
-        }
-        startDrag(source, icon, sourceData, touchPointID = -1) {
-            if (this._agent.parent != null)
+        enter(controller) {
+            if (!this.controllerName)
                 return;
-            this._sourceData = sourceData;
-            this._agent.url = icon;
-            fgui.GRoot.inst.addChild(this._agent);
-            var pt = fgui.GRoot.inst.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY);
-            this._agent.setXY(pt.x, pt.y);
-            this._agent.startDrag(touchPointID);
-        }
-        cancel() {
-            if (this._agent.parent != null) {
-                this._agent.stopDrag();
-                fgui.GRoot.inst.removeChild(this._agent);
-                this._sourceData = null;
+            var gcom;
+            if (this.objectId)
+                gcom = controller.parent.getChildById(this.objectId);
+            else
+                gcom = controller.parent;
+            if (gcom) {
+                var cc = gcom.getController(this.controllerName);
+                if (cc && cc != controller && !cc.changing) {
+                    if (this.targetPage == "~1") {
+                        if (controller.selectedIndex < cc.pageCount)
+                            cc.selectedIndex = controller.selectedIndex;
+                    }
+                    else if (this.targetPage == "~2")
+                        cc.selectedPage = controller.selectedPage;
+                    else
+                        cc.selectedPageId = this.targetPage;
+                }
             }
         }
-        __dragEnd(evt) {
-            if (this._agent.parent == null)
-                return;
-            fgui.GRoot.inst.removeChild(this._agent);
-            var sourceData = this._sourceData;
-            this._sourceData = null;
-            var obj = fgui.GObject.cast(evt.target);
-            while (obj != null) {
-                if (obj.displayObject.hasListener(fgui.Events.DROP)) {
-                    obj.requestFocus();
-                    obj.displayObject.event(fgui.Events.DROP, [sourceData, fgui.Events.createEvent(fgui.Events.DROP, obj.displayObject, evt)]);
-                    return;
+        setup(buffer) {
+            super.setup(buffer);
+            this.objectId = buffer.readS();
+            this.controllerName = buffer.readS();
+            this.targetPage = buffer.readS();
+        }
+    }
+    fgui.ChangePageAction = ChangePageAction;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class PlayTransitionAction extends fgui.ControllerAction {
+        constructor() {
+            super();
+            this.playTimes = 1;
+            this.delay = 0;
+            this.stopOnExit = false;
+        }
+        enter(controller) {
+            var trans = controller.parent.getTransition(this.transitionName);
+            if (trans) {
+                if (this._currentTransition && this._currentTransition.playing)
+                    trans.changePlayTimes(this.playTimes);
+                else
+                    trans.play(null, this.playTimes, this.delay);
+                this._currentTransition = trans;
+            }
+        }
+        leave(controller) {
+            if (this.stopOnExit && this._currentTransition) {
+                this._currentTransition.stop();
+                this._currentTransition = null;
+            }
+        }
+        setup(buffer) {
+            super.setup(buffer);
+            this.transitionName = buffer.readS();
+            this.playTimes = buffer.getInt32();
+            this.delay = buffer.getFloat32();
+            this.stopOnExit = buffer.readBool();
+        }
+    }
+    fgui.PlayTransitionAction = PlayTransitionAction;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class BitmapFont {
+        constructor() {
+            this.size = 0;
+            this.glyphs = {};
+        }
+    }
+    fgui.BitmapFont = BitmapFont;
+    class BMGlyph {
+        constructor() {
+            this.offsetX = 0;
+            this.offsetY = 0;
+            this.width = 0;
+            this.height = 0;
+            this.advance = 0;
+            this.lineHeight = 0;
+            this.channel = 0;
+        }
+    }
+    fgui.BMGlyph = BMGlyph;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class FillUtils {
+        static fill(w, h, method, origin, clockwise, amount) {
+            if (amount <= 0)
+                return null;
+            else if (amount >= 0.9999)
+                return [0, 0, w, 0, w, h, 0, h];
+            var points;
+            switch (method) {
+                case fgui.FillMethod.Horizontal:
+                    points = FillUtils.fillHorizontal(w, h, origin, amount);
+                    break;
+                case fgui.FillMethod.Vertical:
+                    points = FillUtils.fillVertical(w, h, origin, amount);
+                    break;
+                case fgui.FillMethod.Radial90:
+                    points = FillUtils.fillRadial90(w, h, origin, clockwise, amount);
+                    break;
+                case fgui.FillMethod.Radial180:
+                    points = FillUtils.fillRadial180(w, h, origin, clockwise, amount);
+                    break;
+                case fgui.FillMethod.Radial360:
+                    points = FillUtils.fillRadial360(w, h, origin, clockwise, amount);
+                    break;
+            }
+            return points;
+        }
+        static fillHorizontal(w, h, origin, amount) {
+            var w2 = w * amount;
+            if (origin == fgui.FillOrigin.Left || origin == fgui.FillOrigin.Top)
+                return [0, 0, w2, 0, w2, h, 0, h];
+            else
+                return [w, 0, w, h, w - w2, h, w - w2, 0];
+        }
+        static fillVertical(w, h, origin, amount) {
+            var h2 = h * amount;
+            if (origin == fgui.FillOrigin.Left || origin == fgui.FillOrigin.Top)
+                return [0, 0, 0, h2, w, h2, w, 0];
+            else
+                return [0, h, w, h, w, h - h2, 0, h - h2];
+        }
+        static fillRadial90(w, h, origin, clockwise, amount) {
+            if (clockwise && (origin == fgui.FillOrigin.TopRight || origin == fgui.FillOrigin.BottomLeft)
+                || !clockwise && (origin == fgui.FillOrigin.TopLeft || origin == fgui.FillOrigin.BottomRight)) {
+                amount = 1 - amount;
+            }
+            var v, v2, h2;
+            v = Math.tan(Math.PI / 2 * amount);
+            h2 = w * v;
+            v2 = (h2 - h) / h2;
+            var points;
+            switch (origin) {
+                case fgui.FillOrigin.TopLeft:
+                    if (clockwise) {
+                        if (h2 <= h)
+                            points = [0, 0, w, h2, w, 0];
+                        else
+                            points = [0, 0, w * (1 - v2), h, w, h, w, 0];
+                    }
+                    else {
+                        if (h2 <= h)
+                            points = [0, 0, w, h2, w, h, 0, h];
+                        else
+                            points = [0, 0, w * (1 - v2), h, 0, h];
+                    }
+                    break;
+                case fgui.FillOrigin.TopRight:
+                    if (clockwise) {
+                        if (h2 <= h)
+                            points = [w, 0, 0, h2, 0, h, w, h];
+                        else
+                            points = [w, 0, w * v2, h, w, h];
+                    }
+                    else {
+                        if (h2 <= h)
+                            points = [w, 0, 0, h2, 0, 0];
+                        else
+                            points = [w, 0, w * v2, h, 0, h, 0, 0];
+                    }
+                    break;
+                case fgui.FillOrigin.BottomLeft:
+                    if (clockwise) {
+                        if (h2 <= h)
+                            points = [0, h, w, h - h2, w, 0, 0, 0];
+                        else
+                            points = [0, h, w * (1 - v2), 0, 0, 0];
+                    }
+                    else {
+                        if (h2 <= h)
+                            points = [0, h, w, h - h2, w, h];
+                        else
+                            points = [0, h, w * (1 - v2), 0, w, 0, w, h];
+                    }
+                    break;
+                case fgui.FillOrigin.BottomRight:
+                    if (clockwise) {
+                        if (h2 <= h)
+                            points = [w, h, 0, h - h2, 0, h];
+                        else
+                            points = [w, h, w * v2, 0, 0, 0, 0, h];
+                    }
+                    else {
+                        if (h2 <= h)
+                            points = [w, h, 0, h - h2, 0, 0, w, 0];
+                        else
+                            points = [w, h, w * v2, 0, w, 0];
+                    }
+                    break;
+            }
+            return points;
+        }
+        static movePoints(points, offsetX, offsetY) {
+            var cnt = points.length;
+            for (var i = 0; i < cnt; i += 2) {
+                points[i] += offsetX;
+                points[i + 1] += offsetY;
+            }
+        }
+        static fillRadial180(w, h, origin, clockwise, amount) {
+            var points;
+            switch (origin) {
+                case fgui.FillOrigin.Top:
+                    if (amount <= 0.5) {
+                        amount = amount / 0.5;
+                        points = FillUtils.fillRadial90(w / 2, h, clockwise ? fgui.FillOrigin.TopLeft : fgui.FillOrigin.TopRight, clockwise, amount);
+                        if (clockwise)
+                            FillUtils.movePoints(points, w / 2, 0);
+                    }
+                    else {
+                        amount = (amount - 0.5) / 0.5;
+                        points = FillUtils.fillRadial90(w / 2, h, clockwise ? fgui.FillOrigin.TopRight : fgui.FillOrigin.TopLeft, clockwise, amount);
+                        if (clockwise)
+                            points.push(w, h, w, 0);
+                        else {
+                            FillUtils.movePoints(points, w / 2, 0);
+                            points.push(0, h, 0, 0);
+                        }
+                    }
+                    break;
+                case fgui.FillOrigin.Bottom:
+                    if (amount <= 0.5) {
+                        amount = amount / 0.5;
+                        points = FillUtils.fillRadial90(w / 2, h, clockwise ? fgui.FillOrigin.BottomRight : fgui.FillOrigin.BottomLeft, clockwise, amount);
+                        if (!clockwise)
+                            FillUtils.movePoints(points, w / 2, 0);
+                    }
+                    else {
+                        amount = (amount - 0.5) / 0.5;
+                        points = FillUtils.fillRadial90(w / 2, h, clockwise ? fgui.FillOrigin.BottomLeft : fgui.FillOrigin.BottomRight, clockwise, amount);
+                        if (clockwise) {
+                            FillUtils.movePoints(points, w / 2, 0);
+                            points.push(0, 0, 0, h);
+                        }
+                        else
+                            points.push(w, 0, w, h);
+                    }
+                    break;
+                case fgui.FillOrigin.Left:
+                    if (amount <= 0.5) {
+                        amount = amount / 0.5;
+                        points = FillUtils.fillRadial90(w, h / 2, clockwise ? fgui.FillOrigin.BottomLeft : fgui.FillOrigin.TopLeft, clockwise, amount);
+                        if (!clockwise)
+                            FillUtils.movePoints(points, 0, h / 2);
+                    }
+                    else {
+                        amount = (amount - 0.5) / 0.5;
+                        points = FillUtils.fillRadial90(w, h / 2, clockwise ? fgui.FillOrigin.TopLeft : fgui.FillOrigin.BottomLeft, clockwise, amount);
+                        if (clockwise) {
+                            FillUtils.movePoints(points, 0, h / 2);
+                            points.push(w, 0, 0, 0);
+                        }
+                        else
+                            points.push(w, h, 0, h);
+                    }
+                    break;
+                case fgui.FillOrigin.Right:
+                    if (amount <= 0.5) {
+                        amount = amount / 0.5;
+                        points = FillUtils.fillRadial90(w, h / 2, clockwise ? fgui.FillOrigin.TopRight : fgui.FillOrigin.BottomRight, clockwise, amount);
+                        if (clockwise)
+                            FillUtils.movePoints(points, 0, h / 2);
+                    }
+                    else {
+                        amount = (amount - 0.5) / 0.5;
+                        points = FillUtils.fillRadial90(w, h / 2, clockwise ? fgui.FillOrigin.BottomRight : fgui.FillOrigin.TopRight, clockwise, amount);
+                        if (clockwise)
+                            points.push(0, h, w, h);
+                        else {
+                            FillUtils.movePoints(points, 0, h / 2);
+                            points.push(0, 0, w, 0);
+                        }
+                    }
+                    break;
+            }
+            return points;
+        }
+        static fillRadial360(w, h, origin, clockwise, amount) {
+            var points;
+            switch (origin) {
+                case fgui.FillOrigin.Top:
+                    if (amount <= 0.5) {
+                        amount = amount / 0.5;
+                        points = FillUtils.fillRadial180(w / 2, h, clockwise ? fgui.FillOrigin.Left : fgui.FillOrigin.Right, clockwise, amount);
+                        if (clockwise)
+                            FillUtils.movePoints(points, w / 2, 0);
+                    }
+                    else {
+                        amount = (amount - 0.5) / 0.5;
+                        points = FillUtils.fillRadial180(w / 2, h, clockwise ? fgui.FillOrigin.Right : fgui.FillOrigin.Left, clockwise, amount);
+                        if (clockwise)
+                            points.push(w, h, w, 0, w / 2, 0);
+                        else {
+                            FillUtils.movePoints(points, w / 2, 0);
+                            points.push(0, h, 0, 0, w / 2, 0);
+                        }
+                    }
+                    break;
+                case fgui.FillOrigin.Bottom:
+                    if (amount <= 0.5) {
+                        amount = amount / 0.5;
+                        points = FillUtils.fillRadial180(w / 2, h, clockwise ? fgui.FillOrigin.Right : fgui.FillOrigin.Left, clockwise, amount);
+                        if (!clockwise)
+                            FillUtils.movePoints(points, w / 2, 0);
+                    }
+                    else {
+                        amount = (amount - 0.5) / 0.5;
+                        points = FillUtils.fillRadial180(w / 2, h, clockwise ? fgui.FillOrigin.Left : fgui.FillOrigin.Right, clockwise, amount);
+                        if (clockwise) {
+                            FillUtils.movePoints(points, w / 2, 0);
+                            points.push(0, 0, 0, h, w / 2, h);
+                        }
+                        else
+                            points.push(w, 0, w, h, w / 2, h);
+                    }
+                    break;
+                case fgui.FillOrigin.Left:
+                    if (amount <= 0.5) {
+                        amount = amount / 0.5;
+                        points = FillUtils.fillRadial180(w, h / 2, clockwise ? fgui.FillOrigin.Bottom : fgui.FillOrigin.Top, clockwise, amount);
+                        if (!clockwise)
+                            FillUtils.movePoints(points, 0, h / 2);
+                    }
+                    else {
+                        amount = (amount - 0.5) / 0.5;
+                        points = FillUtils.fillRadial180(w, h / 2, clockwise ? fgui.FillOrigin.Top : fgui.FillOrigin.Bottom, clockwise, amount);
+                        if (clockwise) {
+                            FillUtils.movePoints(points, 0, h / 2);
+                            points.push(w, 0, 0, 0, 0, h / 2);
+                        }
+                        else
+                            points.push(w, h, 0, h, 0, h / 2);
+                    }
+                    break;
+                case fgui.FillOrigin.Right:
+                    if (amount <= 0.5) {
+                        amount = amount / 0.5;
+                        points = FillUtils.fillRadial180(w, h / 2, clockwise ? fgui.FillOrigin.Top : fgui.FillOrigin.Bottom, clockwise, amount);
+                        if (clockwise)
+                            FillUtils.movePoints(points, 0, h / 2);
+                    }
+                    else {
+                        amount = (amount - 0.5) / 0.5;
+                        points = FillUtils.fillRadial180(w, h / 2, clockwise ? fgui.FillOrigin.Bottom : fgui.FillOrigin.Top, clockwise, amount);
+                        if (clockwise)
+                            points.push(0, h, w, h, w, h / 2);
+                        else {
+                            FillUtils.movePoints(points, 0, h / 2);
+                            points.push(0, 0, w, 0, w, h / 2);
+                        }
+                    }
+                    break;
+            }
+            return points;
+        }
+    }
+    fgui.FillUtils = FillUtils;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class Image extends Laya.Sprite {
+        constructor() {
+            super();
+            this._scaleByTile = false;
+            this._scale9Grid = null;
+            this._tileGridIndice = 0;
+            this._needRebuild = 0;
+            this._fillMethod = 0;
+            this._fillOrigin = 0;
+            this._fillAmount = 0;
+            this._fillClockwise = false;
+            this._mask = null;
+            this.mouseEnabled = false;
+            this._color = "#FFFFFF";
+        }
+        set width(value) {
+            if (this["_width"] !== value) {
+                super.set_width(value);
+                this.markChanged(1);
+            }
+        }
+        set height(value) {
+            if (this["_height"] !== value) {
+                super.set_height(value);
+                this.markChanged(1);
+            }
+        }
+        get texture() {
+            return this._source;
+        }
+        set texture(value) {
+            if (this._source != value) {
+                this._source = value;
+                if (this["_width"] == 0) {
+                    if (this._source)
+                        this.size(this._source.width, this._source.height);
+                    else
+                        this.size(0, 0);
                 }
-                obj = obj.parent;
+                this.repaint();
+                this.markChanged(1);
+            }
+        }
+        get scale9Grid() {
+            return this._scale9Grid;
+        }
+        set scale9Grid(value) {
+            this._scale9Grid = value;
+            this._sizeGrid = null;
+            this.markChanged(1);
+        }
+        get scaleByTile() {
+            return this._scaleByTile;
+        }
+        set scaleByTile(value) {
+            if (this._scaleByTile != value) {
+                this._scaleByTile = value;
+                this.markChanged(1);
+            }
+        }
+        get tileGridIndice() {
+            return this._tileGridIndice;
+        }
+        set tileGridIndice(value) {
+            if (this._tileGridIndice != value) {
+                this._tileGridIndice = value;
+                this.markChanged(1);
+            }
+        }
+        get fillMethod() {
+            return this._fillMethod;
+        }
+        set fillMethod(value) {
+            if (this._fillMethod != value) {
+                this._fillMethod = value;
+                if (this._fillMethod != 0) {
+                    if (!this._mask) {
+                        this._mask = new Laya.Sprite();
+                        this._mask.mouseEnabled = false;
+                    }
+                    this.mask = this._mask;
+                    this.markChanged(2);
+                }
+                else if (this.mask) {
+                    this._mask.graphics.clear();
+                    this.mask = null;
+                }
+            }
+        }
+        get fillOrigin() {
+            return this._fillOrigin;
+        }
+        set fillOrigin(value) {
+            if (this._fillOrigin != value) {
+                this._fillOrigin = value;
+                if (this._fillMethod != 0)
+                    this.markChanged(2);
+            }
+        }
+        get fillClockwise() {
+            return this._fillClockwise;
+        }
+        set fillClockwise(value) {
+            if (this._fillClockwise != value) {
+                this._fillClockwise = value;
+                if (this._fillMethod != 0)
+                    this.markChanged(2);
+            }
+        }
+        get fillAmount() {
+            return this._fillAmount;
+        }
+        set fillAmount(value) {
+            if (this._fillAmount != value) {
+                this._fillAmount = value;
+                if (this._fillMethod != 0)
+                    this.markChanged(2);
+            }
+        }
+        get color() {
+            return this._color;
+        }
+        set color(value) {
+            if (this._color != value) {
+                this._color = value;
+                fgui.ToolSet.setColorFilter(this, value);
+            }
+        }
+        markChanged(flag) {
+            if (!this._needRebuild) {
+                this._needRebuild = flag;
+                Laya.timer.callLater(this, this.rebuild);
+            }
+            else
+                this._needRebuild |= flag;
+        }
+        rebuild() {
+            if ((this._needRebuild & 1) != 0)
+                this.doDraw();
+            if ((this._needRebuild & 2) != 0 && this._fillMethod != 0)
+                this.doFill();
+            this._needRebuild = 0;
+        }
+        doDraw() {
+            var w = this["_width"];
+            var h = this["_height"];
+            var g = this.graphics;
+            var tex = this._source;
+            g.clear();
+            if (tex == null || w == 0 || h == 0) {
+                return;
+            }
+            if (this._scaleByTile) {
+                g.fillTexture(tex, 0, 0, w, h);
+            }
+            else if (this._scale9Grid != null) {
+                if (!this._sizeGrid) {
+                    var tw = tex.width;
+                    var th = tex.height;
+                    var left = this._scale9Grid.x;
+                    var right = Math.max(tw - this._scale9Grid.right, 0);
+                    var top = this._scale9Grid.y;
+                    var bottom = Math.max(th - this._scale9Grid.bottom, 0);
+                    this._sizeGrid = [top, right, bottom, left];
+                }
+                g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid);
+            }
+            else {
+                g.drawImage(tex, 0, 0, w, h);
+            }
+        }
+        doFill() {
+            var w = this["_width"];
+            var h = this["_height"];
+            var g = this._mask.graphics;
+            g.clear();
+            if (w == 0 || h == 0)
+                return;
+            var points = fgui.FillUtils.fill(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
+            if (points == null) {
+                this.mask = null;
+                this.mask = this._mask;
+                return;
+            }
+            g.drawPoly(0, 0, points, "#FFFFFF");
+        }
+    }
+    fgui.Image = Image;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class MovieClip extends fgui.Image {
+        constructor() {
+            super();
+            this.interval = 0;
+            this.swing = false;
+            this.repeatDelay = 0;
+            this.timeScale = 1;
+            this._playing = true;
+            this._frameCount = 0;
+            this._frame = 0;
+            this._start = 0;
+            this._end = 0;
+            this._times = 0;
+            this._endAt = 0;
+            this._status = 0;
+            this._endHandler = null;
+            this._frameElapsed = 0;
+            this._reversed = false;
+            this._repeatedCount = 0;
+            this.mouseEnabled = false;
+            this.setPlaySettings();
+            this.on(Laya.Event.DISPLAY, this, this.__addToStage);
+            this.on(Laya.Event.UNDISPLAY, this, this.__removeFromStage);
+        }
+        get frames() {
+            return this._frames;
+        }
+        set frames(value) {
+            this._frames = value;
+            this._scaleByTile = false;
+            this._scale9Grid = null;
+            if (this._frames != null) {
+                this._frameCount = this._frames.length;
+                if (this._end == -1 || this._end > this._frameCount - 1)
+                    this._end = this._frameCount - 1;
+                if (this._endAt == -1 || this._endAt > this._frameCount - 1)
+                    this._endAt = this._frameCount - 1;
+                if (this._frame < 0 || this._frame > this._frameCount - 1)
+                    this._frame = this._frameCount - 1;
+                this._frameElapsed = 0;
+                this._repeatedCount = 0;
+                this._reversed = false;
+            }
+            else
+                this._frameCount = 0;
+            this.drawFrame();
+            this.checkTimer();
+        }
+        get frameCount() {
+            return this._frameCount;
+        }
+        get frame() {
+            return this._frame;
+        }
+        set frame(value) {
+            if (this._frame != value) {
+                if (this._frames != null && value >= this._frameCount)
+                    value = this._frameCount - 1;
+                this._frame = value;
+                this._frameElapsed = 0;
+                this.drawFrame();
+            }
+        }
+        get playing() {
+            return this._playing;
+        }
+        set playing(value) {
+            if (this._playing != value) {
+                this._playing = value;
+                this.checkTimer();
+            }
+        }
+        rewind() {
+            this._frame = 0;
+            this._frameElapsed = 0;
+            this._reversed = false;
+            this._repeatedCount = 0;
+            this.drawFrame();
+        }
+        syncStatus(anotherMc) {
+            this._frame = anotherMc._frame;
+            this._frameElapsed = anotherMc._frameElapsed;
+            this._reversed = anotherMc._reversed;
+            this._repeatedCount = anotherMc._repeatedCount;
+            this.drawFrame();
+        }
+        advance(timeInMiniseconds) {
+            var beginFrame = this._frame;
+            var beginReversed = this._reversed;
+            var backupTime = timeInMiniseconds;
+            while (true) {
+                var tt = this.interval + this._frames[this._frame].addDelay;
+                if (this._frame == 0 && this._repeatedCount > 0)
+                    tt += this.repeatDelay;
+                if (timeInMiniseconds < tt) {
+                    this._frameElapsed = 0;
+                    break;
+                }
+                timeInMiniseconds -= tt;
+                if (this.swing) {
+                    if (this._reversed) {
+                        this._frame--;
+                        if (this._frame <= 0) {
+                            this._frame = 0;
+                            this._repeatedCount++;
+                            this._reversed = !this._reversed;
+                        }
+                    }
+                    else {
+                        this._frame++;
+                        if (this._frame > this._frameCount - 1) {
+                            this._frame = Math.max(0, this._frameCount - 2);
+                            this._repeatedCount++;
+                            this._reversed = !this._reversed;
+                        }
+                    }
+                }
+                else {
+                    this._frame++;
+                    if (this._frame > this._frameCount - 1) {
+                        this._frame = 0;
+                        this._repeatedCount++;
+                    }
+                }
+                if (this._frame == beginFrame && this._reversed == beginReversed) {
+                    var roundTime = backupTime - timeInMiniseconds;
+                    timeInMiniseconds -= Math.floor(timeInMiniseconds / roundTime) * roundTime;
+                }
+            }
+            this.drawFrame();
+        }
+        setPlaySettings(start = 0, end = -1, times = 0, endAt = -1, endHandler = null) {
+            this._start = start;
+            this._end = end;
+            if (this._end == -1 || this._end > this._frameCount - 1)
+                this._end = this._frameCount - 1;
+            this._times = times;
+            this._endAt = endAt;
+            if (this._endAt == -1)
+                this._endAt = this._end;
+            this._status = 0;
+            this._endHandler = endHandler;
+            this.frame = start;
+        }
+        update() {
+            if (!this._playing || this._frameCount == 0 || this._status == 3)
+                return;
+            var dt = Laya.timer.delta;
+            if (dt > 100)
+                dt = 100;
+            if (this.timeScale != 1)
+                dt *= this.timeScale;
+            this._frameElapsed += dt;
+            var tt = this.interval + this._frames[this._frame].addDelay;
+            if (this._frame == 0 && this._repeatedCount > 0)
+                tt += this.repeatDelay;
+            if (this._frameElapsed < tt)
+                return;
+            this._frameElapsed -= tt;
+            if (this._frameElapsed > this.interval)
+                this._frameElapsed = this.interval;
+            if (this.swing) {
+                if (this._reversed) {
+                    this._frame--;
+                    if (this._frame <= 0) {
+                        this._frame = 0;
+                        this._repeatedCount++;
+                        this._reversed = !this._reversed;
+                    }
+                }
+                else {
+                    this._frame++;
+                    if (this._frame > this._frameCount - 1) {
+                        this._frame = Math.max(0, this._frameCount - 2);
+                        this._repeatedCount++;
+                        this._reversed = !this._reversed;
+                    }
+                }
+            }
+            else {
+                this._frame++;
+                if (this._frame > this._frameCount - 1) {
+                    this._frame = 0;
+                    this._repeatedCount++;
+                }
+            }
+            if (this._status == 1) {
+                this._frame = this._start;
+                this._frameElapsed = 0;
+                this._status = 0;
+            }
+            else if (this._status == 2) {
+                this._frame = this._endAt;
+                this._frameElapsed = 0;
+                this._status = 3;
+                if (this._endHandler != null) {
+                    var handler = this._endHandler;
+                    this._endHandler = null;
+                    handler.run();
+                }
+            }
+            else {
+                if (this._frame == this._end) {
+                    if (this._times > 0) {
+                        this._times--;
+                        if (this._times == 0)
+                            this._status = 2;
+                        else
+                            this._status = 1;
+                    }
+                    else if (this._start != 0)
+                        this._status = 1;
+                }
+            }
+            this.drawFrame();
+        }
+        drawFrame() {
+            if (this._frameCount > 0 && this._frame < this._frames.length) {
+                var frame = this._frames[this._frame];
+                this.texture = frame.texture;
+            }
+            else
+                this.texture = null;
+            this.rebuild();
+        }
+        checkTimer() {
+            if (this._playing && this._frameCount > 0 && this.stage != null)
+                Laya.timer.frameLoop(1, this, this.update);
+            else
+                Laya.timer.clear(this, this.update);
+        }
+        __addToStage() {
+            if (this._playing && this._frameCount > 0)
+                Laya.timer.frameLoop(1, this, this.update);
+        }
+        __removeFromStage() {
+            Laya.timer.clear(this, this.update);
+        }
+    }
+    fgui.MovieClip = MovieClip;
+    class Frame {
+        constructor() {
+            this.addDelay = 0;
+        }
+    }
+    fgui.Frame = Frame;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearBase {
+        constructor(owner) {
+            this._owner = owner;
+        }
+        static create(owner, index) {
+            if (!GearBase.Classes)
+                GearBase.Classes = [
+                    fgui.GearDisplay, fgui.GearXY, fgui.GearSize, fgui.GearLook, fgui.GearColor,
+                    fgui.GearAnimation, fgui.GearText, fgui.GearIcon, fgui.GearDisplay2, fgui.GearFontSize
+                ];
+            return new (GearBase.Classes[index])(owner);
+        }
+        dispose() {
+            if (this._tweenConfig != null && this._tweenConfig._tweener != null) {
+                this._tweenConfig._tweener.kill();
+                this._tweenConfig._tweener = null;
+            }
+        }
+        get controller() {
+            return this._controller;
+        }
+        set controller(val) {
+            if (val != this._controller) {
+                this._controller = val;
+                if (this._controller)
+                    this.init();
+            }
+        }
+        get tweenConfig() {
+            if (this._tweenConfig == null)
+                this._tweenConfig = new GearTweenConfig();
+            return this._tweenConfig;
+        }
+        setup(buffer) {
+            this._controller = this._owner.parent.getControllerAt(buffer.getInt16());
+            this.init();
+            var i;
+            var page;
+            var cnt = buffer.getInt16();
+            if (this instanceof fgui.GearDisplay) {
+                this.pages = buffer.readSArray(cnt);
+            }
+            else if (this instanceof fgui.GearDisplay2) {
+                this.pages = buffer.readSArray(cnt);
+            }
+            else {
+                for (i = 0; i < cnt; i++) {
+                    page = buffer.readS();
+                    if (page == null)
+                        continue;
+                    this.addStatus(page, buffer);
+                }
+                if (buffer.readBool())
+                    this.addStatus(null, buffer);
+            }
+            if (buffer.readBool()) {
+                this._tweenConfig = new GearTweenConfig();
+                this._tweenConfig.easeType = buffer.readByte();
+                this._tweenConfig.duration = buffer.getFloat32();
+                this._tweenConfig.delay = buffer.getFloat32();
+            }
+            if (buffer.version >= 2) {
+                if (this instanceof fgui.GearXY)
+                    this.positionsInPercent = buffer.readBool();
+                else if (this instanceof fgui.GearDisplay2)
+                    this.condition = buffer.readByte();
+            }
+        }
+        updateFromRelations(dx, dy) {
+        }
+        addStatus(pageId, buffer) {
+        }
+        init() {
+        }
+        apply() {
+        }
+        updateState() {
+        }
+    }
+    GearBase.disableAllTweenEffect = false;
+    fgui.GearBase = GearBase;
+    class GearTweenConfig {
+        constructor() {
+            this.tween = true;
+            this.easeType = fgui.EaseType.QuadOut;
+            this.duration = 0.3;
+            this.delay = 0;
+        }
+    }
+    fgui.GearTweenConfig = GearTweenConfig;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearAnimation extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+        }
+        init() {
+            this._default = new GearAnimationValue(this._owner.getProp(fgui.ObjectPropID.Playing), this._owner.getProp(fgui.ObjectPropID.Frame));
+            this._storage = {};
+        }
+        addStatus(pageId, buffer) {
+            var gv;
+            if (pageId == null)
+                gv = this._default;
+            else {
+                gv = new GearAnimationValue();
+                this._storage[pageId] = gv;
+            }
+            gv.playing = buffer.readBool();
+            gv.frame = buffer.getInt32();
+        }
+        apply() {
+            this._owner._gearLocked = true;
+            var gv = this._storage[this._controller.selectedPageId];
+            if (!gv)
+                gv = this._default;
+            this._owner.setProp(fgui.ObjectPropID.Playing, gv.playing);
+            this._owner.setProp(fgui.ObjectPropID.Frame, gv.frame);
+            this._owner._gearLocked = false;
+        }
+        updateState() {
+            var gv = this._storage[this._controller.selectedPageId];
+            if (!gv) {
+                gv = new GearAnimationValue();
+                this._storage[this._controller.selectedPageId] = gv;
+            }
+            gv.playing = this._owner.getProp(fgui.ObjectPropID.Playing);
+            gv.frame = this._owner.getProp(fgui.ObjectPropID.Frame);
+        }
+    }
+    fgui.GearAnimation = GearAnimation;
+    class GearAnimationValue {
+        constructor(playing = true, frame = 0) {
+            this.playing = playing;
+            this.frame = frame;
+        }
+    }
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearColor extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+        }
+        init() {
+            this._default = new GearColorValue(this._owner.getProp(fgui.ObjectPropID.Color), this._owner.getProp(fgui.ObjectPropID.OutlineColor));
+            this._storage = {};
+        }
+        addStatus(pageId, buffer) {
+            var gv;
+            if (pageId == null)
+                gv = this._default;
+            else {
+                gv = new GearColorValue();
+                this._storage[pageId] = gv;
+            }
+            gv.color = buffer.readColorS();
+            gv.strokeColor = buffer.readColorS();
+        }
+        apply() {
+            this._owner._gearLocked = true;
+            var gv = this._storage[this._controller.selectedPageId];
+            if (!gv)
+                gv = this._default;
+            this._owner.setProp(fgui.ObjectPropID.Color, gv.color);
+            if (gv.strokeColor != null)
+                this._owner.setProp(fgui.ObjectPropID.OutlineColor, gv.strokeColor);
+            this._owner._gearLocked = false;
+        }
+        updateState() {
+            var gv = this._storage[this._controller.selectedPageId];
+            if (!gv) {
+                gv = new GearColorValue(null, null);
+                this._storage[this._controller.selectedPageId] = gv;
+            }
+            gv.color = this._owner.getProp(fgui.ObjectPropID.Color);
+            gv.strokeColor = this._owner.getProp(fgui.ObjectPropID.OutlineColor);
+        }
+    }
+    fgui.GearColor = GearColor;
+    class GearColorValue {
+        constructor(color = null, strokeColor = null) {
+            this.color = color;
+            this.strokeColor = strokeColor;
+        }
+    }
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearDisplay extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+            this._visible = 0;
+            this._displayLockToken = 0;
+            this._displayLockToken = 1;
+        }
+        init() {
+            this.pages = null;
+        }
+        addLock() {
+            this._visible++;
+            return this._displayLockToken;
+        }
+        releaseLock(token) {
+            if (token == this._displayLockToken)
+                this._visible--;
+        }
+        get connected() {
+            return this._controller == null || this._visible > 0;
+        }
+        apply() {
+            this._displayLockToken++;
+            if (this._displayLockToken <= 0)
+                this._displayLockToken = 1;
+            if (this.pages == null || this.pages.length == 0
+                || this.pages.indexOf(this._controller.selectedPageId) != -1)
+                this._visible = 1;
+            else
+                this._visible = 0;
+        }
+    }
+    fgui.GearDisplay = GearDisplay;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearDisplay2 extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+            this._visible = 0;
+        }
+        init() {
+            this.pages = null;
+        }
+        apply() {
+            if (this.pages == null || this.pages.length == 0
+                || this.pages.indexOf(this._controller.selectedPageId) != -1)
+                this._visible = 1;
+            else
+                this._visible = 0;
+        }
+        evaluate(connected) {
+            var v = this._controller == null || this._visible > 0;
+            if (this.condition == 0)
+                v = v && connected;
+            else
+                v = v || connected;
+            return v;
+        }
+    }
+    fgui.GearDisplay2 = GearDisplay2;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearFontSize extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+            this._default = 0;
+        }
+        init() {
+            this._default = this._owner.getProp(fgui.ObjectPropID.FontSize);
+            this._storage = {};
+        }
+        addStatus(pageId, buffer) {
+            if (pageId == null)
+                this._default = buffer.getInt32();
+            else
+                this._storage[pageId] = buffer.getInt32();
+        }
+        apply() {
+            this._owner._gearLocked = true;
+            var data = this._storage[this._controller.selectedPageId];
+            if (data != undefined)
+                this._owner.setProp(fgui.ObjectPropID.FontSize, data);
+            else
+                this._owner.setProp(fgui.ObjectPropID.FontSize, this._default);
+            this._owner._gearLocked = false;
+        }
+        updateState() {
+            this._storage[this._controller.selectedPageId] = this._owner.text;
+        }
+    }
+    fgui.GearFontSize = GearFontSize;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearIcon extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+        }
+        init() {
+            this._default = this._owner.icon;
+            this._storage = {};
+        }
+        addStatus(pageId, buffer) {
+            if (pageId == null)
+                this._default = buffer.readS();
+            else
+                this._storage[pageId] = buffer.readS();
+        }
+        apply() {
+            this._owner._gearLocked = true;
+            var data = this._storage[this._controller.selectedPageId];
+            if (data !== undefined)
+                this._owner.icon = data;
+            else
+                this._owner.icon = this._default;
+            this._owner._gearLocked = false;
+        }
+        updateState() {
+            this._storage[this._controller.selectedPageId] = this._owner.icon;
+        }
+    }
+    fgui.GearIcon = GearIcon;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearLook extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+        }
+        init() {
+            this._default = new GearLookValue(this._owner.alpha, this._owner.rotation, this._owner.grayed, this._owner.touchable);
+            this._storage = {};
+        }
+        addStatus(pageId, buffer) {
+            var gv;
+            if (pageId == null)
+                gv = this._default;
+            else {
+                gv = new GearLookValue();
+                this._storage[pageId] = gv;
+            }
+            gv.alpha = buffer.getFloat32();
+            gv.rotation = buffer.getFloat32();
+            gv.grayed = buffer.readBool();
+            gv.touchable = buffer.readBool();
+        }
+        apply() {
+            var gv = this._storage[this._controller.selectedPageId];
+            if (!gv)
+                gv = this._default;
+            if (this._tweenConfig != null && this._tweenConfig.tween && !fgui.UIPackage._constructing && !fgui.GearBase.disableAllTweenEffect) {
+                this._owner._gearLocked = true;
+                this._owner.grayed = gv.grayed;
+                this._owner.touchable = gv.touchable;
+                this._owner._gearLocked = false;
+                if (this._tweenConfig._tweener != null) {
+                    if (this._tweenConfig._tweener.endValue.x != gv.alpha || this._tweenConfig._tweener.endValue.y != gv.rotation) {
+                        this._tweenConfig._tweener.kill(true);
+                        this._tweenConfig._tweener = null;
+                    }
+                    else
+                        return;
+                }
+                var a = gv.alpha != this._owner.alpha;
+                var b = gv.rotation != this._owner.rotation;
+                if (a || b) {
+                    if (this._owner.checkGearController(0, this._controller))
+                        this._tweenConfig._displayLockToken = this._owner.addDisplayLock();
+                    this._tweenConfig._tweener = fgui.GTween.to2(this._owner.alpha, this._owner.rotation, gv.alpha, gv.rotation, this._tweenConfig.duration)
+                        .setDelay(this._tweenConfig.delay)
+                        .setEase(this._tweenConfig.easeType)
+                        .setUserData((a ? 1 : 0) + (b ? 2 : 0))
+                        .setTarget(this)
+                        .onUpdate(this.__tweenUpdate, this)
+                        .onComplete(this.__tweenComplete, this);
+                }
+            }
+            else {
+                this._owner._gearLocked = true;
+                this._owner.grayed = gv.grayed;
+                this._owner.alpha = gv.alpha;
+                this._owner.rotation = gv.rotation;
+                this._owner.touchable = gv.touchable;
+                this._owner._gearLocked = false;
+            }
+        }
+        __tweenUpdate(tweener) {
+            var flag = tweener.userData;
+            this._owner._gearLocked = true;
+            if ((flag & 1) != 0)
+                this._owner.alpha = tweener.value.x;
+            if ((flag & 2) != 0)
+                this._owner.rotation = tweener.value.y;
+            this._owner._gearLocked = false;
+        }
+        __tweenComplete() {
+            if (this._tweenConfig._displayLockToken != 0) {
+                this._owner.releaseDisplayLock(this._tweenConfig._displayLockToken);
+                this._tweenConfig._displayLockToken = 0;
+            }
+            this._tweenConfig._tweener = null;
+        }
+        updateState() {
+            var gv = this._storage[this._controller.selectedPageId];
+            if (!gv) {
+                gv = new GearLookValue();
+                this._storage[this._controller.selectedPageId] = gv;
+            }
+            gv.alpha = this._owner.alpha;
+            gv.rotation = this._owner.rotation;
+            gv.grayed = this._owner.grayed;
+            gv.touchable = this._owner.touchable;
+        }
+    }
+    fgui.GearLook = GearLook;
+    class GearLookValue {
+        constructor(alpha = 0, rotation = 0, grayed = false, touchable = true) {
+            this.alpha = alpha;
+            this.rotation = rotation;
+            this.grayed = grayed;
+            this.touchable = touchable;
+        }
+    }
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearSize extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+        }
+        init() {
+            this._default = new GearSizeValue(this._owner.width, this._owner.height, this._owner.scaleX, this._owner.scaleY);
+            this._storage = {};
+        }
+        addStatus(pageId, buffer) {
+            var gv;
+            if (pageId == null)
+                gv = this._default;
+            else {
+                gv = new GearSizeValue();
+                this._storage[pageId] = gv;
+            }
+            gv.width = buffer.getInt32();
+            gv.height = buffer.getInt32();
+            gv.scaleX = buffer.getFloat32();
+            gv.scaleY = buffer.getFloat32();
+        }
+        apply() {
+            var gv = this._storage[this._controller.selectedPageId];
+            if (!gv)
+                gv = this._default;
+            if (this._tweenConfig != null && this._tweenConfig.tween && !fgui.UIPackage._constructing && !fgui.GearBase.disableAllTweenEffect) {
+                if (this._tweenConfig._tweener != null) {
+                    if (this._tweenConfig._tweener.endValue.x != gv.width || this._tweenConfig._tweener.endValue.y != gv.height
+                        || this._tweenConfig._tweener.endValue.z != gv.scaleX || this._tweenConfig._tweener.endValue.w != gv.scaleY) {
+                        this._tweenConfig._tweener.kill(true);
+                        this._tweenConfig._tweener = null;
+                    }
+                    else
+                        return;
+                }
+                var a = gv.width != this._owner.width || gv.height != this._owner.height;
+                var b = gv.scaleX != this._owner.scaleX || gv.scaleY != this._owner.scaleY;
+                if (a || b) {
+                    if (this._owner.checkGearController(0, this._controller))
+                        this._tweenConfig._displayLockToken = this._owner.addDisplayLock();
+                    this._tweenConfig._tweener = fgui.GTween.to4(this._owner.width, this._owner.height, this._owner.scaleX, this._owner.scaleY, gv.width, gv.height, gv.scaleX, gv.scaleY, this._tweenConfig.duration)
+                        .setDelay(this._tweenConfig.delay)
+                        .setEase(this._tweenConfig.easeType)
+                        .setUserData((a ? 1 : 0) + (b ? 2 : 0))
+                        .setTarget(this)
+                        .onUpdate(this.__tweenUpdate, this)
+                        .onComplete(this.__tweenComplete, this);
+                }
+            }
+            else {
+                this._owner._gearLocked = true;
+                this._owner.setSize(gv.width, gv.height, this._owner.checkGearController(1, this._controller));
+                this._owner.setScale(gv.scaleX, gv.scaleY);
+                this._owner._gearLocked = false;
+            }
+        }
+        __tweenUpdate(tweener) {
+            var flag = tweener.userData;
+            this._owner._gearLocked = true;
+            if ((flag & 1) != 0)
+                this._owner.setSize(tweener.value.x, tweener.value.y, this._owner.checkGearController(1, this._controller));
+            if ((flag & 2) != 0)
+                this._owner.setScale(tweener.value.z, tweener.value.w);
+            this._owner._gearLocked = false;
+        }
+        __tweenComplete() {
+            if (this._tweenConfig._displayLockToken != 0) {
+                this._owner.releaseDisplayLock(this._tweenConfig._displayLockToken);
+                this._tweenConfig._displayLockToken = 0;
+            }
+            this._tweenConfig._tweener = null;
+        }
+        updateState() {
+            var gv = this._storage[this._controller.selectedPageId];
+            if (!gv) {
+                gv = new GearSizeValue();
+                this._storage[this._controller.selectedPageId] = gv;
+            }
+            gv.width = this._owner.width;
+            gv.height = this._owner.height;
+            gv.scaleX = this._owner.scaleX;
+            gv.scaleY = this._owner.scaleY;
+        }
+        updateFromRelations(dx, dy) {
+            if (this._controller == null || this._storage == null)
+                return;
+            for (var key in this._storage) {
+                var gv = this._storage[key];
+                gv.width += dx;
+                gv.height += dy;
+            }
+            this._default.width += dx;
+            this._default.height += dy;
+            this.updateState();
+        }
+    }
+    fgui.GearSize = GearSize;
+    class GearSizeValue {
+        constructor(width = 0, height = 0, scaleX = 0, scaleY = 0) {
+            this.width = width;
+            this.height = height;
+            this.scaleX = scaleX;
+            this.scaleY = scaleY;
+        }
+    }
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearText extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+        }
+        init() {
+            this._default = this._owner.text;
+            this._storage = {};
+        }
+        addStatus(pageId, buffer) {
+            if (pageId == null)
+                this._default = buffer.readS();
+            else
+                this._storage[pageId] = buffer.readS();
+        }
+        apply() {
+            this._owner._gearLocked = true;
+            var data = this._storage[this._controller.selectedPageId];
+            if (data !== undefined)
+                this._owner.text = data;
+            else
+                this._owner.text = this._default;
+            this._owner._gearLocked = false;
+        }
+        updateState() {
+            this._storage[this._controller.selectedPageId] = this._owner.text;
+        }
+    }
+    fgui.GearText = GearText;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GearXY extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+        }
+        init() {
+            this._default = {
+                x: this._owner.x, y: this._owner.y,
+                px: this._owner.x / this._owner.parent.width, py: this._owner.y / this._owner.parent.height
+            };
+            this._storage = {};
+        }
+        addStatus(pageId, buffer) {
+            var gv;
+            if (pageId == null)
+                gv = this._default;
+            else {
+                gv = {};
+                this._storage[pageId] = gv;
+            }
+            gv.x = buffer.getInt32();
+            gv.y = buffer.getInt32();
+            if (buffer.version >= 2) {
+                gv.px = buffer.getFloat32();
+                gv.py = buffer.getFloat32();
+            }
+            else {
+                gv.px = gv.x / this._owner.parent.width;
+                gv.py = gv.y / this._owner.parent.height;
+            }
+        }
+        apply() {
+            var pt = this._storage[this._controller.selectedPageId];
+            if (!pt)
+                pt = this._default;
+            var ex;
+            var ey;
+            if (this.positionsInPercent && this._owner.parent) {
+                ex = pt.px * this._owner.parent.width;
+                ey = pt.py * this._owner.parent.height;
+            }
+            else {
+                ex = pt.x;
+                ey = pt.y;
+            }
+            if (this._tweenConfig != null && this._tweenConfig.tween && !fgui.UIPackage._constructing && !fgui.GearBase.disableAllTweenEffect) {
+                if (this._tweenConfig._tweener != null) {
+                    if (this._tweenConfig._tweener.endValue.x != ex || this._tweenConfig._tweener.endValue.y != ey) {
+                        this._tweenConfig._tweener.kill(true);
+                        this._tweenConfig._tweener = null;
+                    }
+                    else
+                        return;
+                }
+                var ox = this._owner.x;
+                var oy = this._owner.y;
+                if (ox != ex || oy != ey) {
+                    if (this._owner.checkGearController(0, this._controller))
+                        this._tweenConfig._displayLockToken = this._owner.addDisplayLock();
+                    this._tweenConfig._tweener = fgui.GTween.to2(ox, oy, ex, ey, this._tweenConfig.duration)
+                        .setDelay(this._tweenConfig.delay)
+                        .setEase(this._tweenConfig.easeType)
+                        .setTarget(this)
+                        .onUpdate(this.__tweenUpdate, this)
+                        .onComplete(this.__tweenComplete, this);
+                }
+            }
+            else {
+                this._owner._gearLocked = true;
+                this._owner.setXY(ex, ey);
+                this._owner._gearLocked = false;
+            }
+        }
+        __tweenUpdate(tweener) {
+            this._owner._gearLocked = true;
+            this._owner.setXY(tweener.value.x, tweener.value.y);
+            this._owner._gearLocked = false;
+        }
+        __tweenComplete() {
+            if (this._tweenConfig._displayLockToken != 0) {
+                this._owner.releaseDisplayLock(this._tweenConfig._displayLockToken);
+                this._tweenConfig._displayLockToken = 0;
+            }
+            this._tweenConfig._tweener = null;
+        }
+        updateState() {
+            var pt = this._storage[this._controller.selectedPageId];
+            if (!pt) {
+                pt = {};
+                this._storage[this._controller.selectedPageId] = pt;
+            }
+            pt.x = this._owner.x;
+            pt.y = this._owner.y;
+            pt.px = this._owner.x / this._owner.parent.width;
+            pt.py = this._owner.y / this._owner.parent.height;
+        }
+        updateFromRelations(dx, dy) {
+            if (this._controller == null || this._storage == null || this.positionsInPercent)
+                return;
+            for (var key in this._storage) {
+                var pt = this._storage[key];
+                pt.x += dx;
+                pt.y += dy;
+            }
+            this._default.x += dx;
+            this._default.y += dy;
+            this.updateState();
+        }
+    }
+    fgui.GearXY = GearXY;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class EaseManager {
+        static evaluate(easeType, time, duration, overshootOrAmplitude, period) {
+            switch (easeType) {
+                case fgui.EaseType.Linear:
+                    return time / duration;
+                case fgui.EaseType.SineIn:
+                    return -Math.cos(time / duration * EaseManager._PiOver2) + 1;
+                case fgui.EaseType.SineOut:
+                    return Math.sin(time / duration * EaseManager._PiOver2);
+                case fgui.EaseType.SineInOut:
+                    return -0.5 * (Math.cos(Math.PI * time / duration) - 1);
+                case fgui.EaseType.QuadIn:
+                    return (time /= duration) * time;
+                case fgui.EaseType.QuadOut:
+                    return -(time /= duration) * (time - 2);
+                case fgui.EaseType.QuadInOut:
+                    if ((time /= duration * 0.5) < 1)
+                        return 0.5 * time * time;
+                    return -0.5 * ((--time) * (time - 2) - 1);
+                case fgui.EaseType.CubicIn:
+                    return (time /= duration) * time * time;
+                case fgui.EaseType.CubicOut:
+                    return ((time = time / duration - 1) * time * time + 1);
+                case fgui.EaseType.CubicInOut:
+                    if ((time /= duration * 0.5) < 1)
+                        return 0.5 * time * time * time;
+                    return 0.5 * ((time -= 2) * time * time + 2);
+                case fgui.EaseType.QuartIn:
+                    return (time /= duration) * time * time * time;
+                case fgui.EaseType.QuartOut:
+                    return -((time = time / duration - 1) * time * time * time - 1);
+                case fgui.EaseType.QuartInOut:
+                    if ((time /= duration * 0.5) < 1)
+                        return 0.5 * time * time * time * time;
+                    return -0.5 * ((time -= 2) * time * time * time - 2);
+                case fgui.EaseType.QuintIn:
+                    return (time /= duration) * time * time * time * time;
+                case fgui.EaseType.QuintOut:
+                    return ((time = time / duration - 1) * time * time * time * time + 1);
+                case fgui.EaseType.QuintInOut:
+                    if ((time /= duration * 0.5) < 1)
+                        return 0.5 * time * time * time * time * time;
+                    return 0.5 * ((time -= 2) * time * time * time * time + 2);
+                case fgui.EaseType.ExpoIn:
+                    return (time == 0) ? 0 : Math.pow(2, 10 * (time / duration - 1));
+                case fgui.EaseType.ExpoOut:
+                    if (time == duration)
+                        return 1;
+                    return (-Math.pow(2, -10 * time / duration) + 1);
+                case fgui.EaseType.ExpoInOut:
+                    if (time == 0)
+                        return 0;
+                    if (time == duration)
+                        return 1;
+                    if ((time /= duration * 0.5) < 1)
+                        return 0.5 * Math.pow(2, 10 * (time - 1));
+                    return 0.5 * (-Math.pow(2, -10 * --time) + 2);
+                case fgui.EaseType.CircIn:
+                    return -(Math.sqrt(1 - (time /= duration) * time) - 1);
+                case fgui.EaseType.CircOut:
+                    return Math.sqrt(1 - (time = time / duration - 1) * time);
+                case fgui.EaseType.CircInOut:
+                    if ((time /= duration * 0.5) < 1)
+                        return -0.5 * (Math.sqrt(1 - time * time) - 1);
+                    return 0.5 * (Math.sqrt(1 - (time -= 2) * time) + 1);
+                case fgui.EaseType.ElasticIn:
+                    var s0;
+                    if (time == 0)
+                        return 0;
+                    if ((time /= duration) == 1)
+                        return 1;
+                    if (period == 0)
+                        period = duration * 0.3;
+                    if (overshootOrAmplitude < 1) {
+                        overshootOrAmplitude = 1;
+                        s0 = period / 4;
+                    }
+                    else
+                        s0 = period / EaseManager._TwoPi * Math.asin(1 / overshootOrAmplitude);
+                    return -(overshootOrAmplitude * Math.pow(2, 10 * (time -= 1)) * Math.sin((time * duration - s0) * EaseManager._TwoPi / period));
+                case fgui.EaseType.ElasticOut:
+                    var s1;
+                    if (time == 0)
+                        return 0;
+                    if ((time /= duration) == 1)
+                        return 1;
+                    if (period == 0)
+                        period = duration * 0.3;
+                    if (overshootOrAmplitude < 1) {
+                        overshootOrAmplitude = 1;
+                        s1 = period / 4;
+                    }
+                    else
+                        s1 = period / EaseManager._TwoPi * Math.asin(1 / overshootOrAmplitude);
+                    return (overshootOrAmplitude * Math.pow(2, -10 * time) * Math.sin((time * duration - s1) * EaseManager._TwoPi / period) + 1);
+                case fgui.EaseType.ElasticInOut:
+                    var s;
+                    if (time == 0)
+                        return 0;
+                    if ((time /= duration * 0.5) == 2)
+                        return 1;
+                    if (period == 0)
+                        period = duration * (0.3 * 1.5);
+                    if (overshootOrAmplitude < 1) {
+                        overshootOrAmplitude = 1;
+                        s = period / 4;
+                    }
+                    else
+                        s = period / EaseManager._TwoPi * Math.asin(1 / overshootOrAmplitude);
+                    if (time < 1)
+                        return -0.5 * (overshootOrAmplitude * Math.pow(2, 10 * (time -= 1)) * Math.sin((time * duration - s) * EaseManager._TwoPi / period));
+                    return overshootOrAmplitude * Math.pow(2, -10 * (time -= 1)) * Math.sin((time * duration - s) * EaseManager._TwoPi / period) * 0.5 + 1;
+                case fgui.EaseType.BackIn:
+                    return (time /= duration) * time * ((overshootOrAmplitude + 1) * time - overshootOrAmplitude);
+                case fgui.EaseType.BackOut:
+                    return ((time = time / duration - 1) * time * ((overshootOrAmplitude + 1) * time + overshootOrAmplitude) + 1);
+                case fgui.EaseType.BackInOut:
+                    if ((time /= duration * 0.5) < 1)
+                        return 0.5 * (time * time * (((overshootOrAmplitude *= (1.525)) + 1) * time - overshootOrAmplitude));
+                    return 0.5 * ((time -= 2) * time * (((overshootOrAmplitude *= (1.525)) + 1) * time + overshootOrAmplitude) + 2);
+                case fgui.EaseType.BounceIn:
+                    return Bounce.easeIn(time, duration);
+                case fgui.EaseType.BounceOut:
+                    return Bounce.easeOut(time, duration);
+                case fgui.EaseType.BounceInOut:
+                    return Bounce.easeInOut(time, duration);
+                default:
+                    return -(time /= duration) * (time - 2);
             }
         }
     }
-    fgui.DragDropManager = DragDropManager;
+    EaseManager._PiOver2 = Math.PI * 0.5;
+    EaseManager._TwoPi = Math.PI * 2;
+    fgui.EaseManager = EaseManager;
+    class Bounce {
+        static easeIn(time, duration) {
+            return 1 - Bounce.easeOut(duration - time, duration);
+        }
+        static easeOut(time, duration) {
+            if ((time /= duration) < (1 / 2.75)) {
+                return (7.5625 * time * time);
+            }
+            if (time < (2 / 2.75)) {
+                return (7.5625 * (time -= (1.5 / 2.75)) * time + 0.75);
+            }
+            if (time < (2.5 / 2.75)) {
+                return (7.5625 * (time -= (2.25 / 2.75)) * time + 0.9375);
+            }
+            return (7.5625 * (time -= (2.625 / 2.75)) * time + 0.984375);
+        }
+        static easeInOut(time, duration) {
+            if (time < duration * 0.5) {
+                return Bounce.easeIn(time * 2, duration) * 0.5;
+            }
+            return Bounce.easeOut(time * 2 - duration, duration) * 0.5 + 0.5;
+        }
+    }
 })(fgui || (fgui = {}));
 
+(function (fgui) {
+    class EaseType {
+    }
+    EaseType.Linear = 0;
+    EaseType.SineIn = 1;
+    EaseType.SineOut = 2;
+    EaseType.SineInOut = 3;
+    EaseType.QuadIn = 4;
+    EaseType.QuadOut = 5;
+    EaseType.QuadInOut = 6;
+    EaseType.CubicIn = 7;
+    EaseType.CubicOut = 8;
+    EaseType.CubicInOut = 9;
+    EaseType.QuartIn = 10;
+    EaseType.QuartOut = 11;
+    EaseType.QuartInOut = 12;
+    EaseType.QuintIn = 13;
+    EaseType.QuintOut = 14;
+    EaseType.QuintInOut = 15;
+    EaseType.ExpoIn = 16;
+    EaseType.ExpoOut = 17;
+    EaseType.ExpoInOut = 18;
+    EaseType.CircIn = 19;
+    EaseType.CircOut = 20;
+    EaseType.CircInOut = 21;
+    EaseType.ElasticIn = 22;
+    EaseType.ElasticOut = 23;
+    EaseType.ElasticInOut = 24;
+    EaseType.BackIn = 25;
+    EaseType.BackOut = 26;
+    EaseType.BackInOut = 27;
+    EaseType.BounceIn = 28;
+    EaseType.BounceOut = 29;
+    EaseType.BounceInOut = 30;
+    EaseType.Custom = 31;
+    fgui.EaseType = EaseType;
+})(fgui || (fgui = {}));
 
 (function (fgui) {
-    class TranslationHelper {
+    class GPath {
         constructor() {
+            this._segments = new Array();
+            this._points = new Array();
         }
-        static loadFromXML(source) {
-            TranslationHelper.strings = {};
-            var xml = Laya.Utils.parseXMLFromString(source);
-            var resNode = TranslationHelper.findChildNode(xml, "resources");
-            var nodes = resNode.childNodes;
-            var length1 = nodes.length;
-            for (var i1 = 0; i1 < length1; i1++) {
-                var cxml = nodes[i1];
-                if (cxml.nodeName == "string") {
-                    var key = cxml.getAttribute("name");
-                    var text = cxml.textContent;
-                    var i = key.indexOf("-");
-                    if (i == -1)
-                        continue;
-                    var key2 = key.substr(0, i);
-                    var key3 = key.substr(i + 1);
-                    var col = TranslationHelper.strings[key2];
-                    if (!col) {
-                        col = {};
-                        TranslationHelper.strings[key2] = col;
+        get length() {
+            return this._fullLength;
+        }
+        create2(pt1, pt2, pt3, pt4) {
+            var points = new Array();
+            points.push(pt1);
+            points.push(pt2);
+            if (pt3)
+                points.push(pt3);
+            if (pt4)
+                points.push(pt4);
+            this.create(points);
+        }
+        create(points) {
+            this._segments.length = 0;
+            this._points.length = 0;
+            this._fullLength = 0;
+            var cnt = points.length;
+            if (cnt == 0)
+                return;
+            var splinePoints = GPath.helperPoints;
+            splinePoints.length = 0;
+            var prev = points[0];
+            if (prev.curveType == fgui.CurveType.CRSpline)
+                splinePoints.push(new Laya.Point(prev.x, prev.y));
+            for (var i = 1; i < cnt; i++) {
+                var current = points[i];
+                if (prev.curveType != fgui.CurveType.CRSpline) {
+                    var seg = new Segment();
+                    seg.type = prev.curveType;
+                    seg.ptStart = this._points.length;
+                    if (prev.curveType == fgui.CurveType.Straight) {
+                        seg.ptCount = 2;
+                        this._points.push(new Laya.Point(prev.x, prev.y));
+                        this._points.push(new Laya.Point(current.x, current.y));
                     }
-                    col[key3] = text;
+                    else if (prev.curveType == fgui.CurveType.Bezier) {
+                        seg.ptCount = 3;
+                        this._points.push(new Laya.Point(prev.x, prev.y));
+                        this._points.push(new Laya.Point(current.x, current.y));
+                        this._points.push(new Laya.Point(prev.control1_x, prev.control1_y));
+                    }
+                    else if (prev.curveType == fgui.CurveType.CubicBezier) {
+                        seg.ptCount = 4;
+                        this._points.push(new Laya.Point(prev.x, prev.y));
+                        this._points.push(new Laya.Point(current.x, current.y));
+                        this._points.push(new Laya.Point(prev.control1_x, prev.control1_y));
+                        this._points.push(new Laya.Point(prev.control2_x, prev.control2_y));
+                    }
+                    seg.length = fgui.ToolSet.distance(prev.x, prev.y, current.x, current.y);
+                    this._fullLength += seg.length;
+                    this._segments.push(seg);
+                }
+                if (current.curveType != fgui.CurveType.CRSpline) {
+                    if (splinePoints.length > 0) {
+                        splinePoints.push(new Laya.Point(current.x, current.y));
+                        this.createSplineSegment();
+                    }
+                }
+                else
+                    splinePoints.push(new Laya.Point(current.x, current.y));
+                prev = current;
+            }
+            if (splinePoints.length > 1)
+                this.createSplineSegment();
+        }
+        createSplineSegment() {
+            var splinePoints = GPath.helperPoints;
+            var cnt = splinePoints.length;
+            splinePoints.splice(0, 0, splinePoints[0]);
+            splinePoints.push(splinePoints[cnt]);
+            splinePoints.push(splinePoints[cnt]);
+            cnt += 3;
+            var seg = new Segment();
+            seg.type = fgui.CurveType.CRSpline;
+            seg.ptStart = this._points.length;
+            seg.ptCount = cnt;
+            this._points = this._points.concat(splinePoints);
+            seg.length = 0;
+            for (var i = 1; i < cnt; i++) {
+                seg.length += fgui.ToolSet.distance(splinePoints[i - 1].x, splinePoints[i - 1].y, splinePoints[i].x, splinePoints[i].y);
+            }
+            this._fullLength += seg.length;
+            this._segments.push(seg);
+            splinePoints.length = 0;
+        }
+        clear() {
+            this._segments.length = 0;
+            this._points.length = 0;
+        }
+        getPointAt(t, result) {
+            if (!result)
+                result = new Laya.Point();
+            else
+                result.setTo(0, 0);
+            t = fgui.ToolSet.clamp01(t);
+            var cnt = this._segments.length;
+            if (cnt == 0) {
+                return result;
+            }
+            var seg;
+            if (t == 1) {
+                seg = this._segments[cnt - 1];
+                if (seg.type == fgui.CurveType.Straight) {
+                    result.x = fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t);
+                    result.y = fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t);
+                    return result;
+                }
+                else if (seg.type == fgui.CurveType.Bezier || seg.type == fgui.CurveType.CubicBezier)
+                    return this.onBezierCurve(seg.ptStart, seg.ptCount, t, result);
+                else
+                    return this.onCRSplineCurve(seg.ptStart, seg.ptCount, t, result);
+            }
+            var len = t * this._fullLength;
+            for (var i = 0; i < cnt; i++) {
+                seg = this._segments[i];
+                len -= seg.length;
+                if (len < 0) {
+                    t = 1 + len / seg.length;
+                    if (seg.type == fgui.CurveType.Straight) {
+                        result.x = fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t);
+                        result.y = fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t);
+                    }
+                    else if (seg.type == fgui.CurveType.Bezier || seg.type == fgui.CurveType.CubicBezier)
+                        result = this.onBezierCurve(seg.ptStart, seg.ptCount, t, result);
+                    else
+                        result = this.onCRSplineCurve(seg.ptStart, seg.ptCount, t, result);
+                    break;
+                }
+            }
+            return result;
+        }
+        get segmentCount() {
+            return this._segments.length;
+        }
+        getAnchorsInSegment(segmentIndex, points) {
+            if (points == null)
+                points = new Array();
+            var seg = this._segments[segmentIndex];
+            for (var i = 0; i < seg.ptCount; i++)
+                points.push(new Laya.Point(this._points[seg.ptStart + i].x, this._points[seg.ptStart + i].y));
+            return points;
+        }
+        getPointsInSegment(segmentIndex, t0, t1, points, ts, pointDensity) {
+            if (points == null)
+                points = new Array();
+            if (!pointDensity || isNaN(pointDensity))
+                pointDensity = 0.1;
+            if (ts)
+                ts.push(t0);
+            var seg = this._segments[segmentIndex];
+            if (seg.type == fgui.CurveType.Straight) {
+                points.push(new Laya.Point(fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t0), fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t0)));
+                points.push(new Laya.Point(fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t1), fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t1)));
+            }
+            else {
+                var func;
+                if (seg.type == fgui.CurveType.Bezier || seg.type == fgui.CurveType.CubicBezier)
+                    func = this.onBezierCurve;
+                else
+                    func = this.onCRSplineCurve;
+                points.push(func.call(this, seg.ptStart, seg.ptCount, t0, new Laya.Point()));
+                var SmoothAmount = Math.min(seg.length * pointDensity, 50);
+                for (var j = 0; j <= SmoothAmount; j++) {
+                    var t = j / SmoothAmount;
+                    if (t > t0 && t < t1) {
+                        points.push(func.call(this, seg.ptStart, seg.ptCount, t, new Laya.Point()));
+                        if (ts != null)
+                            ts.push(t);
+                    }
+                }
+                points.push(func.call(this, seg.ptStart, seg.ptCount, t1, new Laya.Point()));
+            }
+            if (ts != null)
+                ts.push(t1);
+            return points;
+        }
+        getAllPoints(points, ts, pointDensity) {
+            if (points == null)
+                points = new Array();
+            if (!pointDensity || isNaN(pointDensity))
+                pointDensity = 0.1;
+            var cnt = this._segments.length;
+            for (var i = 0; i < cnt; i++)
+                this.getPointsInSegment(i, 0, 1, points, ts, pointDensity);
+            return points;
+        }
+        onCRSplineCurve(ptStart, ptCount, t, result) {
+            var adjustedIndex = Math.floor(t * (ptCount - 4)) + ptStart;
+            var p0x = this._points[adjustedIndex].x;
+            var p0y = this._points[adjustedIndex].y;
+            var p1x = this._points[adjustedIndex + 1].x;
+            var p1y = this._points[adjustedIndex + 1].y;
+            var p2x = this._points[adjustedIndex + 2].x;
+            var p2y = this._points[adjustedIndex + 2].y;
+            var p3x = this._points[adjustedIndex + 3].x;
+            var p3y = this._points[adjustedIndex + 3].y;
+            var adjustedT = (t == 1) ? 1 : fgui.ToolSet.repeat(t * (ptCount - 4), 1);
+            var t0 = ((-adjustedT + 2) * adjustedT - 1) * adjustedT * 0.5;
+            var t1 = (((3 * adjustedT - 5) * adjustedT) * adjustedT + 2) * 0.5;
+            var t2 = ((-3 * adjustedT + 4) * adjustedT + 1) * adjustedT * 0.5;
+            var t3 = ((adjustedT - 1) * adjustedT * adjustedT) * 0.5;
+            result.x = p0x * t0 + p1x * t1 + p2x * t2 + p3x * t3;
+            result.y = p0y * t0 + p1y * t1 + p2y * t2 + p3y * t3;
+            return result;
+        }
+        onBezierCurve(ptStart, ptCount, t, result) {
+            var t2 = 1 - t;
+            var p0x = this._points[ptStart].x;
+            var p0y = this._points[ptStart].y;
+            var p1x = this._points[ptStart + 1].x;
+            var p1y = this._points[ptStart + 1].y;
+            var cp0x = this._points[ptStart + 2].x;
+            var cp0y = this._points[ptStart + 2].y;
+            if (ptCount == 4) {
+                var cp1x = this._points[ptStart + 3].x;
+                var cp1y = this._points[ptStart + 3].y;
+                result.x = t2 * t2 * t2 * p0x + 3 * t2 * t2 * t * cp0x + 3 * t2 * t * t * cp1x + t * t * t * p1x;
+                result.y = t2 * t2 * t2 * p0y + 3 * t2 * t2 * t * cp0y + 3 * t2 * t * t * cp1y + t * t * t * p1y;
+            }
+            else {
+                result.x = t2 * t2 * p0x + 2 * t2 * t * cp0x + t * t * p1x;
+                result.y = t2 * t2 * p0y + 2 * t2 * t * cp0y + t * t * p1y;
+            }
+            return result;
+        }
+    }
+    GPath.helperPoints = new Array();
+    fgui.GPath = GPath;
+    class Segment {
+    }
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    let CurveType;
+    (function (CurveType) {
+        CurveType[CurveType["CRSpline"] = 0] = "CRSpline";
+        CurveType[CurveType["Bezier"] = 1] = "Bezier";
+        CurveType[CurveType["CubicBezier"] = 2] = "CubicBezier";
+        CurveType[CurveType["Straight"] = 3] = "Straight";
+    })(CurveType = fgui.CurveType || (fgui.CurveType = {}));
+    class GPathPoint {
+        constructor() {
+            this.x = 0;
+            this.y = 0;
+            this.control1_x = 0;
+            this.control1_y = 0;
+            this.control2_x = 0;
+            this.control2_y = 0;
+            this.curveType = 0;
+        }
+        static newPoint(x = 0, y = 0, curveType = 0) {
+            var pt = new GPathPoint();
+            pt.x = x;
+            pt.y = y;
+            pt.control1_x = 0;
+            pt.control1_y = 0;
+            pt.control2_x = 0;
+            pt.control2_y = 0;
+            pt.curveType = curveType;
+            return pt;
+        }
+        static newBezierPoint(x = 0, y = 0, control1_x = 0, control1_y = 0) {
+            var pt = new GPathPoint();
+            pt.x = x;
+            pt.y = y;
+            pt.control1_x = control1_x;
+            pt.control1_y = control1_y;
+            pt.control2_x = 0;
+            pt.control2_y = 0;
+            pt.curveType = CurveType.Bezier;
+            return pt;
+        }
+        static newCubicBezierPoint(x = 0, y = 0, control1_x = 0, control1_y = 0, control2_x = 0, control2_y = 0) {
+            var pt = new GPathPoint();
+            pt.x = x;
+            pt.y = y;
+            pt.control1_x = control1_x;
+            pt.control1_y = control1_y;
+            pt.control2_x = control2_x;
+            pt.control2_y = control2_y;
+            pt.curveType = CurveType.CubicBezier;
+            return pt;
+        }
+        clone() {
+            var ret = new GPathPoint();
+            ret.x = this.x;
+            ret.y = this.y;
+            ret.control1_x = this.control1_x;
+            ret.control1_y = this.control1_y;
+            ret.control2_x = this.control2_x;
+            ret.control2_y = this.control2_y;
+            ret.curveType = this.curveType;
+            return ret;
+        }
+    }
+    fgui.GPathPoint = GPathPoint;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GTween {
+        static to(start, end, duration) {
+            return fgui.TweenManager.createTween()._to(start, end, duration);
+        }
+        static to2(start, start2, end, end2, duration) {
+            return fgui.TweenManager.createTween()._to2(start, start2, end, end2, duration);
+        }
+        static to3(start, start2, start3, end, end2, end3, duration) {
+            return fgui.TweenManager.createTween()._to3(start, start2, start3, end, end2, end3, duration);
+        }
+        static to4(start, start2, start3, start4, end, end2, end3, end4, duration) {
+            return fgui.TweenManager.createTween()._to4(start, start2, start3, start4, end, end2, end3, end4, duration);
+        }
+        static toColor(start, end, duration) {
+            return fgui.TweenManager.createTween()._toColor(start, end, duration);
+        }
+        static delayedCall(delay) {
+            return fgui.TweenManager.createTween().setDelay(delay);
+        }
+        static shake(startX, startY, amplitude, duration) {
+            return fgui.TweenManager.createTween()._shake(startX, startY, amplitude, duration);
+        }
+        static isTweening(target, propType) {
+            return fgui.TweenManager.isTweening(target, propType);
+        }
+        static kill(target, complete, propType) {
+            fgui.TweenManager.killTweens(target, complete, propType);
+        }
+        static getTween(target, propType) {
+            return fgui.TweenManager.getTween(target, propType);
+        }
+    }
+    GTween.catchCallbackExceptions = true;
+    fgui.GTween = GTween;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class GTweener {
+        constructor() {
+            this._startValue = new fgui.TweenValue();
+            this._endValue = new fgui.TweenValue();
+            this._value = new fgui.TweenValue();
+            this._deltaValue = new fgui.TweenValue();
+            this._reset();
+        }
+        setDelay(value) {
+            this._delay = value;
+            return this;
+        }
+        get delay() {
+            return this._delay;
+        }
+        setDuration(value) {
+            this._duration = value;
+            return this;
+        }
+        get duration() {
+            return this._duration;
+        }
+        setBreakpoint(value) {
+            this._breakpoint = value;
+            return this;
+        }
+        setEase(value) {
+            this._easeType = value;
+            return this;
+        }
+        setEasePeriod(value) {
+            this._easePeriod = value;
+            return this;
+        }
+        setEaseOvershootOrAmplitude(value) {
+            this._easeOvershootOrAmplitude = value;
+            return this;
+        }
+        setRepeat(repeat, yoyo = false) {
+            this._repeat = repeat;
+            this._yoyo = yoyo;
+            return this;
+        }
+        get repeat() {
+            return this._repeat;
+        }
+        setTimeScale(value) {
+            this._timeScale = value;
+            return this;
+        }
+        setSnapping(value) {
+            this._snapping = value;
+            return this;
+        }
+        setTarget(value, propType) {
+            this._target = value;
+            this._propType = propType;
+            return this;
+        }
+        setPath(value) {
+            this._path = value;
+            return this;
+        }
+        get target() {
+            return this._target;
+        }
+        setUserData(value) {
+            this._userData = value;
+            return this;
+        }
+        get userData() {
+            return this._userData;
+        }
+        onUpdate(callback, caller) {
+            this._onUpdate = callback;
+            this._onUpdateCaller = caller;
+            return this;
+        }
+        onStart(callback, caller) {
+            this._onStart = callback;
+            this._onStartCaller = caller;
+            return this;
+        }
+        onComplete(callback, caller) {
+            this._onComplete = callback;
+            this._onCompleteCaller = caller;
+            return this;
+        }
+        get startValue() {
+            return this._startValue;
+        }
+        get endValue() {
+            return this._endValue;
+        }
+        get value() {
+            return this._value;
+        }
+        get deltaValue() {
+            return this._deltaValue;
+        }
+        get normalizedTime() {
+            return this._normalizedTime;
+        }
+        get completed() {
+            return this._ended != 0;
+        }
+        get allCompleted() {
+            return this._ended == 1;
+        }
+        setPaused(paused) {
+            this._paused = paused;
+            return this;
+        }
+        seek(time) {
+            if (this._killed)
+                return;
+            this._elapsedTime = time;
+            if (this._elapsedTime < this._delay) {
+                if (this._started)
+                    this._elapsedTime = this._delay;
+                else
+                    return;
+            }
+            this.update();
+        }
+        kill(complete) {
+            if (this._killed)
+                return;
+            if (complete) {
+                if (this._ended == 0) {
+                    if (this._breakpoint >= 0)
+                        this._elapsedTime = this._delay + this._breakpoint;
+                    else if (this._repeat >= 0)
+                        this._elapsedTime = this._delay + this._duration * (this._repeat + 1);
+                    else
+                        this._elapsedTime = this._delay + this._duration * 2;
+                    this.update();
+                }
+                this.callCompleteCallback();
+            }
+            this._killed = true;
+        }
+        _to(start, end, duration) {
+            this._valueSize = 1;
+            this._startValue.x = start;
+            this._endValue.x = end;
+            this._value.x = start;
+            this._duration = duration;
+            return this;
+        }
+        _to2(start, start2, end, end2, duration) {
+            this._valueSize = 2;
+            this._startValue.x = start;
+            this._endValue.x = end;
+            this._startValue.y = start2;
+            this._endValue.y = end2;
+            this._value.x = start;
+            this._value.y = start2;
+            this._duration = duration;
+            return this;
+        }
+        _to3(start, start2, start3, end, end2, end3, duration) {
+            this._valueSize = 3;
+            this._startValue.x = start;
+            this._endValue.x = end;
+            this._startValue.y = start2;
+            this._endValue.y = end2;
+            this._startValue.z = start3;
+            this._endValue.z = end3;
+            this._value.x = start;
+            this._value.y = start2;
+            this._value.z = start3;
+            this._duration = duration;
+            return this;
+        }
+        _to4(start, start2, start3, start4, end, end2, end3, end4, duration) {
+            this._valueSize = 4;
+            this._startValue.x = start;
+            this._endValue.x = end;
+            this._startValue.y = start2;
+            this._endValue.y = end2;
+            this._startValue.z = start3;
+            this._endValue.z = end3;
+            this._startValue.w = start4;
+            this._endValue.w = end4;
+            this._value.x = start;
+            this._value.y = start2;
+            this._value.z = start3;
+            this._value.w = start4;
+            this._duration = duration;
+            return this;
+        }
+        _toColor(start, end, duration) {
+            this._valueSize = 4;
+            this._startValue.color = start;
+            this._endValue.color = end;
+            this._value.color = start;
+            this._duration = duration;
+            return this;
+        }
+        _shake(startX, startY, amplitude, duration) {
+            this._valueSize = 5;
+            this._startValue.x = startX;
+            this._startValue.y = startY;
+            this._startValue.w = amplitude;
+            this._duration = duration;
+            return this;
+        }
+        _init() {
+            this._delay = 0;
+            this._duration = 0;
+            this._breakpoint = -1;
+            this._easeType = fgui.EaseType.QuadOut;
+            this._timeScale = 1;
+            this._easePeriod = 0;
+            this._easeOvershootOrAmplitude = 1.70158;
+            this._snapping = false;
+            this._repeat = 0;
+            this._yoyo = false;
+            this._valueSize = 0;
+            this._started = false;
+            this._paused = false;
+            this._killed = false;
+            this._elapsedTime = 0;
+            this._normalizedTime = 0;
+            this._ended = 0;
+        }
+        _reset() {
+            this._target = null;
+            this._userData = null;
+            this._path = null;
+            this._onStart = this._onUpdate = this._onComplete = null;
+            this._onStartCaller = this._onUpdateCaller = this._onCompleteCaller = null;
+        }
+        _update(dt) {
+            if (this._timeScale != 1)
+                dt *= this._timeScale;
+            if (dt == 0)
+                return;
+            if (this._ended != 0) {
+                this.callCompleteCallback();
+                this._killed = true;
+                return;
+            }
+            this._elapsedTime += dt;
+            this.update();
+            if (this._ended != 0) {
+                if (!this._killed) {
+                    this.callCompleteCallback();
+                    this._killed = true;
                 }
             }
         }
-        static translateComponent(item) {
-            if (TranslationHelper.strings == null)
+        update() {
+            this._ended = 0;
+            if (this._valueSize == 0) {
+                if (this._elapsedTime >= this._delay + this._duration)
+                    this._ended = 1;
                 return;
-            var compStrings = TranslationHelper.strings[item.owner.id + item.id];
-            if (compStrings == null)
-                return;
-            var elementId, value;
-            var buffer = item.rawData;
-            var nextPos;
-            var itemCount;
-            var i, j, k;
-            var dataLen;
-            var curPos;
-            var valueCnt;
-            var page;
-            buffer.seek(0, 2);
-            var childCount = buffer.getInt16();
-            for (i = 0; i < childCount; i++) {
-                dataLen = buffer.getInt16();
-                curPos = buffer.pos;
-                buffer.seek(curPos, 0);
-                var type = buffer.readByte();
-                buffer.skip(4);
-                elementId = buffer.readS();
-                if (type == fgui.ObjectType.Component) {
-                    if (buffer.seek(curPos, 6))
-                        type = buffer.readByte();
+            }
+            if (!this._started) {
+                if (this._elapsedTime < this._delay)
+                    return;
+                this._started = true;
+                this.callStartCallback();
+                if (this._killed)
+                    return;
+            }
+            var reversed = false;
+            var tt = this._elapsedTime - this._delay;
+            if (this._breakpoint >= 0 && tt >= this._breakpoint) {
+                tt = this._breakpoint;
+                this._ended = 2;
+            }
+            if (this._repeat != 0) {
+                var round = Math.floor(tt / this._duration);
+                tt -= this._duration * round;
+                if (this._yoyo)
+                    reversed = round % 2 == 1;
+                if (this._repeat > 0 && this._repeat - round < 0) {
+                    if (this._yoyo)
+                        reversed = this._repeat % 2 == 1;
+                    tt = this._duration;
+                    this._ended = 1;
                 }
-                buffer.seek(curPos, 1);
-                if ((value = compStrings[elementId + "-tips"]) != null)
-                    buffer.writeS(value);
-                buffer.seek(curPos, 2);
-                var gearCnt = buffer.getInt16();
-                for (j = 0; j < gearCnt; j++) {
-                    nextPos = buffer.getInt16();
-                    nextPos += buffer.pos;
-                    if (buffer.readByte() == 6) {
-                        buffer.skip(2);
-                        valueCnt = buffer.getInt16();
-                        for (k = 0; k < valueCnt; k++) {
-                            page = buffer.readS();
-                            if (page != null) {
-                                if ((value = compStrings[elementId + "-texts_" + k]) != null)
-                                    buffer.writeS(value);
-                                else
-                                    buffer.skip(2);
-                            }
-                        }
-                        if (buffer.readBool() && (value = compStrings[elementId + "-texts_def"]) != null)
-                            buffer.writeS(value);
+            }
+            else if (tt >= this._duration) {
+                tt = this._duration;
+                this._ended = 1;
+            }
+            this._normalizedTime = fgui.EaseManager.evaluate(this._easeType, reversed ? (this._duration - tt) : tt, this._duration, this._easeOvershootOrAmplitude, this._easePeriod);
+            this._value.setZero();
+            this._deltaValue.setZero();
+            if (this._valueSize == 5) {
+                if (this._ended == 0) {
+                    var r = this._startValue.w * (1 - this._normalizedTime);
+                    var rx = r * (Math.random() > 0.5 ? 1 : -1);
+                    var ry = r * (Math.random() > 0.5 ? 1 : -1);
+                    this._deltaValue.x = rx;
+                    this._deltaValue.y = ry;
+                    this._value.x = this._startValue.x + rx;
+                    this._value.y = this._startValue.y + ry;
+                }
+                else {
+                    this._value.x = this._startValue.x;
+                    this._value.y = this._startValue.y;
+                }
+            }
+            else if (this._path) {
+                var pt = GTweener.helperPoint;
+                this._path.getPointAt(this._normalizedTime, pt);
+                if (this._snapping) {
+                    pt.x = Math.round(pt.x);
+                    pt.y = Math.round(pt.y);
+                }
+                this._deltaValue.x = pt.x - this._value.x;
+                this._deltaValue.y = pt.y - this._value.y;
+                this._value.x = pt.x;
+                this._value.y = pt.y;
+            }
+            else {
+                for (var i = 0; i < this._valueSize; i++) {
+                    var n1 = this._startValue.getField(i);
+                    var n2 = this._endValue.getField(i);
+                    var f = n1 + (n2 - n1) * this._normalizedTime;
+                    if (this._snapping)
+                        f = Math.round(f);
+                    this._deltaValue.setField(i, f - this._value.getField(i));
+                    this._value.setField(i, f);
+                }
+            }
+            if (this._target != null && this._propType) {
+                if (this._propType instanceof Function) {
+                    switch (this._valueSize) {
+                        case 1:
+                            this._propType.call(this._target, this._value.x);
+                            break;
+                        case 2:
+                            this._propType.call(this._target, this._value.x, this._value.y);
+                            break;
+                        case 3:
+                            this._propType.call(this._target, this._value.x, this._value.y, this._value.z);
+                            break;
+                        case 4:
+                            this._propType.call(this._target, this._value.x, this._value.y, this._value.z, this._value.w);
+                            break;
+                        case 5:
+                            this._propType.call(this._target, this._value.color);
+                            break;
+                        case 6:
+                            this._propType.call(this._target, this._value.x, this._value.y);
+                            break;
                     }
-                    buffer.pos = nextPos;
                 }
-                switch (type) {
-                    case fgui.ObjectType.Text:
-                    case fgui.ObjectType.RichText:
-                    case fgui.ObjectType.InputText:
-                        {
-                            if ((value = compStrings[elementId]) != null) {
-                                buffer.seek(curPos, 6);
-                                buffer.writeS(value);
-                            }
-                            if ((value = compStrings[elementId + "-prompt"]) != null) {
-                                buffer.seek(curPos, 4);
-                                buffer.writeS(value);
-                            }
-                            break;
-                        }
-                    case fgui.ObjectType.List:
-                        {
-                            buffer.seek(curPos, 8);
-                            buffer.skip(2);
-                            itemCount = buffer.getInt16();
-                            for (j = 0; j < itemCount; j++) {
-                                nextPos = buffer.getInt16();
-                                nextPos += buffer.pos;
-                                buffer.skip(2);
-                                if ((value = compStrings[elementId + "-" + j]) != null)
-                                    buffer.writeS(value);
-                                else
-                                    buffer.skip(2);
-                                if ((value = compStrings[elementId + "-" + j + "-0"]) != null)
-                                    buffer.writeS(value);
-                                buffer.pos = nextPos;
-                            }
-                            break;
-                        }
-                    case fgui.ObjectType.Label:
-                        {
-                            if (buffer.seek(curPos, 6) && buffer.readByte() == type) {
-                                if ((value = compStrings[elementId]) != null)
-                                    buffer.writeS(value);
-                                else
-                                    buffer.skip(2);
-                                buffer.skip(2);
-                                if (buffer.readBool())
-                                    buffer.skip(4);
-                                buffer.skip(4);
-                                if (buffer.readBool() && (value = compStrings[elementId + "-prompt"]) != null)
-                                    buffer.writeS(value);
-                            }
-                            break;
-                        }
-                    case fgui.ObjectType.Button:
-                        {
-                            if (buffer.seek(curPos, 6) && buffer.readByte() == type) {
-                                if ((value = compStrings[elementId]) != null)
-                                    buffer.writeS(value);
-                                else
-                                    buffer.skip(2);
-                                if ((value = compStrings[elementId + "-0"]) != null)
-                                    buffer.writeS(value);
-                            }
-                            break;
-                        }
-                    case fgui.ObjectType.ComboBox:
-                        {
-                            if (buffer.seek(curPos, 6) && buffer.readByte() == type) {
-                                itemCount = buffer.getInt16();
-                                for (j = 0; j < itemCount; j++) {
-                                    nextPos = buffer.getInt16();
-                                    nextPos += buffer.pos;
-                                    if ((value = compStrings[elementId + "-" + j]) != null)
-                                        buffer.writeS(value);
-                                    buffer.pos = nextPos;
-                                }
-                                if ((value = compStrings[elementId]) != null)
-                                    buffer.writeS(value);
-                            }
-                            break;
-                        }
+                else {
+                    if (this._valueSize == 5)
+                        this._target[this._propType] = this._value.color;
+                    else
+                        this._target[this._propType] = this._value.x;
                 }
-                buffer.pos = curPos + dataLen;
+            }
+            this.callUpdateCallback();
+        }
+        callStartCallback() {
+            if (this._onStart != null) {
+                try {
+                    this._onStart.call(this._onStartCaller, this);
+                }
+                catch (err) {
+                    console.log("FairyGUI: error in start callback > " + err);
+                }
             }
         }
-        static findChildNode(xml, name) {
-            var col = xml.childNodes;
-            var length1 = col.length;
-            if (length1 > 0) {
-                for (var i1 = 0; i1 < length1; i1++) {
-                    var cxml = col[i1];
-                    if (cxml.nodeName == name) {
-                        return cxml;
-                    }
+        callUpdateCallback() {
+            if (this._onUpdate != null) {
+                try {
+                    this._onUpdate.call(this._onUpdateCaller, this);
+                }
+                catch (err) {
+                    console.log("FairyGUI: error in update callback > " + err);
+                }
+            }
+        }
+        callCompleteCallback() {
+            if (this._onComplete != null) {
+                try {
+                    this._onComplete.call(this._onCompleteCaller, this);
+                }
+                catch (err) {
+                    console.log("FairyGUI: error in complete callback > " + err);
+                }
+            }
+        }
+    }
+    GTweener.helperPoint = new Laya.Point();
+    fgui.GTweener = GTweener;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class TweenManager {
+        static createTween() {
+            if (!TweenManager._inited) {
+                Laya.timer.frameLoop(1, null, TweenManager.update);
+                TweenManager._inited = true;
+            }
+            var tweener;
+            var cnt = TweenManager._tweenerPool.length;
+            if (cnt > 0) {
+                tweener = TweenManager._tweenerPool.pop();
+            }
+            else
+                tweener = new fgui.GTweener();
+            tweener._init();
+            TweenManager._activeTweens[TweenManager._totalActiveTweens++] = tweener;
+            return tweener;
+        }
+        static isTweening(target, propType) {
+            if (target == null)
+                return false;
+            var anyType = !propType;
+            for (var i = 0; i < TweenManager._totalActiveTweens; i++) {
+                var tweener = TweenManager._activeTweens[i];
+                if (tweener != null && tweener.target == target && !tweener._killed
+                    && (anyType || tweener._propType == propType))
+                    return true;
+            }
+            return false;
+        }
+        static killTweens(target, completed, propType) {
+            if (target == null)
+                return false;
+            var flag = false;
+            var cnt = TweenManager._totalActiveTweens;
+            var anyType = !propType;
+            for (var i = 0; i < cnt; i++) {
+                var tweener = TweenManager._activeTweens[i];
+                if (tweener != null && tweener.target == target && !tweener._killed
+                    && (anyType || tweener._propType == propType)) {
+                    tweener.kill(completed);
+                    flag = true;
+                }
+            }
+            return flag;
+        }
+        static getTween(target, propType) {
+            if (target == null)
+                return null;
+            var cnt = TweenManager._totalActiveTweens;
+            var anyType = !propType;
+            for (var i = 0; i < cnt; i++) {
+                var tweener = TweenManager._activeTweens[i];
+                if (tweener != null && tweener.target == target && !tweener._killed
+                    && (anyType || tweener._propType == propType)) {
+                    return tweener;
                 }
             }
             return null;
         }
+        static update() {
+            var dt = Laya.timer.delta / 1000;
+            var cnt = TweenManager._totalActiveTweens;
+            var freePosStart = -1;
+            for (var i = 0; i < cnt; i++) {
+                var tweener = TweenManager._activeTweens[i];
+                if (tweener == null) {
+                    if (freePosStart == -1)
+                        freePosStart = i;
+                }
+                else if (tweener._killed) {
+                    tweener._reset();
+                    TweenManager._tweenerPool.push(tweener);
+                    TweenManager._activeTweens[i] = null;
+                    if (freePosStart == -1)
+                        freePosStart = i;
+                }
+                else {
+                    if ((tweener._target instanceof fgui.GObject) && (tweener._target).isDisposed)
+                        tweener._killed = true;
+                    else if (!tweener._paused)
+                        tweener._update(dt);
+                    if (freePosStart != -1) {
+                        TweenManager._activeTweens[freePosStart] = tweener;
+                        TweenManager._activeTweens[i] = null;
+                        freePosStart++;
+                    }
+                }
+            }
+            if (freePosStart >= 0) {
+                if (TweenManager._totalActiveTweens != cnt) {
+                    var j = cnt;
+                    cnt = TweenManager._totalActiveTweens - cnt;
+                    for (i = 0; i < cnt; i++)
+                        TweenManager._activeTweens[freePosStart++] = TweenManager._activeTweens[j++];
+                }
+                TweenManager._totalActiveTweens = freePosStart;
+            }
+        }
     }
-    TranslationHelper.strings = null;
-    fgui.TranslationHelper = TranslationHelper;
+    TweenManager._activeTweens = new Array();
+    TweenManager._tweenerPool = [];
+    TweenManager._totalActiveTweens = 0;
+    TweenManager._inited = false;
+    fgui.TweenManager = TweenManager;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class TweenValue {
+        constructor() {
+            this.x = this.y = this.z = this.w = 0;
+        }
+        get color() {
+            return (this.w << 24) + (this.x << 16) + (this.y << 8) + this.z;
+        }
+        set color(value) {
+            this.x = (value & 0xFF0000) >> 16;
+            this.y = (value & 0x00FF00) >> 8;
+            this.z = (value & 0x0000FF);
+            this.w = (value & 0xFF000000) >> 24;
+        }
+        getField(index) {
+            switch (index) {
+                case 0:
+                    return this.x;
+                case 1:
+                    return this.y;
+                case 2:
+                    return this.z;
+                case 3:
+                    return this.w;
+                default:
+                    throw new Error("Index out of bounds: " + index);
+            }
+        }
+        setField(index, value) {
+            switch (index) {
+                case 0:
+                    this.x = value;
+                    break;
+                case 1:
+                    this.y = value;
+                    break;
+                case 2:
+                    this.z = value;
+                    break;
+                case 3:
+                    this.w = value;
+                    break;
+                default:
+                    throw new Error("Index out of bounds: " + index);
+            }
+        }
+        setZero() {
+            this.x = this.y = this.z = this.w = 0;
+        }
+    }
+    fgui.TweenValue = TweenValue;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class ByteBuffer extends Laya.Byte {
+        constructor(data = null, offset = 0, length = -1) {
+            if (length == -1)
+                length = data.byteLength - offset;
+            if (offset == 0 && length == data.byteLength)
+                super(data);
+            else {
+                super();
+                this._u8d_ = new Uint8Array(data, offset, length);
+                this._d_ = new DataView(this._u8d_.buffer, offset, length);
+                this._length = length;
+            }
+            this.endian = Laya.Byte.BIG_ENDIAN;
+        }
+        skip(count) {
+            this.pos += count;
+        }
+        readBool() {
+            return this.getUint8() == 1;
+        }
+        readS() {
+            var index = this.getUint16();
+            if (index == 65534)
+                return null;
+            else if (index == 65533)
+                return "";
+            else
+                return this.stringTable[index];
+        }
+        readSArray(cnt) {
+            var ret = new Array(cnt);
+            for (var i = 0; i < cnt; i++)
+                ret[i] = this.readS();
+            return ret;
+        }
+        writeS(value) {
+            var index = this.getUint16();
+            if (index != 65534 && index != 65533)
+                this.stringTable[index] = value;
+        }
+        readColor(hasAlpha = false) {
+            var r = this.getUint8();
+            var g = this.getUint8();
+            var b = this.getUint8();
+            var a = this.getUint8();
+            return (hasAlpha ? (a << 24) : 0) + (r << 16) + (g << 8) + b;
+        }
+        readColorS(hasAlpha = false) {
+            var r = this.getUint8();
+            var g = this.getUint8();
+            var b = this.getUint8();
+            var a = this.getUint8();
+            if (hasAlpha && a != 255)
+                return "rgba(" + r + "," + g + "," + b + "," + (a / 255) + ")";
+            else {
+                var sr = r.toString(16);
+                var sg = g.toString(16);
+                var sb = b.toString(16);
+                if (sr.length == 1)
+                    sr = "0" + sr;
+                if (sg.length == 1)
+                    sg = "0" + sg;
+                if (sb.length == 1)
+                    sb = "0" + sb;
+                return "#" + sr + sg + sb;
+            }
+        }
+        readChar() {
+            var i = this.getUint16();
+            return String.fromCharCode(i);
+        }
+        readBuffer() {
+            var count = this.getUint32();
+            var ba = new ByteBuffer(this.buffer, this._pos_, count);
+            ba.stringTable = this.stringTable;
+            ba.version = this.version;
+            return ba;
+        }
+        seek(indexTablePos, blockIndex) {
+            var tmp = this._pos_;
+            this.pos = indexTablePos;
+            var segCount = this.getUint8();
+            if (blockIndex < segCount) {
+                var useShort = this.getUint8() == 1;
+                var newPos;
+                if (useShort) {
+                    this.pos += 2 * blockIndex;
+                    newPos = this.getUint16();
+                }
+                else {
+                    this.pos += 4 * blockIndex;
+                    newPos = this.getUint32();
+                }
+                if (newPos > 0) {
+                    this.pos = indexTablePos + newPos;
+                    return true;
+                }
+                else {
+                    this.pos = tmp;
+                    return false;
+                }
+            }
+            else {
+                this.pos = tmp;
+                return false;
+            }
+        }
+    }
+    fgui.ByteBuffer = ByteBuffer;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    let _func = Laya.HitArea["_isHitGraphic"];
+    class ChildHitArea extends Laya.HitArea {
+        constructor(child, reversed) {
+            super();
+            this._child = child;
+            this._reversed = reversed;
+            if (this._reversed)
+                this.unHit = child.hitArea.hit;
+            else
+                this.hit = child.hitArea.hit;
+        }
+        contains(x, y) {
+            var tPos;
+            tPos = Laya.Point.TEMP;
+            tPos.setTo(0, 0);
+            tPos = this._child.toParentPoint(tPos);
+            if (this._reversed)
+                return !_func(x - tPos.x, y - tPos.y, this.unHit);
+            else
+                return _func(x - tPos.x, y - tPos.y, this.hit);
+        }
+    }
+    fgui.ChildHitArea = ChildHitArea;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class PixelHitTest extends Laya.HitArea {
+        constructor(data, offsetX = 0, offsetY = 0) {
+            super();
+            this._data = data;
+            this.offsetX = offsetX;
+            this.offsetY = offsetY;
+            this.scaleX = 1;
+            this.scaleY = 1;
+        }
+        contains(x, y) {
+            x = Math.floor((x / this.scaleX - this.offsetX) * this._data.scale);
+            y = Math.floor((y / this.scaleY - this.offsetY) * this._data.scale);
+            if (x < 0 || y < 0 || x >= this._data.pixelWidth)
+                return false;
+            var pos = y * this._data.pixelWidth + x;
+            var pos2 = Math.floor(pos / 8);
+            var pos3 = pos % 8;
+            if (pos2 >= 0 && pos2 < this._data.pixels.length)
+                return ((this._data.pixels[pos2] >> pos3) & 0x1) == 1;
+            else
+                return false;
+        }
+    }
+    fgui.PixelHitTest = PixelHitTest;
+    class PixelHitTestData {
+        constructor() {
+        }
+        load(ba) {
+            ba.getInt32();
+            this.pixelWidth = ba.getInt32();
+            this.scale = 1 / ba.readByte();
+            var len = ba.getInt32();
+            this.pixels = [];
+            for (var i = 0; i < len; i++) {
+                var j = ba.readByte();
+                if (j < 0)
+                    j += 256;
+                this.pixels[i] = j;
+            }
+        }
+    }
+    fgui.PixelHitTestData = PixelHitTestData;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class UBBParser {
+        constructor() {
+            this._readPos = 0;
+            this.defaultImgWidth = 0;
+            this.defaultImgHeight = 0;
+            this._handlers = {};
+            this._handlers["url"] = this.onTag_URL;
+            this._handlers["img"] = this.onTag_IMG;
+            this._handlers["b"] = this.onTag_B;
+            this._handlers["i"] = this.onTag_I;
+            this._handlers["u"] = this.onTag_U;
+            this._handlers["sup"] = this.onTag_Simple;
+            this._handlers["sub"] = this.onTag_Simple;
+            this._handlers["color"] = this.onTag_COLOR;
+            this._handlers["font"] = this.onTag_FONT;
+            this._handlers["size"] = this.onTag_SIZE;
+        }
+        onTag_URL(tagName, end, attr) {
+            if (!end) {
+                if (attr != null)
+                    return "<a href=\"" + attr + "\" target=\"_blank\">";
+                else {
+                    var href = this.getTagText();
+                    return "<a href=\"" + href + "\" target=\"_blank\">";
+                }
+            }
+            else
+                return "</a>";
+        }
+        onTag_IMG(tagName, end, attr) {
+            if (!end) {
+                var src = this.getTagText(true);
+                if (!src)
+                    return null;
+                if (this.defaultImgWidth)
+                    return "<img src=\"" + src + "\" width=\"" + this.defaultImgWidth + "\" height=\"" + this.defaultImgHeight + "\"/>";
+                else
+                    return "<img src=\"" + src + "\"/>";
+            }
+            else
+                return null;
+        }
+        onTag_B(tagName, end, attr) {
+            return end ? ("</span>") : ("<span style='font-weight:bold'>");
+        }
+        onTag_I(tagName, end, attr) {
+            return end ? ("</span>") : ("<span style='font-style:italic'>");
+        }
+        onTag_U(tagName, end, attr) {
+            return end ? ("</span>") : ("<span style='text-decoration:underline'>");
+        }
+        onTag_Simple(tagName, end, attr) {
+            return end ? ("</" + tagName + ">") : ("<" + tagName + ">");
+        }
+        onTag_COLOR(tagName, end, attr) {
+            if (!end) {
+                this.lastColor = attr;
+                return "<span style=\"color:" + attr + "\">";
+            }
+            else
+                return "</span>";
+        }
+        onTag_FONT(tagName, end, attr) {
+            if (!end)
+                return "<span style=\"font-family:" + attr + "\">";
+            else
+                return "</span>";
+        }
+        onTag_SIZE(tagName, end, attr) {
+            if (!end) {
+                this.lastSize = attr;
+                return "<span style=\"font-size:" + attr + "\">";
+            }
+            else
+                return "</span>";
+        }
+        getTagText(remove = false) {
+            var pos1 = this._readPos;
+            var pos2;
+            var result = "";
+            while ((pos2 = this._text.indexOf("[", pos1)) != -1) {
+                if (this._text.charCodeAt(pos2 - 1) == 92) {
+                    result += this._text.substring(pos1, pos2 - 1);
+                    result += "[";
+                    pos1 = pos2 + 1;
+                }
+                else {
+                    result += this._text.substring(pos1, pos2);
+                    break;
+                }
+            }
+            if (pos2 == -1)
+                return null;
+            if (remove)
+                this._readPos = pos2;
+            return result;
+        }
+        parse(text, remove = false) {
+            this._text = text;
+            this.lastColor = null;
+            this.lastSize = null;
+            var pos1 = 0, pos2, pos3;
+            var end;
+            var tag, attr;
+            var repl;
+            var func;
+            var result = "";
+            while ((pos2 = this._text.indexOf("[", pos1)) != -1) {
+                if (pos2 > 0 && this._text.charCodeAt(pos2 - 1) == 92) {
+                    result += this._text.substring(pos1, pos2 - 1);
+                    result += "[";
+                    pos1 = pos2 + 1;
+                    continue;
+                }
+                result += this._text.substring(pos1, pos2);
+                pos1 = pos2;
+                pos2 = this._text.indexOf("]", pos1);
+                if (pos2 == -1)
+                    break;
+                end = this._text.charAt(pos1 + 1) == '/';
+                tag = this._text.substring(end ? pos1 + 2 : pos1 + 1, pos2);
+                this._readPos = pos2 + 1;
+                attr = null;
+                repl = null;
+                pos3 = tag.indexOf("=");
+                if (pos3 != -1) {
+                    attr = tag.substring(pos3 + 1);
+                    tag = tag.substring(0, pos3);
+                }
+                tag = tag.toLowerCase();
+                func = this._handlers[tag];
+                if (func != null) {
+                    if (!remove) {
+                        repl = func.call(this, tag, end, attr);
+                        if (repl != null)
+                            result += repl;
+                    }
+                }
+                else
+                    result += this._text.substring(pos1, this._readPos);
+                pos1 = this._readPos;
+            }
+            if (pos1 < this._text.length)
+                result += this._text.substr(pos1);
+            this._text = null;
+            return result;
+        }
+    }
+    UBBParser.inst = new UBBParser();
+    fgui.UBBParser = UBBParser;
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    class ToolSet {
+        static getFileName(source) {
+            var i = source.lastIndexOf("/");
+            if (i != -1)
+                source = source.substr(i + 1);
+            i = source.lastIndexOf("\\");
+            if (i != -1)
+                source = source.substr(i + 1);
+            i = source.lastIndexOf(".");
+            if (i != -1)
+                return source.substring(0, i);
+            else
+                return source;
+        }
+        static startsWith(source, str, ignoreCase = false) {
+            if (!source)
+                return false;
+            else if (source.length < str.length)
+                return false;
+            else {
+                source = source.substring(0, str.length);
+                if (!ignoreCase)
+                    return source == str;
+                else
+                    return source.toLowerCase() == str.toLowerCase();
+            }
+        }
+        static endsWith(source, str, ignoreCase = false) {
+            if (!source)
+                return false;
+            else if (source.length < str.length)
+                return false;
+            else {
+                source = source.substring(source.length - str.length);
+                if (!ignoreCase)
+                    return source == str;
+                else
+                    return source.toLowerCase() == str.toLowerCase();
+            }
+        }
+        static trim(targetString) {
+            return ToolSet.trimLeft(ToolSet.trimRight(targetString));
+        }
+        static trimLeft(targetString) {
+            var tempChar = "";
+            for (var i = 0; i < targetString.length; i++) {
+                tempChar = targetString.charAt(i);
+                if (tempChar != " " && tempChar != "\n" && tempChar != "\r") {
+                    break;
+                }
+            }
+            return targetString.substr(i);
+        }
+        static trimRight(targetString) {
+            var tempChar = "";
+            for (var i = targetString.length - 1; i >= 0; i--) {
+                tempChar = targetString.charAt(i);
+                if (tempChar != " " && tempChar != "\n" && tempChar != "\r") {
+                    break;
+                }
+            }
+            return targetString.substring(0, i + 1);
+        }
+        static convertToHtmlColor(argb, hasAlpha = false) {
+            var alpha;
+            if (hasAlpha)
+                alpha = (argb >> 24 & 0xFF).toString(16);
+            else
+                alpha = "";
+            var red = (argb >> 16 & 0xFF).toString(16);
+            var green = (argb >> 8 & 0xFF).toString(16);
+            var blue = (argb & 0xFF).toString(16);
+            if (alpha.length == 1)
+                alpha = "0" + alpha;
+            if (red.length == 1)
+                red = "0" + red;
+            if (green.length == 1)
+                green = "0" + green;
+            if (blue.length == 1)
+                blue = "0" + blue;
+            return "#" + alpha + red + green + blue;
+        }
+        static convertFromHtmlColor(str, hasAlpha = false) {
+            if (str.length < 1)
+                return 0;
+            if (str.charAt(0) == "#")
+                str = str.substr(1);
+            if (str.length == 8)
+                return (parseInt(str.substr(0, 2), 16) << 24) + parseInt(str.substr(2), 16);
+            else if (hasAlpha)
+                return 0xFF000000 + parseInt(str, 16);
+            else
+                return parseInt(str, 16);
+        }
+        static displayObjectToGObject(obj) {
+            while (obj != null && !(obj instanceof Laya.Stage)) {
+                if (obj["$owner"])
+                    return obj["$owner"];
+                obj = obj.parent;
+            }
+            return null;
+        }
+        static encodeHTML(str) {
+            if (!str)
+                return "";
+            else
+                return str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&apos;");
+        }
+        static parseUBB(text) {
+            return ToolSet.defaultUBBParser.parse(text);
+        }
+        static removeUBB(text) {
+            return ToolSet.defaultUBBParser.parse(text, true);
+        }
+        static clamp(value, min, max) {
+            if (value < min)
+                value = min;
+            else if (value > max)
+                value = max;
+            return value;
+        }
+        static clamp01(value) {
+            if (isNaN(value))
+                value = 0;
+            else if (value > 1)
+                value = 1;
+            else if (value < 0)
+                value = 0;
+            return value;
+        }
+        static lerp(start, end, percent) {
+            return (start + percent * (end - start));
+        }
+        static repeat(t, length) {
+            return t - Math.floor(t / length) * length;
+        }
+        static distance(x1, y1, x2, y2) {
+            return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
+        }
+        static setColorFilter(obj, color) {
+            var filters = obj.filters;
+            var filter;
+            if (filters) {
+                for (var i = 0; i < filters.length; i++) {
+                    var fs = filters[i];
+                    if (fs instanceof Laya.ColorFilter) {
+                        filter = fs;
+                        break;
+                    }
+                }
+            }
+            var tp = typeof (color);
+            var toApplyColor;
+            var toApplyGray;
+            if (tp == "boolean") {
+                toApplyColor = filter ? filter["_color_"] : null;
+                toApplyGray = color;
+            }
+            else {
+                if (typeof (color) == "string") {
+                    var arr = Laya.ColorUtils.create(color).arrColor;
+                    if (arr[0] == 1 && arr[1] == 1 && arr[2] == 1)
+                        color = null;
+                    else {
+                        color = [arr[0], 0, 0, 0, 0,
+                            0, arr[1], 0, 0, 0,
+                            0, 0, arr[2], 0, 0,
+                            0, 0, 0, 1, 0];
+                    }
+                }
+                toApplyColor = color;
+                toApplyGray = filter ? filter["_grayed_"] : false;
+            }
+            if (!toApplyColor && !toApplyGray) {
+                if (filters) {
+                    var i = filters.indexOf(filter);
+                    if (i != -1) {
+                        filters.splice(i, 1);
+                        if (filters.length > 0)
+                            obj.filters = filters;
+                        else
+                            obj.filters = null;
+                    }
+                }
+                return;
+            }
+            if (!filter) {
+                filter = new Laya.ColorFilter();
+                if (!filters)
+                    filters = [filter];
+                else
+                    filters.push(filter);
+                obj.filters = filters;
+            }
+            filter.reset();
+            filter["_color_"] = toApplyColor;
+            filter["_grayed_"] = toApplyGray;
+            if (toApplyGray) {
+                filter.gray();
+            }
+            else if (toApplyColor) {
+                if (toApplyColor.length == 20) {
+                    filter.setByMatrix(toApplyColor);
+                }
+                else {
+                    filter.adjustBrightness(toApplyColor[0]);
+                    filter.adjustContrast(toApplyColor[1]);
+                    filter.adjustSaturation(toApplyColor[2]);
+                    filter.adjustHue(toApplyColor[3]);
+                }
+            }
+        }
+    }
+    ToolSet.defaultUBBParser = new fgui.UBBParser();
+    fgui.ToolSet = ToolSet;
 })(fgui || (fgui = {}));
