@@ -9229,7 +9229,6 @@ window.fgui = {};
                 button.changeStateOnClick = false;
             }
             child.on(Laya.Event.CLICK, this, this.__clickItem);
-            child.on(Laya.Event.DOUBLE_CLICK, this, this.__clickItem);
             return child;
         }
         addItem(url) {
@@ -9244,10 +9243,8 @@ window.fgui = {};
             var child = super.removeChildAt(index);
             if (dispose)
                 child.dispose();
-            else {
+            else
                 child.off(Laya.Event.CLICK, this, this.__clickItem);
-                child.off(Laya.Event.DOUBLE_CLICK, this, this.__clickItem);
-            }
             return child;
         }
         removeChildToPoolAt(index) {
@@ -9589,7 +9586,6 @@ window.fgui = {};
             }
         }
         __clickItem(evt) {
-            console.log(evt.type);
             if (this._scrollPane != null && this._scrollPane.isDragged)
                 return;
             var item = fgui.GObject.cast(evt.currentTarget);
@@ -13942,10 +13938,10 @@ window.fgui = {};
         set target(value) {
             if (this._target != value) {
                 if (this._target)
-                    this.releaseRefTarget(this._target);
+                    this.releaseRefTarget();
                 this._target = value;
                 if (this._target)
-                    this.addRefTarget(this._target);
+                    this.addRefTarget();
             }
         }
         get target() {
@@ -13994,7 +13990,7 @@ window.fgui = {};
             }
         }
         copyFrom(source) {
-            this.target = source.target;
+            this._target = source.target;
             this._defs.length = 0;
             var cnt = source._defs.length;
             for (var i = 0; i < cnt; i++) {
@@ -14006,7 +14002,7 @@ window.fgui = {};
         }
         dispose() {
             if (this._target != null) {
-                this.releaseRefTarget(this._target);
+                this.releaseRefTarget();
                 this._target = null;
             }
         }
@@ -14371,30 +14367,30 @@ window.fgui = {};
                     break;
             }
         }
-        addRefTarget(target) {
-            if (this.target != this._owner.parent)
-                this.target.on(fgui.Events.XY_CHANGED, this, this.__targetXYChanged);
-            this.target.on(fgui.Events.SIZE_CHANGED, this, this.__targetSizeChanged);
-            this.target.on(fgui.Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
+        addRefTarget() {
+            if (this._target != this._owner.parent)
+                this._target.on(fgui.Events.XY_CHANGED, this, this.__targetXYChanged);
+            this._target.on(fgui.Events.SIZE_CHANGED, this, this.__targetSizeChanged);
+            this._target.on(fgui.Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
             this._targetX = this._target.x;
             this._targetY = this._target.y;
             this._targetWidth = this._target._width;
             this._targetHeight = this._target._height;
         }
-        releaseRefTarget(target) {
-            if (this.target.displayObject == null)
+        releaseRefTarget() {
+            if (this._target.displayObject == null)
                 return;
-            this.target.off(fgui.Events.XY_CHANGED, this, this.__targetXYChanged);
-            this.target.off(fgui.Events.SIZE_CHANGED, this, this.__targetSizeChanged);
-            this.target.off(fgui.Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
+            this._target.off(fgui.Events.XY_CHANGED, this, this.__targetXYChanged);
+            this._target.off(fgui.Events.SIZE_CHANGED, this, this.__targetSizeChanged);
+            this._target.off(fgui.Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
         }
-        __targetXYChanged(target) {
+        __targetXYChanged() {
             if (this._owner.relations.handling != null || this._owner.group != null && this._owner.group._updating) {
                 this._targetX = this._target.x;
                 this._targetY = this._target.y;
                 return;
             }
-            this._owner.relations.handling = this.target;
+            this._owner.relations.handling = this._target;
             var ox = this._owner.x;
             var oy = this._owner.y;
             var dx = this._target.x - this._targetX;
@@ -14419,7 +14415,7 @@ window.fgui = {};
             }
             this._owner.relations.handling = null;
         }
-        __targetSizeChanged(target) {
+        __targetSizeChanged() {
             if (this._owner.relations.sizeDirty)
                 this._owner.relations.ensureRelationsSizeCorrect();
             if (this._owner.relations.handling != null) {
@@ -14427,7 +14423,7 @@ window.fgui = {};
                 this._targetHeight = this._target._height;
                 return;
             }
-            this._owner.relations.handling = target;
+            this._owner.relations.handling = this._target;
             var ox = this._owner.x;
             var oy = this._owner.y;
             var ow = this._owner._rawWidth;
@@ -14457,7 +14453,7 @@ window.fgui = {};
             }
             this._owner.relations.handling = null;
         }
-        __targetSizeWillChange(target) {
+        __targetSizeWillChange() {
             this._owner.relations.sizeDirty = true;
         }
     }

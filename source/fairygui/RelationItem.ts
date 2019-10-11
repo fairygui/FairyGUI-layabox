@@ -20,10 +20,10 @@ namespace fgui {
         public set target(value: GObject) {
             if (this._target != value) {
                 if (this._target)
-                    this.releaseRefTarget(this._target);
+                    this.releaseRefTarget();
                 this._target = value;
                 if (this._target)
-                    this.addRefTarget(this._target);
+                    this.addRefTarget();
             }
         }
 
@@ -84,7 +84,7 @@ namespace fgui {
         }
 
         public copyFrom(source: RelationItem): void {
-            this.target = source.target;
+            this._target = source.target;
 
             this._defs.length = 0;
             var cnt: number = source._defs.length;
@@ -98,7 +98,7 @@ namespace fgui {
 
         public dispose(): void {
             if (this._target != null) {
-                this.releaseRefTarget(this._target);
+                this.releaseRefTarget();
                 this._target = null;
             }
         }
@@ -489,11 +489,11 @@ namespace fgui {
             }
         }
 
-        private addRefTarget(target: GObject): void {
-            if (this.target != this._owner.parent)
-                this.target.on(Events.XY_CHANGED, this, this.__targetXYChanged);
-            this.target.on(Events.SIZE_CHANGED, this, this.__targetSizeChanged);
-            this.target.on(Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
+        private addRefTarget(): void {
+            if (this._target != this._owner.parent)
+                this._target.on(Events.XY_CHANGED, this, this.__targetXYChanged);
+            this._target.on(Events.SIZE_CHANGED, this, this.__targetSizeChanged);
+            this._target.on(Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
 
             this._targetX = this._target.x;
             this._targetY = this._target.y;
@@ -501,23 +501,23 @@ namespace fgui {
             this._targetHeight = this._target._height;
         }
 
-        private releaseRefTarget(target: GObject): void {
-            if (this.target.displayObject == null)
+        private releaseRefTarget(): void {
+            if (this._target.displayObject == null)
                 return;
 
-            this.target.off(Events.XY_CHANGED, this, this.__targetXYChanged);
-            this.target.off(Events.SIZE_CHANGED, this, this.__targetSizeChanged);
-            this.target.off(Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
+            this._target.off(Events.XY_CHANGED, this, this.__targetXYChanged);
+            this._target.off(Events.SIZE_CHANGED, this, this.__targetSizeChanged);
+            this._target.off(Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
         }
 
-        private __targetXYChanged(target: GObject): void {
+        private __targetXYChanged(): void {
             if (this._owner.relations.handling != null || this._owner.group != null && this._owner.group._updating) {
                 this._targetX = this._target.x;
                 this._targetY = this._target.y;
                 return;
             }
 
-            this._owner.relations.handling = this.target;
+            this._owner.relations.handling = this._target;
 
             var ox: number = this._owner.x;
             var oy: number = this._owner.y;
@@ -548,7 +548,7 @@ namespace fgui {
             this._owner.relations.handling = null;
         }
 
-        private __targetSizeChanged(target: GObject): void {
+        private __targetSizeChanged(): void {
             if(this._owner.relations.sizeDirty)
                 this._owner.relations.ensureRelationsSizeCorrect();
 
@@ -558,7 +558,7 @@ namespace fgui {
                 return;
             }
 
-            this._owner.relations.handling = target;
+            this._owner.relations.handling = this._target;
 
             var ox: number = this._owner.x;
             var oy: number = this._owner.y;
@@ -596,7 +596,7 @@ namespace fgui {
             this._owner.relations.handling = null;
         }
 
-        private __targetSizeWillChange(target: GObject): void {
+        private __targetSizeWillChange(): void {
             this._owner.relations.sizeDirty = true;
         }
     }
