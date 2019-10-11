@@ -549,13 +549,16 @@ namespace fgui {
         }
 
         private __targetSizeChanged(target: GObject): void {
+            if(this._owner.relations.sizeDirty)
+                this._owner.relations.ensureRelationsSizeCorrect();
+
             if (this._owner.relations.handling != null) {
                 this._targetWidth = this._target._width;
                 this._targetHeight = this._target._height;
                 return;
             }
 
-            this._owner.relations.handling = this.target;
+            this._owner.relations.handling = target;
 
             var ox: number = this._owner.x;
             var oy: number = this._owner.y;

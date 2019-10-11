@@ -73,7 +73,8 @@ namespace fgui {
         ComboBox,
         ProgressBar,
         Slider,
-        ScrollBar
+        ScrollBar,
+        Tree
     };
     export enum ProgressTitleType {
         Percent,

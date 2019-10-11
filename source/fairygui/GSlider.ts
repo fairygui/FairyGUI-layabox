@@ -1,9 +1,11 @@
 namespace fgui {
     export class GSlider extends GComponent {
+        private _min: number = 0;
         private _max: number = 0;
         private _value: number = 0;
         private _titleType: number;
-        private _reverse: boolean = false;
+        private _reverse: boolean;
+        private _wholeNumbers: boolean;
 
         private _titleObject: GObject;
         private _barObjectH: GObject;
@@ -32,18 +34,34 @@ namespace fgui {
             this._clickPos = new Laya.Point();
         }
 
-        /**
-         * @see ProgressTitleType
-         */
         public get titleType(): number {
             return this._titleType;
         }
 
-        /**
-         * @see ProgressTitleType
-         */
         public set titleType(value: number) {
             this._titleType = value;
+        }
+
+        public get wholeNumbers(): boolean {
+            return this._wholeNumbers;
+        }
+
+        public set wholeNumbers(value: boolean) {
+            if (this._wholeNumbers != value) {
+                this._wholeNumbers = value;
+                this.update();
+            }
+        }
+
+        public get min(): number {
+            return this._min;
+        }
+
+        public set min(value: number) {
+            if (this._min != value) {
+                this._min = value;
+                this.update();
+            }
         }
 
         public get max(): number {
@@ -69,11 +87,24 @@ namespace fgui {
         }
 
         public update(): void {
-            var percent: number = Math.min(this._value / this._max, 1);
-            this.updateWidthPercent(percent);
+            this.updateWithPercent((this._value - this._min) / (this._max - this._min));
         }
 
-        private updateWidthPercent(percent: number): void {
+        private updateWithPercent(percent: number, evt?: Laya.Event): void {
+            percent = ToolSet.clamp01(percent);
+            if (evt) {
+                var newValue: number = ToolSet.clamp(this._min + (this._max - this._min) * percent, this._min, this._max);
+                if (this._wholeNumbers) {
+                    newValue = Math.round(newValue);
+                    percent = ToolSet.clamp01((newValue - this._min) / (this._max - this._min));
+                }
+
+                if (newValue != this._value) {
+                    this._value = newValue;
+                    Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
+                }
+            }
+
             if (this._titleObject) {
                 switch (this._titleType) {
                     case ProgressTitleType.Percent:
@@ -119,6 +150,10 @@ namespace fgui {
 
             this._titleType = buffer.readByte();
             this._reverse = buffer.readBool();
+            if (buffer.version >= 2) {
+                this._wholeNumbers = buffer.readBool();
+                this.changeOnClick = buffer.readBool();
+            }
 
             this._titleObject = this.getChild("title");
             this._barObjectH = this.getChild("bar");
@@ -168,6 +203,8 @@ namespace fgui {
 
             this._value = buffer.getInt32();
             this._max = buffer.getInt32();
+            if (buffer.version >= 2)
+                this._min = buffer.getInt32();
 
             this.update();
         }
@@ -177,7 +214,7 @@ namespace fgui {
             evt.stopPropagation();
 
             this._clickPos = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY);
-            this._clickPercent = this._value / this._max;
+            this._clickPercent = ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
 
             Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
             Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
@@ -201,16 +238,7 @@ namespace fgui {
                 percent = this._clickPercent + deltaX / this._barMaxWidth;
             else
                 percent = this._clickPercent + deltaY / this._barMaxHeight;
-            if (percent > 1)
-                percent = 1;
-            else if (percent < 0)
-                percent = 0;
-            var newValue: number = Math.round(this._max * percent);
-            if (newValue != this._value) {
-                this._value = newValue;
-                Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
-            }
-            this.updateWidthPercent(percent);
+            this.updateWithPercent(percent, evt);
         }
 
         private __gripMouseUp(evt: Laya.Event): void {
@@ -223,26 +251,17 @@ namespace fgui {
                 return;
 
             var pt: Laya.Point = this._gripObject.globalToLocal(evt.stageX, evt.stageY, GSlider.sSilderHelperPoint);
-            var percent: number = this._value / this._max;
+            var percent: number = ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
             var delta: number;
             if (this._barObjectH)
-                delta = (pt.x - this._gripObject.width / 2) / this._barMaxWidth;
+                delta = pt.x / this._barMaxWidth;
             if (this._barObjectV)
-                delta = (pt.y - this._gripObject.height / 2) / this._barMaxHeight;
+                delta = pt.y / this._barMaxHeight;
             if (this._reverse)
                 percent -= delta;
             else
                 percent += delta;
-            if (percent > 1)
-                percent = 1;
-            else if (percent < 0)
-                percent = 0;
-            var newValue: number = Math.round(this._max * percent);
-            if (newValue != this._value) {
-                this._value = newValue;
-                Events.dispatch(Events.STATE_CHANGED, this.displayObject, evt);
-            }
-            this.updateWidthPercent(percent);
+            this.updateWithPercent(percent, evt);
         }
     }
 }

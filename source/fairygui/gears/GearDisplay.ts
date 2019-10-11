@@ -1,6 +1,6 @@
 namespace fgui {
     export class GearDisplay extends GearBase {
-        public pages: any[];
+        public pages: string[];
 
         private _visible: number = 0;
         private _displayLockToken: number = 0;

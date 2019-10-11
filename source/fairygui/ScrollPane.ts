@@ -20,10 +20,10 @@ namespace fgui {
 
         private _displayOnLeft: boolean;
         private _snapToItem: boolean;
-        private _displayInDemand: boolean;
         private _mouseWheelEnabled: boolean;
         private _pageMode: boolean;
         private _inertiaDisabled: boolean;
+        private _floating: boolean;
 
         private _xPos: number;
         private _yPos: number;
@@ -41,8 +41,6 @@ namespace fgui {
         private _lastMoveTime: number;
         private _isHoldAreaDone: boolean;
         private _aniFlag: number;
-        private _scrollBarVisible: boolean;
-        public _loop: number;
         private _headerLockedSize: number;
         private _footerLockedSize: number;
         private _refreshEventDispatching: boolean;
@@ -60,9 +58,12 @@ namespace fgui {
         private _header: GComponent;
         private _footer: GComponent;
 
+        public _displayInDemand: boolean;
+        public _loop: number;
         public isDragged: boolean;
+
         public static draggingPane: ScrollPane;
-        private static _gestureFlag: number = 0;
+        public static _gestureFlag: number = 0;
 
         private static sHelperPoint: Laya.Point = new Laya.Point();
         private static sHelperRect: Laya.Rectangle = new Laya.Rectangle();
@@ -83,11 +84,12 @@ namespace fgui {
             this._container.pos(0, 0);
             this._maskContainer.addChild(this._container);
 
-            this._scrollBarVisible = true;
             this._mouseWheelEnabled = true;
             this._xPos = 0;
             this._yPos = 0;
             this._aniFlag = 0;
+            this._tweening = 0;
+            this._loop = 0;
             this._footerLockedSize = 0;
             this._headerLockedSize = 0;
             this._scrollBarMargin = new Margin();
@@ -148,6 +150,7 @@ namespace fgui {
             this._inertiaDisabled = (flags & 256) != 0;
             if ((flags & 512) == 0)
                 this._maskContainer.scrollRect = new Laya.Rectangle();
+            this._floating = (flags & 1024) != 0;
 
             if (scrollBarDisplay == ScrollBarDisplayType.Default)
                 scrollBarDisplay = UIConfig.defaultScrollBarDisplay;
@@ -176,7 +179,6 @@ namespace fgui {
 
                 this._scrollBarDisplayAuto = scrollBarDisplay == ScrollBarDisplayType.Auto;
                 if (this._scrollBarDisplayAuto) {
-                    this._scrollBarVisible = false;
                     if (this._vtScrollBar)
                         this._vtScrollBar.displayObject.visible = false;
                     if (this._hzScrollBar)
@@ -373,7 +375,7 @@ namespace fgui {
 
         public set viewWidth(value: number) {
             value = value + this._owner.margin.left + this._owner.margin.right;
-            if (this._vtScrollBar != null)
+            if (this._vtScrollBar != null && !this._floating)
                 value += this._vtScrollBar.width;
             this._owner.width = value;
         }
@@ -384,7 +386,7 @@ namespace fgui {
 
         public set viewHeight(value: number) {
             value = value + this._owner.margin.top + this._owner.margin.bottom;
-            if (this._hzScrollBar != null)
+            if (this._hzScrollBar != null && !this._floating)
                 value += this._hzScrollBar.height;
             this._owner.height = value;
         }
@@ -589,9 +591,7 @@ namespace fgui {
                 this._tweenChange.setTo(0, 0);
                 this._tweenChange[this._refreshBarAxis] = this._headerLockedSize - this._tweenStart[this._refreshBarAxis];
                 this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
-                this._tweenTime.setTo(0, 0);
-                this._tweening = 2;
-                Laya.timer.frameLoop(1, this, this.tweenUpdate);
+                this.startTween(2);
             }
         }
 
@@ -611,9 +611,7 @@ namespace fgui {
                     max += this._footerLockedSize;
                 this._tweenChange[this._refreshBarAxis] = -max - this._tweenStart[this._refreshBarAxis];
                 this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
-                this._tweenTime.setTo(0, 0);
-                this._tweening = 2;
-                Laya.timer.frameLoop(1, this, this.tweenUpdate);
+                this.startTween(2);
             }
         }
 
@@ -649,7 +647,7 @@ namespace fgui {
 
         public adjustMaskContainer(): void {
             var mx: number, my: number;
-            if (this._displayOnLeft && this._vtScrollBar != null)
+            if (this._displayOnLeft && this._vtScrollBar != null && !this._floating)
                 mx = Math.floor(this._owner.margin.left + this._vtScrollBar.width);
             else
                 mx = Math.floor(this._owner.margin.left);
@@ -700,9 +698,9 @@ namespace fgui {
 
             this._viewSize.x = aWidth;
             this._viewSize.y = aHeight;
-            if (this._hzScrollBar && !this._hScrollNone)
+            if (this._hzScrollBar && !this._floating)
                 this._viewSize.y -= this._hzScrollBar.height;
-            if (this._vtScrollBar && !this._vScrollNone)
+            if (this._vtScrollBar && !this._floating)
                 this._viewSize.x -= this._vtScrollBar.width;
             this._viewSize.x -= (this._owner.margin.left + this._owner.margin.right);
             this._viewSize.y -= (this._owner.margin.top + this._owner.margin.bottom);
@@ -787,66 +785,35 @@ namespace fgui {
                 this.updatePageController();
         }
 
-        private handleSizeChanged(onScrolling: boolean = false): void {
+        private handleSizeChanged(): void {
             if (this._displayInDemand) {
-                if (this._vtScrollBar) {
-                    if (this._contentSize.y <= this._viewSize.y) {
-                        if (!this._vScrollNone) {
-                            this._vScrollNone = true;
-                            this._viewSize.x += this._vtScrollBar.width;
-                        }
-                    }
-                    else {
-                        if (this._vScrollNone) {
-                            this._vScrollNone = false;
-                            this._viewSize.x -= this._vtScrollBar.width;
-                        }
-                    }
-                }
-                if (this._hzScrollBar) {
-                    if (this._contentSize.x <= this._viewSize.x) {
-                        if (!this._hScrollNone) {
-                            this._hScrollNone = true;
-                            this._viewSize.y += this._hzScrollBar.height;
-                        }
-                    }
-                    else {
-                        if (this._hScrollNone) {
-                            this._hScrollNone = false;
-                            this._viewSize.y -= this._hzScrollBar.height;
-                        }
-                    }
-                }
+                this._vScrollNone = this._contentSize.y <= this._viewSize.y;
+                this._hScrollNone = this._contentSize.x <= this._viewSize.x;
             }
 
             if (this._vtScrollBar) {
-                if (this._viewSize.y < this._vtScrollBar.minSize)
-                    //没有使用_vtScrollBar.visible是因为ScrollBar用了一个trick，它并不在owner的DisplayList里，因此_vtScrollBar.visible是无效的
-                    this._vtScrollBar.displayObject.visible = false;
-                else {
-                    this._vtScrollBar.displayObject.visible = this._scrollBarVisible && !this._vScrollNone;
-                    if (this._contentSize.y == 0)
-                        this._vtScrollBar.displayPerc = 0;
-                    else
-                        this._vtScrollBar.displayPerc = Math.min(1, this._viewSize.y / this._contentSize.y);
-                }
+                if (this._contentSize.y == 0)
+                    this._vtScrollBar.setDisplayPerc(0);
+                else
+                    this._vtScrollBar.setDisplayPerc(Math.min(1, this._viewSize.y / this._contentSize.y));
             }
             if (this._hzScrollBar) {
-                if (this._viewSize.x < this._hzScrollBar.minSize)
-                    this._hzScrollBar.displayObject.visible = false;
-                else {
-                    this._hzScrollBar.displayObject.visible = this._scrollBarVisible && !this._hScrollNone;
-                    if (this._contentSize.x == 0)
-                        this._hzScrollBar.displayPerc = 0;
-                    else
-                        this._hzScrollBar.displayPerc = Math.min(1, this._viewSize.x / this._contentSize.x);
-                }
+                if (this._contentSize.x == 0)
+                    this._hzScrollBar.setDisplayPerc(0);
+                else
+                    this._hzScrollBar.setDisplayPerc(Math.min(1, this._viewSize.x / this._contentSize.x));
             }
+
+            this.updateScrollBarVisible();
 
             var rect: Laya.Rectangle = this._maskContainer.scrollRect;
             if (rect) {
                 rect.width = this._viewSize.x;
                 rect.height = this._viewSize.y;
+                if (this._vScrollNone && this._vtScrollBar)
+                    rect.width += this._vtScrollBar.width;
+                if (this._hScrollNone && this._hzScrollBar)
+                    rect.height += this._hzScrollBar.height;
                 this._maskContainer.scrollRect = rect;
             }
 
@@ -897,8 +864,7 @@ namespace fgui {
                     ToolSet.clamp(this._container.y, -this._overlapSize.y, 0));
             }
 
-            this.syncScrollBar(true);
-            this.checkRefreshBar();
+            this.updateScrollBarPos();
             if (this._pageMode)
                 this.updatePageController();
         }
@@ -935,7 +901,7 @@ namespace fgui {
                 this.refresh2();
             }
 
-            this.syncScrollBar();
+            this.updateScrollBarPos();
             this._aniFlag = 0;
         }
 
@@ -960,12 +926,10 @@ namespace fgui {
                 }
 
                 if (posX != this._container.x || posY != this._container.y) {
-                    this._tweening = 1;
-                    this._tweenTime.setTo(0, 0);
                     this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_GO, ScrollPane.TWEEN_TIME_GO);
                     this._tweenStart.setTo(this._container.x, this._container.y);
                     this._tweenChange.setTo(posX - this._tweenStart.x, posY - this._tweenStart.y);
-                    Laya.timer.frameLoop(1, this, this.tweenUpdate);
+                    this.startTween(1);
                 }
                 else if (this._tweening != 0)
                     this.killTween();
@@ -981,22 +945,6 @@ namespace fgui {
 
             if (this._pageMode)
                 this.updatePageController();
-        }
-
-        private syncScrollBar(end: boolean = false): void {
-            if (this._vtScrollBar != null) {
-                this._vtScrollBar.scrollPerc = this._overlapSize.y == 0 ? 0 : ToolSet.clamp(-this._container.y, 0, this._overlapSize.y) / this._overlapSize.y;
-                if (this._scrollBarDisplayAuto)
-                    this.showScrollBar(!end);
-            }
-            if (this._hzScrollBar != null) {
-                this._hzScrollBar.scrollPerc = this._overlapSize.x == 0 ? 0 : ToolSet.clamp(-this._container.x, 0, this._overlapSize.x) / this._overlapSize.x;
-                if (this._scrollBarDisplayAuto)
-                    this.showScrollBar(!end);
-            }
-
-            if (end)
-                this._maskContainer.mouseEnabled = true;
         }
 
         private __mouseDown(): void {
@@ -1193,8 +1141,8 @@ namespace fgui {
             this.isDragged = true;
             this._maskContainer.mouseEnabled = false;
 
-            this.syncScrollBar();
-            this.checkRefreshBar();
+            this.updateScrollBarPos();
+            this.updateScrollBarVisible();
             if (this._pageMode)
                 this.updatePageController();
 
@@ -1296,8 +1244,7 @@ namespace fgui {
                 this._tweenChange.x = ScrollPane.sEndPos.x - this._tweenStart.x;
                 this._tweenChange.y = ScrollPane.sEndPos.y - this._tweenStart.y;
                 if (this._tweenChange.x == 0 && this._tweenChange.y == 0) {
-                    if (this._scrollBarDisplayAuto)
-                        this.showScrollBar(false);
+                    this.updateScrollBarVisible();
                     return;
                 }
 
@@ -1308,9 +1255,7 @@ namespace fgui {
                 }
             }
 
-            this._tweening = 2;
-            this._tweenTime.setTo(0, 0);
-            Laya.timer.frameLoop(1, this, this.tweenUpdate);
+            this.startTween(2);
         }
 
         private __click(): void {
@@ -1320,8 +1265,6 @@ namespace fgui {
         private __mouseWheel(evt: Laya.Event): void {
             if (!this._mouseWheelEnabled)
                 return;
-
-            var pt: Laya.Point = this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, ScrollPane.sHelperPoint);
 
             var delta: number = evt["delta"];
             delta = delta > 0 ? -1 : (delta < 0 ? 1 : 0);
@@ -1339,29 +1282,50 @@ namespace fgui {
             }
         }
 
-        private __rollOver(): void {
-            this.showScrollBar(true);
+        private updateScrollBarPos(): void {
+            if (this._vtScrollBar != null)
+                this._vtScrollBar.setScrollPerc(this._overlapSize.y == 0 ? 0 : ToolSet.clamp(-this._container.y, 0, this._overlapSize.y) / this._overlapSize.y);
+
+            if (this._hzScrollBar != null)
+                this._hzScrollBar.setScrollPerc(this._overlapSize.x == 0 ? 0 : ToolSet.clamp(-this._container.x, 0, this._overlapSize.x) / this._overlapSize.x);
+
+            this.checkRefreshBar();
         }
 
-        private __rollOut(): void {
-            this.showScrollBar(false);
-        }
-
-        private showScrollBar(val: boolean): void {
-            if (val) {
-                this.__showScrollBar(true);
-                Laya.timer.clear(this, this.__showScrollBar);
+        public updateScrollBarVisible(): void {
+            if (this._vtScrollBar) {
+                if (this._viewSize.y <= this._vtScrollBar.minSize || this._vScrollNone)
+                    this._vtScrollBar.displayObject.visible = false;
+                else
+                    this.updateScrollBarVisible2(this._vtScrollBar); 
             }
-            else
-                Laya.timer.once(500, this, this.__showScrollBar, [val]);
+
+            if (this._hzScrollBar) {
+                if (this._viewSize.x <= this._hzScrollBar.minSize || this._hScrollNone)
+                    this._hzScrollBar.displayObject.visible = false;
+                else
+                    this.updateScrollBarVisible2(this._hzScrollBar);
+            }
         }
 
-        private __showScrollBar(val: boolean): void {
-            this._scrollBarVisible = val && this._viewSize.x > 0 && this._viewSize.y > 0;
-            if (this._vtScrollBar)
-                this._vtScrollBar.displayObject.visible = this._scrollBarVisible && !this._vScrollNone;
-            if (this._hzScrollBar)
-                this._hzScrollBar.displayObject.visible = this._scrollBarVisible && !this._hScrollNone;
+        private updateScrollBarVisible2(bar: GScrollBar): void {
+            if (this._scrollBarDisplayAuto)
+                GTween.kill(bar, false, "alpha");
+
+            if (this._scrollBarDisplayAuto && this._tweening == 0 && !this.isDragged && !bar.gripDragging) {
+                if (bar.displayObject.visible)
+                    GTween.to(1, 0, 0.5).setDelay(0.5).onComplete(this.__barTweenComplete).setTarget(bar, "alpha");
+            }
+            else {
+                bar.alpha = 1;
+                bar.displayObject.visible = true;
+            }
+        }
+
+        private __barTweenComplete(tweener: GTweener): void {
+            var bar: GObject = <GObject>(tweener.target);
+            bar.alpha = 1;
+            bar.displayObject.visible = false;
         }
 
         private getLoopPartSize(division: number, axis: string): number {
@@ -1602,6 +1566,14 @@ namespace fgui {
             this._tweenDuration[axis] = newDuration;
         }
 
+        private startTween(type: number): void {
+            this._tweenTime.setTo(0, 0);
+            this._tweening = type;
+            Laya.timer.frameLoop(1, this, this.tweenUpdate);
+
+            this.updateScrollBarVisible();
+        }
+
         private killTween(): void {
             if (this._tweening == 1) //取消类型为1的tween需立刻设置到终点
             {
@@ -1611,6 +1583,9 @@ namespace fgui {
 
             this._tweening = 0;
             Laya.timer.clear(this, this.tweenUpdate);
+
+            this.updateScrollBarVisible();
+            
             Events.dispatch(Events.SCROLL_END, this._owner.displayObject);
         }
 
@@ -1684,16 +1659,15 @@ namespace fgui {
                 Laya.timer.clear(this, this.tweenUpdate);
 
                 this.loopCheckingCurrent();
+                this.updateScrollBarPos();
+                this.updateScrollBarVisible();
 
-                this.syncScrollBar(true);
-                this.checkRefreshBar();
                 Events.dispatch(Events.SCROLL, this._owner.displayObject);
                 Events.dispatch(Events.SCROLL_END, this._owner.displayObject);
 
             }
             else {
-                this.syncScrollBar(false);
-                this.checkRefreshBar();
+                this.updateScrollBarPos();
                 Events.dispatch(Events.SCROLL, this._owner.displayObject);
             }
         }

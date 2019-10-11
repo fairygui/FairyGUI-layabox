@@ -268,17 +268,15 @@ namespace fgui {
                     var color: string = Laya.Utils.toHexColor((r << 16) + (r << 8) + r);
                     for (var i: number = 0; i < cnt; i++) {
                         var obj: GObject = this.getChildAt(i);
-                        if ((obj instanceof GImage) || (obj instanceof GLoader)
-                            || (obj instanceof GMovieClip))//instanceof IColorGear
-                            obj.color = color;
+                        if (!(obj instanceof GTextField))
+                            obj.setProp(ObjectPropID.Color, color);
                     }
                 }
                 else {
                     for (i = 0; i < cnt; i++) {
                         obj = this.getChildAt(i);
-                        if ((obj instanceof GImage) || (obj instanceof GLoader)
-                            || (obj instanceof GMovieClip))
-                            obj.color = "#FFFFFF";
+                        if (!(obj instanceof GTextField))
+                            obj.setProp(ObjectPropID.Color, "#FFFFFF");
                     }
                 }
             }

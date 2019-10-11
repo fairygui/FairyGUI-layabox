@@ -95,16 +95,10 @@ namespace fgui {
             }
         }
 
-        /**
-         * @see LoaderFillType
-         */
         public get fill(): number {
             return this._fill;
         }
 
-        /**
-         * @see LoaderFillType
-         */
         public set fill(value: number) {
             if (this._fill != value) {
                 this._fill = value;
@@ -200,8 +194,14 @@ namespace fgui {
             if (this._contentItem != null) {
                 this._contentItem.load();
 
+                this._contentItem = this._contentItem.getBranch();
+                this._contentSourceWidth = this._contentItem.width;
+                this._contentSourceHeight = this._contentItem.height;
+
                 if (this._autoSize)
-                    this.setSize(this._contentItem.width, this._contentItem.height);
+                    this.setSize(this._contentSourceWidth, this._contentSourceHeight);
+
+                this._contentItem = this._contentItem.getHighResolution();
 
                 if (this._contentItem.type == PackageItemType.Image) {
                     if (this._contentItem.texture == null) {
@@ -237,8 +237,6 @@ namespace fgui {
                     else {
                         this._content2 = obj.asCom;
                         this._displayObject.addChild(this._content2.displayObject);
-                        this._contentSourceWidth = this._contentItem.width;
-                        this._contentSourceHeight = this._contentItem.height;
                         this.updateLayout();
                     }
                 }

@@ -1072,6 +1072,7 @@
             this._list.itemProvider = Laya.Handler.create(this, this.getListItemResource, null, false);
             this._list.itemRenderer = Laya.Handler.create(this, this.renderListItem, null, false);
             this._input = this._view.getChild("input1").asTextInput;
+            this._input.nativeInput.on(Laya.Event.ENTER, this, this.onSubmit);
             this._view.getChild("btnSend1").onClick(this, this.onClickSendBtn);
             this._view.getChild("btnEmoji1").onClick(this, this.onClickEmojiBtn);
             this._emojiSelectUI = fgui.UIPackage.createObject("Chat", "EmojiSelectUI").asCom;
@@ -1090,7 +1091,7 @@
                     let replyMessage = new Message();
                     replyMessage.sender = "FairyGUI";
                     replyMessage.senderIcon = "r1";
-                    replyMessage.msg = "Today is a good day. [:gz]";
+                    replyMessage.msg = "Today is a good day. ";
                     replyMessage.fromMe = false;
                     this._messages.push(replyMessage);
                 }
@@ -1113,7 +1114,11 @@
             if (!msg.fromMe)
                 item.getChild("name").text = msg.sender;
             item.icon = fgui.UIPackage.getItemURL("Chat", msg.senderIcon);
-            item.getChild("msg").text = this._emojiParser.parse(msg.msg);
+            var txtObj = item.getChild("msg").asRichTextField;
+            txtObj.width = txtObj.initWidth;
+            txtObj.text = this._emojiParser.parse(msg.msg);
+            if (txtObj.textWidth < txtObj.width)
+                txtObj.width = txtObj.textWidth;
         }
         onClickSendBtn() {
             let msg = this._input.text;
@@ -1182,6 +1187,9 @@
             fgui.UIPackage.loadPackage("res/UI/TreeView", Laya.Handler.create(this, this.onUILoaded));
         }
         onUILoaded() {
+            this._view = fgui.UIPackage.createObject("TreeView", "Main").asCom;
+            this._view.makeFullScreen();
+            fgui.GRoot.inst.addChild(this._view);
         }
     }
 

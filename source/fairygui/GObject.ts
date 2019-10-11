@@ -55,6 +55,7 @@ namespace fgui {
         public _underConstruct: boolean;
         public _gearLocked: boolean;
         public _sizePercentInGroup: number = 0;
+        public _treeNode: GTreeNode;
 
         public static _gInstanceCounter: number = 0;
 
@@ -65,7 +66,7 @@ namespace fgui {
             this.createDisplayObject();
 
             this._relations = new Relations(this);
-            this._gears = [];
+            this._gears = new Array<GearBase>(10);
         }
 
         public get id(): string {
@@ -112,7 +113,7 @@ namespace fgui {
                 if (this._parent && !(this._parent instanceof GList)) {
                     this._parent.setBoundsChangedFlag();
                     if (this._group != null)
-                        this._group.setBoundsChangedFlag();
+                        this._group.setBoundsChangedFlag(true);
                     this.displayObject.event(Events.XY_CHANGED);
                 }
 
@@ -227,7 +228,7 @@ namespace fgui {
                     this._relations.onOwnerSizeChanged(dWidth, dHeight, this._pivotAsAnchor || !ignorePivot);
                     this._parent.setBoundsChangedFlag();
                     if (this._group != null)
-                        this._group.setBoundsChangedFlag(true);
+                        this._group.setBoundsChangedFlag();
                 }
 
                 this.displayObject.event(Events.SIZE_CHANGED);
@@ -451,6 +452,8 @@ namespace fgui {
                 this.handleVisibleChanged();
                 if (this._parent)
                     this._parent.setBoundsChangedFlag();
+                if (this._group)
+                    this._group.setBoundsChangedFlag();
             }
         }
 
@@ -461,6 +464,10 @@ namespace fgui {
 
         public get internalVisible2(): boolean {
             return this._visible && (!this._group || this._group.internalVisible2);
+        }
+
+        public get internalVisible3(): boolean {
+            return this._internalVisible && this._visible;
         }
 
         public get sortingOrder(): number {
@@ -564,10 +571,10 @@ namespace fgui {
         public set group(value: GGroup) {
             if (this._group != value) {
                 if (this._group != null)
-                    this._group.setBoundsChangedFlag(true);
+                    this._group.setBoundsChangedFlag();
                 this._group = value;
                 if (this._group != null)
-                    this._group.setBoundsChangedFlag(true);
+                    this._group.setBoundsChangedFlag();
             }
         }
 
@@ -577,37 +584,8 @@ namespace fgui {
 
         public getGear(index: number): GearBase {
             var gear: GearBase = this._gears[index];
-            if (gear == null) {
-                switch (index) {
-                    case 0:
-                        gear = new GearDisplay(this);
-                        break;
-                    case 1:
-                        gear = new GearXY(this);
-                        break;
-                    case 2:
-                        gear = new GearSize(this);
-                        break;
-                    case 3:
-                        gear = new GearLook(this);
-                        break;
-                    case 4:
-                        gear = new GearColor(this);
-                        break;
-                    case 5:
-                        gear = new GearAnimation(this);
-                        break;
-                    case 6:
-                        gear = new GearText(this);
-                        break;
-                    case 7:
-                        gear = new GearIcon(this);
-                        break;
-                    default:
-                        throw new Error("FairyGUI: invalid gear index!");
-                }
-                this._gears[index] = gear;
-            }
+            if (gear == null)
+                this._gears[index] = gear = GearBase.create(this, index);
             return gear;
         }
 
@@ -654,10 +632,16 @@ namespace fgui {
                 return;
 
             var connected: boolean = this._gears[0] == null || (<GearDisplay>(this._gears[0])).connected;
+            if (this._gears[8])
+                connected = (<GearDisplay2>this._gears[8]).evaluate(connected);
+
             if (connected != this._internalVisible) {
                 this._internalVisible = connected;
-                if (this._parent)
+                if (this._parent) {
                     this._parent.childStateChanged(this);
+                    if (this._group)
+                        this._group.setBoundsChangedFlag();
+                }
             }
         }
 
@@ -739,6 +723,10 @@ namespace fgui {
             return <GList><any>this;
         }
 
+        public get asTree(): GTree {
+            return <GTree><any>this;
+        }
+
         public get asGraph(): GGraph {
             return <GGraph><any>this;
         }
@@ -777,6 +765,10 @@ namespace fgui {
         public set icon(value: string) {
         }
 
+        public get treeNode(): GTreeNode {
+            return this._treeNode;
+        }
+
         public get isDisposed(): boolean {
             return this._displayObject == null;
         }
@@ -786,7 +778,7 @@ namespace fgui {
             this._relations.dispose();
             this._displayObject.destroy();
             this._displayObject = null;
-            for (var i: number = 0; i < 8; i++) {
+            for (var i: number = 0; i < 10; i++) {
                 var gear: GearBase = this._gears[i];
                 if (gear != null)
                     gear.dispose();
@@ -917,7 +909,7 @@ namespace fgui {
 
         public handleControllerChanged(c: Controller): void {
             this._handlingController = true;
-            for (var i: number = 0; i < 8; i++) {
+            for (var i: number = 0; i < 10; i++) {
                 var gear: GearBase = this._gears[i];
                 if (gear != null && gear.controller == c)
                     gear.apply();
@@ -948,36 +940,23 @@ namespace fgui {
         }
 
         protected handleSizeChanged(): void {
-            if (this._displayObject != null)
-                this._displayObject.size(this._width, this._height);
+            this._displayObject.size(this._width, this._height);
         }
 
         protected handleScaleChanged(): void {
-            if (this._displayObject != null)
-                this._displayObject.scale(this._scaleX, this._scaleY, true);
+            this._displayObject.scale(this._scaleX, this._scaleY, true);
         }
 
-        private static grayFilter: Laya.ColorFilter = null;
         protected handleGrayedChanged(): void {
-            if (this._displayObject) {
-                if (this._grayed) {
-                    if (GObject.grayFilter == null)
-                        GObject.grayFilter = new Laya.ColorFilter([0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0, 0, 0, 1, 0]);
-                    this._displayObject.filters = [GObject.grayFilter];
-                }
-                else
-                    this._displayObject.filters = null;
-            }
+            ToolSet.setColorFilter(this._displayObject, this._grayed);
         }
 
         protected handleAlphaChanged(): void {
-            if (this._displayObject)
-                this._displayObject.alpha = this._alpha;
+            this._displayObject.alpha = this._alpha;
         }
 
         public handleVisibleChanged(): void {
-            if (this._displayObject)
-                this._displayObject.visible = this.internalVisible2;
+            this._displayObject.visible = this.internalVisible2;
         }
 
         public getProp(index: number): any {
@@ -1087,13 +1066,8 @@ namespace fgui {
 
             var filter: number = buffer.readByte();
             if (filter == 1) {
-                var cm: ColorMatrix = new ColorMatrix();
-                cm.adjustBrightness(buffer.getFloat32());
-                cm.adjustContrast(buffer.getFloat32());
-                cm.adjustSaturation(buffer.getFloat32());
-                cm.adjustHue(buffer.getFloat32());
-                var cf: Laya.ColorFilter = new Laya.ColorFilter(cm);
-                this.filters = [cf];
+                ToolSet.setColorFilter(this._displayObject,
+                    [buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()]);
             }
 
             var str: string = buffer.readS();

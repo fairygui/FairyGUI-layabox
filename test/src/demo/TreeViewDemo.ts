@@ -6,6 +6,8 @@ export default class TreeViewDemo {
     }
 
     onUILoaded() {
-       
+        this._view = fgui.UIPackage.createObject("TreeView", "Main").asCom;
+        this._view.makeFullScreen();
+        fgui.GRoot.inst.addChild(this._view);
     }
 }

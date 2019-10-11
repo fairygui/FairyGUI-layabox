@@ -5,6 +5,11 @@ namespace fgui {
         protected _gearColor: GearColor;
         protected _templateVars: Object;
         protected _text: string;
+        protected _autoSize: number;
+        protected _widthAutoSize: boolean;
+        protected _heightAutoSize: boolean;
+        protected _ubbEnabled: boolean;
+        protected _updatingSize: boolean;
 
         constructor() {
             super();
@@ -104,24 +109,28 @@ namespace fgui {
         }
 
         public set ubbEnabled(value: boolean) {
+            this._ubbEnabled = value;
         }
 
         public get ubbEnabled(): boolean {
-            return false;
+            return this._ubbEnabled;
         }
 
-        /**
-         * @see AutoSizeType
-         */
         public get autoSize(): number {
-            return AutoSizeType.None;
+            return this._autoSize;
         }
 
-        /**
-         * @see AutoSizeType
-         */
         public set autoSize(value: number) {
+            if (this._autoSize != value) {
+                this._autoSize = value;
+                this._widthAutoSize = this._autoSize == AutoSizeType.Both;
+                this._heightAutoSize = this._autoSize == AutoSizeType.Both || this._autoSize == AutoSizeType.Height;
 
+                this.updateAutoSize();
+            }
+        }
+
+        protected updateAutoSize(): void {
         }
 
         public get textWidth(): number {

@@ -37,6 +37,14 @@ namespace fgui {
                 return this.stringTable[index];
         }
 
+        public readSArray(cnt: number): Array<string> {
+            var ret: Array<string> = new Array<string>(cnt);
+            for (var i: number = 0; i < cnt; i++)
+                ret[i] = this.readS();
+
+            return ret;
+        }
+
         public writeS(value: string): void {
             var index: number = this.getUint16();
             if (index != 65534 && index != 65533)

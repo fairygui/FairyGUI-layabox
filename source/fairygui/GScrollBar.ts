@@ -9,6 +9,7 @@ namespace fgui {
         private _vertical: boolean;
         private _scrollPerc: number = 0;
         private _fixedGripSize: boolean;
+        private _gripDragging: boolean;
 
         private _dragOffset: Laya.Point;
 
@@ -23,20 +24,22 @@ namespace fgui {
             this._vertical = vertical;
         }
 
-        public set displayPerc(val: number) {
+        public setDisplayPerc(value: number) {
             if (this._vertical) {
                 if (!this._fixedGripSize)
-                    this._grip.height = val * this._bar.height;
+                    this._grip.height = Math.floor(value * this._bar.height);
                 this._grip.y = this._bar.y + (this._bar.height - this._grip.height) * this._scrollPerc;
+
             }
             else {
                 if (!this._fixedGripSize)
-                    this._grip.width = val * this._bar.width;
+                    this._grip.width = Math.floor(value * this._bar.width);
                 this._grip.x = this._bar.x + (this._bar.width - this._grip.width) * this._scrollPerc;
             }
+            this._grip.visible = value != 0 && value != 1;
         }
 
-        public set scrollPerc(val: number) {
+        public setScrollPerc(val: number) {
             this._scrollPerc = val;
             if (this._vertical)
                 this._grip.y = this._bar.y + (this._bar.height - this._grip.height) * this._scrollPerc;
@@ -49,6 +52,10 @@ namespace fgui {
                 return (this._arrowButton1 != null ? this._arrowButton1.height : 0) + (this._arrowButton2 != null ? this._arrowButton2.height : 0);
             else
                 return (this._arrowButton1 != null ? this._arrowButton1.width : 0) + (this._arrowButton2 != null ? this._arrowButton2.width : 0);
+        }
+        
+        public get gripDragging(): boolean {
+            return this._gripDragging;
         }
 
         protected constructExtension(buffer: ByteBuffer): void {
@@ -87,6 +94,9 @@ namespace fgui {
 
             evt.stopPropagation();
 
+            this._gripDragging = true;
+            this._target.updateScrollBarVisible();
+
             Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
             Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
 
@@ -114,6 +124,9 @@ namespace fgui {
 
             Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
             Laya.stage.off(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
+
+            this._gripDragging = false;
+            this._target.updateScrollBarVisible();
         }
 
         private __arrowButton1Click(evt: Laya.Event): void {

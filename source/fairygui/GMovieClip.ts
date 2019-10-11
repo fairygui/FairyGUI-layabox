@@ -7,10 +7,11 @@ namespace fgui {
         }
 
         public get color(): string {
-            return "#FFFFFF";
+            return this._movieClip.color;
         }
 
         public set color(value: string) {
+            this._movieClip.color = value;
         }
 
         protected createDisplayObject(): void {
@@ -107,19 +108,22 @@ namespace fgui {
         }
 
         public constructFromResource(): void {
-            this.sourceWidth = this.packageItem.width;
-            this.sourceHeight = this.packageItem.height;
+            var displayItem: PackageItem = this.packageItem.getBranch();
+
+            this.sourceWidth = displayItem.width;
+            this.sourceHeight = displayItem.height;
             this.initWidth = this.sourceWidth;
             this.initHeight = this.sourceHeight;
 
             this.setSize(this.sourceWidth, this.sourceHeight);
 
-            this.packageItem.load();
+            displayItem = displayItem.getHighResolution();
+            displayItem.load();
 
-            this._movieClip.interval = this.packageItem.interval;
-            this._movieClip.swing = this.packageItem.swing;
-            this._movieClip.repeatDelay = this.packageItem.repeatDelay;
-            this._movieClip.frames = this.packageItem.frames;
+            this._movieClip.interval = displayItem.interval;
+            this._movieClip.swing = displayItem.swing;
+            this._movieClip.repeatDelay = displayItem.repeatDelay;
+            this._movieClip.frames = displayItem.frames;
         }
 
         public setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void {

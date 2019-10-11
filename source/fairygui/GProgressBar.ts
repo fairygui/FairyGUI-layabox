@@ -1,5 +1,6 @@
 namespace fgui {
     export class GProgressBar extends GComponent {
+        private _min: number = 0;
         private _max: number = 0;
         private _value: number = 0;
         private _titleType: number;
@@ -24,19 +25,24 @@ namespace fgui {
             this._max = 100;
         }
 
-        /**
-         * @see ProgressTitleType
-         */
         public get titleType(): number {
             return this._titleType;
         }
 
-        /**
-         * @see ProgressTitleType
-         */
         public set titleType(value: number) {
             if (this._titleType != value) {
                 this._titleType = value;
+                this.update(value);
+            }
+        }
+
+        public get min(): number {
+            return this._min;
+        }
+
+        public set min(value: number) {
+            if (this._min != value) {
+                this._min = value;
                 this.update(value);
             }
         }
@@ -82,7 +88,7 @@ namespace fgui {
         }
 
         public update(newValue: number): void {
-            var percent: number = this._max != 0 ? Math.min(newValue / this._max, 1) : 0;
+            var percent: number = ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
             if (this._titleObject) {
                 switch (this._titleType) {
                     case ProgressTitleType.Percent:
@@ -191,6 +197,8 @@ namespace fgui {
 
             this._value = buffer.getInt32();
             this._max = buffer.getInt32();
+            if (buffer.version >= 2)
+                this._min = buffer.getInt32();
 
             this.update(this._value);
         }

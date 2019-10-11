@@ -2,19 +2,12 @@
 
 namespace fgui {
     export class GBasicTextField extends GTextField {
-        public textField: Laya.Text;
+        private _textField: Laya.Text;
 
         private _font: string;
         private _color: string;
-        private _ubbEnabled: boolean;
         private _singleLine: boolean;
         private _letterSpacing: number = 0;
-
-        private _autoSize: number;
-        private _widthAutoSize: boolean;
-        private _heightAutoSize: boolean;
-
-        private _updatingSize: boolean;
         private _textWidth: number = 0;
         private _textHeight: number = 0;
 
@@ -29,17 +22,22 @@ namespace fgui {
 
             this._text = "";
             this._color = "#000000";
-            this.textField.align = "left";
-            this.textField.font = fgui.UIConfig.defaultFont;
+            this._textField.align = "left";
+            this._textField.font = fgui.UIConfig.defaultFont;
             this._autoSize = AutoSizeType.Both;
             this._widthAutoSize = this._heightAutoSize = true;
-            this.textField["_sizeDirty"] = false;
+            this._textField["_sizeDirty"] = false;
         }
 
         protected createDisplayObject(): void {
-            this._displayObject = this.textField = new TextExt(this);
+            this._displayObject = this._textField = new TextExt(this);
             this._displayObject["$owner"] = this;
             this._displayObject.mouseEnabled = false;
+        }
+
+        public get nativeText():Laya.Text
+        {
+            return this._textField;
         }
 
         public set text(value: string) {
@@ -49,22 +47,22 @@ namespace fgui {
 
             if (this._bitmapFont == null) {
                 if (this._widthAutoSize)
-                    this.textField.width = 10000;
+                    this._textField.width = 10000;
                 var text2: string = this._text;
                 if (this._templateVars != null)
                     text2 = this.parseTemplate(text2);
                 if (this._ubbEnabled) //laya还不支持同一个文本不同样式
-                    this.textField.text = ToolSet.removeUBB(ToolSet.encodeHTML(text2));
+                    this._textField.text = ToolSet.removeUBB(ToolSet.encodeHTML(text2));
                 else
-                    this.textField.text = text2;
+                    this._textField.text = text2;
             }
             else {
-                this.textField.text = "";
-                this.textField["setChanged"]();
+                this._textField.text = "";
+                this._textField["setChanged"]();
             }
 
             if (this.parent && this.parent._underConstruct)
-                this.textField.typeset();
+                this._textField.typeset();
         }
 
         public get text(): string {
@@ -72,7 +70,7 @@ namespace fgui {
         }
 
         public get font(): string {
-            return this.textField.font;
+            return this._textField.font;
         }
 
         public set font(value: string) {
@@ -83,22 +81,22 @@ namespace fgui {
                 this._bitmapFont = null;
 
             if (this._bitmapFont != null) {
-                this.textField["setChanged"]();
+                this._textField["setChanged"]();
             }
             else {
                 if (this._font)
-                    this.textField.font = this._font;
+                    this._textField.font = this._font;
                 else
-                    this.textField.font = fgui.UIConfig.defaultFont;
+                    this._textField.font = fgui.UIConfig.defaultFont;
             }
         }
 
         public get fontSize(): number {
-            return this.textField.fontSize;
+            return this._textField.fontSize;
         }
 
         public set fontSize(value: number) {
-            this.textField.fontSize = value;
+            this._textField.fontSize = value;
         }
 
         public get color(): string {
@@ -113,34 +111,34 @@ namespace fgui {
                     this._gearColor.updateState();
 
                 if (this.grayed)
-                    this.textField.color = "#AAAAAA";
+                    this._textField.color = "#AAAAAA";
                 else
-                    this.textField.color = this._color;
+                    this._textField.color = this._color;
             }
         }
 
         public get align(): string {
-            return this.textField.align;
+            return this._textField.align;
         }
 
         public set align(value: string) {
-            this.textField.align = value;
+            this._textField.align = value;
         }
 
         public get valign(): string {
-            return this.textField.valign;
+            return this._textField.valign;
         }
 
         public set valign(value: string) {
-            this.textField.valign = value;
+            this._textField.valign = value;
         }
 
         public get leading(): number {
-            return this.textField.leading;
+            return this._textField.leading;
         }
 
         public set leading(value: number) {
-            this.textField.leading = value;
+            this._textField.leading = value;
         }
 
         public get letterSpacing(): number {
@@ -152,27 +150,27 @@ namespace fgui {
         }
 
         public get bold(): boolean {
-            return this.textField.bold;
+            return this._textField.bold;
         }
 
         public set bold(value: boolean) {
-            this.textField.bold = value;
+            this._textField.bold = value;
         }
 
         public get italic(): boolean {
-            return this.textField.italic;
+            return this._textField.italic;
         }
 
         public set italic(value: boolean) {
-            this.textField.italic = value;
+            this._textField.italic = value;
         }
 
         public get underline(): boolean {
-            return this.textField.underline;
+            return this._textField.underline;
         }
 
         public set underline(value: boolean) {
-            this.textField.underline = value;
+            this._textField.underline = value;
         }
 
         public get singleLine(): boolean {
@@ -181,71 +179,50 @@ namespace fgui {
 
         public set singleLine(value: boolean) {
             this._singleLine = value;
-            this.textField.wordWrap = !this._widthAutoSize && !this._singleLine;
+            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
         }
 
         public get stroke(): number {
-            return this.textField.stroke;
+            return this._textField.stroke;
         }
 
         public set stroke(value: number) {
-            this.textField.stroke = value;
+            this._textField.stroke = value;
         }
 
         public get strokeColor(): string {
-            return this.textField.strokeColor;
+            return this._textField.strokeColor;
         }
 
         public set strokeColor(value: string) {
-            this.textField.strokeColor = value;
+            this._textField.strokeColor = value;
             this.updateGear(4);
         }
 
-        public set ubbEnabled(value: boolean) {
-            this._ubbEnabled = value;
-        }
-
-        public get ubbEnabled(): boolean {
-            return this._ubbEnabled;
-        }
-
-        public set autoSize(value: number) {
-            if (this._autoSize != value) {
-                this.setAutoSize(value);
-            }
-        }
-
-        private setAutoSize(value: number): void {
-            this._autoSize = value;
-            this._widthAutoSize = value == AutoSizeType.Both;
-            this._heightAutoSize = value == AutoSizeType.Both || value == AutoSizeType.Height;
+        protected updateAutoSize(): void {
             /*一般没有剪裁文字的需要，感觉HIDDEN有消耗，所以不用了
             if(this._heightAutoSize)
-            this.textField.overflow = Text.VISIBLE;
+            this._textField.overflow = Text.VISIBLE;
             else
-            this.textField.overflow = Text.HIDDEN;*/
-            this.textField.wordWrap = !this._widthAutoSize && !this._singleLine;
+            this._textField.overflow = Text.HIDDEN;*/
+            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
             if (!this._underConstruct) {
                 if (!this._heightAutoSize)
-                    this.textField.size(this.width, this.height);
+                    this._textField.size(this.width, this.height);
                 else if (!this._widthAutoSize)
-                    this.textField.width = this.width;
+                    this._textField.width = this.width;
             }
-        }
-
-        public get autoSize(): number {
-            return this._autoSize;
         }
 
         public get textWidth(): number {
-            if (this.textField["_isChanged"])
-                this.textField.typeset();
+            if (this._textField["_isChanged"])
+                this._textField.typeset();
             return this._textWidth;
         }
 
         public ensureSizeCorrect(): void {
-            if (!this._underConstruct && this.textField["_isChanged"])
-                this.textField.typeset();
+            if (!this._underConstruct && this._textField["_isChanged"])
+                this._textField.typeset();
         }
 
         public typeset(): void {
@@ -256,16 +233,16 @@ namespace fgui {
         }
 
         private updateSize(): void {
-            this._textWidth = Math.ceil(this.textField.textWidth);
-            this._textHeight = Math.ceil(this.textField.textHeight);
+            this._textWidth = Math.ceil(this._textField.textWidth);
+            this._textHeight = Math.ceil(this._textField.textHeight);
 
             var w: number, h: number = 0;
             if (this._widthAutoSize) {
                 w = this._textWidth;
-                if (this.textField.width != w) {
-                    this.textField.width = w;
-                    if (this.textField.align != "left")
-                        this.textField["baseTypeset"]();
+                if (this._textField.width != w) {
+                    this._textField.width = w;
+                    if (this._textField.align != "left")
+                        this._textField["baseTypeset"]();
                 }
             }
             else
@@ -274,16 +251,16 @@ namespace fgui {
             if (this._heightAutoSize) {
                 h = this._textHeight;
                 if (!this._widthAutoSize) {
-                    if (this.textField.height != this._textHeight)
-                        this.textField.height = this._textHeight;
+                    if (this._textField.height != this._textHeight)
+                        this._textField.height = this._textHeight;
                 }
             }
             else {
                 h = this.height;
                 if (this._textHeight > h)
                     this._textHeight = h;
-                if (this.textField.height != this._textHeight)
-                    this.textField.height = this._textHeight;
+                if (this._textField.height != this._textHeight)
+                    this._textField.height = this._textHeight;
             }
 
             this._updatingSize = true;
@@ -300,7 +277,6 @@ namespace fgui {
             else
                 LineInfo.returnList(this._lines);
 
-            var letterSpacing: number = this.letterSpacing;
             var lineSpacing: number = this.leading - 1;
             var rectWidth: number = this.width - GBasicTextField.GUTTER_X * 2;
             var lineWidth: number = 0, lineHeight: number = 0, lineTextHeight: number = 0;
@@ -312,7 +288,7 @@ namespace fgui {
             var line: LineInfo;
             var wordWrap: boolean = !this._widthAutoSize && !this._singleLine;
             var fontSize: number = this.fontSize;
-            var fontScale: number = this._bitmapFont.resizable ? this.fontSize / this._bitmapFont.size : 1;
+            var fontScale: number = this._bitmapFont.resizable ? fontSize / this._bitmapFont.size : 1;
             this._textWidth = 0;
             this._textHeight = 0;
 
@@ -330,7 +306,7 @@ namespace fgui {
                     line.width = lineWidth;
                     if (lineTextHeight == 0) {
                         if (lastLineHeight == 0)
-                            lastLineHeight = this.fontSize;
+                            lastLineHeight = fontSize;
                         if (lineHeight == 0)
                             lineHeight = lastLineHeight;
                         lineTextHeight = lineHeight;
@@ -368,8 +344,8 @@ namespace fgui {
                 }
 
                 if (cc == 32) {
-                    glyphWidth = Math.ceil(this.fontSize / 2);
-                    glyphHeight = this.fontSize;
+                    glyphWidth = Math.ceil(fontSize / 2);
+                    glyphHeight = fontSize;
                 }
                 else {
                     var glyph: BMGlyph = this._bitmapFont.glyphs[ch];
@@ -389,7 +365,7 @@ namespace fgui {
                     lineHeight = glyphHeight;
 
                 if (lineWidth != 0)
-                    lineWidth += this.letterSpacing;
+                    lineWidth += this._letterSpacing;
                 lineWidth += glyphWidth;
 
                 if (!wordWrap || lineWidth <= rectWidth) {
@@ -413,7 +389,7 @@ namespace fgui {
                     }
                     else {
                         line.text = lineBuffer;
-                        line.width = lineWidth - (glyphWidth + this.letterSpacing);
+                        line.width = lineWidth - (glyphWidth + this._letterSpacing);
                         lineBuffer = ch;
                         lineWidth = glyphWidth;
                         lineHeight = glyphHeight;
@@ -511,7 +487,7 @@ namespace fgui {
                         continue;
 
                     if (cc == 32) {
-                        charX += this._letterSpacing + Math.ceil(this.fontSize / 2);
+                        charX += this._letterSpacing + Math.ceil(fontSize / 2);
                         continue;
                     }
 
@@ -525,10 +501,10 @@ namespace fgui {
                                 glyph.texture.width * fontScale,
                                 glyph.texture.height * fontScale);
                         }
-                        charX += this.letterSpacing + Math.ceil(glyph.advance * fontScale);
+                        charX += this._letterSpacing + Math.ceil(glyph.advance * fontScale);
                     }
                     else {
-                        charX += this.letterSpacing;
+                        charX += this._letterSpacing;
                     }
                 }//this.text loop
             }//line loop
@@ -539,20 +515,20 @@ namespace fgui {
                 return;
 
             if (this._underConstruct)
-                this.textField.size(this.width, this.height);
+                this._textField.size(this._width, this._height);
             else {
                 if (this._bitmapFont != null) {
                     if (!this._widthAutoSize)
-                        this.textField["setChanged"]();
+                        this._textField["setChanged"]();
                     else
                         this.doAlign();
                 }
                 else {
                     if (!this._widthAutoSize) {
                         if (!this._heightAutoSize)
-                            this.textField.size(this.width, this.height);
+                            this._textField.size(this._width, this._height);
                         else
-                            this.textField.width = this.width;
+                            this._textField.width = this._width;
                     }
                 }
             }
@@ -562,9 +538,9 @@ namespace fgui {
             super.handleGrayedChanged();
 
             if (this.grayed)
-                this.textField.color = "#AAAAAA";
+                this._textField.color = "#AAAAAA";
             else
-                this.textField.color = this._color;
+                this._textField.color = this._color;
         }
 
         private doAlign(): void {

@@ -34,7 +34,7 @@ export default class ChatDemo {
         this._list.itemRenderer = Laya.Handler.create(this, this.renderListItem, null, false);
 
         this._input = this._view.getChild("input1").asTextInput;
-        //this._input.on(fgui.Events.SUBMIT, this, this.onSubmit);
+        this._input.nativeInput.on(Laya.Event.ENTER, this, this.onSubmit);
 
         this._view.getChild("btnSend1").onClick(this, this.onClickSendBtn);
         this._view.getChild("btnEmoji1").onClick(this, this.onClickEmojiBtn);
@@ -58,7 +58,7 @@ export default class ChatDemo {
                 let replyMessage = new Message();
                 replyMessage.sender = "FairyGUI";
                 replyMessage.senderIcon = "r1";
-                replyMessage.msg = "Today is a good day. [:gz]";
+                replyMessage.msg = "Today is a good day. ";
                 replyMessage.fromMe = false;
                 this._messages.push(replyMessage);
             }
@@ -86,7 +86,12 @@ export default class ChatDemo {
         if (!msg.fromMe)
             item.getChild("name").text = msg.sender;
         item.icon = fgui.UIPackage.getItemURL("Chat", msg.senderIcon);
-        item.getChild("msg").text = this._emojiParser.parse(msg.msg);
+
+        var txtObj:fgui.GRichTextField = item.getChild("msg").asRichTextField;
+        txtObj.width = txtObj.initWidth;
+        txtObj.text = this._emojiParser.parse(msg.msg);
+        if(txtObj.textWidth<txtObj.width)
+            txtObj.width = txtObj.textWidth;
     }
 
     private onClickSendBtn() {

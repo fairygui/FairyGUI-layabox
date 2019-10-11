@@ -6,7 +6,7 @@ namespace fgui {
         private _child: Laya.Sprite;
         private _reversed: boolean;
 
-        constructor(child: Laya.Sprite, reversed: boolean) {
+        constructor(child: Laya.Sprite, reversed?: boolean) {
             super();
 
             this._child = child;

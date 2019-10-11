@@ -13,6 +13,9 @@ namespace fgui {
         public decoded: boolean;
         public rawData: ByteBuffer;
 
+        public highResolution: Array<string>;
+        public branches: Array<string>;
+
         //image
         public scale9Grid: Laya.Rectangle;
         public scaleByTile: boolean;
@@ -38,6 +41,26 @@ namespace fgui {
 
         public load(): Object {
             return this.owner.getItemAsset(this);
+        }
+
+        public getBranch(): PackageItem {
+            if (this.branches && this.owner._branchIndex != -1) {
+                var itemId: string = this.branches[this.owner._branchIndex];
+                if (itemId)
+                    return this.owner.getItemById(itemId);
+            }
+
+            return this;
+        }
+
+        public getHighResolution(): PackageItem {
+            if (this.highResolution && GRoot.contentScaleLevel > 0) {
+                var itemId: string = this.highResolution[GRoot.contentScaleLevel - 1];
+                if (itemId)
+                    return this.owner.getItemById(itemId);
+            }
+
+            return this;
         }
 
         public toString(): string {

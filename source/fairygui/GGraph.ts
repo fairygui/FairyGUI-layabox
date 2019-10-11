@@ -6,6 +6,10 @@ namespace fgui {
         private _fillColor: string;
         private _cornerRadius: any[];
         private _hitArea: Laya.HitArea;
+        private _sides: number;
+        private _startAngle: number;
+        private _polygonPoints: any[];
+        private _distances: number[];
 
         constructor() {
             super();
@@ -15,6 +19,8 @@ namespace fgui {
             this._lineColor = "#000000"
             this._fillColor = "#FFFFFF";
             this._cornerRadius = null;
+            this._sides = 3;
+            this._startAngle = 0;
         }
 
         public drawRect(lineSize: number, lineColor: string, fillColor: string, cornerRadius: any[] = null): void {
@@ -23,7 +29,7 @@ namespace fgui {
             this._lineColor = lineColor;
             this._fillColor = fillColor;
             this._cornerRadius = cornerRadius;
-            this.drawCommon();
+            this.updateGraph();
         }
 
         public drawEllipse(lineSize: number, lineColor: string, fillColor: string): void {
@@ -31,7 +37,37 @@ namespace fgui {
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
-            this.drawCommon();
+            this.updateGraph();
+        }
+
+        public drawRegularPolygon(lineSize: number, lineColor: string, fillColor: string, sides: number, startAngle: number = 0, distances: number[] = null): void {
+            this._type = 3;
+            this._lineSize = lineSize;
+            this._lineColor = lineColor;
+            this._fillColor = fillColor;
+            this._sides = sides;
+            this._startAngle = startAngle;
+            this._distances = distances;
+            this.updateGraph();
+        }
+
+        public drawPolygon(lineSize: number, lineColor: string, fillColor: string, points: any[]): void {
+            this._type = 4;
+            this._lineSize = lineSize;
+            this._lineColor = lineColor;
+            this._fillColor = fillColor;
+            this._polygonPoints = points;
+            this.updateGraph();
+        }
+
+        public get distances(): number[] {
+            return this._distances;
+        }
+
+        public set distances(value: number[]) {
+            this._distances = value;
+            if (this._type == 3)
+                this.updateGraph();
         }
 
         public get color(): string {
@@ -41,10 +77,10 @@ namespace fgui {
         public set color(value: string) {
             this._fillColor = value;
             if (this._type != 0)
-                this.drawCommon();
+                this.updateGraph();
         }
 
-        private drawCommon(): void {
+        private updateGraph(): void {
             this._displayObject.mouseEnabled = this.touchable;
             var gr: Laya.Graphics = this._displayObject.graphics;
             gr.clear();
@@ -85,8 +121,37 @@ namespace fgui {
                 }
                 else
                     gr.drawRect(0, 0, w, h, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
-            } else {
+            } else if (this._type == 2) {
                 gr.drawCircle(w / 2, h / 2, w / 2, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
+            }
+            else if (this._type == 3) {
+                gr.drawPoly(0, 0, this._polygonPoints, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
+            }
+            else if (this._type == 4) {
+                if (!this._polygonPoints)
+                    this._polygonPoints = [];
+                var radius: number = Math.min(this._width, this._height) / 2;
+                this._polygonPoints.length = 0;
+                var angle: number = Laya.Utils.toRadian(this._startAngle);
+                var deltaAngle: number = 2 * Math.PI / this._sides;
+                var dist: number;
+                for (var i: number = 0; i < this._sides; i++) {
+                    if (this._distances) {
+                        dist = this._distances[i];
+                        if (isNaN(dist))
+                            dist = 1;
+                    }
+                    else
+                        dist = 1;
+
+                    var xv: number = radius + radius * dist * Math.cos(angle);
+                    var yv: number = radius + radius * dist * Math.sin(angle);
+                    this._polygonPoints.push(xv, yv);
+
+                    angle += deltaAngle;
+                }
+
+                gr.drawPoly(0, 0, this._polygonPoints, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
             }
 
             this._displayObject.repaint();
@@ -163,7 +228,7 @@ namespace fgui {
             super.handleSizeChanged();
 
             if (this._type != 0)
-                this.drawCommon();
+                this.updateGraph();
         }
 
         public setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void {
@@ -173,16 +238,37 @@ namespace fgui {
 
             this._type = buffer.readByte();
             if (this._type != 0) {
+                var i: number;
+                var cnt: number;
+
                 this._lineSize = buffer.getInt32();
                 this._lineColor = buffer.readColorS(true);
                 this._fillColor = buffer.readColorS(true);
                 if (buffer.readBool()) {
                     this._cornerRadius = [];
-                    for (var i: number = 0; i < 4; i++)
+                    for (i = 0; i < 4; i++)
                         this._cornerRadius[i] = buffer.getFloat32();
                 }
 
-                this.drawCommon();
+                if (this._type == 3) {
+                    cnt = buffer.getInt16();
+                    this._polygonPoints = [];
+                    this._polygonPoints.length = cnt;
+                    for (i = 0; i < cnt; i++)
+                        this._polygonPoints[i] = buffer.getFloat32();
+                }
+                else if (this._type == 4) {
+                    this._sides = buffer.getInt16();
+                    this._startAngle = buffer.getFloat32();
+                    cnt = buffer.getInt16();
+                    if (cnt > 0) {
+                        this._distances = [];
+                        for (i = 0; i < cnt; i++)
+                            this._distances[i] = buffer.getFloat32();
+                    }
+                }
+
+                this.updateGraph();
             }
         }
     }

@@ -737,33 +737,53 @@ namespace fgui {
                 if (item.type == TransitionActionType.XY) {
                     if (item.target != this._owner) {
                         if (!startValue.b1)
-                            startValue.f1 = item.target.x;
+                            tweener.startValue.x = item.target.x;
+                        else if (startValue.b3) //percent
+                            tweener.startValue.x = startValue.f1 * this._owner.width;
+
                         if (!startValue.b2)
-                            startValue.f2 = item.target.y;
+                            tweener.startValue.y = item.target.y;
+                        else if (startValue.b3) //percent
+                            tweener.startValue.y = startValue.f2 * this._owner.height;
+
+                        if (!endValue.b1)
+                            tweener.endValue.x = tweener.startValue.x;
+                        else if (endValue.b3)
+                            tweener.endValue.x = endValue.f1 * this._owner.width;
+
+                        if (!endValue.b2)
+                            tweener.endValue.y = tweener.startValue.y;
+                        else if (endValue.b3)
+                            tweener.endValue.y = endValue.f2 * this._owner.height;
                     }
                     else {
                         if (!startValue.b1)
-                            startValue.f1 = item.target.x - this._ownerBaseX;
+                            tweener.startValue.x = item.target.x - this._ownerBaseX;
                         if (!startValue.b2)
-                            startValue.f2 = item.target.y - this._ownerBaseY;
+                            tweener.startValue.y = item.target.y - this._ownerBaseY;
+
+                        if (!endValue.b1)
+                            tweener.endValue.x = tweener.startValue.x;
+                        if (!endValue.b2)
+                            tweener.endValue.y = tweener.startValue.y;
                     }
                 }
                 else {
                     if (!startValue.b1)
-                        startValue.f1 = item.target.width;
+                        tweener.startValue.x = item.target.width;
                     if (!startValue.b2)
-                        startValue.f2 = item.target.height;
+                        tweener.startValue.y = item.target.height;
+
+                    if (!endValue.b1)
+                        tweener.endValue.x = tweener.startValue.x;
+                    if (!endValue.b2)
+                        tweener.endValue.y = tweener.startValue.y;
                 }
 
-                if (!endValue.b1)
-                    endValue.f1 = startValue.f1;
-                if (!endValue.b2)
-                    endValue.f2 = startValue.f2;
-
-                tweener.startValue.x = startValue.f1;
-                tweener.startValue.y = startValue.f2;
-                tweener.endValue.x = endValue.f1;
-                tweener.endValue.y = endValue.f2;
+                if (item.tweenConfig.path) {
+                    item.value.b1 = item.value.b2 = true;
+                    tweener.setPath(item.tweenConfig.path);
+                }
             }
 
             this.callHook(item, false);
@@ -778,6 +798,10 @@ namespace fgui {
                 case TransitionActionType.Skew:
                     item.value.f1 = tweener.value.x;
                     item.value.f2 = tweener.value.y;
+                    if (item.tweenConfig.path) {
+                        item.value.f1 += tweener.startValue.x;
+                        item.value.f2 += tweener.startValue.y;
+                    }
                     break;
 
                 case TransitionActionType.Alpha:
@@ -866,128 +890,129 @@ namespace fgui {
 
         private applyValue(item: TransitionItem): void {
             item.target._gearLocked = true;
+            var value: any = item.value;
 
             switch (item.type) {
                 case TransitionActionType.XY:
                     if (item.target == this._owner) {
-                        var f1: number, f2: number;
-                        if (!item.value.b1)
-                            f1 = item.target.x;
+                        if (value.b1 && value.b2)
+                            item.target.setXY(value.f1 + this._ownerBaseX, value.f2 + this._ownerBaseY);
+                        else if (value.b1)
+                            item.target.x = value.f1 + this._ownerBaseX;
                         else
-                            f1 = item.value.f1 + this._ownerBaseX;
-                        if (!item.value.b2)
-                            f2 = item.target.y;
-                        else
-                            f2 = item.value.f2 + this._ownerBaseY;
-                        item.target.setXY(f1, f2);
+                            item.target.y = value.f2 + this._ownerBaseY;
                     }
                     else {
-                        if (!item.value.b1)
-                            item.value.f1 = item.target.x;
-                        if (!item.value.b2)
-                            item.value.f2 = item.target.y;
-                        item.target.setXY(item.value.f1, item.value.f2);
+                        if (value.b3) //position in percent
+                        {
+                            if (value.b1 && value.b2)
+                                item.target.setXY(value.f1 * this._owner.width, value.f2 * this._owner.height);
+                            else if (value.b1)
+                                item.target.x = value.f1 * this._owner.width;
+                            else if (value.b2)
+                                item.target.y = value.f2 * this._owner.height;
+                        }
+                        else {
+                            if (value.b1 && value.b2)
+                                item.target.setXY(value.f1, value.f2);
+                            else if (value.b1)
+                                item.target.x = value.f1;
+                            else if (value.b2)
+                                item.target.y = value.f2;
+                        }
                     }
                     break;
 
                 case TransitionActionType.Size:
-                    if (!item.value.b1)
-                        item.value.f1 = item.target.width;
-                    if (!item.value.b2)
-                        item.value.f2 = item.target.height;
-                    item.target.setSize(item.value.f1, item.value.f2);
+                    if (!value.b1)
+                        value.f1 = item.target.width;
+                    if (!value.b2)
+                        value.f2 = item.target.height;
+                    item.target.setSize(value.f1, value.f2);
                     break;
 
                 case TransitionActionType.Pivot:
-                    item.target.setPivot(item.value.f1, item.value.f2, item.target.pivotAsAnchor);
+                    item.target.setPivot(value.f1, value.f2, item.target.pivotAsAnchor);
                     break;
 
                 case TransitionActionType.Alpha:
-                    item.target.alpha = item.value.f1;
+                    item.target.alpha = value.f1;
                     break;
 
                 case TransitionActionType.Rotation:
-                    item.target.rotation = item.value.f1;
+                    item.target.rotation = value.f1;
                     break;
 
                 case TransitionActionType.Scale:
-                    item.target.setScale(item.value.f1, item.value.f2);
+                    item.target.setScale(value.f1, value.f2);
                     break;
 
                 case TransitionActionType.Skew:
-                    item.target.setSkew(item.value.f1, item.value.f2);
+                    item.target.setSkew(value.f1, value.f2);
                     break;
 
                 case TransitionActionType.Color:
-                    item.target.setProp(ObjectPropID.Color, ToolSet.convertToHtmlColor(item.value.f1, false));
+                    item.target.setProp(ObjectPropID.Color, ToolSet.convertToHtmlColor(value.f1, false));
                     break;
 
                 case TransitionActionType.Animation:
-                    if (item.value.frame >= 0)
-                        item.target.setProp(ObjectPropID.Frame, item.value.frame);
-                    item.target.setProp(ObjectPropID.Playing, item.value.playing);
+                    if (value.frame >= 0)
+                        item.target.setProp(ObjectPropID.Frame, value.frame);
+                    item.target.setProp(ObjectPropID.Playing, value.playing);
                     item.target.setProp(ObjectPropID.TimeScale, this._timeScale);
                     break;
 
                 case TransitionActionType.Visible:
-                    item.target.visible = item.value.visible;
+                    item.target.visible = value.visible;
                     break;
 
                 case TransitionActionType.Transition:
                     if (this._playing) {
-                        var trans: Transition = item.value.trans;
+                        var trans: Transition = value.trans;
                         if (trans != null) {
                             this._totalTasks++;
                             var startTime: number = this._startTime > item.time ? (this._startTime - item.time) : 0;
                             var endTime: number = this._endTime >= 0 ? (this._endTime - item.time) : -1;
-                            if (item.value.stopTime >= 0 && (endTime < 0 || endTime > item.value.stopTime))
-                                endTime = item.value.stopTime;
+                            if (value.stopTime >= 0 && (endTime < 0 || endTime > value.stopTime))
+                                endTime = value.stopTime;
                             trans.timeScale = this._timeScale;
-                            trans._play(Laya.Handler.create(this, this.onPlayTransCompleted, [item]), item.value.playTimes, 0, startTime, endTime, this._reversed);
+                            trans._play(Laya.Handler.create(this, this.onPlayTransCompleted, [item]), value.playTimes, 0, startTime, endTime, this._reversed);
                         }
                     }
                     break;
 
                 case TransitionActionType.Sound:
                     if (this._playing && item.time >= this._startTime) {
-                        if (item.value.audioClip == null) {
-                            var pi: PackageItem = UIPackage.getItemByURL(item.value.sound);
+                        if (value.audioClip == null) {
+                            var pi: PackageItem = UIPackage.getItemByURL(value.sound);
                             if (pi)
-                                item.value.audioClip = pi.file;
+                                value.audioClip = pi.file;
                             else
-                                item.value.audioClip = item.value.sound;
+                                value.audioClip = value.sound;
                         }
-                        if (item.value.audioClip)
-                            GRoot.inst.playOneShotSound(item.value.audioClip, item.value.volume);
+                        if (value.audioClip)
+                            GRoot.inst.playOneShotSound(value.audioClip, value.volume);
                     }
                     break;
 
                 case TransitionActionType.Shake:
-                    item.target.setXY(item.target.x - item.value.lastOffsetX + item.value.offsetX, item.target.y - item.value.lastOffsetY + item.value.offsetY);
-                    item.value.lastOffsetX = item.value.offsetX;
-                    item.value.lastOffsetY = item.value.offsetY;
+                    item.target.setXY(item.target.x - value.lastOffsetX + value.offsetX, item.target.y - value.lastOffsetY + value.offsetY);
+                    value.lastOffsetX = value.offsetX;
+                    value.lastOffsetY = value.offsetY;
                     break;
 
                 case TransitionActionType.ColorFilter:
                     {
-                        var arr: any[] = item.target.filters;
-
-                        var cm: ColorMatrix = new ColorMatrix();
-                        cm.adjustBrightness(item.value.f1);
-                        cm.adjustContrast(item.value.f2);
-                        cm.adjustSaturation(item.value.f3);
-                        cm.adjustHue(item.value.f4);
-                        arr = [new Laya.ColorFilter(cm)];
-                        item.target.filters = arr;
+                        ToolSet.setColorFilter(item.target.displayObject, [value.f1, value.f2, value.f3, value.f4]);
                         break;
                     }
 
                 case TransitionActionType.Text:
-                    item.target.text = item.value.text;
+                    item.target.text = value.text;
                     break;
 
                 case TransitionActionType.Icon:
-                    item.target.icon = item.value.text;
+                    item.target.icon = value.text;
                     break;
             }
 
@@ -1038,6 +1063,36 @@ namespace fgui {
                     buffer.seek(curPos, 3);
 
                     this.decodeValue(item, buffer, item.tweenConfig.endValue);
+
+                    if (buffer.version >= 2) {
+                        var pathLen: number = buffer.getInt32();
+                        if (pathLen > 0) {
+                            item.tweenConfig.path = new GPath();
+                            var pts: Array<GPathPoint> = new Array<GPathPoint>();
+
+                            for (i = 0; i < pathLen; i++) {
+                                var curveType: number = buffer.getUint8();
+                                switch (curveType) {
+                                    case CurveType.Bezier:
+                                        pts.push(GPathPoint.newBezierPoint(buffer.getFloat32(), buffer.getFloat32(),
+                                            buffer.getFloat32(), buffer.getFloat32()));
+                                        break;
+
+                                    case CurveType.CubicBezier:
+                                        pts.push(GPathPoint.newCubicBezierPoint(buffer.getFloat32(), buffer.getFloat32(),
+                                            buffer.getFloat32(), buffer.getFloat32(),
+                                            buffer.getFloat32(), buffer.getFloat32()));
+                                        break;
+
+                                    default:
+                                        pts.push(GPathPoint.newPoint(buffer.getFloat32(), buffer.getFloat32(), curveType));
+                                        break;
+                                }
+                            }
+
+                            item.tweenConfig.path.create(pts);
+                        }
+                    }
                 }
                 else {
                     if (item.time > this._totalDuration)
@@ -1062,6 +1117,9 @@ namespace fgui {
                     value.b2 = buffer.readBool();
                     value.f1 = buffer.getFloat32();
                     value.f2 = buffer.getFloat32();
+
+                    if (buffer.version >= 2 && item.type == TransitionActionType.XY)
+                        value.b3 = buffer.readBool(); //percent
                     break;
 
                 case TransitionActionType.Alpha:
@@ -1203,6 +1261,7 @@ namespace fgui {
         public endValue: TValue;
         public endLabel: string;
         public endHook: Laya.Handler;
+        public path: GPath;
 
         constructor() {
             this.easeType = EaseType.QuadOut;
@@ -1255,6 +1314,7 @@ namespace fgui {
 
         public b1: boolean;
         public b2: boolean;
+        public b3: boolean;
 
         constructor() {
             this.b1 = this.b2 = true;

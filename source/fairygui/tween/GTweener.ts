@@ -16,6 +16,7 @@ namespace fgui {
         private _timeScale: number;
         private _snapping: boolean;
         private _userData: any;
+        private _path: GPath;
 
         private _onUpdate: Function;
         private _onStart: Function;
@@ -34,6 +35,8 @@ namespace fgui {
         private _ended: number;
         private _elapsedTime: number;
         private _normalizedTime: number;
+
+        private static helperPoint: Laya.Point = new Laya.Point();
 
         public constructor() {
             this._startValue = new TweenValue();
@@ -105,6 +108,11 @@ namespace fgui {
         public setTarget(value: any, propType?: any): GTweener {
             this._target = value;
             this._propType = propType;
+            return this;
+        }
+
+        public setPath(value: GPath): GTweener {
+            this._path = value;
             return this;
         }
 
@@ -308,6 +316,7 @@ namespace fgui {
         public _reset(): void {
             this._target = null;
             this._userData = null;
+            this._path = null;
             this._onStart = this._onUpdate = this._onComplete = null;
             this._onStartCaller = this._onUpdateCaller = this._onCompleteCaller = null;
         }
@@ -403,6 +412,18 @@ namespace fgui {
                     this._value.x = this._startValue.x;
                     this._value.y = this._startValue.y;
                 }
+            }
+            else if (this._path) {
+                var pt: Laya.Point = GTweener.helperPoint;
+                this._path.getPointAt(this._normalizedTime, pt);
+                if (this._snapping) {
+                    pt.x = Math.round(pt.x);
+                    pt.y = Math.round(pt.y);
+                }
+                this._deltaValue.x = pt.x - this._value.x;
+                this._deltaValue.y = pt.y - this._value.y;
+                this._value.x = pt.x;
+                this._value.y = pt.y;
             }
             else {
                 for (var i: number = 0; i < this._valueSize; i++) {

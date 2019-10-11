@@ -40,7 +40,7 @@ namespace fgui {
                 this._selectedIndex = value;
                 this.parent.applyController(this);
 
-                this.event(Events.STATE_CHANGED);
+                this.event(Events.STATE_CHANGED, this);
 
                 this.changing = false;
             }
@@ -229,6 +229,28 @@ namespace fgui {
                 this._pageNames.push(buffer.readS());
             }
 
+            var homePageIndex: number = 0;
+            if (buffer.version >= 2) {
+                var homePageType: number = buffer.getByte();
+                switch (homePageType) {
+                    case 1:
+                        homePageIndex = buffer.getInt16();
+                        break;
+
+                    case 2:
+                        homePageIndex = this._pageNames.indexOf(UIPackage.branch);
+                        if (homePageIndex == -1)
+                            homePageIndex = 0;
+                        break;
+
+                    case 3:
+                        homePageIndex = this._pageNames.indexOf(UIPackage.getVar(buffer.readS()));
+                        if (homePageIndex == -1)
+                            homePageIndex = 0;
+                        break;
+                }
+            }
+
             buffer.seek(beginPos, 2);
 
             cnt = buffer.getInt16();
@@ -249,7 +271,7 @@ namespace fgui {
             }
 
             if (this.parent != null && this._pageIds.length > 0)
-                this._selectedIndex = 0;
+                this._selectedIndex = homePageIndex;
             else
                 this._selectedIndex = -1;
         }

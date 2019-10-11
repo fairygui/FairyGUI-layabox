@@ -141,7 +141,9 @@ namespace fgui {
         }
 
         public static clamp01(value: number): number {
-            if (value > 1)
+            if (isNaN(value))
+                value = 0;
+            else if (value > 1)
                 value = 1;
             else if (value < 0)
                 value = 0;
@@ -150,6 +152,95 @@ namespace fgui {
 
         public static lerp(start: number, end: number, percent: number): number {
             return (start + percent * (end - start));
+        }
+
+        public static repeat(t: number, length: number): number {
+            return t - Math.floor(t / length) * length;
+        }
+
+        public static distance(x1: number, y1: number, x2: number, y2: number): number {
+            return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
+        }
+
+        public static setColorFilter(obj: Laya.Sprite, color: string | any[] | boolean): void {
+            var filters: any[] = obj.filters;
+            var filter: Laya.ColorFilter;
+            if (filters) {
+                for (var i: number = 0; i < filters.length; i++) {
+                    var fs = filters[i];
+                    if (fs instanceof Laya.ColorFilter) {
+                        filter = fs;
+                        break;
+                    }
+                }
+            }
+
+            var tp: string = typeof (color);
+            var toApplyColor: any;
+            var toApplyGray: boolean;
+            if (tp == "boolean") //gray
+            {
+                toApplyColor = filter ? filter["_color_"] : null;
+                toApplyGray = <boolean>color;
+            }
+            else {
+                if (typeof (color) == "string") {
+                    var arr: any[] = Laya.ColorUtils.create(color).arrColor;
+                    if (arr[0] == 1 && arr[1] == 1 && arr[2] == 1)
+                        color = null;
+                    else {
+                        color = [arr[0], 0, 0, 0, 0,
+                            0, arr[1], 0, 0, 0,
+                            0, 0, arr[2], 0, 0,
+                            0, 0, 0, 1, 0];
+                    }
+                }
+
+                toApplyColor = color;
+                toApplyGray = filter ? filter["_grayed_"] : false;
+            }
+
+            if (!toApplyColor && !toApplyGray) {
+                if (filters) {
+                    var i: number = filters.indexOf(filter);
+                    if (i != -1) {
+                        filters.splice(i, 1);
+                        if (filters.length > 0)
+                            obj.filters = filters;
+                        else
+                            obj.filters = null;
+                    }
+                }
+                return;
+            }
+
+            if (!filter) {
+                filter = new Laya.ColorFilter();
+                if (!filters)
+                    filters = [filter];
+                else
+                    filters.push(filter);
+                obj.filters = filters;
+            }
+
+            filter.reset();
+            filter["_color_"] = toApplyColor;
+            filter["_grayed_"] = toApplyGray;
+
+            if (toApplyGray) {
+                filter.gray();
+            }
+            else if (toApplyColor) {
+                if (toApplyColor.length == 20) {
+                    filter.setByMatrix(toApplyColor);
+                }
+                else {
+                    filter.adjustBrightness(toApplyColor[0]);
+                    filter.adjustContrast(toApplyColor[1]);
+                    filter.adjustSaturation(toApplyColor[2]);
+                    filter.adjustHue(toApplyColor[3]);
+                }
+            }
         }
     }
 }

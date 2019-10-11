@@ -150,6 +150,7 @@ namespace fgui {
         public set color(value: string) {
             if (this._color != value) {
                 this._color = value;
+                ToolSet.setColorFilter(this, value);
             }
         }
 
@@ -187,8 +188,7 @@ namespace fgui {
                 g.fillTexture(tex, 0, 0, w, h);
             }
             else if (this._scale9Grid != null) {
-                if(!this._sizeGrid)
-                {
+                if (!this._sizeGrid) {
                     var tw: number = tex.width;
                     var th: number = tex.height;
                     var left: number = this._scale9Grid.x;
@@ -199,7 +199,7 @@ namespace fgui {
                 }
 
                 g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid);
-             }
+            }
             else {
                 g.drawImage(tex, 0, 0, w, h);
             }

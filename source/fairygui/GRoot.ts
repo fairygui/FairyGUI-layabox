@@ -1,5 +1,7 @@
 namespace fgui {
     export class GRoot extends GComponent {
+        public static contentScaleLevel: number = 0;
+
         private _modalLayer: GGraph;
         private _popupStack: GObject[];
         private _justClosedPopups: GObject[];
@@ -420,7 +422,21 @@ namespace fgui {
 
         private __winResize(): void {
             this.setSize(Laya.stage.width, Laya.stage.height);
+
+            this.updateContentScaleLevel();
         }
 
+        private updateContentScaleLevel(): void {
+            var mat: Laya.Matrix = <Laya.Matrix>(<any>Laya.stage)._canvasTransform;
+            var ss: number = Math.max(mat.getScaleX(), mat.getScaleY());
+            if (ss >= 3.5)
+                GRoot.contentScaleLevel = 3; //x4
+            else if (ss >= 2.5)
+                GRoot.contentScaleLevel = 2; //x3
+            else if (ss >= 1.5)
+                GRoot.contentScaleLevel = 1; //x2
+            else
+                GRoot.contentScaleLevel = 0;
+        }
     }
 }

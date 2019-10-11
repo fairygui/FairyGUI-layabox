@@ -23,9 +23,11 @@ namespace fgui {
         }
 
         public static resolvePackageItemExtension(pi: PackageItem): void {
-            pi.extensionType = UIObjectFactory.packageItemExtensions["ui://" + pi.owner.id + pi.id];
-            if (!pi.extensionType)
-                pi.extensionType = UIObjectFactory.packageItemExtensions["ui://" + pi.owner.name + "/" + pi.name];
+            var extensionType = UIObjectFactory.packageItemExtensions["ui://" + pi.owner.id + pi.id];
+            if (!extensionType)
+                extensionType = UIObjectFactory.packageItemExtensions["ui://" + pi.owner.name + "/" + pi.name];
+            if (extensionType)
+                pi.extensionType = extensionType;
         }
 
         public static newObject(pi: PackageItem): GObject {
@@ -90,6 +92,9 @@ namespace fgui {
 
                 case ObjectType.ComboBox:
                     return new GComboBox();
+
+                case ObjectType.Tree:
+                    return new GTree();
 
                 default:
                     return null;

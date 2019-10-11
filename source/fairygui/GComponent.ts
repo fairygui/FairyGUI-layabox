@@ -197,6 +197,29 @@ namespace fgui {
             return null;
         }
 
+        public getChildByPath(path: String): GObject {
+            var arr: string[] = path.split(".");
+            var cnt: number = arr.length;
+            var gcom: GComponent = this;
+            var obj: GObject;
+            for (var i: number = 0; i < cnt; ++i) {
+                obj = gcom.getChild(arr[i]);
+                if (!obj)
+                    break;
+
+                if (i != cnt - 1) {
+                    if (!(gcom instanceof GComponent)) {
+                        obj = null;
+                        break;
+                    }
+                    else
+                        gcom = <GComponent>obj;
+                }
+            }
+
+            return obj;
+        }
+
         public getVisibleChild(name: string): GObject {
             var cnt: number = this._children.length;
             for (var i: number = 0; i < cnt; ++i) {
@@ -451,7 +474,7 @@ namespace fgui {
         }
 
         private buildNativeDisplayList(): void {
-            if(!this._displayObject)
+            if (!this._displayObject)
                 return;
             var cnt: number = this._children.length;
             if (cnt == 0)
@@ -481,12 +504,13 @@ namespace fgui {
 
                 case ChildrenRenderOrder.Arch:
                     {
-                        for (i = 0; i < this._apexIndex; i++) {
+                        var apex: number = ToolSet.clamp(this._apexIndex, 0, cnt);
+                        for (i = 0; i < apex; i++) {
                             child = this._children[i];
                             if (child.displayObject != null && child.internalVisible)
                                 this._container.addChild(child.displayObject);
                         }
-                        for (i = cnt - 1; i >= this._apexIndex; i--) {
+                        for (i = cnt - 1; i >= apex; i--) {
                             child = this._children[i];
                             if (child.displayObject != null && child.internalVisible)
                                 this._container.addChild(child.displayObject);
@@ -593,7 +617,7 @@ namespace fgui {
                         this._displayObject.hitArea = new Laya.Rectangle();
 
                     if (this._displayObject.hitArea instanceof Laya.Rectangle)
-                        this._displayObject.hitArea.setTo(0, 0, this.width, this.height);
+                        this._displayObject.hitArea.setTo(0, 0, this._width, this._height);
 
                     this._displayObject.mouseThrough = false;
                 }
@@ -694,12 +718,12 @@ namespace fgui {
             if (this._displayObject.hitArea instanceof PixelHitTest) {
                 var hitTest: PixelHitTest = <PixelHitTest>(this._displayObject.hitArea);
                 if (this.sourceWidth != 0)
-                    hitTest.scaleX = this.width / this.sourceWidth;
+                    hitTest.scaleX = this._width / this.sourceWidth;
                 if (this.sourceHeight != 0)
-                    hitTest.scaleY = this.height / this.sourceHeight;
+                    hitTest.scaleY = this._height / this.sourceHeight;
             }
             else if (this._displayObject.hitArea instanceof Laya.Rectangle) {
-                this._displayObject.hitArea.setTo(0, 0, this.width, this.height);
+                this._displayObject.hitArea.setTo(0, 0, this._width, this._height);
             }
         }
 
@@ -710,8 +734,8 @@ namespace fgui {
 
             rect.x = this._margin.left;
             rect.y = this._margin.top;
-            rect.width = this.width - this._margin.right;
-            rect.height = this.height - this._margin.bottom;
+            rect.width = this._width - this._margin.right;
+            rect.height = this._height - this._margin.bottom;
 
             this._displayObject.scrollRect = rect;
         }
@@ -1136,16 +1160,25 @@ namespace fgui {
             if (maskId != -1) {
                 this.setMask(this.getChildAt(maskId).displayObject, buffer.readBool());
             }
+
             var hitTestId: string = buffer.readS();
-            if (hitTestId != null) {
+            i1 = buffer.getInt32();
+            i2 = buffer.getInt32();
+            var hitArea: Laya.HitArea;
+
+            if (hitTestId) {
                 pi = this.packageItem.owner.getItemById(hitTestId);
-                if (pi != null && pi.pixelHitTestData != null) {
-                    i1 = buffer.getInt32();
-                    i2 = buffer.getInt32();
-                    this._displayObject.hitArea = new PixelHitTest(pi.pixelHitTestData, i1, i2);
-                    this._displayObject.mouseThrough = false;
-                    this._displayObject.hitTestPrior = true;
-                }
+                if (pi && pi.pixelHitTestData)
+                    hitArea = new PixelHitTest(pi.pixelHitTestData, i1, i2);
+            }
+            else if (i1 != 0 && i2 != -1) {
+                hitArea = new ChildHitArea(this.getChildAt(i2).displayObject);
+            }
+
+            if (hitArea) {
+                this._displayObject.hitArea = hitArea;
+                this._displayObject.mouseThrough = false;
+                this._displayObject.hitTestPrior = true;
             }
 
             buffer.seek(0, 5);
@@ -1184,7 +1217,7 @@ namespace fgui {
         protected constructExtension(buffer: ByteBuffer): void {
         }
 
-        protected onConstruct():void {
+        protected onConstruct(): void {
             this.constructFromXML(null); //old version
         }
 
@@ -1200,12 +1233,27 @@ namespace fgui {
             if (pageController != -1 && this._scrollPane != null)
                 this._scrollPane.pageController = this._parent.getControllerAt(pageController);
 
-            var cnt: number = buffer.getInt16();
-            for (var i: number = 0; i < cnt; i++) {
+            var cnt: number;
+            var i: number;
+
+            cnt = buffer.getInt16();
+            for (i = 0; i < cnt; i++) {
                 var cc: Controller = this.getController(buffer.readS());
                 var pageId: string = buffer.readS();
                 if (cc)
                     cc.selectedPageId = pageId;
+            }
+
+            if (buffer.version >= 2) {
+                cnt = buffer.getInt16();
+                for (i = 0; i < cnt; i++) {
+                    var target: string = buffer.readS();
+                    var propertyId: number = buffer.getInt16();
+                    var value: String = buffer.readS();
+                    var obj: GObject = this.getChildByPath(target);
+                    if (obj)
+                        obj.setProp(propertyId, value);
+                }
             }
         }
 

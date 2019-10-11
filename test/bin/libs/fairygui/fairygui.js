@@ -91,8 +91,16 @@ window.fgui = {};
                 gcom = controller.parent;
             if (gcom) {
                 var cc = gcom.getController(this.controllerName);
-                if (cc && cc != controller && !cc.changing)
-                    cc.selectedPageId = this.targetPage;
+                if (cc && cc != controller && !cc.changing) {
+                    if (this.targetPage == "~1") {
+                        if (controller.selectedIndex < cc.pageCount)
+                            cc.selectedIndex = controller.selectedIndex;
+                    }
+                    else if (this.targetPage == "~2")
+                        cc.selectedPage = controller.selectedPage;
+                    else
+                        cc.selectedPageId = this.targetPage;
+                }
             }
         }
         setup(buffer) {
@@ -255,6 +263,7 @@ window.fgui = {};
         set color(value) {
             if (this._color != value) {
                 this._color = value;
+                fgui.ToolSet.setColorFilter(this, value);
             }
         }
         markChanged(flag) {
@@ -879,6 +888,12 @@ window.fgui = {};
             else
                 return this.stringTable[index];
         }
+        readSArray(cnt) {
+            var ret = new Array(cnt);
+            for (var i = 0; i < cnt; i++)
+                ret[i] = this.readS();
+            return ret;
+        }
         writeS(value) {
             var index = this.getUint16();
             if (index != 65534 && index != 65533)
@@ -987,17 +1002,14 @@ window.fgui = {};
     class UBBParser {
         constructor() {
             this._readPos = 0;
-            this.smallFontSize = 12;
-            this.normalFontSize = 14;
-            this.largeFontSize = 16;
             this.defaultImgWidth = 0;
             this.defaultImgHeight = 0;
             this._handlers = {};
             this._handlers["url"] = this.onTag_URL;
             this._handlers["img"] = this.onTag_IMG;
-            this._handlers["b"] = this.onTag_Simple;
-            this._handlers["i"] = this.onTag_Simple;
-            this._handlers["u"] = this.onTag_Simple;
+            this._handlers["b"] = this.onTag_B;
+            this._handlers["i"] = this.onTag_I;
+            this._handlers["u"] = this.onTag_U;
             this._handlers["sup"] = this.onTag_Simple;
             this._handlers["sub"] = this.onTag_Simple;
             this._handlers["color"] = this.onTag_COLOR;
@@ -1029,12 +1041,23 @@ window.fgui = {};
             else
                 return null;
         }
+        onTag_B(tagName, end, attr) {
+            return end ? ("</span>") : ("<span style='font-weight:bold'>");
+        }
+        onTag_I(tagName, end, attr) {
+            return end ? ("</span>") : ("<span style='font-style:italic'>");
+        }
+        onTag_U(tagName, end, attr) {
+            return end ? ("</span>") : ("<span style='text-decoration:underline'>");
+        }
         onTag_Simple(tagName, end, attr) {
             return end ? ("</" + tagName + ">") : ("<" + tagName + ">");
         }
         onTag_COLOR(tagName, end, attr) {
-            if (!end)
+            if (!end) {
+                this.lastColor = attr;
                 return "<span style=\"color:" + attr + "\">";
+            }
             else
                 return "</span>";
         }
@@ -1046,16 +1069,7 @@ window.fgui = {};
         }
         onTag_SIZE(tagName, end, attr) {
             if (!end) {
-                if (attr == "normal")
-                    attr = "" + this.normalFontSize;
-                else if (attr == "small")
-                    attr = "" + this.smallFontSize;
-                else if (attr == "large")
-                    attr = "" + this.largeFontSize;
-                else if (attr.length && attr.charAt(0) == "+")
-                    attr = "" + (this.smallFontSize + parseInt(attr.substr(1)));
-                else if (attr.length && attr.charAt(0) == "-")
-                    attr = "" + (this.smallFontSize - parseInt(attr.substr(1)));
+                this.lastSize = attr;
                 return "<span style=\"font-size:" + attr + "\">";
             }
             else
@@ -1084,6 +1098,8 @@ window.fgui = {};
         }
         parse(text, remove = false) {
             this._text = text;
+            this.lastColor = null;
+            this.lastSize = null;
             var pos1 = 0, pos2, pos3;
             var end;
             var tag, attr;
@@ -1305,7 +1321,9 @@ window.fgui = {};
             return value;
         }
         static clamp01(value) {
-            if (value > 1)
+            if (isNaN(value))
+                value = 0;
+            else if (value > 1)
                 value = 1;
             else if (value < 0)
                 value = 0;
@@ -1314,133 +1332,88 @@ window.fgui = {};
         static lerp(start, end, percent) {
             return (start + percent * (end - start));
         }
+        static repeat(t, length) {
+            return t - Math.floor(t / length) * length;
+        }
+        static distance(x1, y1, x2, y2) {
+            return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
+        }
+        static setColorFilter(obj, color) {
+            var filters = obj.filters;
+            var filter;
+            if (filters) {
+                for (var i = 0; i < filters.length; i++) {
+                    var fs = filters[i];
+                    if (fs instanceof Laya.ColorFilter) {
+                        filter = fs;
+                        break;
+                    }
+                }
+            }
+            var tp = typeof (color);
+            var toApplyColor;
+            var toApplyGray;
+            if (tp == "boolean") {
+                toApplyColor = filter ? filter["_color_"] : null;
+                toApplyGray = color;
+            }
+            else {
+                if (typeof (color) == "string") {
+                    var arr = Laya.ColorUtils.create(color).arrColor;
+                    if (arr[0] == 1 && arr[1] == 1 && arr[2] == 1)
+                        color = null;
+                    else {
+                        color = [arr[0], 0, 0, 0, 0,
+                            0, arr[1], 0, 0, 0,
+                            0, 0, arr[2], 0, 0,
+                            0, 0, 0, 1, 0];
+                    }
+                }
+                toApplyColor = color;
+                toApplyGray = filter ? filter["_grayed_"] : false;
+            }
+            if (!toApplyColor && !toApplyGray) {
+                if (filters) {
+                    var i = filters.indexOf(filter);
+                    if (i != -1) {
+                        filters.splice(i, 1);
+                        if (filters.length > 0)
+                            obj.filters = filters;
+                        else
+                            obj.filters = null;
+                    }
+                }
+                return;
+            }
+            if (!filter) {
+                filter = new Laya.ColorFilter();
+                if (!filters)
+                    filters = [filter];
+                else
+                    filters.push(filter);
+                obj.filters = filters;
+            }
+            filter.reset();
+            filter["_color_"] = toApplyColor;
+            filter["_grayed_"] = toApplyGray;
+            if (toApplyGray) {
+                filter.gray();
+            }
+            else if (toApplyColor) {
+                if (toApplyColor.length == 20) {
+                    filter.setByMatrix(toApplyColor);
+                }
+                else {
+                    filter.adjustBrightness(toApplyColor[0]);
+                    filter.adjustContrast(toApplyColor[1]);
+                    filter.adjustSaturation(toApplyColor[2]);
+                    filter.adjustHue(toApplyColor[3]);
+                }
+            }
+        }
     }
     ToolSet.defaultUBBParser = new fgui.UBBParser();
     fgui.ToolSet = ToolSet;
-})(fgui || (fgui = {}));
-
-
-(function (fgui) {
-    class ColorMatrix extends Array {
-        constructor() {
-            super();
-            this.reset();
-        }
-        static create(p_brightness, p_contrast, p_saturation, p_hue) {
-            var ret = new ColorMatrix();
-            ret.adjustColor(p_brightness, p_contrast, p_saturation, p_hue);
-            return ret;
-        }
-        reset() {
-            for (var i = 0; i < ColorMatrix.LENGTH; i++) {
-                this[i] = ColorMatrix.IDENTITY_MATRIX[i];
-            }
-        }
-        invert() {
-            this.multiplyMatrix([-1, 0, 0, 0, 255,
-                0, -1, 0, 0, 255,
-                0, 0, -1, 0, 255,
-                0, 0, 0, 1, 0]);
-        }
-        adjustColor(p_brightness, p_contrast, p_saturation, p_hue) {
-            this.adjustHue(p_hue);
-            this.adjustContrast(p_contrast);
-            this.adjustBrightness(p_brightness);
-            this.adjustSaturation(p_saturation);
-        }
-        adjustBrightness(p_val) {
-            p_val = this.cleanValue(p_val, 1) * 255;
-            this.multiplyMatrix([
-                1, 0, 0, 0, p_val,
-                0, 1, 0, 0, p_val,
-                0, 0, 1, 0, p_val,
-                0, 0, 0, 1, 0
-            ]);
-        }
-        adjustContrast(p_val) {
-            p_val = this.cleanValue(p_val, 1);
-            var s = p_val + 1;
-            var o = 128 * (1 - s);
-            this.multiplyMatrix([
-                s, 0, 0, 0, o,
-                0, s, 0, 0, o,
-                0, 0, s, 0, o,
-                0, 0, 0, 1, 0
-            ]);
-        }
-        adjustSaturation(p_val) {
-            p_val = this.cleanValue(p_val, 1);
-            p_val += 1;
-            var invSat = 1 - p_val;
-            var invLumR = invSat * ColorMatrix.LUMA_R;
-            var invLumG = invSat * ColorMatrix.LUMA_G;
-            var invLumB = invSat * ColorMatrix.LUMA_B;
-            this.multiplyMatrix([
-                (invLumR + p_val), invLumG, invLumB, 0, 0,
-                invLumR, (invLumG + p_val), invLumB, 0, 0,
-                invLumR, invLumG, (invLumB + p_val), 0, 0,
-                0, 0, 0, 1, 0
-            ]);
-        }
-        adjustHue(p_val) {
-            p_val = this.cleanValue(p_val, 1);
-            p_val *= Math.PI;
-            var cos = Math.cos(p_val);
-            var sin = Math.sin(p_val);
-            this.multiplyMatrix([
-                ((ColorMatrix.LUMA_R + (cos * (1 - ColorMatrix.LUMA_R))) + (sin * -(ColorMatrix.LUMA_R))), ((ColorMatrix.LUMA_G + (cos * -(ColorMatrix.LUMA_G))) + (sin * -(ColorMatrix.LUMA_G))), ((ColorMatrix.LUMA_B + (cos * -(ColorMatrix.LUMA_B))) + (sin * (1 - ColorMatrix.LUMA_B))), 0, 0,
-                ((ColorMatrix.LUMA_R + (cos * -(ColorMatrix.LUMA_R))) + (sin * 0.143)), ((ColorMatrix.LUMA_G + (cos * (1 - ColorMatrix.LUMA_G))) + (sin * 0.14)), ((ColorMatrix.LUMA_B + (cos * -(ColorMatrix.LUMA_B))) + (sin * -0.283)), 0, 0,
-                ((ColorMatrix.LUMA_R + (cos * -(ColorMatrix.LUMA_R))) + (sin * -((1 - ColorMatrix.LUMA_R)))), ((ColorMatrix.LUMA_G + (cos * -(ColorMatrix.LUMA_G))) + (sin * ColorMatrix.LUMA_G)), ((ColorMatrix.LUMA_B + (cos * (1 - ColorMatrix.LUMA_B))) + (sin * ColorMatrix.LUMA_B)), 0, 0,
-                0, 0, 0, 1, 0
-            ]);
-        }
-        concatMatrix(p_matrix) {
-            if (p_matrix.length != ColorMatrix.LENGTH) {
-                return;
-            }
-            this.multiplyMatrix(p_matrix);
-        }
-        clone() {
-            var result = new ColorMatrix();
-            result.copyMatrix(this);
-            return result;
-        }
-        copyMatrix(p_matrix) {
-            var l = ColorMatrix.LENGTH;
-            for (var i = 0; i < l; i++) {
-                this[i] = p_matrix[i];
-            }
-        }
-        multiplyMatrix(p_matrix) {
-            var col = [];
-            var i = 0;
-            for (var y = 0; y < 4; ++y) {
-                for (var x = 0; x < 5; ++x) {
-                    col[i + x] = p_matrix[i] * this[x] +
-                        p_matrix[i + 1] * this[x + 5] +
-                        p_matrix[i + 2] * this[x + 10] +
-                        p_matrix[i + 3] * this[x + 15] +
-                        (x == 4 ? p_matrix[i + 4] : 0);
-                }
-                i += 5;
-            }
-            this.copyMatrix(col);
-        }
-        cleanValue(p_val, p_limit) {
-            return Math.min(p_limit, Math.max(-p_limit, p_val));
-        }
-    }
-    ColorMatrix.IDENTITY_MATRIX = [
-        1, 0, 0, 0, 0,
-        0, 1, 0, 0, 0,
-        0, 0, 1, 0, 0,
-        0, 0, 0, 1, 0
-    ];
-    ColorMatrix.LENGTH = ColorMatrix.IDENTITY_MATRIX.length;
-    ColorMatrix.LUMA_R = 0.299;
-    ColorMatrix.LUMA_G = 0.587;
-    ColorMatrix.LUMA_B = 0.114;
-    fgui.ColorMatrix = ColorMatrix;
 })(fgui || (fgui = {}));
 
 
@@ -1645,6 +1618,313 @@ window.fgui = {};
 
 
 (function (fgui) {
+    class GPath {
+        constructor() {
+            this._segments = new Array();
+            this._points = new Array();
+        }
+        get length() {
+            return this._fullLength;
+        }
+        create2(pt1, pt2, pt3, pt4) {
+            var points = new Array();
+            points.push(pt1);
+            points.push(pt2);
+            if (pt3)
+                points.push(pt3);
+            if (pt4)
+                points.push(pt4);
+            this.create(points);
+        }
+        create(points) {
+            this._segments.length = 0;
+            this._points.length = 0;
+            this._fullLength = 0;
+            var cnt = points.length;
+            if (cnt == 0)
+                return;
+            var splinePoints = GPath.helperPoints;
+            splinePoints.length = 0;
+            var prev = points[0];
+            if (prev.curveType == fgui.CurveType.CRSpline)
+                splinePoints.push(new Laya.Point(prev.x, prev.y));
+            for (var i = 1; i < cnt; i++) {
+                var current = points[i];
+                if (prev.curveType != fgui.CurveType.CRSpline) {
+                    var seg = new Segment();
+                    seg.type = prev.curveType;
+                    seg.ptStart = this._points.length;
+                    if (prev.curveType == fgui.CurveType.Straight) {
+                        seg.ptCount = 2;
+                        this._points.push(new Laya.Point(prev.x, prev.y));
+                        this._points.push(new Laya.Point(current.x, current.y));
+                    }
+                    else if (prev.curveType == fgui.CurveType.Bezier) {
+                        seg.ptCount = 3;
+                        this._points.push(new Laya.Point(prev.x, prev.y));
+                        this._points.push(new Laya.Point(current.x, current.y));
+                        this._points.push(new Laya.Point(prev.control1_x, prev.control1_y));
+                    }
+                    else if (prev.curveType == fgui.CurveType.CubicBezier) {
+                        seg.ptCount = 4;
+                        this._points.push(new Laya.Point(prev.x, prev.y));
+                        this._points.push(new Laya.Point(current.x, current.y));
+                        this._points.push(new Laya.Point(prev.control1_x, prev.control1_y));
+                        this._points.push(new Laya.Point(prev.control2_x, prev.control2_y));
+                    }
+                    seg.length = fgui.ToolSet.distance(prev.x, prev.y, current.x, current.y);
+                    this._fullLength += seg.length;
+                    this._segments.push(seg);
+                }
+                if (current.curveType != fgui.CurveType.CRSpline) {
+                    if (splinePoints.length > 0) {
+                        splinePoints.push(new Laya.Point(current.x, current.y));
+                        this.createSplineSegment();
+                    }
+                }
+                else
+                    splinePoints.push(new Laya.Point(current.x, current.y));
+                prev = current;
+            }
+            if (splinePoints.length > 1)
+                this.createSplineSegment();
+        }
+        createSplineSegment() {
+            var splinePoints = GPath.helperPoints;
+            var cnt = splinePoints.length;
+            splinePoints.splice(0, 0, splinePoints[0]);
+            splinePoints.push(splinePoints[cnt]);
+            splinePoints.push(splinePoints[cnt]);
+            cnt += 3;
+            var seg = new Segment();
+            seg.type = fgui.CurveType.CRSpline;
+            seg.ptStart = this._points.length;
+            seg.ptCount = cnt;
+            this._points = this._points.concat(splinePoints);
+            seg.length = 0;
+            for (var i = 1; i < cnt; i++) {
+                seg.length += fgui.ToolSet.distance(splinePoints[i - 1].x, splinePoints[i - 1].y, splinePoints[i].x, splinePoints[i].y);
+            }
+            this._fullLength += seg.length;
+            this._segments.push(seg);
+            splinePoints.length = 0;
+        }
+        clear() {
+            this._segments.length = 0;
+            this._points.length = 0;
+        }
+        getPointAt(t, result) {
+            if (!result)
+                result = new Laya.Point();
+            else
+                result.setTo(0, 0);
+            t = fgui.ToolSet.clamp01(t);
+            var cnt = this._segments.length;
+            if (cnt == 0) {
+                return result;
+            }
+            var seg;
+            if (t == 1) {
+                seg = this._segments[cnt - 1];
+                if (seg.type == fgui.CurveType.Straight) {
+                    result.x = fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t);
+                    result.y = fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t);
+                    return result;
+                }
+                else if (seg.type == fgui.CurveType.Bezier || seg.type == fgui.CurveType.CubicBezier)
+                    return this.onBezierCurve(seg.ptStart, seg.ptCount, t, result);
+                else
+                    return this.onCRSplineCurve(seg.ptStart, seg.ptCount, t, result);
+            }
+            var len = t * this._fullLength;
+            for (var i = 0; i < cnt; i++) {
+                seg = this._segments[i];
+                len -= seg.length;
+                if (len < 0) {
+                    t = 1 + len / seg.length;
+                    if (seg.type == fgui.CurveType.Straight) {
+                        result.x = fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t);
+                        result.y = fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t);
+                    }
+                    else if (seg.type == fgui.CurveType.Bezier || seg.type == fgui.CurveType.CubicBezier)
+                        result = this.onBezierCurve(seg.ptStart, seg.ptCount, t, result);
+                    else
+                        result = this.onCRSplineCurve(seg.ptStart, seg.ptCount, t, result);
+                    break;
+                }
+            }
+            return result;
+        }
+        get segmentCount() {
+            return this._segments.length;
+        }
+        getAnchorsInSegment(segmentIndex, points) {
+            if (points == null)
+                points = new Array();
+            var seg = this._segments[segmentIndex];
+            for (var i = 0; i < seg.ptCount; i++)
+                points.push(new Laya.Point(this._points[seg.ptStart + i].x, this._points[seg.ptStart + i].y));
+            return points;
+        }
+        getPointsInSegment(segmentIndex, t0, t1, points, ts, pointDensity) {
+            if (points == null)
+                points = new Array();
+            if (!pointDensity || isNaN(pointDensity))
+                pointDensity = 0.1;
+            if (ts)
+                ts.push(t0);
+            var seg = this._segments[segmentIndex];
+            if (seg.type == fgui.CurveType.Straight) {
+                points.push(new Laya.Point(fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t0), fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t0)));
+                points.push(new Laya.Point(fgui.ToolSet.lerp(this._points[seg.ptStart].x, this._points[seg.ptStart + 1].x, t1), fgui.ToolSet.lerp(this._points[seg.ptStart].y, this._points[seg.ptStart + 1].y, t1)));
+            }
+            else {
+                var func;
+                if (seg.type == fgui.CurveType.Bezier || seg.type == fgui.CurveType.CubicBezier)
+                    func = this.onBezierCurve;
+                else
+                    func = this.onCRSplineCurve;
+                points.push(func.call(this, seg.ptStart, seg.ptCount, t0, new Laya.Point()));
+                var SmoothAmount = Math.min(seg.length * pointDensity, 50);
+                for (var j = 0; j <= SmoothAmount; j++) {
+                    var t = j / SmoothAmount;
+                    if (t > t0 && t < t1) {
+                        points.push(func.call(this, seg.ptStart, seg.ptCount, t, new Laya.Point()));
+                        if (ts != null)
+                            ts.push(t);
+                    }
+                }
+                points.push(func.call(this, seg.ptStart, seg.ptCount, t1, new Laya.Point()));
+            }
+            if (ts != null)
+                ts.push(t1);
+            return points;
+        }
+        getAllPoints(points, ts, pointDensity) {
+            if (points == null)
+                points = new Array();
+            if (!pointDensity || isNaN(pointDensity))
+                pointDensity = 0.1;
+            var cnt = this._segments.length;
+            for (var i = 0; i < cnt; i++)
+                this.getPointsInSegment(i, 0, 1, points, ts, pointDensity);
+            return points;
+        }
+        onCRSplineCurve(ptStart, ptCount, t, result) {
+            var adjustedIndex = Math.floor(t * (ptCount - 4)) + ptStart;
+            var p0x = this._points[adjustedIndex].x;
+            var p0y = this._points[adjustedIndex].y;
+            var p1x = this._points[adjustedIndex + 1].x;
+            var p1y = this._points[adjustedIndex + 1].y;
+            var p2x = this._points[adjustedIndex + 2].x;
+            var p2y = this._points[adjustedIndex + 2].y;
+            var p3x = this._points[adjustedIndex + 3].x;
+            var p3y = this._points[adjustedIndex + 3].y;
+            var adjustedT = (t == 1) ? 1 : fgui.ToolSet.repeat(t * (ptCount - 4), 1);
+            var t0 = ((-adjustedT + 2) * adjustedT - 1) * adjustedT * 0.5;
+            var t1 = (((3 * adjustedT - 5) * adjustedT) * adjustedT + 2) * 0.5;
+            var t2 = ((-3 * adjustedT + 4) * adjustedT + 1) * adjustedT * 0.5;
+            var t3 = ((adjustedT - 1) * adjustedT * adjustedT) * 0.5;
+            result.x = p0x * t0 + p1x * t1 + p2x * t2 + p3x * t3;
+            result.y = p0y * t0 + p1y * t1 + p2y * t2 + p3y * t3;
+            return result;
+        }
+        onBezierCurve(ptStart, ptCount, t, result) {
+            var t2 = 1 - t;
+            var p0x = this._points[ptStart].x;
+            var p0y = this._points[ptStart].y;
+            var p1x = this._points[ptStart + 1].x;
+            var p1y = this._points[ptStart + 1].y;
+            var cp0x = this._points[ptStart + 2].x;
+            var cp0y = this._points[ptStart + 2].y;
+            if (ptCount == 4) {
+                var cp1x = this._points[ptStart + 3].x;
+                var cp1y = this._points[ptStart + 3].y;
+                result.x = t2 * t2 * t2 * p0x + 3 * t2 * t2 * t * cp0x + 3 * t2 * t * t * cp1x + t * t * t * p1x;
+                result.y = t2 * t2 * t2 * p0y + 3 * t2 * t2 * t * cp0y + 3 * t2 * t * t * cp1y + t * t * t * p1y;
+            }
+            else {
+                result.x = t2 * t2 * p0x + 2 * t2 * t * cp0x + t * t * p1x;
+                result.y = t2 * t2 * p0y + 2 * t2 * t * cp0y + t * t * p1y;
+            }
+            return result;
+        }
+    }
+    GPath.helperPoints = new Array();
+    fgui.GPath = GPath;
+    class Segment {
+    }
+})(fgui || (fgui = {}));
+
+
+(function (fgui) {
+    let CurveType;
+    (function (CurveType) {
+        CurveType[CurveType["CRSpline"] = 0] = "CRSpline";
+        CurveType[CurveType["Bezier"] = 1] = "Bezier";
+        CurveType[CurveType["CubicBezier"] = 2] = "CubicBezier";
+        CurveType[CurveType["Straight"] = 3] = "Straight";
+    })(CurveType = fgui.CurveType || (fgui.CurveType = {}));
+    class GPathPoint {
+        constructor() {
+            this.x = 0;
+            this.y = 0;
+            this.control1_x = 0;
+            this.control1_y = 0;
+            this.control2_x = 0;
+            this.control2_y = 0;
+            this.curveType = 0;
+        }
+        static newPoint(x = 0, y = 0, curveType = 0) {
+            var pt = new GPathPoint();
+            pt.x = x;
+            pt.y = y;
+            pt.control1_x = 0;
+            pt.control1_y = 0;
+            pt.control2_x = 0;
+            pt.control2_y = 0;
+            pt.curveType = curveType;
+            return pt;
+        }
+        static newBezierPoint(x = 0, y = 0, control1_x = 0, control1_y = 0) {
+            var pt = new GPathPoint();
+            pt.x = x;
+            pt.y = y;
+            pt.control1_x = control1_x;
+            pt.control1_y = control1_y;
+            pt.control2_x = 0;
+            pt.control2_y = 0;
+            pt.curveType = CurveType.Bezier;
+            return pt;
+        }
+        static newCubicBezierPoint(x = 0, y = 0, control1_x = 0, control1_y = 0, control2_x = 0, control2_y = 0) {
+            var pt = new GPathPoint();
+            pt.x = x;
+            pt.y = y;
+            pt.control1_x = control1_x;
+            pt.control1_y = control1_y;
+            pt.control2_x = control2_x;
+            pt.control2_y = control2_y;
+            pt.curveType = CurveType.CubicBezier;
+            return pt;
+        }
+        clone() {
+            var ret = new GPathPoint();
+            ret.x = this.x;
+            ret.y = this.y;
+            ret.control1_x = this.control1_x;
+            ret.control1_y = this.control1_y;
+            ret.control2_x = this.control2_x;
+            ret.control2_y = this.control2_y;
+            ret.curveType = this.curveType;
+            return ret;
+        }
+    }
+    fgui.GPathPoint = GPathPoint;
+})(fgui || (fgui = {}));
+
+
+(function (fgui) {
     class GTween {
         static to(start, end, duration) {
             return fgui.TweenManager.createTween()._to(start, end, duration);
@@ -1740,6 +2020,10 @@ window.fgui = {};
         setTarget(value, propType) {
             this._target = value;
             this._propType = propType;
+            return this;
+        }
+        setPath(value) {
+            this._path = value;
             return this;
         }
         get target() {
@@ -1909,6 +2193,7 @@ window.fgui = {};
         _reset() {
             this._target = null;
             this._userData = null;
+            this._path = null;
             this._onStart = this._onUpdate = this._onComplete = null;
             this._onStartCaller = this._onUpdateCaller = this._onCompleteCaller = null;
         }
@@ -1986,6 +2271,18 @@ window.fgui = {};
                     this._value.y = this._startValue.y;
                 }
             }
+            else if (this._path) {
+                var pt = GTweener.helperPoint;
+                this._path.getPointAt(this._normalizedTime, pt);
+                if (this._snapping) {
+                    pt.x = Math.round(pt.x);
+                    pt.y = Math.round(pt.y);
+                }
+                this._deltaValue.x = pt.x - this._value.x;
+                this._deltaValue.y = pt.y - this._value.y;
+                this._value.x = pt.x;
+                this._value.y = pt.y;
+            }
             else {
                 for (var i = 0; i < this._valueSize; i++) {
                     var n1 = this._startValue.getField(i);
@@ -2060,6 +2357,7 @@ window.fgui = {};
             }
         }
     }
+    GTweener.helperPoint = new Laya.Point();
     fgui.GTweener = GTweener;
 })(fgui || (fgui = {}));
 
@@ -2231,6 +2529,14 @@ window.fgui = {};
         constructor(owner) {
             this._owner = owner;
         }
+        static create(owner, index) {
+            if (!GearBase.Classes)
+                GearBase.Classes = [
+                    fgui.GearDisplay, fgui.GearXY, fgui.GearSize, fgui.GearLook, fgui.GearColor,
+                    fgui.GearAnimation, fgui.GearText, fgui.GearIcon, fgui.GearDisplay2, fgui.GearFontSize
+                ];
+            return new (GearBase.Classes[index])(owner);
+        }
         dispose() {
             if (this._tweenConfig != null && this._tweenConfig._tweener != null) {
                 this._tweenConfig._tweener.kill();
@@ -2255,18 +2561,16 @@ window.fgui = {};
         setup(buffer) {
             this._controller = this._owner.parent.getControllerAt(buffer.getInt16());
             this.init();
-            var cnt;
             var i;
             var page;
+            var cnt = buffer.getInt16();
             if (this instanceof fgui.GearDisplay) {
-                cnt = buffer.getInt16();
-                var pages = [];
-                for (i = 0; i < cnt; i++)
-                    pages[i] = buffer.readS();
-                (this).pages = pages;
+                this.pages = buffer.readSArray(cnt);
+            }
+            else if (this instanceof fgui.GearDisplay2) {
+                this.pages = buffer.readSArray(cnt);
             }
             else {
-                cnt = buffer.getInt16();
                 for (i = 0; i < cnt; i++) {
                     page = buffer.readS();
                     if (page == null)
@@ -2281,6 +2585,12 @@ window.fgui = {};
                 this._tweenConfig.easeType = buffer.readByte();
                 this._tweenConfig.duration = buffer.getFloat32();
                 this._tweenConfig.delay = buffer.getFloat32();
+            }
+            if (buffer.version >= 2) {
+                if (this instanceof fgui.GearXY)
+                    this.positionsInPercent = buffer.readBool();
+                else if (this instanceof fgui.GearDisplay2)
+                    this.condition = buffer.readByte();
             }
         }
         updateFromRelations(dx, dy) {
@@ -2423,7 +2733,10 @@ window.fgui = {};
             super(owner);
         }
         init() {
-            this._default = new Laya.Point(this._owner.x, this._owner.y);
+            this._default = {
+                x: this._owner.x, y: this._owner.y,
+                px: this._owner.x / this._owner.parent.width, py: this._owner.y / this._owner.parent.height
+            };
             this._storage = {};
         }
         addStatus(pageId, buffer) {
@@ -2431,29 +2744,49 @@ window.fgui = {};
             if (pageId == null)
                 gv = this._default;
             else {
-                gv = new Laya.Point();
+                gv = {};
                 this._storage[pageId] = gv;
             }
             gv.x = buffer.getInt32();
             gv.y = buffer.getInt32();
+            if (buffer.version >= 2) {
+                gv.px = buffer.getFloat32();
+                gv.py = buffer.getFloat32();
+            }
+            else {
+                gv.px = gv.x / this._owner.parent.width;
+                gv.py = gv.y / this._owner.parent.height;
+            }
         }
         apply() {
             var pt = this._storage[this._controller.selectedPageId];
             if (!pt)
                 pt = this._default;
+            var ex;
+            var ey;
+            if (this.positionsInPercent && this._owner.parent) {
+                ex = pt.px * this._owner.parent.width;
+                ey = pt.py * this._owner.parent.height;
+            }
+            else {
+                ex = pt.x;
+                ey = pt.y;
+            }
             if (this._tweenConfig != null && this._tweenConfig.tween && !fgui.UIPackage._constructing && !fgui.GearBase.disableAllTweenEffect) {
                 if (this._tweenConfig._tweener != null) {
-                    if (this._tweenConfig._tweener.endValue.x != pt.x || this._tweenConfig._tweener.endValue.y != pt.y) {
+                    if (this._tweenConfig._tweener.endValue.x != ex || this._tweenConfig._tweener.endValue.y != ey) {
                         this._tweenConfig._tweener.kill(true);
                         this._tweenConfig._tweener = null;
                     }
                     else
                         return;
                 }
-                if (this._owner.x != pt.x || this._owner.y != pt.y) {
+                var ox = this._owner.x;
+                var oy = this._owner.y;
+                if (ox != ex || oy != ey) {
                     if (this._owner.checkGearController(0, this._controller))
                         this._tweenConfig._displayLockToken = this._owner.addDisplayLock();
-                    this._tweenConfig._tweener = fgui.GTween.to2(this._owner.x, this._owner.y, pt.x, pt.y, this._tweenConfig.duration)
+                    this._tweenConfig._tweener = fgui.GTween.to2(ox, oy, ex, ey, this._tweenConfig.duration)
                         .setDelay(this._tweenConfig.delay)
                         .setEase(this._tweenConfig.easeType)
                         .setTarget(this)
@@ -2463,7 +2796,7 @@ window.fgui = {};
             }
             else {
                 this._owner._gearLocked = true;
-                this._owner.setXY(pt.x, pt.y);
+                this._owner.setXY(ex, ey);
                 this._owner._gearLocked = false;
             }
         }
@@ -2482,14 +2815,16 @@ window.fgui = {};
         updateState() {
             var pt = this._storage[this._controller.selectedPageId];
             if (!pt) {
-                pt = new Laya.Point();
+                pt = {};
                 this._storage[this._controller.selectedPageId] = pt;
             }
             pt.x = this._owner.x;
             pt.y = this._owner.y;
+            pt.px = this._owner.x / this._owner.parent.width;
+            pt.py = this._owner.y / this._owner.parent.height;
         }
         updateFromRelations(dx, dy) {
-            if (this._controller == null || this._storage == null)
+            if (this._controller == null || this._storage == null || this.positionsInPercent)
                 return;
             for (var key in this._storage) {
                 var pt = this._storage[key];
@@ -2706,6 +3041,35 @@ window.fgui = {};
 
 
 (function (fgui) {
+    class GearDisplay2 extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+            this._visible = 0;
+        }
+        init() {
+            this.pages = null;
+        }
+        apply() {
+            if (this.pages == null || this.pages.length == 0
+                || this.pages.indexOf(this._controller.selectedPageId) != -1)
+                this._visible = 1;
+            else
+                this._visible = 0;
+        }
+        evaluate(connected) {
+            var v = this._controller == null || this._visible > 0;
+            if (this.condition == 0)
+                v = v && connected;
+            else
+                v = v || connected;
+            return v;
+        }
+    }
+    fgui.GearDisplay2 = GearDisplay2;
+})(fgui || (fgui = {}));
+
+
+(function (fgui) {
     class GearLook extends fgui.GearBase {
         constructor(owner) {
             super(owner);
@@ -2804,6 +3168,39 @@ window.fgui = {};
             this.touchable = touchable;
         }
     }
+})(fgui || (fgui = {}));
+
+
+(function (fgui) {
+    class GearFontSize extends fgui.GearBase {
+        constructor(owner) {
+            super(owner);
+            this._default = 0;
+        }
+        init() {
+            this._default = this._owner.getProp(fgui.ObjectPropID.FontSize);
+            this._storage = {};
+        }
+        addStatus(pageId, buffer) {
+            if (pageId == null)
+                this._default = buffer.getInt32();
+            else
+                this._storage[pageId] = buffer.getInt32();
+        }
+        apply() {
+            this._owner._gearLocked = true;
+            var data = this._storage[this._controller.selectedPageId];
+            if (data != undefined)
+                this._owner.setProp(fgui.ObjectPropID.FontSize, data);
+            else
+                this._owner.setProp(fgui.ObjectPropID.FontSize, this._default);
+            this._owner._gearLocked = false;
+        }
+        updateState() {
+            this._storage[this._controller.selectedPageId] = this._owner.text;
+        }
+    }
+    fgui.GearFontSize = GearFontSize;
 })(fgui || (fgui = {}));
 
 
@@ -3026,7 +3423,7 @@ window.fgui = {};
                 this._previousIndex = this._selectedIndex;
                 this._selectedIndex = value;
                 this.parent.applyController(this);
-                this.event(fgui.Events.STATE_CHANGED);
+                this.event(fgui.Events.STATE_CHANGED, this);
                 this.changing = false;
             }
         }
@@ -3182,6 +3579,25 @@ window.fgui = {};
                 this._pageIds.push(buffer.readS());
                 this._pageNames.push(buffer.readS());
             }
+            var homePageIndex = 0;
+            if (buffer.version >= 2) {
+                var homePageType = buffer.getByte();
+                switch (homePageType) {
+                    case 1:
+                        homePageIndex = buffer.getInt16();
+                        break;
+                    case 2:
+                        homePageIndex = this._pageNames.indexOf(fgui.UIPackage.branch);
+                        if (homePageIndex == -1)
+                            homePageIndex = 0;
+                        break;
+                    case 3:
+                        homePageIndex = this._pageNames.indexOf(fgui.UIPackage.getVar(buffer.readS()));
+                        if (homePageIndex == -1)
+                            homePageIndex = 0;
+                        break;
+                }
+            }
             buffer.seek(beginPos, 2);
             cnt = buffer.getInt16();
             if (cnt > 0) {
@@ -3197,7 +3613,7 @@ window.fgui = {};
                 }
             }
             if (this.parent != null && this._pageIds.length > 0)
-                this._selectedIndex = 0;
+                this._selectedIndex = homePageIndex;
             else
                 this._selectedIndex = -1;
         }
@@ -3340,6 +3756,7 @@ window.fgui = {};
         ObjectType[ObjectType["ProgressBar"] = 14] = "ProgressBar";
         ObjectType[ObjectType["Slider"] = 15] = "Slider";
         ObjectType[ObjectType["ScrollBar"] = 16] = "ScrollBar";
+        ObjectType[ObjectType["Tree"] = 17] = "Tree";
     })(ObjectType = fgui.ObjectType || (fgui.ObjectType = {}));
     ;
     let ProgressTitleType;
@@ -4076,31 +4493,47 @@ window.fgui = {};
                 if (item.type == TransitionActionType.XY) {
                     if (item.target != this._owner) {
                         if (!startValue.b1)
-                            startValue.f1 = item.target.x;
+                            tweener.startValue.x = item.target.x;
+                        else if (startValue.b3)
+                            tweener.startValue.x = startValue.f1 * this._owner.width;
                         if (!startValue.b2)
-                            startValue.f2 = item.target.y;
+                            tweener.startValue.y = item.target.y;
+                        else if (startValue.b3)
+                            tweener.startValue.y = startValue.f2 * this._owner.height;
+                        if (!endValue.b1)
+                            tweener.endValue.x = tweener.startValue.x;
+                        else if (endValue.b3)
+                            tweener.endValue.x = endValue.f1 * this._owner.width;
+                        if (!endValue.b2)
+                            tweener.endValue.y = tweener.startValue.y;
+                        else if (endValue.b3)
+                            tweener.endValue.y = endValue.f2 * this._owner.height;
                     }
                     else {
                         if (!startValue.b1)
-                            startValue.f1 = item.target.x - this._ownerBaseX;
+                            tweener.startValue.x = item.target.x - this._ownerBaseX;
                         if (!startValue.b2)
-                            startValue.f2 = item.target.y - this._ownerBaseY;
+                            tweener.startValue.y = item.target.y - this._ownerBaseY;
+                        if (!endValue.b1)
+                            tweener.endValue.x = tweener.startValue.x;
+                        if (!endValue.b2)
+                            tweener.endValue.y = tweener.startValue.y;
                     }
                 }
                 else {
                     if (!startValue.b1)
-                        startValue.f1 = item.target.width;
+                        tweener.startValue.x = item.target.width;
                     if (!startValue.b2)
-                        startValue.f2 = item.target.height;
+                        tweener.startValue.y = item.target.height;
+                    if (!endValue.b1)
+                        tweener.endValue.x = tweener.startValue.x;
+                    if (!endValue.b2)
+                        tweener.endValue.y = tweener.startValue.y;
                 }
-                if (!endValue.b1)
-                    endValue.f1 = startValue.f1;
-                if (!endValue.b2)
-                    endValue.f2 = startValue.f2;
-                tweener.startValue.x = startValue.f1;
-                tweener.startValue.y = startValue.f2;
-                tweener.endValue.x = endValue.f1;
-                tweener.endValue.y = endValue.f2;
+                if (item.tweenConfig.path) {
+                    item.value.b1 = item.value.b2 = true;
+                    tweener.setPath(item.tweenConfig.path);
+                }
             }
             this.callHook(item, false);
         }
@@ -4113,6 +4546,10 @@ window.fgui = {};
                 case TransitionActionType.Skew:
                     item.value.f1 = tweener.value.x;
                     item.value.f2 = tweener.value.y;
+                    if (item.tweenConfig.path) {
+                        item.value.f1 += tweener.startValue.x;
+                        item.value.f2 += tweener.startValue.y;
+                    }
                     break;
                 case TransitionActionType.Alpha:
                 case TransitionActionType.Rotation:
@@ -4186,111 +4623,112 @@ window.fgui = {};
         }
         applyValue(item) {
             item.target._gearLocked = true;
+            var value = item.value;
             switch (item.type) {
                 case TransitionActionType.XY:
                     if (item.target == this._owner) {
-                        var f1, f2;
-                        if (!item.value.b1)
-                            f1 = item.target.x;
+                        if (value.b1 && value.b2)
+                            item.target.setXY(value.f1 + this._ownerBaseX, value.f2 + this._ownerBaseY);
+                        else if (value.b1)
+                            item.target.x = value.f1 + this._ownerBaseX;
                         else
-                            f1 = item.value.f1 + this._ownerBaseX;
-                        if (!item.value.b2)
-                            f2 = item.target.y;
-                        else
-                            f2 = item.value.f2 + this._ownerBaseY;
-                        item.target.setXY(f1, f2);
+                            item.target.y = value.f2 + this._ownerBaseY;
                     }
                     else {
-                        if (!item.value.b1)
-                            item.value.f1 = item.target.x;
-                        if (!item.value.b2)
-                            item.value.f2 = item.target.y;
-                        item.target.setXY(item.value.f1, item.value.f2);
+                        if (value.b3) {
+                            if (value.b1 && value.b2)
+                                item.target.setXY(value.f1 * this._owner.width, value.f2 * this._owner.height);
+                            else if (value.b1)
+                                item.target.x = value.f1 * this._owner.width;
+                            else if (value.b2)
+                                item.target.y = value.f2 * this._owner.height;
+                        }
+                        else {
+                            if (value.b1 && value.b2)
+                                item.target.setXY(value.f1, value.f2);
+                            else if (value.b1)
+                                item.target.x = value.f1;
+                            else if (value.b2)
+                                item.target.y = value.f2;
+                        }
                     }
                     break;
                 case TransitionActionType.Size:
-                    if (!item.value.b1)
-                        item.value.f1 = item.target.width;
-                    if (!item.value.b2)
-                        item.value.f2 = item.target.height;
-                    item.target.setSize(item.value.f1, item.value.f2);
+                    if (!value.b1)
+                        value.f1 = item.target.width;
+                    if (!value.b2)
+                        value.f2 = item.target.height;
+                    item.target.setSize(value.f1, value.f2);
                     break;
                 case TransitionActionType.Pivot:
-                    item.target.setPivot(item.value.f1, item.value.f2, item.target.pivotAsAnchor);
+                    item.target.setPivot(value.f1, value.f2, item.target.pivotAsAnchor);
                     break;
                 case TransitionActionType.Alpha:
-                    item.target.alpha = item.value.f1;
+                    item.target.alpha = value.f1;
                     break;
                 case TransitionActionType.Rotation:
-                    item.target.rotation = item.value.f1;
+                    item.target.rotation = value.f1;
                     break;
                 case TransitionActionType.Scale:
-                    item.target.setScale(item.value.f1, item.value.f2);
+                    item.target.setScale(value.f1, value.f2);
                     break;
                 case TransitionActionType.Skew:
-                    item.target.setSkew(item.value.f1, item.value.f2);
+                    item.target.setSkew(value.f1, value.f2);
                     break;
                 case TransitionActionType.Color:
-                    item.target.setProp(fgui.ObjectPropID.Color, fgui.ToolSet.convertToHtmlColor(item.value.f1, false));
+                    item.target.setProp(fgui.ObjectPropID.Color, fgui.ToolSet.convertToHtmlColor(value.f1, false));
                     break;
                 case TransitionActionType.Animation:
-                    if (item.value.frame >= 0)
-                        item.target.setProp(fgui.ObjectPropID.Frame, item.value.frame);
-                    item.target.setProp(fgui.ObjectPropID.Playing, item.value.playing);
+                    if (value.frame >= 0)
+                        item.target.setProp(fgui.ObjectPropID.Frame, value.frame);
+                    item.target.setProp(fgui.ObjectPropID.Playing, value.playing);
                     item.target.setProp(fgui.ObjectPropID.TimeScale, this._timeScale);
                     break;
                 case TransitionActionType.Visible:
-                    item.target.visible = item.value.visible;
+                    item.target.visible = value.visible;
                     break;
                 case TransitionActionType.Transition:
                     if (this._playing) {
-                        var trans = item.value.trans;
+                        var trans = value.trans;
                         if (trans != null) {
                             this._totalTasks++;
                             var startTime = this._startTime > item.time ? (this._startTime - item.time) : 0;
                             var endTime = this._endTime >= 0 ? (this._endTime - item.time) : -1;
-                            if (item.value.stopTime >= 0 && (endTime < 0 || endTime > item.value.stopTime))
-                                endTime = item.value.stopTime;
+                            if (value.stopTime >= 0 && (endTime < 0 || endTime > value.stopTime))
+                                endTime = value.stopTime;
                             trans.timeScale = this._timeScale;
-                            trans._play(Laya.Handler.create(this, this.onPlayTransCompleted, [item]), item.value.playTimes, 0, startTime, endTime, this._reversed);
+                            trans._play(Laya.Handler.create(this, this.onPlayTransCompleted, [item]), value.playTimes, 0, startTime, endTime, this._reversed);
                         }
                     }
                     break;
                 case TransitionActionType.Sound:
                     if (this._playing && item.time >= this._startTime) {
-                        if (item.value.audioClip == null) {
-                            var pi = fgui.UIPackage.getItemByURL(item.value.sound);
+                        if (value.audioClip == null) {
+                            var pi = fgui.UIPackage.getItemByURL(value.sound);
                             if (pi)
-                                item.value.audioClip = pi.file;
+                                value.audioClip = pi.file;
                             else
-                                item.value.audioClip = item.value.sound;
+                                value.audioClip = value.sound;
                         }
-                        if (item.value.audioClip)
-                            fgui.GRoot.inst.playOneShotSound(item.value.audioClip, item.value.volume);
+                        if (value.audioClip)
+                            fgui.GRoot.inst.playOneShotSound(value.audioClip, value.volume);
                     }
                     break;
                 case TransitionActionType.Shake:
-                    item.target.setXY(item.target.x - item.value.lastOffsetX + item.value.offsetX, item.target.y - item.value.lastOffsetY + item.value.offsetY);
-                    item.value.lastOffsetX = item.value.offsetX;
-                    item.value.lastOffsetY = item.value.offsetY;
+                    item.target.setXY(item.target.x - value.lastOffsetX + value.offsetX, item.target.y - value.lastOffsetY + value.offsetY);
+                    value.lastOffsetX = value.offsetX;
+                    value.lastOffsetY = value.offsetY;
                     break;
                 case TransitionActionType.ColorFilter:
                     {
-                        var arr = item.target.filters;
-                        var cm = new fgui.ColorMatrix();
-                        cm.adjustBrightness(item.value.f1);
-                        cm.adjustContrast(item.value.f2);
-                        cm.adjustSaturation(item.value.f3);
-                        cm.adjustHue(item.value.f4);
-                        arr = [new Laya.ColorFilter(cm)];
-                        item.target.filters = arr;
+                        fgui.ToolSet.setColorFilter(item.target.displayObject, [value.f1, value.f2, value.f3, value.f4]);
                         break;
                     }
                 case TransitionActionType.Text:
-                    item.target.text = item.value.text;
+                    item.target.text = value.text;
                     break;
                 case TransitionActionType.Icon:
-                    item.target.icon = item.value.text;
+                    item.target.icon = value.text;
                     break;
             }
             item.target._gearLocked = false;
@@ -4329,6 +4767,28 @@ window.fgui = {};
                     this.decodeValue(item, buffer, item.tweenConfig.startValue);
                     buffer.seek(curPos, 3);
                     this.decodeValue(item, buffer, item.tweenConfig.endValue);
+                    if (buffer.version >= 2) {
+                        var pathLen = buffer.getInt32();
+                        if (pathLen > 0) {
+                            item.tweenConfig.path = new fgui.GPath();
+                            var pts = new Array();
+                            for (i = 0; i < pathLen; i++) {
+                                var curveType = buffer.getUint8();
+                                switch (curveType) {
+                                    case fgui.CurveType.Bezier:
+                                        pts.push(fgui.GPathPoint.newBezierPoint(buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()));
+                                        break;
+                                    case fgui.CurveType.CubicBezier:
+                                        pts.push(fgui.GPathPoint.newCubicBezierPoint(buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()));
+                                        break;
+                                    default:
+                                        pts.push(fgui.GPathPoint.newPoint(buffer.getFloat32(), buffer.getFloat32(), curveType));
+                                        break;
+                                }
+                            }
+                            item.tweenConfig.path.create(pts);
+                        }
+                    }
                 }
                 else {
                     if (item.time > this._totalDuration)
@@ -4349,6 +4809,8 @@ window.fgui = {};
                     value.b2 = buffer.readBool();
                     value.f1 = buffer.getFloat32();
                     value.f2 = buffer.getFloat32();
+                    if (buffer.version >= 2 && item.type == TransitionActionType.XY)
+                        value.b3 = buffer.readBool();
                     break;
                 case TransitionActionType.Alpha:
                 case TransitionActionType.Rotation:
@@ -4523,7 +4985,7 @@ window.fgui = {};
             this._name = "";
             this.createDisplayObject();
             this._relations = new fgui.Relations(this);
-            this._gears = [];
+            this._gears = new Array(10);
         }
         get id() {
             return this._id;
@@ -4559,7 +5021,7 @@ window.fgui = {};
                 if (this._parent && !(this._parent instanceof fgui.GList)) {
                     this._parent.setBoundsChangedFlag();
                     if (this._group != null)
-                        this._group.setBoundsChangedFlag();
+                        this._group.setBoundsChangedFlag(true);
                     this.displayObject.event(fgui.Events.XY_CHANGED);
                 }
                 if (GObject.draggingObject == this && !GObject.sUpdateInDragging)
@@ -4656,7 +5118,7 @@ window.fgui = {};
                     this._relations.onOwnerSizeChanged(dWidth, dHeight, this._pivotAsAnchor || !ignorePivot);
                     this._parent.setBoundsChangedFlag();
                     if (this._group != null)
-                        this._group.setBoundsChangedFlag(true);
+                        this._group.setBoundsChangedFlag();
                 }
                 this.displayObject.event(fgui.Events.SIZE_CHANGED);
             }
@@ -4838,6 +5300,8 @@ window.fgui = {};
                 this.handleVisibleChanged();
                 if (this._parent)
                     this._parent.setBoundsChangedFlag();
+                if (this._group)
+                    this._group.setBoundsChangedFlag();
             }
         }
         get internalVisible() {
@@ -4846,6 +5310,9 @@ window.fgui = {};
         }
         get internalVisible2() {
             return this._visible && (!this._group || this._group.internalVisible2);
+        }
+        get internalVisible3() {
+            return this._internalVisible && this._visible;
         }
         get sortingOrder() {
             return this._sortingOrder;
@@ -4929,10 +5396,10 @@ window.fgui = {};
         set group(value) {
             if (this._group != value) {
                 if (this._group != null)
-                    this._group.setBoundsChangedFlag(true);
+                    this._group.setBoundsChangedFlag();
                 this._group = value;
                 if (this._group != null)
-                    this._group.setBoundsChangedFlag(true);
+                    this._group.setBoundsChangedFlag();
             }
         }
         get group() {
@@ -4940,37 +5407,8 @@ window.fgui = {};
         }
         getGear(index) {
             var gear = this._gears[index];
-            if (gear == null) {
-                switch (index) {
-                    case 0:
-                        gear = new fgui.GearDisplay(this);
-                        break;
-                    case 1:
-                        gear = new fgui.GearXY(this);
-                        break;
-                    case 2:
-                        gear = new fgui.GearSize(this);
-                        break;
-                    case 3:
-                        gear = new fgui.GearLook(this);
-                        break;
-                    case 4:
-                        gear = new fgui.GearColor(this);
-                        break;
-                    case 5:
-                        gear = new fgui.GearAnimation(this);
-                        break;
-                    case 6:
-                        gear = new fgui.GearText(this);
-                        break;
-                    case 7:
-                        gear = new fgui.GearIcon(this);
-                        break;
-                    default:
-                        throw new Error("FairyGUI: invalid gear index!");
-                }
-                this._gears[index] = gear;
-            }
+            if (gear == null)
+                this._gears[index] = gear = fgui.GearBase.create(this, index);
             return gear;
         }
         updateGear(index) {
@@ -5008,10 +5446,15 @@ window.fgui = {};
             if (this._handlingController)
                 return;
             var connected = this._gears[0] == null || (this._gears[0]).connected;
+            if (this._gears[8])
+                connected = this._gears[8].evaluate(connected);
             if (connected != this._internalVisible) {
                 this._internalVisible = connected;
-                if (this._parent)
+                if (this._parent) {
                     this._parent.childStateChanged(this);
+                    if (this._group)
+                        this._group.setBoundsChangedFlag();
+                }
             }
         }
         get relations() {
@@ -5074,6 +5517,9 @@ window.fgui = {};
         get asList() {
             return this;
         }
+        get asTree() {
+            return this;
+        }
         get asGraph() {
             return this;
         }
@@ -5102,6 +5548,9 @@ window.fgui = {};
         }
         set icon(value) {
         }
+        get treeNode() {
+            return this._treeNode;
+        }
         get isDisposed() {
             return this._displayObject == null;
         }
@@ -5110,7 +5559,7 @@ window.fgui = {};
             this._relations.dispose();
             this._displayObject.destroy();
             this._displayObject = null;
-            for (var i = 0; i < 8; i++) {
+            for (var i = 0; i < 10; i++) {
                 var gear = this._gears[i];
                 if (gear != null)
                     gear.dispose();
@@ -5216,7 +5665,7 @@ window.fgui = {};
         }
         handleControllerChanged(c) {
             this._handlingController = true;
-            for (var i = 0; i < 8; i++) {
+            for (var i = 0; i < 10; i++) {
                 var gear = this._gears[i];
                 if (gear != null && gear.controller == c)
                     gear.apply();
@@ -5242,31 +5691,19 @@ window.fgui = {};
             this._displayObject.pos(xv + this._pivotOffsetX, yv + this._pivotOffsetY);
         }
         handleSizeChanged() {
-            if (this._displayObject != null)
-                this._displayObject.size(this._width, this._height);
+            this._displayObject.size(this._width, this._height);
         }
         handleScaleChanged() {
-            if (this._displayObject != null)
-                this._displayObject.scale(this._scaleX, this._scaleY, true);
+            this._displayObject.scale(this._scaleX, this._scaleY, true);
         }
         handleGrayedChanged() {
-            if (this._displayObject) {
-                if (this._grayed) {
-                    if (GObject.grayFilter == null)
-                        GObject.grayFilter = new Laya.ColorFilter([0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0.3086, 0.6094, 0.082, 0, 0, 0, 0, 0, 1, 0]);
-                    this._displayObject.filters = [GObject.grayFilter];
-                }
-                else
-                    this._displayObject.filters = null;
-            }
+            fgui.ToolSet.setColorFilter(this._displayObject, this._grayed);
         }
         handleAlphaChanged() {
-            if (this._displayObject)
-                this._displayObject.alpha = this._alpha;
+            this._displayObject.alpha = this._alpha;
         }
         handleVisibleChanged() {
-            if (this._displayObject)
-                this._displayObject.visible = this.internalVisible2;
+            this._displayObject.visible = this.internalVisible2;
         }
         getProp(index) {
             switch (index) {
@@ -5359,13 +5796,7 @@ window.fgui = {};
                 this.blendMode = "lighter";
             var filter = buffer.readByte();
             if (filter == 1) {
-                var cm = new fgui.ColorMatrix();
-                cm.adjustBrightness(buffer.getFloat32());
-                cm.adjustContrast(buffer.getFloat32());
-                cm.adjustSaturation(buffer.getFloat32());
-                cm.adjustHue(buffer.getFloat32());
-                var cf = new Laya.ColorFilter(cm);
-                this.filters = [cf];
+                fgui.ToolSet.setColorFilter(this._displayObject, [buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()]);
             }
             var str = buffer.readS();
             if (str != null)
@@ -5477,7 +5908,6 @@ window.fgui = {};
         }
     }
     GObject._gInstanceCounter = 0;
-    GObject.grayFilter = null;
     GObject.sGlobalDragStart = new Laya.Point();
     GObject.sGlobalRect = new Laya.Rectangle();
     GObject.sHelperPoint = new Laya.Point();
@@ -5497,6 +5927,22 @@ window.fgui = {};
         }
         load() {
             return this.owner.getItemAsset(this);
+        }
+        getBranch() {
+            if (this.branches && this.owner._branchIndex != -1) {
+                var itemId = this.branches[this.owner._branchIndex];
+                if (itemId)
+                    return this.owner.getItemById(itemId);
+            }
+            return this;
+        }
+        getHighResolution() {
+            if (this.highResolution && fgui.GRoot.contentScaleLevel > 0) {
+                var itemId = this.highResolution[fgui.GRoot.contentScaleLevel - 1];
+                if (itemId)
+                    return this.owner.getItemById(itemId);
+            }
+            return this;
         }
         toString() {
             return this.name;
@@ -5652,6 +6098,26 @@ window.fgui = {};
                     return this._children[i];
             }
             return null;
+        }
+        getChildByPath(path) {
+            var arr = path.split(".");
+            var cnt = arr.length;
+            var gcom = this;
+            var obj;
+            for (var i = 0; i < cnt; ++i) {
+                obj = gcom.getChild(arr[i]);
+                if (!obj)
+                    break;
+                if (i != cnt - 1) {
+                    if (!(gcom instanceof GComponent)) {
+                        obj = null;
+                        break;
+                    }
+                    else
+                        gcom = obj;
+                }
+            }
+            return obj;
         }
         getVisibleChild(name) {
             var cnt = this._children.length;
@@ -5889,12 +6355,13 @@ window.fgui = {};
                     break;
                 case fgui.ChildrenRenderOrder.Arch:
                     {
-                        for (i = 0; i < this._apexIndex; i++) {
+                        var apex = fgui.ToolSet.clamp(this._apexIndex, 0, cnt);
+                        for (i = 0; i < apex; i++) {
                             child = this._children[i];
                             if (child.displayObject != null && child.internalVisible)
                                 this._container.addChild(child.displayObject);
                         }
-                        for (i = cnt - 1; i >= this._apexIndex; i--) {
+                        for (i = cnt - 1; i >= apex; i--) {
                             child = this._children[i];
                             if (child.displayObject != null && child.internalVisible)
                                 this._container.addChild(child.displayObject);
@@ -5987,7 +6454,7 @@ window.fgui = {};
                     if (this._displayObject.hitArea == null)
                         this._displayObject.hitArea = new Laya.Rectangle();
                     if (this._displayObject.hitArea instanceof Laya.Rectangle)
-                        this._displayObject.hitArea.setTo(0, 0, this.width, this.height);
+                        this._displayObject.hitArea.setTo(0, 0, this._width, this._height);
                     this._displayObject.mouseThrough = false;
                 }
                 else {
@@ -6066,12 +6533,12 @@ window.fgui = {};
             if (this._displayObject.hitArea instanceof fgui.PixelHitTest) {
                 var hitTest = (this._displayObject.hitArea);
                 if (this.sourceWidth != 0)
-                    hitTest.scaleX = this.width / this.sourceWidth;
+                    hitTest.scaleX = this._width / this.sourceWidth;
                 if (this.sourceHeight != 0)
-                    hitTest.scaleY = this.height / this.sourceHeight;
+                    hitTest.scaleY = this._height / this.sourceHeight;
             }
             else if (this._displayObject.hitArea instanceof Laya.Rectangle) {
-                this._displayObject.hitArea.setTo(0, 0, this.width, this.height);
+                this._displayObject.hitArea.setTo(0, 0, this._width, this._height);
             }
         }
         updateMask() {
@@ -6080,8 +6547,8 @@ window.fgui = {};
                 rect = new Laya.Rectangle();
             rect.x = this._margin.left;
             rect.y = this._margin.top;
-            rect.width = this.width - this._margin.right;
-            rect.height = this.height - this._margin.bottom;
+            rect.width = this._width - this._margin.right;
+            rect.height = this._height - this._margin.bottom;
             this._displayObject.scrollRect = rect;
         }
         setupScroll(buffer) {
@@ -6432,15 +6899,21 @@ window.fgui = {};
                 this.setMask(this.getChildAt(maskId).displayObject, buffer.readBool());
             }
             var hitTestId = buffer.readS();
-            if (hitTestId != null) {
+            i1 = buffer.getInt32();
+            i2 = buffer.getInt32();
+            var hitArea;
+            if (hitTestId) {
                 pi = this.packageItem.owner.getItemById(hitTestId);
-                if (pi != null && pi.pixelHitTestData != null) {
-                    i1 = buffer.getInt32();
-                    i2 = buffer.getInt32();
-                    this._displayObject.hitArea = new fgui.PixelHitTest(pi.pixelHitTestData, i1, i2);
-                    this._displayObject.mouseThrough = false;
-                    this._displayObject.hitTestPrior = true;
-                }
+                if (pi && pi.pixelHitTestData)
+                    hitArea = new fgui.PixelHitTest(pi.pixelHitTestData, i1, i2);
+            }
+            else if (i1 != 0 && i2 != -1) {
+                hitArea = new fgui.ChildHitArea(this.getChildAt(i2).displayObject);
+            }
+            if (hitArea) {
+                this._displayObject.hitArea = hitArea;
+                this._displayObject.mouseThrough = false;
+                this._displayObject.hitTestPrior = true;
             }
             buffer.seek(0, 5);
             var transitionCount = buffer.getInt16();
@@ -6478,12 +6951,25 @@ window.fgui = {};
             var pageController = buffer.getInt16();
             if (pageController != -1 && this._scrollPane != null)
                 this._scrollPane.pageController = this._parent.getControllerAt(pageController);
-            var cnt = buffer.getInt16();
-            for (var i = 0; i < cnt; i++) {
+            var cnt;
+            var i;
+            cnt = buffer.getInt16();
+            for (i = 0; i < cnt; i++) {
                 var cc = this.getController(buffer.readS());
                 var pageId = buffer.readS();
                 if (cc)
                     cc.selectedPageId = pageId;
+            }
+            if (buffer.version >= 2) {
+                cnt = buffer.getInt16();
+                for (i = 0; i < cnt; i++) {
+                    var target = buffer.readS();
+                    var propertyId = buffer.getInt16();
+                    var value = buffer.readS();
+                    var obj = this.getChildByPath(target);
+                    if (obj)
+                        obj.setProp(propertyId, value);
+                }
             }
         }
         ___added() {
@@ -6703,17 +7189,15 @@ window.fgui = {};
                     var color = Laya.Utils.toHexColor((r << 16) + (r << 8) + r);
                     for (var i = 0; i < cnt; i++) {
                         var obj = this.getChildAt(i);
-                        if ((obj instanceof fgui.GImage) || (obj instanceof fgui.GLoader)
-                            || (obj instanceof fgui.GMovieClip))
-                            obj.color = color;
+                        if (!(obj instanceof fgui.GTextField))
+                            obj.setProp(fgui.ObjectPropID.Color, color);
                     }
                 }
                 else {
                     for (i = 0; i < cnt; i++) {
                         obj = this.getChildAt(i);
-                        if ((obj instanceof fgui.GImage) || (obj instanceof fgui.GLoader)
-                            || (obj instanceof fgui.GMovieClip))
-                            obj.color = "#FFFFFF";
+                        if (!(obj instanceof fgui.GTextField))
+                            obj.setProp(fgui.ObjectPropID.Color, "#FFFFFF");
                     }
                 }
             }
@@ -7081,7 +7565,10 @@ window.fgui = {};
             return this._values[this._selectedIndex];
         }
         set value(val) {
-            this.selectedIndex = this._values.indexOf(val);
+            var index = this._values.indexOf(val);
+            if (index == -1 && val == null)
+                index = this._values.indexOf("");
+            this.selectedIndex = index;
         }
         getTextField() {
             if (this._titleObject instanceof fgui.GTextField)
@@ -7340,19 +7827,20 @@ window.fgui = {};
             this._target = target;
             this._vertical = vertical;
         }
-        set displayPerc(val) {
+        setDisplayPerc(value) {
             if (this._vertical) {
                 if (!this._fixedGripSize)
-                    this._grip.height = val * this._bar.height;
+                    this._grip.height = Math.floor(value * this._bar.height);
                 this._grip.y = this._bar.y + (this._bar.height - this._grip.height) * this._scrollPerc;
             }
             else {
                 if (!this._fixedGripSize)
-                    this._grip.width = val * this._bar.width;
+                    this._grip.width = Math.floor(value * this._bar.width);
                 this._grip.x = this._bar.x + (this._bar.width - this._grip.width) * this._scrollPerc;
             }
+            this._grip.visible = value != 0 && value != 1;
         }
-        set scrollPerc(val) {
+        setScrollPerc(val) {
             this._scrollPerc = val;
             if (this._vertical)
                 this._grip.y = this._bar.y + (this._bar.height - this._grip.height) * this._scrollPerc;
@@ -7364,6 +7852,9 @@ window.fgui = {};
                 return (this._arrowButton1 != null ? this._arrowButton1.height : 0) + (this._arrowButton2 != null ? this._arrowButton2.height : 0);
             else
                 return (this._arrowButton1 != null ? this._arrowButton1.width : 0) + (this._arrowButton2 != null ? this._arrowButton2.width : 0);
+        }
+        get gripDragging() {
+            return this._gripDragging;
         }
         constructExtension(buffer) {
             buffer.seek(0, 6);
@@ -7391,6 +7882,8 @@ window.fgui = {};
             if (!this._bar)
                 return;
             evt.stopPropagation();
+            this._gripDragging = true;
+            this._target.updateScrollBarVisible();
             Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
             Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
             this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, this._dragOffset);
@@ -7413,6 +7906,8 @@ window.fgui = {};
                 return;
             Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
             Laya.stage.off(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
+            this._gripDragging = false;
+            this._target.updateScrollBarVisible();
         }
         __arrowButton1Click(evt) {
             evt.stopPropagation();
@@ -7453,9 +7948,9 @@ window.fgui = {};
     class GSlider extends fgui.GComponent {
         constructor() {
             super();
+            this._min = 0;
             this._max = 0;
             this._value = 0;
-            this._reverse = false;
             this._barMaxWidth = 0;
             this._barMaxHeight = 0;
             this._barMaxWidthDelta = 0;
@@ -7476,6 +7971,24 @@ window.fgui = {};
         set titleType(value) {
             this._titleType = value;
         }
+        get wholeNumbers() {
+            return this._wholeNumbers;
+        }
+        set wholeNumbers(value) {
+            if (this._wholeNumbers != value) {
+                this._wholeNumbers = value;
+                this.update();
+            }
+        }
+        get min() {
+            return this._min;
+        }
+        set min(value) {
+            if (this._min != value) {
+                this._min = value;
+                this.update();
+            }
+        }
         get max() {
             return this._max;
         }
@@ -7495,10 +8008,21 @@ window.fgui = {};
             }
         }
         update() {
-            var percent = Math.min(this._value / this._max, 1);
-            this.updateWidthPercent(percent);
+            this.updateWithPercent((this._value - this._min) / (this._max - this._min));
         }
-        updateWidthPercent(percent) {
+        updateWithPercent(percent, evt) {
+            percent = fgui.ToolSet.clamp01(percent);
+            if (evt) {
+                var newValue = fgui.ToolSet.clamp(this._min + (this._max - this._min) * percent, this._min, this._max);
+                if (this._wholeNumbers) {
+                    newValue = Math.round(newValue);
+                    percent = fgui.ToolSet.clamp01((newValue - this._min) / (this._max - this._min));
+                }
+                if (newValue != this._value) {
+                    this._value = newValue;
+                    fgui.Events.dispatch(fgui.Events.STATE_CHANGED, this.displayObject, evt);
+                }
+            }
             if (this._titleObject) {
                 switch (this._titleType) {
                     case fgui.ProgressTitleType.Percent:
@@ -7538,6 +8062,10 @@ window.fgui = {};
             buffer.seek(0, 6);
             this._titleType = buffer.readByte();
             this._reverse = buffer.readBool();
+            if (buffer.version >= 2) {
+                this._wholeNumbers = buffer.readBool();
+                this.changeOnClick = buffer.readBool();
+            }
             this._titleObject = this.getChild("title");
             this._barObjectH = this.getChild("bar");
             this._barObjectV = this.getChild("bar_v");
@@ -7578,13 +8106,15 @@ window.fgui = {};
             }
             this._value = buffer.getInt32();
             this._max = buffer.getInt32();
+            if (buffer.version >= 2)
+                this._min = buffer.getInt32();
             this.update();
         }
         __gripMouseDown(evt) {
             this.canDrag = true;
             evt.stopPropagation();
             this._clickPos = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY);
-            this._clickPercent = this._value / this._max;
+            this._clickPercent = fgui.ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
             Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
             Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
         }
@@ -7604,16 +8134,7 @@ window.fgui = {};
                 percent = this._clickPercent + deltaX / this._barMaxWidth;
             else
                 percent = this._clickPercent + deltaY / this._barMaxHeight;
-            if (percent > 1)
-                percent = 1;
-            else if (percent < 0)
-                percent = 0;
-            var newValue = Math.round(this._max * percent);
-            if (newValue != this._value) {
-                this._value = newValue;
-                fgui.Events.dispatch(fgui.Events.STATE_CHANGED, this.displayObject, evt);
-            }
-            this.updateWidthPercent(percent);
+            this.updateWithPercent(percent, evt);
         }
         __gripMouseUp(evt) {
             Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
@@ -7623,26 +8144,17 @@ window.fgui = {};
             if (!this.changeOnClick)
                 return;
             var pt = this._gripObject.globalToLocal(evt.stageX, evt.stageY, GSlider.sSilderHelperPoint);
-            var percent = this._value / this._max;
+            var percent = fgui.ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
             var delta;
             if (this._barObjectH)
-                delta = (pt.x - this._gripObject.width / 2) / this._barMaxWidth;
+                delta = pt.x / this._barMaxWidth;
             if (this._barObjectV)
-                delta = (pt.y - this._gripObject.height / 2) / this._barMaxHeight;
+                delta = pt.y / this._barMaxHeight;
             if (this._reverse)
                 percent -= delta;
             else
                 percent += delta;
-            if (percent > 1)
-                percent = 1;
-            else if (percent < 0)
-                percent = 0;
-            var newValue = Math.round(this._max * percent);
-            if (newValue != this._value) {
-                this._value = newValue;
-                fgui.Events.dispatch(fgui.Events.STATE_CHANGED, this.displayObject, evt);
-            }
-            this.updateWidthPercent(percent);
+            this.updateWithPercent(percent, evt);
         }
     }
     GSlider.sSilderHelperPoint = new Laya.Point();
@@ -7659,6 +8171,8 @@ window.fgui = {};
             this._lineColor = "#000000";
             this._fillColor = "#FFFFFF";
             this._cornerRadius = null;
+            this._sides = 3;
+            this._startAngle = 0;
         }
         drawRect(lineSize, lineColor, fillColor, cornerRadius = null) {
             this._type = 1;
@@ -7666,14 +8180,40 @@ window.fgui = {};
             this._lineColor = lineColor;
             this._fillColor = fillColor;
             this._cornerRadius = cornerRadius;
-            this.drawCommon();
+            this.updateGraph();
         }
         drawEllipse(lineSize, lineColor, fillColor) {
             this._type = 2;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
-            this.drawCommon();
+            this.updateGraph();
+        }
+        drawRegularPolygon(lineSize, lineColor, fillColor, sides, startAngle = 0, distances = null) {
+            this._type = 3;
+            this._lineSize = lineSize;
+            this._lineColor = lineColor;
+            this._fillColor = fillColor;
+            this._sides = sides;
+            this._startAngle = startAngle;
+            this._distances = distances;
+            this.updateGraph();
+        }
+        drawPolygon(lineSize, lineColor, fillColor, points) {
+            this._type = 4;
+            this._lineSize = lineSize;
+            this._lineColor = lineColor;
+            this._fillColor = fillColor;
+            this._polygonPoints = points;
+            this.updateGraph();
+        }
+        get distances() {
+            return this._distances;
+        }
+        set distances(value) {
+            this._distances = value;
+            if (this._type == 3)
+                this.updateGraph();
         }
         get color() {
             return this._fillColor;
@@ -7681,9 +8221,9 @@ window.fgui = {};
         set color(value) {
             this._fillColor = value;
             if (this._type != 0)
-                this.drawCommon();
+                this.updateGraph();
         }
-        drawCommon() {
+        updateGraph() {
             this._displayObject.mouseEnabled = this.touchable;
             var gr = this._displayObject.graphics;
             gr.clear();
@@ -7722,8 +8262,34 @@ window.fgui = {};
                 else
                     gr.drawRect(0, 0, w, h, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
             }
-            else {
+            else if (this._type == 2) {
                 gr.drawCircle(w / 2, h / 2, w / 2, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
+            }
+            else if (this._type == 3) {
+                gr.drawPoly(0, 0, this._polygonPoints, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
+            }
+            else if (this._type == 4) {
+                if (!this._polygonPoints)
+                    this._polygonPoints = [];
+                var radius = Math.min(this._width, this._height) / 2;
+                this._polygonPoints.length = 0;
+                var angle = Laya.Utils.toRadian(this._startAngle);
+                var deltaAngle = 2 * Math.PI / this._sides;
+                var dist;
+                for (var i = 0; i < this._sides; i++) {
+                    if (this._distances) {
+                        dist = this._distances[i];
+                        if (isNaN(dist))
+                            dist = 1;
+                    }
+                    else
+                        dist = 1;
+                    var xv = radius + radius * dist * Math.cos(angle);
+                    var yv = radius + radius * dist * Math.sin(angle);
+                    this._polygonPoints.push(xv, yv);
+                    angle += deltaAngle;
+                }
+                gr.drawPoly(0, 0, this._polygonPoints, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
             }
             this._displayObject.repaint();
         }
@@ -7784,22 +8350,41 @@ window.fgui = {};
         handleSizeChanged() {
             super.handleSizeChanged();
             if (this._type != 0)
-                this.drawCommon();
+                this.updateGraph();
         }
         setup_beforeAdd(buffer, beginPos) {
             super.setup_beforeAdd(buffer, beginPos);
             buffer.seek(beginPos, 5);
             this._type = buffer.readByte();
             if (this._type != 0) {
+                var i;
+                var cnt;
                 this._lineSize = buffer.getInt32();
                 this._lineColor = buffer.readColorS(true);
                 this._fillColor = buffer.readColorS(true);
                 if (buffer.readBool()) {
                     this._cornerRadius = [];
-                    for (var i = 0; i < 4; i++)
+                    for (i = 0; i < 4; i++)
                         this._cornerRadius[i] = buffer.getFloat32();
                 }
-                this.drawCommon();
+                if (this._type == 3) {
+                    cnt = buffer.getInt16();
+                    this._polygonPoints = [];
+                    this._polygonPoints.length = cnt;
+                    for (i = 0; i < cnt; i++)
+                        this._polygonPoints[i] = buffer.getFloat32();
+                }
+                else if (this._type == 4) {
+                    this._sides = buffer.getInt16();
+                    this._startAngle = buffer.getFloat32();
+                    cnt = buffer.getInt16();
+                    if (cnt > 0) {
+                        this._distances = [];
+                        for (i = 0; i < cnt; i++)
+                            this._distances[i] = buffer.getFloat32();
+                    }
+                }
+                this.updateGraph();
             }
         }
     }
@@ -7811,6 +8396,19 @@ window.fgui = {};
     class GGroup extends fgui.GObject {
         constructor() {
             super();
+            this._layout = 0;
+            this._lineGap = 0;
+            this._columnGap = 0;
+            this._mainGridIndex = -1;
+            this._mainGridMinSize = 50;
+            this._mainChildIndex = -1;
+            this._totalSize = 0;
+            this._numChildren = 0;
+            this._updating = 0;
+        }
+        dispose() {
+            this._boundsChanged = false;
+            super.dispose();
         }
         get layout() {
             return this._layout;
@@ -7818,7 +8416,7 @@ window.fgui = {};
         set layout(value) {
             if (this._layout != value) {
                 this._layout = value;
-                this.setBoundsChangedFlag(true);
+                this.setBoundsChangedFlag();
             }
         }
         get lineGap() {
@@ -7827,7 +8425,7 @@ window.fgui = {};
         set lineGap(value) {
             if (this._lineGap != value) {
                 this._lineGap = value;
-                this.setBoundsChangedFlag();
+                this.setBoundsChangedFlag(true);
             }
         }
         get columnGap() {
@@ -7836,12 +8434,45 @@ window.fgui = {};
         set columnGap(value) {
             if (this._columnGap != value) {
                 this._columnGap = value;
+                this.setBoundsChangedFlag(true);
+            }
+        }
+        get excludeInvisibles() {
+            return this._excludeInvisibles;
+        }
+        set excludeInvisibles(value) {
+            if (this._excludeInvisibles != value) {
+                this._excludeInvisibles = value;
                 this.setBoundsChangedFlag();
             }
         }
-        setBoundsChangedFlag(childSizeChanged = false) {
+        get autoSizeDisabled() {
+            return this._autoSizeDisabled;
+        }
+        set autoSizeDisabled(value) {
+            this._autoSizeDisabled = value;
+        }
+        get mainGridMinSize() {
+            return this._mainGridMinSize;
+        }
+        set mainGridMinSize(value) {
+            if (this._mainGridMinSize != value) {
+                this._mainGridMinSize = value;
+                this.setBoundsChangedFlag();
+            }
+        }
+        get mainGridIndex() {
+            return this._mainGridIndex;
+        }
+        set mainGridIndex(value) {
+            if (this._mainGridIndex != value) {
+                this._mainGridIndex = value;
+                this.setBoundsChangedFlag();
+            }
+        }
+        setBoundsChangedFlag(positionChangedOnly = false) {
             if (this._updating == 0 && this._parent != null) {
-                if (childSizeChanged)
+                if (!positionChangedOnly)
                     this._percentReady = false;
                 if (!this._boundsChanged) {
                     this._boundsChanged = true;
@@ -7850,16 +8481,34 @@ window.fgui = {};
                 }
             }
         }
-        ensureBoundsCorrect() {
-            if (this._boundsChanged)
+        ensureSizeCorrect() {
+            if (this._parent == null || !this._boundsChanged || this._layout == 0)
+                return;
+            this._boundsChanged = false;
+            if (this._autoSizeDisabled)
+                this.resizeChildren(0, 0);
+            else {
+                this.handleLayout();
                 this.updateBounds();
+            }
+        }
+        ensureBoundsCorrect() {
+            if (this._parent == null || !this._boundsChanged)
+                return;
+            this._boundsChanged = false;
+            if (this._layout == 0)
+                this.updateBounds();
+            else {
+                if (this._autoSizeDisabled)
+                    this.resizeChildren(0, 0);
+                else {
+                    this.handleLayout();
+                    this.updateBounds();
+                }
+            }
         }
         updateBounds() {
             Laya.timer.clear(this, this.ensureBoundsCorrect);
-            this._boundsChanged = false;
-            if (parent == null)
-                return;
-            this.handleLayout();
             var cnt = this._parent.numChildren;
             var i;
             var child;
@@ -7869,33 +8518,39 @@ window.fgui = {};
             var empty = true;
             for (i = 0; i < cnt; i++) {
                 child = this._parent.getChildAt(i);
-                if (child.group == this) {
-                    tmp = child.x;
-                    if (tmp < ax)
-                        ax = tmp;
-                    tmp = child.y;
-                    if (tmp < ay)
-                        ay = tmp;
-                    tmp = child.x + child.width;
-                    if (tmp > ar)
-                        ar = tmp;
-                    tmp = child.y + child.height;
-                    if (tmp > ab)
-                        ab = tmp;
-                    empty = false;
-                }
+                if (child.group != this || this._excludeInvisibles && !child.internalVisible3)
+                    continue;
+                tmp = child.xMin;
+                if (tmp < ax)
+                    ax = tmp;
+                tmp = child.yMin;
+                if (tmp < ay)
+                    ay = tmp;
+                tmp = child.xMin + child.width;
+                if (tmp > ar)
+                    ar = tmp;
+                tmp = child.yMin + child.height;
+                if (tmp > ab)
+                    ab = tmp;
+                empty = false;
             }
+            var w = 0, h = 0;
             if (!empty) {
-                this._updating = 1;
+                this._updating |= 1;
                 this.setXY(ax, ay);
-                this._updating = 2;
-                this.setSize(ar - ax, ab - ay);
+                this._updating &= 2;
+                w = ar - ax;
+                h = ab - ay;
+            }
+            if ((this._updating & 2) == 0) {
+                this._updating |= 2;
+                this.setSize(w, h);
+                this._updating &= 1;
             }
             else {
-                this._updating = 2;
-                this.setSize(0, 0);
+                this._updating &= 1;
+                this.resizeChildren(this._width - w, this._height - h);
             }
-            this._updating = 0;
         }
         handleLayout() {
             this._updating |= 1;
@@ -7903,81 +8558,34 @@ window.fgui = {};
             var i;
             var cnt;
             if (this._layout == fgui.GroupLayoutType.Horizontal) {
-                var curX = NaN;
+                var curX = this.x;
                 cnt = this._parent.numChildren;
                 for (i = 0; i < cnt; i++) {
                     child = this._parent.getChildAt(i);
                     if (child.group != this)
                         continue;
-                    if (isNaN(curX))
-                        curX = Math.floor(child.x);
-                    else
-                        child.x = curX;
+                    if (this._excludeInvisibles && !child.internalVisible3)
+                        continue;
+                    child.xMin = curX;
                     if (child.width != 0)
-                        curX += Math.floor(child.width + this._columnGap);
+                        curX += child.width + this._columnGap;
                 }
-                if (!this._percentReady)
-                    this.updatePercent();
             }
             else if (this._layout == fgui.GroupLayoutType.Vertical) {
-                var curY = NaN;
+                var curY = this.y;
                 cnt = this._parent.numChildren;
                 for (i = 0; i < cnt; i++) {
                     child = this._parent.getChildAt(i);
                     if (child.group != this)
                         continue;
-                    if (isNaN(curY))
-                        curY = Math.floor(child.y);
-                    else
-                        child.y = curY;
+                    if (this._excludeInvisibles && !child.internalVisible3)
+                        continue;
+                    child.yMin = curY;
                     if (child.height != 0)
-                        curY += Math.floor(child.height + this._lineGap);
+                        curY += child.height + this._lineGap;
                 }
-                if (!this._percentReady)
-                    this.updatePercent();
             }
             this._updating &= 2;
-        }
-        updatePercent() {
-            this._percentReady = true;
-            var cnt = this._parent.numChildren;
-            var i;
-            var child;
-            var size = 0;
-            if (this._layout == fgui.GroupLayoutType.Horizontal) {
-                for (i = 0; i < cnt; i++) {
-                    child = this._parent.getChildAt(i);
-                    if (child.group != this)
-                        continue;
-                    size += child.width;
-                }
-                for (i = 0; i < cnt; i++) {
-                    child = this._parent.getChildAt(i);
-                    if (child.group != this)
-                        continue;
-                    if (size > 0)
-                        child._sizePercentInGroup = child.width / size;
-                    else
-                        child._sizePercentInGroup = 0;
-                }
-            }
-            else {
-                for (i = 0; i < cnt; i++) {
-                    child = this._parent.getChildAt(i);
-                    if (child.group != this)
-                        continue;
-                    size += child.height;
-                }
-                for (i = 0; i < cnt; i++) {
-                    child = this._parent.getChildAt(i);
-                    if (child.group != this)
-                        continue;
-                    if (size > 0)
-                        child._sizePercentInGroup = child.height / size;
-                    else
-                        child._sizePercentInGroup = 0;
-                }
-            }
         }
         moveChildren(dx, dy) {
             if ((this._updating & 1) != 0 || this._parent == null)
@@ -7998,104 +8606,118 @@ window.fgui = {};
             if (this._layout == fgui.GroupLayoutType.None || (this._updating & 2) != 0 || this._parent == null)
                 return;
             this._updating |= 2;
-            if (!this._percentReady)
-                this.updatePercent();
-            var cnt = this._parent.numChildren;
-            var i;
-            var j;
-            var child;
-            var last = -1;
-            var numChildren = 0;
-            var lineSize = 0;
-            var remainSize = 0;
-            var found = false;
-            for (i = 0; i < cnt; i++) {
-                child = this._parent.getChildAt(i);
-                if (child.group != this)
-                    continue;
-                last = i;
-                numChildren++;
-            }
-            if (this._layout == fgui.GroupLayoutType.Horizontal) {
-                remainSize = lineSize = this.width - (numChildren - 1) * this._columnGap;
-                var curX = NaN;
-                var nw;
-                for (i = 0; i < cnt; i++) {
-                    child = this._parent.getChildAt(i);
-                    if (child.group != this)
-                        continue;
-                    if (isNaN(curX))
-                        curX = Math.floor(child.x);
-                    else
-                        child.x = curX;
-                    if (last == i)
-                        nw = remainSize;
-                    else
-                        nw = Math.round(child._sizePercentInGroup * lineSize);
-                    child.setSize(nw, child._rawHeight + dh, true);
-                    remainSize -= child.width;
-                    if (last == i) {
-                        if (remainSize >= 1) {
-                            for (j = 0; j <= i; j++) {
-                                child = this._parent.getChildAt(j);
-                                if (child.group != this)
-                                    continue;
-                                if (!found) {
-                                    nw = child.width + remainSize;
-                                    if ((child.maxWidth == 0 || nw < child.maxWidth)
-                                        && (child.minWidth == 0 || nw > child.minWidth)) {
-                                        child.setSize(nw, child.height, true);
-                                        found = true;
-                                    }
-                                }
-                                else
-                                    child.x += remainSize;
-                            }
-                        }
-                    }
-                    else
-                        curX += (child.width + this._columnGap);
+            if (this._boundsChanged) {
+                this._boundsChanged = false;
+                if (!this._autoSizeDisabled) {
+                    this.updateBounds();
+                    return;
                 }
             }
-            else if (this._layout == fgui.GroupLayoutType.Vertical) {
-                remainSize = lineSize = this.height - (numChildren - 1) * this._lineGap;
-                var curY = NaN;
-                var nh;
+            var cnt = this._parent.numChildren;
+            var i;
+            var child;
+            if (!this._percentReady) {
+                this._percentReady = true;
+                this._numChildren = 0;
+                this._totalSize = 0;
+                this._mainChildIndex = -1;
+                var j = 0;
                 for (i = 0; i < cnt; i++) {
                     child = this._parent.getChildAt(i);
                     if (child.group != this)
                         continue;
-                    if (isNaN(curY))
-                        curY = Math.floor(child.y);
-                    else
-                        child.y = curY;
-                    if (last == i)
-                        nh = remainSize;
-                    else
-                        nh = Math.round(child._sizePercentInGroup * lineSize);
-                    child.setSize(child._rawWidth + dw, nh, true);
-                    remainSize -= child.height;
-                    if (last == i) {
-                        if (remainSize >= 1) {
-                            for (j = 0; j <= i; j++) {
-                                child = this._parent.getChildAt(j);
-                                if (child.group != this)
-                                    continue;
-                                if (!found) {
-                                    nh = child.height + remainSize;
-                                    if ((child.maxHeight == 0 || nh < child.maxHeight)
-                                        && (child.minHeight == 0 || nh > child.minHeight)) {
-                                        child.setSize(child.width, nh, true);
-                                        found = true;
-                                    }
-                                }
-                                else
-                                    child.y += remainSize;
-                            }
-                        }
+                    if (!this._excludeInvisibles || child.internalVisible3) {
+                        if (j == this._mainGridIndex)
+                            this._mainChildIndex = i;
+                        this._numChildren++;
+                        if (this._layout == 1)
+                            this._totalSize += child.width;
+                        else
+                            this._totalSize += child.height;
                     }
+                    j++;
+                }
+                if (this._mainChildIndex != -1) {
+                    if (this._layout == 1) {
+                        child = this._parent.getChildAt(this._mainChildIndex);
+                        this._totalSize += this._mainGridMinSize - child.width;
+                        child._sizePercentInGroup = this._mainGridMinSize / this._totalSize;
+                    }
+                    else {
+                        child = this._parent.getChildAt(this._mainChildIndex);
+                        this._totalSize += this._mainGridMinSize - child.height;
+                        child._sizePercentInGroup = this._mainGridMinSize / this._totalSize;
+                    }
+                }
+                for (i = 0; i < cnt; i++) {
+                    child = this._parent.getChildAt(i);
+                    if (child.group != this)
+                        continue;
+                    if (i == this._mainChildIndex)
+                        continue;
+                    if (this._totalSize > 0)
+                        child._sizePercentInGroup = (this._layout == 1 ? child.width : child.height) / this._totalSize;
                     else
-                        curY += (child.height + this._lineGap);
+                        child._sizePercentInGroup = 0;
+                }
+            }
+            var remainSize = 0;
+            var remainPercent = 1;
+            var priorHandled = false;
+            if (this._layout == 1) {
+                remainSize = this.width - (this._numChildren - 1) * this._columnGap;
+                if (this._mainChildIndex != -1 && remainSize >= this._totalSize) {
+                    child = this._parent.getChildAt(this._mainChildIndex);
+                    child.setSize(remainSize - (this._totalSize - this._mainGridMinSize), child._rawHeight + dh, true);
+                    remainSize -= child.width;
+                    remainPercent -= child._sizePercentInGroup;
+                    priorHandled = true;
+                }
+                var curX = this.x;
+                for (i = 0; i < cnt; i++) {
+                    child = this._parent.getChildAt(i);
+                    if (child.group != this)
+                        continue;
+                    if (this._excludeInvisibles && !child.internalVisible3) {
+                        child.setSize(child._rawWidth, child._rawHeight + dh, true);
+                        continue;
+                    }
+                    if (!priorHandled || i != this._mainChildIndex) {
+                        child.setSize(Math.round(child._sizePercentInGroup / remainPercent * remainSize), child._rawHeight + dh, true);
+                        remainPercent -= child._sizePercentInGroup;
+                        remainSize -= child.width;
+                    }
+                    child.xMin = curX;
+                    if (child.width != 0)
+                        curX += child.width + this._columnGap;
+                }
+            }
+            else {
+                remainSize = this.height - (this._numChildren - 1) * this._lineGap;
+                if (this._mainChildIndex != -1 && remainSize >= this._totalSize) {
+                    child = this._parent.getChildAt(this._mainChildIndex);
+                    child.setSize(child._rawWidth + dw, remainSize - (this._totalSize - this._mainGridMinSize), true);
+                    remainSize -= child.height;
+                    remainPercent -= child._sizePercentInGroup;
+                    priorHandled = true;
+                }
+                var curY = this.y;
+                for (i = 0; i < cnt; i++) {
+                    child = this._parent.getChildAt(i);
+                    if (child.group != this)
+                        continue;
+                    if (this._excludeInvisibles && !child.internalVisible3) {
+                        child.setSize(child._rawWidth + dw, child._rawHeight, true);
+                        continue;
+                    }
+                    if (!priorHandled || i != this._mainChildIndex) {
+                        child.setSize(child._rawWidth + dw, Math.round(child._sizePercentInGroup / remainPercent * remainSize), true);
+                        remainPercent -= child._sizePercentInGroup;
+                        remainSize -= child.height;
+                    }
+                    child.yMin = curY;
+                    if (child.height != 0)
+                        curY += child.height + this._lineGap;
                 }
             }
             this._updating &= 1;
@@ -8126,6 +8748,11 @@ window.fgui = {};
             this._layout = buffer.readByte();
             this._lineGap = buffer.getInt32();
             this._columnGap = buffer.getInt32();
+            if (buffer.version >= 2) {
+                this._excludeInvisibles = buffer.readBool();
+                this._autoSizeDisabled = buffer.readBool();
+                this._mainChildIndex = buffer.getInt16();
+            }
         }
         setup_afterAdd(buffer, beginPos) {
             super.setup_afterAdd(buffer, beginPos);
@@ -8142,6 +8769,9 @@ window.fgui = {};
         constructor() {
             super();
             this._flip = 0;
+        }
+        get image() {
+            return this._image;
         }
         get color() {
             return this.image.color;
@@ -8192,20 +8822,22 @@ window.fgui = {};
             this.image.fillAmount = value;
         }
         createDisplayObject() {
-            this._displayObject = this.image = new fgui.Image();
+            this._displayObject = this._image = new fgui.Image();
             this.image.mouseEnabled = false;
             this._displayObject["$owner"] = this;
         }
         constructFromResource() {
-            this.packageItem.load();
-            this.sourceWidth = this.packageItem.width;
-            this.sourceHeight = this.packageItem.height;
+            this._contentItem = this.packageItem.getBranch();
+            this.sourceWidth = this._contentItem.width;
+            this.sourceHeight = this._contentItem.height;
             this.initWidth = this.sourceWidth;
             this.initHeight = this.sourceHeight;
-            this.image.scale9Grid = this.packageItem.scale9Grid;
-            this.image.scaleByTile = this.packageItem.scaleByTile;
-            this.image.tileGridIndice = this.packageItem.tileGridIndice;
-            this.image.texture = this.packageItem.texture;
+            this._contentItem = this._contentItem.getHighResolution();
+            this._contentItem.load();
+            this.image.scale9Grid = this._contentItem.scale9Grid;
+            this.image.scaleByTile = this._contentItem.scaleByTile;
+            this.image.tileGridIndice = this._contentItem.tileGridIndice;
+            this.image.texture = this._contentItem.texture;
             this.setSize(this.sourceWidth, this.sourceHeight);
         }
         handleXYChanged() {
@@ -8597,6 +9229,7 @@ window.fgui = {};
                 button.changeStateOnClick = false;
             }
             child.on(Laya.Event.CLICK, this, this.__clickItem);
+            child.on(Laya.Event.DOUBLE_CLICK, this, this.__clickItem);
             return child;
         }
         addItem(url) {
@@ -8611,8 +9244,10 @@ window.fgui = {};
             var child = super.removeChildAt(index);
             if (dispose)
                 child.dispose();
-            else
+            else {
                 child.off(Laya.Event.CLICK, this, this.__clickItem);
+                child.off(Laya.Event.DOUBLE_CLICK, this, this.__clickItem);
+            }
             return child;
         }
         removeChildToPoolAt(index) {
@@ -8662,8 +9297,9 @@ window.fgui = {};
             else
                 this.clearSelection();
         }
-        getSelection() {
-            var ret = [];
+        getSelection(result) {
+            if (!result)
+                result = new Array();
             var i;
             if (this._virtual) {
                 for (i = 0; i < this._realNumItems; i++) {
@@ -8673,10 +9309,10 @@ window.fgui = {};
                         var j = i;
                         if (this._loop) {
                             j = i % this._numItems;
-                            if (ret.indexOf(j) != -1)
+                            if (result.indexOf(j) != -1)
                                 continue;
                         }
-                        ret.push(j);
+                        result.push(j);
                     }
                 }
             }
@@ -8685,10 +9321,10 @@ window.fgui = {};
                 for (i = 0; i < cnt; i++) {
                     var obj = this._children[i].asButton;
                     if (obj != null && obj.selected)
-                        ret.push(i);
+                        result.push(i);
                 }
             }
-            return ret;
+            return result;
         }
         addSelection(index, scrollItToView) {
             if (this._selectionMode == fgui.ListSelectionMode.None)
@@ -8864,7 +9500,7 @@ window.fgui = {};
                 case 3:
                     if (this._layout == fgui.ListLayoutType.SingleRow || this._layout == fgui.ListLayoutType.FlowHorizontal || this._layout == fgui.ListLayoutType.Pagination) {
                         index++;
-                        if (index < this._children.length) {
+                        if (index < this.numItems) {
                             this.clearSelection();
                             this.addSelection(index, true);
                         }
@@ -8894,7 +9530,7 @@ window.fgui = {};
                 case 5:
                     if (this._layout == fgui.ListLayoutType.SingleColumn || this._layout == fgui.ListLayoutType.FlowVertical) {
                         index++;
-                        if (index < this._children.length) {
+                        if (index < this.numItems) {
                             this.clearSelection();
                             this.addSelection(index, true);
                         }
@@ -8953,13 +9589,17 @@ window.fgui = {};
             }
         }
         __clickItem(evt) {
+            console.log(evt.type);
             if (this._scrollPane != null && this._scrollPane.isDragged)
                 return;
             var item = fgui.GObject.cast(evt.currentTarget);
             this.setSelectionOnEvent(item, evt);
             if (this._scrollPane && this.scrollItemToViewOnClick)
                 this._scrollPane.scrollToView(item, true);
-            this.displayObject.event(fgui.Events.CLICK_ITEM, [item, fgui.Events.createEvent(fgui.Events.CLICK_ITEM, this.displayObject, evt)]);
+            this.dispatchItemEvent(item, fgui.Events.createEvent(fgui.Events.CLICK_ITEM, this.displayObject, evt));
+        }
+        dispatchItemEvent(item, evt) {
+            this.displayObject.event(fgui.Events.CLICK_ITEM, [item, evt]);
         }
         setSelectionOnEvent(item, evt) {
             if (!(item instanceof fgui.GButton) || this._selectionMode == fgui.ListSelectionMode.None)
@@ -10081,8 +10721,19 @@ window.fgui = {};
                     if (child.width > maxWidth)
                         maxWidth = child.width;
                 }
-                cw = Math.ceil(maxWidth);
                 ch = curY;
+                if (ch <= viewHeight && this._autoResizeItem && this._scrollPane && this._scrollPane._displayInDemand && this._scrollPane.vtScrollBar) {
+                    viewWidth += this._scrollPane.vtScrollBar.width;
+                    for (i = 0; i < cnt; i++) {
+                        child = this.getChildAt(i);
+                        if (this.foldInvisibleItems && !child.visible)
+                            continue;
+                        child.setSize(viewWidth, child.height, true);
+                        if (child.width > maxWidth)
+                            maxWidth = child.width;
+                    }
+                }
+                cw = Math.ceil(maxWidth);
             }
             else if (this._layout == fgui.ListLayoutType.SingleRow) {
                 for (i = 0; i < cnt; i++) {
@@ -10099,6 +10750,17 @@ window.fgui = {};
                         maxHeight = child.height;
                 }
                 cw = curX;
+                if (cw <= viewWidth && this._autoResizeItem && this._scrollPane && this._scrollPane._displayInDemand && this._scrollPane.hzScrollBar) {
+                    viewHeight += this._scrollPane.hzScrollBar.height;
+                    for (i = 0; i < cnt; i++) {
+                        child = this.getChildAt(i);
+                        if (this.foldInvisibleItems && !child.visible)
+                            continue;
+                        child.setSize(child.width, viewHeight, true);
+                        if (child.height > maxHeight)
+                            maxHeight = child.height;
+                    }
+                }
                 ch = Math.ceil(maxHeight);
             }
             else if (this._layout == fgui.ListLayoutType.FlowHorizontal) {
@@ -10310,13 +10972,7 @@ window.fgui = {};
         setup_beforeAdd(buffer, beginPos) {
             super.setup_beforeAdd(buffer, beginPos);
             buffer.seek(beginPos, 5);
-            var i;
-            var j;
-            var cnt;
             var i1;
-            var i2;
-            var nextPos;
-            var str;
             this._layout = buffer.readByte();
             this._selectionMode = buffer.readByte();
             i1 = buffer.readByte();
@@ -10347,10 +11003,21 @@ window.fgui = {};
                 this.setupOverflow(overflow);
             if (buffer.readBool())
                 buffer.skip(8);
+            if (buffer.version >= 2) {
+                this.scrollItemToViewOnClick = buffer.readBool();
+                this.foldInvisibleItems = buffer.readBool();
+            }
             buffer.seek(beginPos, 8);
             this._defaultItem = buffer.readS();
-            var itemCount = buffer.getInt16();
-            for (i = 0; i < itemCount; i++) {
+            this.readItems(buffer);
+        }
+        readItems(buffer) {
+            var cnt;
+            var i;
+            var nextPos;
+            var str;
+            cnt = buffer.getInt16();
+            for (i = 0; i < cnt; i++) {
                 nextPos = buffer.getInt16();
                 nextPos += buffer.pos;
                 str = buffer.readS();
@@ -10364,32 +11031,49 @@ window.fgui = {};
                 var obj = this.getFromPool(str);
                 if (obj != null) {
                     this.addChild(obj);
-                    str = buffer.readS();
-                    if (str != null)
-                        obj.text = str;
-                    str = buffer.readS();
-                    if (str != null && (obj instanceof fgui.GButton))
-                        obj.selectedTitle = str;
-                    str = buffer.readS();
-                    if (str != null)
-                        obj.icon = str;
-                    str = buffer.readS();
-                    if (str != null && (obj instanceof fgui.GButton))
-                        obj.selectedIcon = str;
-                    str = buffer.readS();
-                    if (str != null)
-                        obj.name = str;
-                    if (obj instanceof fgui.GComponent) {
-                        cnt = buffer.getInt16();
-                        for (j = 0; j < cnt; j++) {
-                            var cc = obj.getController(buffer.readS());
-                            str = buffer.readS();
-                            if (cc != null)
-                                cc.selectedPageId = str;
-                        }
-                    }
+                    this.setupItem(buffer, obj);
                 }
                 buffer.pos = nextPos;
+            }
+        }
+        setupItem(buffer, obj) {
+            var str;
+            str = buffer.readS();
+            if (str != null)
+                obj.text = str;
+            str = buffer.readS();
+            if (str != null && (obj instanceof fgui.GButton))
+                obj.selectedTitle = str;
+            str = buffer.readS();
+            if (str != null)
+                obj.icon = str;
+            str = buffer.readS();
+            if (str != null && (obj instanceof fgui.GButton))
+                obj.selectedIcon = str;
+            str = buffer.readS();
+            if (str != null)
+                obj.name = str;
+            var cnt;
+            var i;
+            if (obj instanceof fgui.GComponent) {
+                cnt = buffer.getInt16();
+                for (i = 0; i < cnt; i++) {
+                    var cc = obj.getController(buffer.readS());
+                    str = buffer.readS();
+                    if (cc != null)
+                        cc.selectedPageId = str;
+                }
+                if (buffer.version >= 2) {
+                    cnt = buffer.getInt16();
+                    for (i = 0; i < cnt; i++) {
+                        var target = buffer.readS();
+                        var propertyId = buffer.getInt16();
+                        var value = buffer.readS();
+                        var obj2 = obj.getChildByPath(target);
+                        if (obj2)
+                            obj2.setProp(propertyId, value);
+                    }
+                }
             }
         }
         setup_afterAdd(buffer, beginPos) {
@@ -10409,6 +11093,505 @@ window.fgui = {};
             this.selected = false;
         }
     }
+})(fgui || (fgui = {}));
+
+
+(function (fgui) {
+    class GTree extends fgui.GList {
+        constructor() {
+            super();
+            this._indent = 15;
+            this._rootNode = new fgui.GTreeNode(true);
+            this._rootNode._setTree(this);
+            this._rootNode.expanded = true;
+        }
+        get rootNode() {
+            return this._rootNode;
+        }
+        get indent() {
+            return this._indent;
+        }
+        set indent(value) {
+            this._indent = value;
+        }
+        get clickToExpand() {
+            return this._clickToExpand;
+        }
+        set clickToExpand(value) {
+            this._clickToExpand = value;
+        }
+        getSelectedNode() {
+            if (this.selectedIndex != -1)
+                return this.getChildAt(this.selectedIndex)._treeNode;
+            else
+                return null;
+        }
+        getSelectedNodes(result) {
+            if (!result)
+                result = new Array();
+            GTree.helperIntList.length = 0;
+            super.getSelection(GTree.helperIntList);
+            var cnt = GTree.helperIntList.length;
+            var ret = new Array();
+            for (var i = 0; i < cnt; i++) {
+                var node = this.getChildAt(GTree.helperIntList[i])._treeNode;
+                ret.push(node);
+            }
+            return ret;
+        }
+        selectNode(node, scrollItToView) {
+            var parentNode = node.parent;
+            while (parentNode != null && parentNode != this._rootNode) {
+                parentNode.expanded = true;
+                parentNode = parentNode.parent;
+            }
+            if (!node._cell)
+                return;
+            this.addSelection(this.getChildIndex(node._cell), scrollItToView);
+        }
+        unselectNode(node) {
+            if (!node._cell)
+                return;
+            this.removeSelection(this.getChildIndex(node._cell));
+        }
+        expandAll(folderNode) {
+            if (!folderNode)
+                folderNode = this._rootNode;
+            folderNode.expanded = true;
+            var cnt = folderNode.numChildren;
+            for (var i = 0; i < cnt; i++) {
+                var node = folderNode.getChildAt(i);
+                if (node.isFolder)
+                    this.expandAll(node);
+            }
+        }
+        collapseAll(folderNode) {
+            if (!folderNode)
+                folderNode = this._rootNode;
+            if (folderNode != this._rootNode)
+                folderNode.expanded = false;
+            var cnt = folderNode.numChildren;
+            for (var i = 0; i < cnt; i++) {
+                var node = folderNode.getChildAt(i);
+                if (node.isFolder)
+                    this.collapseAll(node);
+            }
+        }
+        createCell(node) {
+            var child = this.getFromPool(node._resURL);
+            if (!child)
+                throw new Error("cannot create tree node object.");
+            child._treeNode = node;
+            node._cell = child;
+            var indentObj = child.getChild("indent");
+            if (indentObj != null)
+                indentObj.width = (node.level - 1) * this._indent;
+            var cc;
+            cc = child.getController("expanded");
+            if (cc) {
+                cc.on(fgui.Events.STATE_CHANGED, this, this.__expandedStateChanged);
+                cc.selectedIndex = node.expanded ? 1 : 0;
+            }
+            cc = child.getController("leaf");
+            if (cc)
+                cc.selectedIndex = node.isFolder ? 0 : 1;
+            if (this.treeNodeRender)
+                this.treeNodeRender.runWith([node, child]);
+        }
+        _afterInserted(node) {
+            if (!node._cell)
+                this.createCell(node);
+            var index = this.getInsertIndexForNode(node);
+            this.addChildAt(node._cell, index);
+            if (this.treeNodeRender)
+                this.treeNodeRender.runWith([node, node._cell]);
+            if (node.isFolder && node.expanded)
+                this.checkChildren(node, index);
+        }
+        getInsertIndexForNode(node) {
+            var prevNode = node.getPrevSibling();
+            if (prevNode == null)
+                prevNode = node.parent;
+            var insertIndex = this.getChildIndex(prevNode._cell) + 1;
+            var myLevel = node.level;
+            var cnt = this.numChildren;
+            for (var i = insertIndex; i < cnt; i++) {
+                var testNode = this.getChildAt(i)._treeNode;
+                if (testNode.level <= myLevel)
+                    break;
+                insertIndex++;
+            }
+            return insertIndex;
+        }
+        _afterRemoved(node) {
+            this.removeNode(node);
+        }
+        _afterExpanded(node) {
+            if (node == this._rootNode) {
+                this.checkChildren(this._rootNode, 0);
+                return;
+            }
+            if (this.treeNodeWillExpand != null)
+                this.treeNodeWillExpand.runWith([node, true]);
+            if (node._cell == null)
+                return;
+            if (this.treeNodeRender)
+                this.treeNodeRender.runWith([node, node._cell]);
+            var cc = node._cell.getController("expanded");
+            if (cc)
+                cc.selectedIndex = 1;
+            if (node._cell.parent != null)
+                this.checkChildren(node, this.getChildIndex(node._cell));
+        }
+        _afterCollapsed(node) {
+            if (node == this._rootNode) {
+                this.checkChildren(this._rootNode, 0);
+                return;
+            }
+            if (this.treeNodeWillExpand)
+                this.treeNodeWillExpand.runWith([node, false]);
+            if (node._cell == null)
+                return;
+            if (this.treeNodeRender)
+                this.treeNodeRender.runWith([node, node._cell]);
+            var cc = node._cell.getController("expanded");
+            if (cc)
+                cc.selectedIndex = 0;
+            if (node._cell.parent != null)
+                this.hideFolderNode(node);
+        }
+        _afterMoved(node) {
+            var startIndex = this.getChildIndex(node._cell);
+            var endIndex;
+            if (node.isFolder)
+                endIndex = this.getFolderEndIndex(startIndex, node.level);
+            else
+                endIndex = startIndex + 1;
+            var insertIndex = this.getInsertIndexForNode(node);
+            var i;
+            var cnt = endIndex - startIndex;
+            var obj;
+            if (insertIndex < startIndex) {
+                for (i = 0; i < cnt; i++) {
+                    obj = this.getChildAt(startIndex + i);
+                    this.setChildIndex(obj, insertIndex + i);
+                }
+            }
+            else {
+                for (i = 0; i < cnt; i++) {
+                    obj = this.getChildAt(startIndex);
+                    this.setChildIndex(obj, insertIndex);
+                }
+            }
+        }
+        getFolderEndIndex(startIndex, level) {
+            var cnt = this.numChildren;
+            for (var i = startIndex + 1; i < cnt; i++) {
+                var node = this.getChildAt(i)._treeNode;
+                if (node.level <= level)
+                    return i;
+            }
+            return cnt;
+        }
+        checkChildren(folderNode, index) {
+            var cnt = folderNode.numChildren;
+            for (var i = 0; i < cnt; i++) {
+                index++;
+                var node = folderNode.getChildAt(i);
+                if (node._cell == null)
+                    this.createCell(node);
+                if (!node._cell.parent)
+                    this.addChildAt(node._cell, index);
+                if (node.isFolder && node.expanded)
+                    index = this.checkChildren(node, index);
+            }
+            return index;
+        }
+        hideFolderNode(folderNode) {
+            var cnt = folderNode.numChildren;
+            for (var i = 0; i < cnt; i++) {
+                var node = folderNode.getChildAt(i);
+                if (node._cell && node._cell.parent != null)
+                    this.removeChild(node._cell);
+                if (node.isFolder && node.expanded)
+                    this.hideFolderNode(node);
+            }
+        }
+        removeNode(node) {
+            if (node._cell != null) {
+                if (node._cell.parent != null)
+                    this.removeChild(node._cell);
+                this.returnToPool(node._cell);
+                node._cell._treeNode = null;
+                node._cell = null;
+            }
+            if (node.isFolder) {
+                var cnt = node.numChildren;
+                for (var i = 0; i < cnt; i++) {
+                    var node2 = node.getChildAt(i);
+                    this.removeNode(node2);
+                }
+            }
+        }
+        __expandedStateChanged(cc) {
+            var node = cc.parent._treeNode;
+            node.expanded = cc.selectedIndex == 1;
+        }
+        dispatchItemEvent(item, evt) {
+            if (this._clickToExpand != 0) {
+                var node = item._treeNode;
+                if (node) {
+                    if (this._clickToExpand == 2) {
+                    }
+                    else
+                        node.expanded = !node.expanded;
+                }
+            }
+            super.dispatchItemEvent(item, evt);
+        }
+        setup_beforeAdd(buffer, beginPos) {
+            super.setup_beforeAdd(buffer, beginPos);
+            buffer.seek(beginPos, 9);
+            this._indent = buffer.getInt32();
+            this._clickToExpand = buffer.getUint8();
+        }
+        readItems(buffer) {
+            var cnt;
+            var i;
+            var nextPos;
+            var str;
+            var isFolder;
+            var lastNode;
+            var level;
+            var prevLevel = 0;
+            cnt = buffer.getInt16();
+            for (i = 0; i < cnt; i++) {
+                nextPos = buffer.getInt16();
+                nextPos += buffer.pos;
+                str = buffer.readS();
+                if (str == null) {
+                    str = this.defaultItem;
+                    if (!str) {
+                        buffer.pos = nextPos;
+                        continue;
+                    }
+                }
+                isFolder = buffer.readBool();
+                level = buffer.getUint8();
+                var node = new fgui.GTreeNode(isFolder, str);
+                node.expanded = true;
+                if (i == 0)
+                    this._rootNode.addChild(node);
+                else {
+                    if (level > prevLevel)
+                        lastNode.addChild(node);
+                    else if (level < prevLevel) {
+                        for (var j = level; j <= prevLevel; j++)
+                            lastNode = lastNode.parent;
+                        lastNode.addChild(node);
+                    }
+                    else
+                        lastNode.parent.addChild(node);
+                }
+                lastNode = node;
+                prevLevel = level;
+                this.setupItem(buffer, node.cell);
+                buffer.pos = nextPos;
+            }
+        }
+    }
+    GTree.helperIntList = new Array();
+    fgui.GTree = GTree;
+})(fgui || (fgui = {}));
+
+
+(function (fgui) {
+    class GTreeNode {
+        constructor(hasChild, resURL) {
+            this._level = 0;
+            this._resURL = resURL;
+            if (hasChild)
+                this._children = new Array();
+        }
+        set expanded(value) {
+            if (this._children == null)
+                return;
+            if (this._expanded != value) {
+                this._expanded = value;
+                if (this._tree != null) {
+                    if (this._expanded)
+                        this._tree._afterExpanded(this);
+                    else
+                        this._tree._afterCollapsed(this);
+                }
+            }
+        }
+        get expanded() {
+            return this._expanded;
+        }
+        get isFolder() {
+            return this._children != null;
+        }
+        get parent() {
+            return this._parent;
+        }
+        get text() {
+            if (this._cell != null)
+                return this._cell.text;
+            else
+                return null;
+        }
+        get cell() {
+            return this._cell;
+        }
+        get level() {
+            return this._level;
+        }
+        _setLevel(value) {
+            this._level = value;
+        }
+        addChild(child) {
+            this.addChildAt(child, this._children.length);
+            return child;
+        }
+        addChildAt(child, index) {
+            if (!child)
+                throw new Error("child is null");
+            var numChildren = this._children.length;
+            if (index >= 0 && index <= numChildren) {
+                if (child._parent == this) {
+                    this.setChildIndex(child, index);
+                }
+                else {
+                    if (child._parent)
+                        child._parent.removeChild(child);
+                    var cnt = this._children.length;
+                    if (index == cnt)
+                        this._children.push(child);
+                    else
+                        this._children.splice(index, 0, child);
+                    child._parent = this;
+                    child._level = this._level + 1;
+                    child._setTree(this._tree);
+                    if (this._tree != null && this == this._tree.rootNode || this._cell != null && this._cell.parent != null && this._expanded)
+                        this._tree._afterInserted(child);
+                }
+                return child;
+            }
+            else {
+                throw new RangeError("Invalid child index");
+            }
+        }
+        removeChild(child) {
+            var childIndex = this._children.indexOf(child);
+            if (childIndex != -1) {
+                this.removeChildAt(childIndex);
+            }
+            return child;
+        }
+        removeChildAt(index) {
+            if (index >= 0 && index < this.numChildren) {
+                var child = this._children[index];
+                this._children.splice(index, 1);
+                child._parent = null;
+                if (this._tree != null) {
+                    child._setTree(null);
+                    this._tree._afterRemoved(child);
+                }
+                return child;
+            }
+            else {
+                throw "Invalid child index";
+            }
+        }
+        removeChildren(beginIndex = 0, endIndex = -1) {
+            if (endIndex < 0 || endIndex >= this.numChildren)
+                endIndex = this.numChildren - 1;
+            for (var i = beginIndex; i <= endIndex; ++i)
+                this.removeChildAt(beginIndex);
+        }
+        getChildAt(index) {
+            if (index >= 0 && index < this.numChildren)
+                return this._children[index];
+            else
+                throw "Invalid child index";
+        }
+        getChildIndex(child) {
+            return this._children.indexOf(child);
+        }
+        getPrevSibling() {
+            if (this._parent == null)
+                return null;
+            var i = this._parent._children.indexOf(this);
+            if (i <= 0)
+                return null;
+            return this._parent._children[i - 1];
+        }
+        getNextSibling() {
+            if (this._parent == null)
+                return null;
+            var i = this._parent._children.indexOf(this);
+            if (i < 0 || i >= this._parent._children.length - 1)
+                return null;
+            return this._parent._children[i + 1];
+        }
+        setChildIndex(child, index) {
+            var oldIndex = this._children.indexOf(child);
+            if (oldIndex == -1)
+                throw "Not a child of this container";
+            var cnt = this._children.length;
+            if (index < 0)
+                index = 0;
+            else if (index > cnt)
+                index = cnt;
+            if (oldIndex == index)
+                return;
+            this._children.splice(oldIndex, 1);
+            this._children.splice(index, 0, child);
+            if (this._tree != null && this == this._tree.rootNode || this._cell != null && this._cell.parent != null && this._expanded)
+                this._tree._afterMoved(child);
+        }
+        swapChildren(child1, child2) {
+            var index1 = this._children.indexOf(child1);
+            var index2 = this._children.indexOf(child2);
+            if (index1 == -1 || index2 == -1)
+                throw "Not a child of this container";
+            this.swapChildrenAt(index1, index2);
+        }
+        swapChildrenAt(index1, index2) {
+            var child1 = this._children[index1];
+            var child2 = this._children[index2];
+            this.setChildIndex(child1, index2);
+            this.setChildIndex(child2, index1);
+        }
+        get numChildren() {
+            return this._children.length;
+        }
+        expandToRoot() {
+            var p = this;
+            while (p) {
+                p.expanded = true;
+                p = p.parent;
+            }
+        }
+        get tree() {
+            return this._tree;
+        }
+        _setTree(value) {
+            this._tree = value;
+            if (this._tree != null && this._tree.treeNodeWillExpand && this._expanded)
+                this._tree.treeNodeWillExpand.runWith([this, true]);
+            if (this._children != null) {
+                var cnt = this._children.length;
+                for (var i = 0; i < cnt; i++) {
+                    var node = this._children[i];
+                    node._level = this._level + 1;
+                    node._setTree(value);
+                }
+            }
+        }
+    }
+    fgui.GTreeNode = GTreeNode;
 })(fgui || (fgui = {}));
 
 
@@ -10601,8 +11784,12 @@ window.fgui = {};
             this._contentItem = fgui.UIPackage.getItemByURL(itemURL);
             if (this._contentItem != null) {
                 this._contentItem.load();
+                this._contentItem = this._contentItem.getBranch();
+                this._contentSourceWidth = this._contentItem.width;
+                this._contentSourceHeight = this._contentItem.height;
                 if (this._autoSize)
-                    this.setSize(this._contentItem.width, this._contentItem.height);
+                    this.setSize(this._contentSourceWidth, this._contentSourceHeight);
+                this._contentItem = this._contentItem.getHighResolution();
                 if (this._contentItem.type == fgui.PackageItemType.Image) {
                     if (this._contentItem.texture == null) {
                         this.setErrorState();
@@ -10637,8 +11824,6 @@ window.fgui = {};
                     else {
                         this._content2 = obj.asCom;
                         this._displayObject.addChild(this._content2.displayObject);
-                        this._contentSourceWidth = this._contentItem.width;
-                        this._contentSourceHeight = this._contentItem.height;
                         this.updateLayout();
                     }
                 }
@@ -10863,9 +12048,10 @@ window.fgui = {};
             super();
         }
         get color() {
-            return "#FFFFFF";
+            return this._movieClip.color;
         }
         set color(value) {
+            this._movieClip.color = value;
         }
         createDisplayObject() {
             this._displayObject = this._movieClip = new fgui.MovieClip();
@@ -10945,16 +12131,18 @@ window.fgui = {};
             }
         }
         constructFromResource() {
-            this.sourceWidth = this.packageItem.width;
-            this.sourceHeight = this.packageItem.height;
+            var displayItem = this.packageItem.getBranch();
+            this.sourceWidth = displayItem.width;
+            this.sourceHeight = displayItem.height;
             this.initWidth = this.sourceWidth;
             this.initHeight = this.sourceHeight;
             this.setSize(this.sourceWidth, this.sourceHeight);
-            this.packageItem.load();
-            this._movieClip.interval = this.packageItem.interval;
-            this._movieClip.swing = this.packageItem.swing;
-            this._movieClip.repeatDelay = this.packageItem.repeatDelay;
-            this._movieClip.frames = this.packageItem.frames;
+            displayItem = displayItem.getHighResolution();
+            displayItem.load();
+            this._movieClip.interval = displayItem.interval;
+            this._movieClip.swing = displayItem.swing;
+            this._movieClip.repeatDelay = displayItem.repeatDelay;
+            this._movieClip.frames = displayItem.frames;
         }
         setup_beforeAdd(buffer, beginPos) {
             super.setup_beforeAdd(buffer, beginPos);
@@ -10974,6 +12162,7 @@ window.fgui = {};
     class GProgressBar extends fgui.GComponent {
         constructor() {
             super();
+            this._min = 0;
             this._max = 0;
             this._value = 0;
             this._barMaxWidth = 0;
@@ -10992,6 +12181,15 @@ window.fgui = {};
         set titleType(value) {
             if (this._titleType != value) {
                 this._titleType = value;
+                this.update(value);
+            }
+        }
+        get min() {
+            return this._min;
+        }
+        set min(value) {
+            if (this._min != value) {
+                this._min = value;
                 this.update(value);
             }
         }
@@ -11027,7 +12225,7 @@ window.fgui = {};
             return fgui.GTween.to(oldValule, this._value, duration).setTarget(this, this.update).setEase(fgui.EaseType.Linear);
         }
         update(newValue) {
-            var percent = this._max != 0 ? Math.min(newValue / this._max, 1) : 0;
+            var percent = fgui.ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
             if (this._titleObject) {
                 switch (this._titleType) {
                     case fgui.ProgressTitleType.Percent:
@@ -11121,6 +12319,8 @@ window.fgui = {};
             }
             this._value = buffer.getInt32();
             this._max = buffer.getInt32();
+            if (buffer.version >= 2)
+                this._min = buffer.getInt32();
             this.update(this._value);
         }
     }
@@ -11200,14 +12400,23 @@ window.fgui = {};
         set strokeColor(value) {
         }
         set ubbEnabled(value) {
+            this._ubbEnabled = value;
         }
         get ubbEnabled() {
-            return false;
+            return this._ubbEnabled;
         }
         get autoSize() {
-            return fgui.AutoSizeType.None;
+            return this._autoSize;
         }
         set autoSize(value) {
+            if (this._autoSize != value) {
+                this._autoSize = value;
+                this._widthAutoSize = this._autoSize == fgui.AutoSizeType.Both;
+                this._heightAutoSize = this._autoSize == fgui.AutoSizeType.Both || this._autoSize == fgui.AutoSizeType.Height;
+                this.updateAutoSize();
+            }
+        }
+        updateAutoSize() {
         }
         get textWidth() {
             return 0;
@@ -11354,16 +12563,19 @@ window.fgui = {};
             this._textHeight = 0;
             this._text = "";
             this._color = "#000000";
-            this.textField.align = "left";
-            this.textField.font = fgui.UIConfig.defaultFont;
+            this._textField.align = "left";
+            this._textField.font = fgui.UIConfig.defaultFont;
             this._autoSize = fgui.AutoSizeType.Both;
             this._widthAutoSize = this._heightAutoSize = true;
-            this.textField["_sizeDirty"] = false;
+            this._textField["_sizeDirty"] = false;
         }
         createDisplayObject() {
-            this._displayObject = this.textField = new TextExt(this);
+            this._displayObject = this._textField = new TextExt(this);
             this._displayObject["$owner"] = this;
             this._displayObject.mouseEnabled = false;
+        }
+        get nativeText() {
+            return this._textField;
         }
         set text(value) {
             this._text = value;
@@ -11371,27 +12583,27 @@ window.fgui = {};
                 this._text = "";
             if (this._bitmapFont == null) {
                 if (this._widthAutoSize)
-                    this.textField.width = 10000;
+                    this._textField.width = 10000;
                 var text2 = this._text;
                 if (this._templateVars != null)
                     text2 = this.parseTemplate(text2);
                 if (this._ubbEnabled)
-                    this.textField.text = fgui.ToolSet.removeUBB(fgui.ToolSet.encodeHTML(text2));
+                    this._textField.text = fgui.ToolSet.removeUBB(fgui.ToolSet.encodeHTML(text2));
                 else
-                    this.textField.text = text2;
+                    this._textField.text = text2;
             }
             else {
-                this.textField.text = "";
-                this.textField["setChanged"]();
+                this._textField.text = "";
+                this._textField["setChanged"]();
             }
             if (this.parent && this.parent._underConstruct)
-                this.textField.typeset();
+                this._textField.typeset();
         }
         get text() {
             return this._text;
         }
         get font() {
-            return this.textField.font;
+            return this._textField.font;
         }
         set font(value) {
             this._font = value;
@@ -11400,20 +12612,20 @@ window.fgui = {};
             else
                 this._bitmapFont = null;
             if (this._bitmapFont != null) {
-                this.textField["setChanged"]();
+                this._textField["setChanged"]();
             }
             else {
                 if (this._font)
-                    this.textField.font = this._font;
+                    this._textField.font = this._font;
                 else
-                    this.textField.font = fgui.UIConfig.defaultFont;
+                    this._textField.font = fgui.UIConfig.defaultFont;
             }
         }
         get fontSize() {
-            return this.textField.fontSize;
+            return this._textField.fontSize;
         }
         set fontSize(value) {
-            this.textField.fontSize = value;
+            this._textField.fontSize = value;
         }
         get color() {
             return this._color;
@@ -11424,28 +12636,28 @@ window.fgui = {};
                 if (this._gearColor.controller)
                     this._gearColor.updateState();
                 if (this.grayed)
-                    this.textField.color = "#AAAAAA";
+                    this._textField.color = "#AAAAAA";
                 else
-                    this.textField.color = this._color;
+                    this._textField.color = this._color;
             }
         }
         get align() {
-            return this.textField.align;
+            return this._textField.align;
         }
         set align(value) {
-            this.textField.align = value;
+            this._textField.align = value;
         }
         get valign() {
-            return this.textField.valign;
+            return this._textField.valign;
         }
         set valign(value) {
-            this.textField.valign = value;
+            this._textField.valign = value;
         }
         get leading() {
-            return this.textField.leading;
+            return this._textField.leading;
         }
         set leading(value) {
-            this.textField.leading = value;
+            this._textField.leading = value;
         }
         get letterSpacing() {
             return this._letterSpacing;
@@ -11454,77 +12666,60 @@ window.fgui = {};
             this._letterSpacing = value;
         }
         get bold() {
-            return this.textField.bold;
+            return this._textField.bold;
         }
         set bold(value) {
-            this.textField.bold = value;
+            this._textField.bold = value;
         }
         get italic() {
-            return this.textField.italic;
+            return this._textField.italic;
         }
         set italic(value) {
-            this.textField.italic = value;
+            this._textField.italic = value;
         }
         get underline() {
-            return this.textField.underline;
+            return this._textField.underline;
         }
         set underline(value) {
-            this.textField.underline = value;
+            this._textField.underline = value;
         }
         get singleLine() {
             return this._singleLine;
         }
         set singleLine(value) {
             this._singleLine = value;
-            this.textField.wordWrap = !this._widthAutoSize && !this._singleLine;
+            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
         }
         get stroke() {
-            return this.textField.stroke;
+            return this._textField.stroke;
         }
         set stroke(value) {
-            this.textField.stroke = value;
+            this._textField.stroke = value;
         }
         get strokeColor() {
-            return this.textField.strokeColor;
+            return this._textField.strokeColor;
         }
         set strokeColor(value) {
-            this.textField.strokeColor = value;
+            this._textField.strokeColor = value;
             this.updateGear(4);
         }
-        set ubbEnabled(value) {
-            this._ubbEnabled = value;
-        }
-        get ubbEnabled() {
-            return this._ubbEnabled;
-        }
-        set autoSize(value) {
-            if (this._autoSize != value) {
-                this.setAutoSize(value);
-            }
-        }
-        setAutoSize(value) {
-            this._autoSize = value;
-            this._widthAutoSize = value == fgui.AutoSizeType.Both;
-            this._heightAutoSize = value == fgui.AutoSizeType.Both || value == fgui.AutoSizeType.Height;
-            this.textField.wordWrap = !this._widthAutoSize && !this._singleLine;
+        updateAutoSize() {
+            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
             if (!this._underConstruct) {
                 if (!this._heightAutoSize)
-                    this.textField.size(this.width, this.height);
+                    this._textField.size(this.width, this.height);
                 else if (!this._widthAutoSize)
-                    this.textField.width = this.width;
+                    this._textField.width = this.width;
             }
         }
-        get autoSize() {
-            return this._autoSize;
-        }
         get textWidth() {
-            if (this.textField["_isChanged"])
-                this.textField.typeset();
+            if (this._textField["_isChanged"])
+                this._textField.typeset();
             return this._textWidth;
         }
         ensureSizeCorrect() {
-            if (!this._underConstruct && this.textField["_isChanged"])
-                this.textField.typeset();
+            if (!this._underConstruct && this._textField["_isChanged"])
+                this._textField.typeset();
         }
         typeset() {
             if (this._bitmapFont != null)
@@ -11533,15 +12728,15 @@ window.fgui = {};
                 this.updateSize();
         }
         updateSize() {
-            this._textWidth = Math.ceil(this.textField.textWidth);
-            this._textHeight = Math.ceil(this.textField.textHeight);
+            this._textWidth = Math.ceil(this._textField.textWidth);
+            this._textHeight = Math.ceil(this._textField.textHeight);
             var w, h = 0;
             if (this._widthAutoSize) {
                 w = this._textWidth;
-                if (this.textField.width != w) {
-                    this.textField.width = w;
-                    if (this.textField.align != "left")
-                        this.textField["baseTypeset"]();
+                if (this._textField.width != w) {
+                    this._textField.width = w;
+                    if (this._textField.align != "left")
+                        this._textField["baseTypeset"]();
                 }
             }
             else
@@ -11549,16 +12744,16 @@ window.fgui = {};
             if (this._heightAutoSize) {
                 h = this._textHeight;
                 if (!this._widthAutoSize) {
-                    if (this.textField.height != this._textHeight)
-                        this.textField.height = this._textHeight;
+                    if (this._textField.height != this._textHeight)
+                        this._textField.height = this._textHeight;
                 }
             }
             else {
                 h = this.height;
                 if (this._textHeight > h)
                     this._textHeight = h;
-                if (this.textField.height != this._textHeight)
-                    this.textField.height = this._textHeight;
+                if (this._textField.height != this._textHeight)
+                    this._textField.height = this._textHeight;
             }
             this._updatingSize = true;
             this.setSize(w, h);
@@ -11571,7 +12766,6 @@ window.fgui = {};
                 this._lines = new Array();
             else
                 LineInfo.returnList(this._lines);
-            var letterSpacing = this.letterSpacing;
             var lineSpacing = this.leading - 1;
             var rectWidth = this.width - GBasicTextField.GUTTER_X * 2;
             var lineWidth = 0, lineHeight = 0, lineTextHeight = 0;
@@ -11583,7 +12777,7 @@ window.fgui = {};
             var line;
             var wordWrap = !this._widthAutoSize && !this._singleLine;
             var fontSize = this.fontSize;
-            var fontScale = this._bitmapFont.resizable ? this.fontSize / this._bitmapFont.size : 1;
+            var fontScale = this._bitmapFont.resizable ? fontSize / this._bitmapFont.size : 1;
             this._textWidth = 0;
             this._textHeight = 0;
             var text2 = this._text;
@@ -11599,7 +12793,7 @@ window.fgui = {};
                     line.width = lineWidth;
                     if (lineTextHeight == 0) {
                         if (lastLineHeight == 0)
-                            lastLineHeight = this.fontSize;
+                            lastLineHeight = fontSize;
                         if (lineHeight == 0)
                             lineHeight = lastLineHeight;
                         lineTextHeight = lineHeight;
@@ -11633,8 +12827,8 @@ window.fgui = {};
                     wordChars = 0;
                 }
                 if (cc == 32) {
-                    glyphWidth = Math.ceil(this.fontSize / 2);
-                    glyphHeight = this.fontSize;
+                    glyphWidth = Math.ceil(fontSize / 2);
+                    glyphHeight = fontSize;
                 }
                 else {
                     var glyph = this._bitmapFont.glyphs[ch];
@@ -11652,7 +12846,7 @@ window.fgui = {};
                 if (glyphHeight > lineHeight)
                     lineHeight = glyphHeight;
                 if (lineWidth != 0)
-                    lineWidth += this.letterSpacing;
+                    lineWidth += this._letterSpacing;
                 lineWidth += glyphWidth;
                 if (!wordWrap || lineWidth <= rectWidth) {
                     lineBuffer += ch;
@@ -11674,7 +12868,7 @@ window.fgui = {};
                     }
                     else {
                         line.text = lineBuffer;
-                        line.width = lineWidth - (glyphWidth + this.letterSpacing);
+                        line.width = lineWidth - (glyphWidth + this._letterSpacing);
                         lineBuffer = ch;
                         lineWidth = glyphWidth;
                         lineHeight = glyphHeight;
@@ -11759,7 +12953,7 @@ window.fgui = {};
                     if (cc == 10)
                         continue;
                     if (cc == 32) {
-                        charX += this._letterSpacing + Math.ceil(this.fontSize / 2);
+                        charX += this._letterSpacing + Math.ceil(fontSize / 2);
                         continue;
                     }
                     glyph = this._bitmapFont.glyphs[ch];
@@ -11768,10 +12962,10 @@ window.fgui = {};
                         if (glyph.texture) {
                             gr.drawTexture(glyph.texture, charX + lineIndent + Math.ceil(glyph.offsetX * fontScale), line.y + charIndent + Math.ceil(glyph.offsetY * fontScale), glyph.texture.width * fontScale, glyph.texture.height * fontScale);
                         }
-                        charX += this.letterSpacing + Math.ceil(glyph.advance * fontScale);
+                        charX += this._letterSpacing + Math.ceil(glyph.advance * fontScale);
                     }
                     else {
-                        charX += this.letterSpacing;
+                        charX += this._letterSpacing;
                     }
                 }
             }
@@ -11780,20 +12974,20 @@ window.fgui = {};
             if (this._updatingSize)
                 return;
             if (this._underConstruct)
-                this.textField.size(this.width, this.height);
+                this._textField.size(this._width, this._height);
             else {
                 if (this._bitmapFont != null) {
                     if (!this._widthAutoSize)
-                        this.textField["setChanged"]();
+                        this._textField["setChanged"]();
                     else
                         this.doAlign();
                 }
                 else {
                     if (!this._widthAutoSize) {
                         if (!this._heightAutoSize)
-                            this.textField.size(this.width, this.height);
+                            this._textField.size(this._width, this._height);
                         else
-                            this.textField.width = this.width;
+                            this._textField.width = this._width;
                     }
                 }
             }
@@ -11801,9 +12995,9 @@ window.fgui = {};
         handleGrayedChanged() {
             super.handleGrayedChanged();
             if (this.grayed)
-                this.textField.color = "#AAAAAA";
+                this._textField.color = "#AAAAAA";
             else
-                this.textField.color = this._color;
+                this._textField.color = this._color;
         }
         doAlign() {
             if (this.valign == "top" || this._textHeight == 0)
@@ -11903,9 +13097,12 @@ window.fgui = {};
             this._text = "";
         }
         createDisplayObject() {
-            this._displayObject = this.div = new Laya.HTMLDivElement();
+            this._displayObject = this._div = new Laya.HTMLDivElement();
             this._displayObject.mouseEnabled = true;
             this._displayObject["$owner"] = this;
+        }
+        get div() {
+            return this._div;
         }
         set text(value) {
             this._text = value;
@@ -11914,31 +13111,48 @@ window.fgui = {};
                 text2 = this.parseTemplate(text2);
             try {
                 if (this._ubbEnabled)
-                    this.div.innerHTML = fgui.ToolSet.parseUBB(text2);
+                    this._div.innerHTML = fgui.ToolSet.parseUBB(text2);
                 else
-                    this.div.innerHTML = text2;
+                    this._div.innerHTML = text2;
+                if (this._widthAutoSize || this._heightAutoSize) {
+                    var w, h = 0;
+                    if (this._widthAutoSize) {
+                        w = this._div.contextWidth;
+                        if (w > 0)
+                            w += 8;
+                    }
+                    else
+                        w = this._width;
+                    if (this._heightAutoSize)
+                        h = this._div.contextHeight;
+                    else
+                        h = this._height;
+                    this._updatingSize = true;
+                    this.setSize(w, h);
+                    this._updatingSize = false;
+                }
             }
             catch (err) {
-                Laya.Log.print(err);
+                console.log("laya reports html error:" + err);
             }
         }
         get text() {
             return this._text;
         }
         get font() {
-            return this.div.style.font;
+            return this._div.style.font;
         }
         set font(value) {
             if (value)
-                this.div.style.font = value;
+                this._div.style.font = value;
             else
-                this.div.style.font = fgui.UIConfig.defaultFont;
+                this._div.style.font = fgui.UIConfig.defaultFont;
         }
         get fontSize() {
-            return this.div.style.fontSize;
+            return this._div.style.fontSize;
         }
         set fontSize(value) {
-            this.div.style.fontSize = value;
+            this._div.style.fontSize = value;
         }
         get color() {
             return this._color;
@@ -11946,52 +13160,52 @@ window.fgui = {};
         set color(value) {
             if (this._color != value) {
                 this._color = value;
-                this.div.style.color = value;
+                this._div.style.color = value;
                 if (this._gearColor.controller)
                     this._gearColor.updateState();
             }
         }
         get align() {
-            return this.div.style.align;
+            return this._div.style.align;
         }
         set align(value) {
-            this.div.style.align = value;
+            this._div.style.align = value;
         }
         get valign() {
-            return this.div.style.valign;
+            return this._div.style.valign;
         }
         set valign(value) {
-            this.div.style.valign = value;
+            this._div.style.valign = value;
         }
         get leading() {
-            return this.div.style.leading;
+            return this._div.style.leading;
         }
         set leading(value) {
-            this.div.style.leading = value;
+            this._div.style.leading = value;
         }
         get bold() {
-            return this.div.style.bold;
+            return this._div.style.bold;
         }
         set bold(value) {
-            this.div.style.bold = value;
+            this._div.style.bold = value;
         }
         get italic() {
-            return this.div.style.italic;
+            return this._div.style.italic;
         }
         set italic(value) {
-            this.div.style.italic = value;
+            this._div.style.italic = value;
         }
         get stroke() {
-            return this.div.style.stroke;
+            return this._div.style.stroke;
         }
         set stroke(value) {
-            this.div.style.stroke = value;
+            this._div.style.stroke = value;
         }
         get strokeColor() {
-            return this.div.style.strokeColor;
+            return this._div.style.strokeColor;
         }
         set strokeColor(value) {
-            this.div.style.strokeColor = value;
+            this._div.style.strokeColor = value;
             this.updateGear(4);
         }
         set ubbEnabled(value) {
@@ -12000,10 +13214,21 @@ window.fgui = {};
         get ubbEnabled() {
             return this._ubbEnabled;
         }
+        get textWidth() {
+            var w = this._div.contextWidth;
+            if (w > 0)
+                w += 8;
+            return w;
+        }
+        updateAutoSize() {
+            this._div.style.wordWrap = !this._widthAutoSize;
+        }
         handleSizeChanged() {
-            this.div.size(this.width, this.height);
-            this.div.style.width = this.width;
-            this.div.style.height = this.height;
+            if (this._updatingSize)
+                return;
+            this._div.size(this._width, this._height);
+            this._div.style.width = this._width;
+            this._div.style.height = this._height;
         }
     }
     fgui.GRichTextField = GRichTextField;
@@ -12016,127 +13241,134 @@ window.fgui = {};
             super();
         }
         createDisplayObject() {
-            this._displayObject = this.input = new Laya.Input();
+            this._displayObject = this._input = new Laya.Input();
             this._displayObject.mouseEnabled = true;
             this._displayObject["$owner"] = this;
         }
+        get nativeInput() {
+            return this._input;
+        }
         set text(value) {
-            this.input.text = value;
+            this._input.text = value;
         }
         get text() {
-            return this.input.text;
+            return this._input.text;
         }
         get font() {
-            return this.input.font;
+            return this._input.font;
         }
         set font(value) {
-            this.input.font = value;
+            this._input.font = value;
         }
         get fontSize() {
-            return this.input.fontSize;
+            return this._input.fontSize;
         }
         set fontSize(value) {
-            this.input.fontSize = value;
+            this._input.fontSize = value;
         }
         get color() {
-            return this.input.color;
+            return this._input.color;
         }
         set color(value) {
-            this.input.color = value;
+            this._input.color = value;
         }
         get align() {
-            return this.input.align;
+            return this._input.align;
         }
         set align(value) {
-            this.input.align = value;
+            this._input.align = value;
         }
         get valign() {
-            return this.input.valign;
+            return this._input.valign;
         }
         set valign(value) {
-            this.input.valign = value;
+            this._input.valign = value;
         }
         get leading() {
-            return this.input.leading;
+            return this._input.leading;
         }
         set leading(value) {
-            this.input.leading = value;
+            this._input.leading = value;
         }
         get bold() {
-            return this.input.bold;
+            return this._input.bold;
         }
         set bold(value) {
-            this.input.bold = value;
+            this._input.bold = value;
         }
         get italic() {
-            return this.input.italic;
+            return this._input.italic;
         }
         set italic(value) {
-            this.input.italic = value;
+            this._input.italic = value;
         }
         get singleLine() {
-            return !this.input.multiline;
+            return !this._input.multiline;
         }
         set singleLine(value) {
-            this.input.multiline = !value;
+            this._input.multiline = !value;
         }
         get stroke() {
-            return this.input.stroke;
+            return this._input.stroke;
         }
         set stroke(value) {
-            this.input.stroke = value;
+            this._input.stroke = value;
         }
         get strokeColor() {
-            return this.input.strokeColor;
+            return this._input.strokeColor;
         }
         set strokeColor(value) {
-            this.input.strokeColor = value;
+            this._input.strokeColor = value;
             this.updateGear(4);
         }
         get password() {
-            return this.input.type == "password";
+            return this._input.type == "password";
         }
         set password(value) {
             if (value)
-                this.input.type = "password";
+                this._input.type = "password";
             else
-                this.input.type = "text";
+                this._input.type = "text";
         }
         get keyboardType() {
-            return this.input.type;
+            return this._input.type;
         }
         set keyboardType(value) {
-            this.input.type = value;
+            this._input.type = value;
         }
         set editable(value) {
-            this.input.editable = value;
+            this._input.editable = value;
         }
         get editable() {
-            return this.input.editable;
+            return this._input.editable;
         }
         set maxLength(value) {
-            this.input.maxChars = value;
+            this._input.maxChars = value;
         }
         get maxLength() {
-            return this.input.maxChars;
+            return this._input.maxChars;
         }
         set promptText(value) {
-            this.input.prompt = value;
+            this._prompt = value;
+            var str = fgui.UBBParser.inst.parse(value, true);
+            this._input.prompt = str;
+            if (fgui.UBBParser.inst.lastColor)
+                this._input.promptColor = fgui.UBBParser.inst.lastColor;
         }
         get promptText() {
-            return this.input.prompt;
+            return this._prompt;
         }
         set restrict(value) {
-            this.input.restrict = value;
+            this._input.restrict = value;
         }
         get restrict() {
-            return this.input.restrict;
+            return this._input.restrict;
         }
         get textWidth() {
-            return this.input.textWidth;
+            return this._input.textWidth;
         }
         handleSizeChanged() {
-            this.input.size(this.width, this.height);
+            this._input.size(this._width, this._height);
         }
         setup_beforeAdd(buffer, beginPos) {
             super.setup_beforeAdd(buffer, beginPos);
@@ -12146,10 +13378,10 @@ window.fgui = {};
                 this.promptText = str;
             str = buffer.readS();
             if (str != null)
-                this.input.restrict = str;
+                this._input.restrict = str;
             var iv = buffer.getInt32();
             if (iv != 0)
-                this.input.maxChars = iv;
+                this._input.maxChars = iv;
             iv = buffer.getInt32();
             if (iv != 0) {
                 if (iv == 4)
@@ -12509,8 +13741,22 @@ window.fgui = {};
         }
         __winResize() {
             this.setSize(Laya.stage.width, Laya.stage.height);
+            this.updateContentScaleLevel();
+        }
+        updateContentScaleLevel() {
+            var mat = Laya.stage._canvasTransform;
+            var ss = Math.max(mat.getScaleX(), mat.getScaleY());
+            if (ss >= 3.5)
+                GRoot.contentScaleLevel = 3;
+            else if (ss >= 2.5)
+                GRoot.contentScaleLevel = 2;
+            else if (ss >= 1.5)
+                GRoot.contentScaleLevel = 1;
+            else
+                GRoot.contentScaleLevel = 0;
         }
     }
+    GRoot.contentScaleLevel = 0;
     fgui.GRoot = GRoot;
 })(fgui || (fgui = {}));
 
@@ -13174,12 +14420,14 @@ window.fgui = {};
             this._owner.relations.handling = null;
         }
         __targetSizeChanged(target) {
+            if (this._owner.relations.sizeDirty)
+                this._owner.relations.ensureRelationsSizeCorrect();
             if (this._owner.relations.handling != null) {
                 this._targetWidth = this._target._width;
                 this._targetHeight = this._target._height;
                 return;
             }
-            this._owner.relations.handling = this.target;
+            this._owner.relations.handling = target;
             var ox = this._owner.x;
             var oy = this._owner.y;
             var ow = this._owner._rawWidth;
@@ -13368,11 +14616,12 @@ window.fgui = {};
             this._container = this._owner._container;
             this._container.pos(0, 0);
             this._maskContainer.addChild(this._container);
-            this._scrollBarVisible = true;
             this._mouseWheelEnabled = true;
             this._xPos = 0;
             this._yPos = 0;
             this._aniFlag = 0;
+            this._tweening = 0;
+            this._loop = 0;
             this._footerLockedSize = 0;
             this._headerLockedSize = 0;
             this._scrollBarMargin = new fgui.Margin();
@@ -13428,6 +14677,7 @@ window.fgui = {};
             this._inertiaDisabled = (flags & 256) != 0;
             if ((flags & 512) == 0)
                 this._maskContainer.scrollRect = new Laya.Rectangle();
+            this._floating = (flags & 1024) != 0;
             if (scrollBarDisplay == fgui.ScrollBarDisplayType.Default)
                 scrollBarDisplay = fgui.UIConfig.defaultScrollBarDisplay;
             if (scrollBarDisplay != fgui.ScrollBarDisplayType.Hidden) {
@@ -13453,7 +14703,6 @@ window.fgui = {};
                 }
                 this._scrollBarDisplayAuto = scrollBarDisplay == fgui.ScrollBarDisplayType.Auto;
                 if (this._scrollBarDisplayAuto) {
-                    this._scrollBarVisible = false;
                     if (this._vtScrollBar)
                         this._vtScrollBar.displayObject.visible = false;
                     if (this._hzScrollBar)
@@ -13606,7 +14855,7 @@ window.fgui = {};
         }
         set viewWidth(value) {
             value = value + this._owner.margin.left + this._owner.margin.right;
-            if (this._vtScrollBar != null)
+            if (this._vtScrollBar != null && !this._floating)
                 value += this._vtScrollBar.width;
             this._owner.width = value;
         }
@@ -13615,7 +14864,7 @@ window.fgui = {};
         }
         set viewHeight(value) {
             value = value + this._owner.margin.top + this._owner.margin.bottom;
-            if (this._hzScrollBar != null)
+            if (this._hzScrollBar != null && !this._floating)
                 value += this._hzScrollBar.height;
             this._owner.height = value;
         }
@@ -13784,9 +15033,7 @@ window.fgui = {};
                 this._tweenChange.setTo(0, 0);
                 this._tweenChange[this._refreshBarAxis] = this._headerLockedSize - this._tweenStart[this._refreshBarAxis];
                 this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
-                this._tweenTime.setTo(0, 0);
-                this._tweening = 2;
-                Laya.timer.frameLoop(1, this, this.tweenUpdate);
+                this.startTween(2);
             }
         }
         lockFooter(size) {
@@ -13803,9 +15050,7 @@ window.fgui = {};
                     max += this._footerLockedSize;
                 this._tweenChange[this._refreshBarAxis] = -max - this._tweenStart[this._refreshBarAxis];
                 this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
-                this._tweenTime.setTo(0, 0);
-                this._tweening = 2;
-                Laya.timer.frameLoop(1, this, this.tweenUpdate);
+                this.startTween(2);
             }
         }
         onOwnerSizeChanged() {
@@ -13837,7 +15082,7 @@ window.fgui = {};
         }
         adjustMaskContainer() {
             var mx, my;
-            if (this._displayOnLeft && this._vtScrollBar != null)
+            if (this._displayOnLeft && this._vtScrollBar != null && !this._floating)
                 mx = Math.floor(this._owner.margin.left + this._vtScrollBar.width);
             else
                 mx = Math.floor(this._owner.margin.left);
@@ -13882,9 +15127,9 @@ window.fgui = {};
             }
             this._viewSize.x = aWidth;
             this._viewSize.y = aHeight;
-            if (this._hzScrollBar && !this._hScrollNone)
+            if (this._hzScrollBar && !this._floating)
                 this._viewSize.y -= this._hzScrollBar.height;
-            if (this._vtScrollBar && !this._vScrollNone)
+            if (this._vtScrollBar && !this._floating)
                 this._viewSize.x -= this._vtScrollBar.width;
             this._viewSize.x -= (this._owner.margin.left + this._owner.margin.right);
             this._viewSize.y -= (this._owner.margin.top + this._owner.margin.bottom);
@@ -13954,63 +15199,32 @@ window.fgui = {};
             if (this._pageMode)
                 this.updatePageController();
         }
-        handleSizeChanged(onScrolling = false) {
+        handleSizeChanged() {
             if (this._displayInDemand) {
-                if (this._vtScrollBar) {
-                    if (this._contentSize.y <= this._viewSize.y) {
-                        if (!this._vScrollNone) {
-                            this._vScrollNone = true;
-                            this._viewSize.x += this._vtScrollBar.width;
-                        }
-                    }
-                    else {
-                        if (this._vScrollNone) {
-                            this._vScrollNone = false;
-                            this._viewSize.x -= this._vtScrollBar.width;
-                        }
-                    }
-                }
-                if (this._hzScrollBar) {
-                    if (this._contentSize.x <= this._viewSize.x) {
-                        if (!this._hScrollNone) {
-                            this._hScrollNone = true;
-                            this._viewSize.y += this._hzScrollBar.height;
-                        }
-                    }
-                    else {
-                        if (this._hScrollNone) {
-                            this._hScrollNone = false;
-                            this._viewSize.y -= this._hzScrollBar.height;
-                        }
-                    }
-                }
+                this._vScrollNone = this._contentSize.y <= this._viewSize.y;
+                this._hScrollNone = this._contentSize.x <= this._viewSize.x;
             }
             if (this._vtScrollBar) {
-                if (this._viewSize.y < this._vtScrollBar.minSize)
-                    this._vtScrollBar.displayObject.visible = false;
-                else {
-                    this._vtScrollBar.displayObject.visible = this._scrollBarVisible && !this._vScrollNone;
-                    if (this._contentSize.y == 0)
-                        this._vtScrollBar.displayPerc = 0;
-                    else
-                        this._vtScrollBar.displayPerc = Math.min(1, this._viewSize.y / this._contentSize.y);
-                }
+                if (this._contentSize.y == 0)
+                    this._vtScrollBar.setDisplayPerc(0);
+                else
+                    this._vtScrollBar.setDisplayPerc(Math.min(1, this._viewSize.y / this._contentSize.y));
             }
             if (this._hzScrollBar) {
-                if (this._viewSize.x < this._hzScrollBar.minSize)
-                    this._hzScrollBar.displayObject.visible = false;
-                else {
-                    this._hzScrollBar.displayObject.visible = this._scrollBarVisible && !this._hScrollNone;
-                    if (this._contentSize.x == 0)
-                        this._hzScrollBar.displayPerc = 0;
-                    else
-                        this._hzScrollBar.displayPerc = Math.min(1, this._viewSize.x / this._contentSize.x);
-                }
+                if (this._contentSize.x == 0)
+                    this._hzScrollBar.setDisplayPerc(0);
+                else
+                    this._hzScrollBar.setDisplayPerc(Math.min(1, this._viewSize.x / this._contentSize.x));
             }
+            this.updateScrollBarVisible();
             var rect = this._maskContainer.scrollRect;
             if (rect) {
                 rect.width = this._viewSize.x;
                 rect.height = this._viewSize.y;
+                if (this._vScrollNone && this._vtScrollBar)
+                    rect.width += this._vtScrollBar.width;
+                if (this._hScrollNone && this._hzScrollBar)
+                    rect.height += this._hzScrollBar.height;
                 this._maskContainer.scrollRect = rect;
             }
             if (this._scrollType == fgui.ScrollType.Horizontal || this._scrollType == fgui.ScrollType.Both)
@@ -14051,8 +15265,7 @@ window.fgui = {};
             else {
                 this._container.pos(fgui.ToolSet.clamp(this._container.x, -this._overlapSize.x, 0), fgui.ToolSet.clamp(this._container.y, -this._overlapSize.y, 0));
             }
-            this.syncScrollBar(true);
-            this.checkRefreshBar();
+            this.updateScrollBarPos();
             if (this._pageMode)
                 this.updatePageController();
         }
@@ -14080,7 +15293,7 @@ window.fgui = {};
                 Laya.timer.clear(this, this.refresh);
                 this.refresh2();
             }
-            this.syncScrollBar();
+            this.updateScrollBarPos();
             this._aniFlag = 0;
         }
         refresh2() {
@@ -14102,12 +15315,10 @@ window.fgui = {};
                     posY = 0;
                 }
                 if (posX != this._container.x || posY != this._container.y) {
-                    this._tweening = 1;
-                    this._tweenTime.setTo(0, 0);
                     this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_GO, ScrollPane.TWEEN_TIME_GO);
                     this._tweenStart.setTo(this._container.x, this._container.y);
                     this._tweenChange.setTo(posX - this._tweenStart.x, posY - this._tweenStart.y);
-                    Laya.timer.frameLoop(1, this, this.tweenUpdate);
+                    this.startTween(1);
                 }
                 else if (this._tweening != 0)
                     this.killTween();
@@ -14120,20 +15331,6 @@ window.fgui = {};
             }
             if (this._pageMode)
                 this.updatePageController();
-        }
-        syncScrollBar(end = false) {
-            if (this._vtScrollBar != null) {
-                this._vtScrollBar.scrollPerc = this._overlapSize.y == 0 ? 0 : fgui.ToolSet.clamp(-this._container.y, 0, this._overlapSize.y) / this._overlapSize.y;
-                if (this._scrollBarDisplayAuto)
-                    this.showScrollBar(!end);
-            }
-            if (this._hzScrollBar != null) {
-                this._hzScrollBar.scrollPerc = this._overlapSize.x == 0 ? 0 : fgui.ToolSet.clamp(-this._container.x, 0, this._overlapSize.x) / this._overlapSize.x;
-                if (this._scrollBarDisplayAuto)
-                    this.showScrollBar(!end);
-            }
-            if (end)
-                this._maskContainer.mouseEnabled = true;
         }
         __mouseDown() {
             if (!this._touchEffect)
@@ -14292,8 +15489,8 @@ window.fgui = {};
             this._isHoldAreaDone = true;
             this.isDragged = true;
             this._maskContainer.mouseEnabled = false;
-            this.syncScrollBar();
-            this.checkRefreshBar();
+            this.updateScrollBarPos();
+            this.updateScrollBarVisible();
             if (this._pageMode)
                 this.updatePageController();
             fgui.Events.dispatch(fgui.Events.SCROLL, this._owner.displayObject);
@@ -14380,8 +15577,7 @@ window.fgui = {};
                 this._tweenChange.x = ScrollPane.sEndPos.x - this._tweenStart.x;
                 this._tweenChange.y = ScrollPane.sEndPos.y - this._tweenStart.y;
                 if (this._tweenChange.x == 0 && this._tweenChange.y == 0) {
-                    if (this._scrollBarDisplayAuto)
-                        this.showScrollBar(false);
+                    this.updateScrollBarVisible();
                     return;
                 }
                 if (this._pageMode || this._snapToItem) {
@@ -14389,9 +15585,7 @@ window.fgui = {};
                     this.fixDuration("y", ScrollPane.sOldChange.y);
                 }
             }
-            this._tweening = 2;
-            this._tweenTime.setTo(0, 0);
-            Laya.timer.frameLoop(1, this, this.tweenUpdate);
+            this.startTween(2);
         }
         __click() {
             this.isDragged = false;
@@ -14399,7 +15593,6 @@ window.fgui = {};
         __mouseWheel(evt) {
             if (!this._mouseWheelEnabled)
                 return;
-            var pt = this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, ScrollPane.sHelperPoint);
             var delta = evt["delta"];
             delta = delta > 0 ? -1 : (delta < 0 ? 1 : 0);
             if (this._overlapSize.x > 0 && this._overlapSize.y == 0) {
@@ -14415,26 +15608,43 @@ window.fgui = {};
                     this.setPosY(this._yPos + this._mouseWheelStep * delta, false);
             }
         }
-        __rollOver() {
-            this.showScrollBar(true);
+        updateScrollBarPos() {
+            if (this._vtScrollBar != null)
+                this._vtScrollBar.setScrollPerc(this._overlapSize.y == 0 ? 0 : fgui.ToolSet.clamp(-this._container.y, 0, this._overlapSize.y) / this._overlapSize.y);
+            if (this._hzScrollBar != null)
+                this._hzScrollBar.setScrollPerc(this._overlapSize.x == 0 ? 0 : fgui.ToolSet.clamp(-this._container.x, 0, this._overlapSize.x) / this._overlapSize.x);
+            this.checkRefreshBar();
         }
-        __rollOut() {
-            this.showScrollBar(false);
-        }
-        showScrollBar(val) {
-            if (val) {
-                this.__showScrollBar(true);
-                Laya.timer.clear(this, this.__showScrollBar);
+        updateScrollBarVisible() {
+            if (this._vtScrollBar) {
+                if (this._viewSize.y <= this._vtScrollBar.minSize || this._vScrollNone)
+                    this._vtScrollBar.displayObject.visible = false;
+                else
+                    this.updateScrollBarVisible2(this._vtScrollBar);
             }
-            else
-                Laya.timer.once(500, this, this.__showScrollBar, [val]);
+            if (this._hzScrollBar) {
+                if (this._viewSize.x <= this._hzScrollBar.minSize || this._hScrollNone)
+                    this._hzScrollBar.displayObject.visible = false;
+                else
+                    this.updateScrollBarVisible2(this._hzScrollBar);
+            }
         }
-        __showScrollBar(val) {
-            this._scrollBarVisible = val && this._viewSize.x > 0 && this._viewSize.y > 0;
-            if (this._vtScrollBar)
-                this._vtScrollBar.displayObject.visible = this._scrollBarVisible && !this._vScrollNone;
-            if (this._hzScrollBar)
-                this._hzScrollBar.displayObject.visible = this._scrollBarVisible && !this._hScrollNone;
+        updateScrollBarVisible2(bar) {
+            if (this._scrollBarDisplayAuto)
+                fgui.GTween.kill(bar, false, "alpha");
+            if (this._scrollBarDisplayAuto && this._tweening == 0 && !this.isDragged && !bar.gripDragging) {
+                if (bar.displayObject.visible)
+                    fgui.GTween.to(1, 0, 0.5).setDelay(0.5).onComplete(this.__barTweenComplete).setTarget(bar, "alpha");
+            }
+            else {
+                bar.alpha = 1;
+                bar.displayObject.visible = true;
+            }
+        }
+        __barTweenComplete(tweener) {
+            var bar = (tweener.target);
+            bar.alpha = 1;
+            bar.displayObject.visible = false;
         }
         getLoopPartSize(division, axis) {
             return (this._contentSize[axis] + (axis == "x" ? (this._owner).columnGap : (this._owner).lineGap)) / division;
@@ -14633,6 +15843,12 @@ window.fgui = {};
                 newDuration = ScrollPane.TWEEN_TIME_DEFAULT;
             this._tweenDuration[axis] = newDuration;
         }
+        startTween(type) {
+            this._tweenTime.setTo(0, 0);
+            this._tweening = type;
+            Laya.timer.frameLoop(1, this, this.tweenUpdate);
+            this.updateScrollBarVisible();
+        }
         killTween() {
             if (this._tweening == 1) {
                 this._container.pos(this._tweenStart.x + this._tweenChange.x, this._tweenStart.y + this._tweenChange.y);
@@ -14640,6 +15856,7 @@ window.fgui = {};
             }
             this._tweening = 0;
             Laya.timer.clear(this, this.tweenUpdate);
+            this.updateScrollBarVisible();
             fgui.Events.dispatch(fgui.Events.SCROLL_END, this._owner.displayObject);
         }
         checkRefreshBar() {
@@ -14701,14 +15918,13 @@ window.fgui = {};
                 this._tweening = 0;
                 Laya.timer.clear(this, this.tweenUpdate);
                 this.loopCheckingCurrent();
-                this.syncScrollBar(true);
-                this.checkRefreshBar();
+                this.updateScrollBarPos();
+                this.updateScrollBarVisible();
                 fgui.Events.dispatch(fgui.Events.SCROLL, this._owner.displayObject);
                 fgui.Events.dispatch(fgui.Events.SCROLL_END, this._owner.displayObject);
             }
             else {
-                this.syncScrollBar(false);
-                this.checkRefreshBar();
+                this.updateScrollBarPos();
                 fgui.Events.dispatch(fgui.Events.SCROLL, this._owner.displayObject);
             }
         }
@@ -14827,9 +16043,11 @@ window.fgui = {};
             UIObjectFactory.loaderType = type;
         }
         static resolvePackageItemExtension(pi) {
-            pi.extensionType = UIObjectFactory.packageItemExtensions["ui://" + pi.owner.id + pi.id];
-            if (!pi.extensionType)
-                pi.extensionType = UIObjectFactory.packageItemExtensions["ui://" + pi.owner.name + "/" + pi.name];
+            var extensionType = UIObjectFactory.packageItemExtensions["ui://" + pi.owner.id + pi.id];
+            if (!extensionType)
+                extensionType = UIObjectFactory.packageItemExtensions["ui://" + pi.owner.name + "/" + pi.name];
+            if (extensionType)
+                pi.extensionType = extensionType;
         }
         static newObject(pi) {
             if (pi.extensionType)
@@ -14874,6 +16092,8 @@ window.fgui = {};
                     return new fgui.GScrollBar();
                 case fgui.ObjectType.ComboBox:
                     return new fgui.GComboBox();
+                case fgui.ObjectType.Tree:
+                    return new fgui.GTree();
                 default:
                     return null;
             }
@@ -14891,6 +16111,27 @@ window.fgui = {};
             this._itemsById = {};
             this._itemsByName = {};
             this._sprites = {};
+            this._dependencies = Array();
+            this._branches = Array();
+            this._branchIndex = -1;
+        }
+        static get branch() {
+            return UIPackage._branch;
+        }
+        static set branch(value) {
+            UIPackage._branch = value;
+            for (var pkgId in UIPackage._instById) {
+                var pkg = UIPackage._instById[pkgId];
+                if (pkg._branches) {
+                    pkg._branchIndex = pkg._branches.indexOf(value);
+                }
+            }
+        }
+        static getVar(key) {
+            return UIPackage._vars[key];
+        }
+        static setVar(key, value) {
+            UIPackage._vars[key] = value;
         }
         static getById(id) {
             return UIPackage._instById[id];
@@ -15024,6 +16265,7 @@ window.fgui = {};
             if (buffer.getUint32() != 0x46475549)
                 throw new Error("FairyGUI: old namespace sunnyboxs found in '" + resKey + "'");
             buffer.version = buffer.getInt32();
+            var ver2 = buffer.version >= 2;
             var compressed = buffer.readBool();
             this._id = buffer.readUTFString();
             this._name = buffer.readUTFString();
@@ -15037,13 +16279,29 @@ window.fgui = {};
             var indexTablePos = buffer.pos;
             var cnt;
             var i;
+            var j;
             var nextPos;
+            var str;
+            var branchIncluded;
             buffer.seek(indexTablePos, 4);
             cnt = buffer.getInt32();
             var stringTable = [];
             for (i = 0; i < cnt; i++)
                 stringTable[i] = buffer.readUTFString();
             buffer.stringTable = stringTable;
+            buffer.seek(indexTablePos, 0);
+            cnt = buffer.getInt16();
+            for (i = 0; i < cnt; i++)
+                this._dependencies.push({ id: buffer.readS(), name: buffer.readS() });
+            if (ver2) {
+                cnt = buffer.getInt16();
+                if (cnt > 0) {
+                    this._branches = buffer.readSArray(cnt);
+                    if (UIPackage._branch)
+                        this._branchIndex = this._branches.indexOf(UIPackage._branch);
+                }
+                branchIncluded = cnt > 0;
+            }
             buffer.seek(indexTablePos, 1);
             var pi;
             resKey = resKey + "_";
@@ -15057,7 +16315,9 @@ window.fgui = {};
                 pi.id = buffer.readS();
                 pi.name = buffer.readS();
                 buffer.readS();
-                pi.file = buffer.readS();
+                str = buffer.readS();
+                if (str)
+                    pi.file = str;
                 buffer.readBool();
                 pi.width = buffer.getInt32();
                 pi.height = buffer.getInt32();
@@ -15109,6 +16369,21 @@ window.fgui = {};
                             pi.file = resKey + pi.file;
                             break;
                         }
+                }
+                if (ver2) {
+                    str = buffer.readS();
+                    if (str)
+                        pi.name = str + "/" + pi.name;
+                    var branchCnt = buffer.getUint8();
+                    if (branchCnt > 0) {
+                        if (branchIncluded)
+                            pi.branches = buffer.readSArray(branchCnt);
+                        else
+                            this._itemsById[buffer.readS()] = pi;
+                    }
+                    var highResCnt = buffer.getUint8();
+                    if (highResCnt > 0)
+                        pi.highResolution = buffer.readSArray(highResCnt);
                 }
                 this._items.push(pi);
                 this._itemsById[pi.id] = pi;
@@ -15351,9 +16626,11 @@ window.fgui = {};
                 if (!font.ttf) {
                     var charImg = this._itemsById[img];
                     if (charImg) {
-                        this.getItemAsset(charImg);
+                        charImg = charImg.getBranch();
                         bg.width = charImg.width;
                         bg.height = charImg.height;
+                        charImg = charImg.getHighResolution();
+                        this.getItemAsset(charImg);
                         bg.texture = charImg.texture;
                     }
                 }
@@ -15380,6 +16657,8 @@ window.fgui = {};
     UIPackage._constructing = 0;
     UIPackage._instById = {};
     UIPackage._instByName = {};
+    UIPackage._branch = "";
+    UIPackage._vars = {};
     fgui.UIPackage = UIPackage;
     class AtlasSprite {
         constructor() {

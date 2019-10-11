@@ -184,7 +184,10 @@ namespace fgui {
         }
 
         public set value(val: string) {
-            this.selectedIndex = this._values.indexOf(val);
+            var index: number = this._values.indexOf(val);
+            if (index == -1 && val == null)
+                index = this._values.indexOf("");
+            this.selectedIndex = index;
         }
 
         public getTextField(): GTextField {

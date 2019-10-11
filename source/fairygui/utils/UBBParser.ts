@@ -5,12 +5,10 @@ namespace fgui {
 
         protected _handlers: Object;
 
-        public smallFontSize: number = 12;
-        public normalFontSize: number = 14;
-        public largeFontSize: number = 16;
-
         public defaultImgWidth: number = 0;
         public defaultImgHeight: number = 0;
+        public lastColor: string;
+        public lastSize: string;
 
         public static inst: UBBParser = new UBBParser();
 
@@ -18,9 +16,9 @@ namespace fgui {
             this._handlers = {};
             this._handlers["url"] = this.onTag_URL;
             this._handlers["img"] = this.onTag_IMG;
-            this._handlers["b"] = this.onTag_Simple;
-            this._handlers["i"] = this.onTag_Simple;
-            this._handlers["u"] = this.onTag_Simple;
+            this._handlers["b"] = this.onTag_B;
+            this._handlers["i"] = this.onTag_I;
+            this._handlers["u"] = this.onTag_U;
             this._handlers["sup"] = this.onTag_Simple;
             this._handlers["sub"] = this.onTag_Simple;
             this._handlers["color"] = this.onTag_COLOR;
@@ -56,13 +54,28 @@ namespace fgui {
                 return null;
         }
 
+        protected onTag_B(tagName: string, end: boolean, attr: string): string {
+            return end ? ("</span>") : ("<span style='font-weight:bold'>");
+        }
+
+        protected onTag_I(tagName: string, end: boolean, attr: string): string {
+            return end ? ("</span>") : ("<span style='font-style:italic'>");
+        }
+
+        protected onTag_U(tagName: string, end: boolean, attr: string): string {
+            return end ? ("</span>") : ("<span style='text-decoration:underline'>");
+        }
+
         protected onTag_Simple(tagName: string, end: boolean, attr: string): string {
             return end ? ("</" + tagName + ">") : ("<" + tagName + ">");
         }
 
         protected onTag_COLOR(tagName: string, end: boolean, attr: string): string {
             if (!end)
+            {
+                this.lastColor = attr;
                 return "<span style=\"color:" + attr + "\">";
+            }
             else
                 return "</span>";
         }
@@ -75,17 +88,9 @@ namespace fgui {
         }
 
         protected onTag_SIZE(tagName: string, end: boolean, attr: string): string {
-            if (!end) {
-                if (attr == "normal")
-                    attr = "" + this.normalFontSize;
-                else if (attr == "small")
-                    attr = "" + this.smallFontSize;
-                else if (attr == "large")
-                    attr = "" + this.largeFontSize;
-                else if (attr.length && attr.charAt(0) == "+")
-                    attr = "" + (this.smallFontSize + parseInt(attr.substr(1)));
-                else if (attr.length && attr.charAt(0) == "-")
-                    attr = "" + (this.smallFontSize - parseInt(attr.substr(1)));
+            if (!end)
+            {
+                this.lastSize = attr;
                 return "<span style=\"font-size:" + attr + "\">";
             }
             else
@@ -119,6 +124,9 @@ namespace fgui {
 
         public parse(text: string, remove: boolean = false): string {
             this._text = text;
+            this.lastColor = null;
+            this.lastSize = null;
+
             var pos1: number = 0, pos2: number, pos3: number;
             var end: boolean;
             var tag: string, attr: string;

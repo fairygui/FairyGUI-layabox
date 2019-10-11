@@ -1,8 +1,7 @@
 namespace fgui {
     export class GRichTextField extends GTextField {
-        public div: Laya.HTMLDivElement;
+        private _div: Laya.HTMLDivElement;
 
-        private _ubbEnabled: boolean;
         private _color: string;
 
         constructor() {
@@ -11,9 +10,13 @@ namespace fgui {
         }
 
         protected createDisplayObject(): void {
-            this._displayObject = this.div = new Laya.HTMLDivElement();
+            this._displayObject = this._div = new Laya.HTMLDivElement();
             this._displayObject.mouseEnabled = true;
             this._displayObject["$owner"] = this;
+        }
+
+        public get div(): Laya.HTMLDivElement {
+            return this._div;
         }
 
         public set text(value: string) {
@@ -21,16 +24,34 @@ namespace fgui {
             var text2: string = this._text;
             if (this._templateVars != null)
                 text2 = this.parseTemplate(text2);
-            try
-            {
+            try {
                 if (this._ubbEnabled)
-                    this.div.innerHTML = ToolSet.parseUBB(text2);
+                    this._div.innerHTML = ToolSet.parseUBB(text2);
                 else
-                    this.div.innerHTML = text2;
+                    this._div.innerHTML = text2;
+
+                if (this._widthAutoSize || this._heightAutoSize) {
+                    var w: number, h: number = 0;
+                    if (this._widthAutoSize) {
+                        w = this._div.contextWidth;
+                        if (w > 0)
+                            w += 8;
+                    }
+                    else
+                        w = this._width;
+
+                    if (this._heightAutoSize)
+                        h = this._div.contextHeight;
+                    else
+                        h = this._height;
+
+                    this._updatingSize = true;
+                    this.setSize(w, h);
+                    this._updatingSize = false;
+                }
             }
-            catch(err)
-            {
-                Laya.Log.print(err);
+            catch (err) {
+                console.log("laya reports html error:" + err);
             }
         }
 
@@ -39,22 +60,22 @@ namespace fgui {
         }
 
         public get font(): string {
-            return this.div.style.font;
+            return this._div.style.font;
         }
 
         public set font(value: string) {
             if (value)
-                this.div.style.font = value;
+                this._div.style.font = value;
             else
-                this.div.style.font = fgui.UIConfig.defaultFont;
+                this._div.style.font = fgui.UIConfig.defaultFont;
         }
 
         public get fontSize(): number {
-            return this.div.style.fontSize;
+            return this._div.style.fontSize;
         }
 
         public set fontSize(value: number) {
-            this.div.style.fontSize = value;
+            this._div.style.fontSize = value;
         }
 
         public get color(): string {
@@ -64,66 +85,66 @@ namespace fgui {
         public set color(value: string) {
             if (this._color != value) {
                 this._color = value;
-                this.div.style.color = value;
+                this._div.style.color = value;
                 if (this._gearColor.controller)
                     this._gearColor.updateState();
             }
         }
 
         public get align(): string {
-            return this.div.style.align;
+            return this._div.style.align;
         }
 
         public set align(value: string) {
-            this.div.style.align = value;
+            this._div.style.align = value;
         }
 
         public get valign(): string {
-            return this.div.style.valign;
+            return this._div.style.valign;
         }
 
         public set valign(value: string) {
-            this.div.style.valign = value;
+            this._div.style.valign = value;
         }
 
         public get leading(): number {
-            return this.div.style.leading;
+            return this._div.style.leading;
         }
 
         public set leading(value: number) {
-            this.div.style.leading = value;
+            this._div.style.leading = value;
         }
 
         public get bold(): boolean {
-            return this.div.style.bold;
+            return this._div.style.bold;
         }
 
         public set bold(value: boolean) {
-            this.div.style.bold = value;
+            this._div.style.bold = value;
         }
 
         public get italic(): boolean {
-            return this.div.style.italic;
+            return this._div.style.italic;
         }
 
         public set italic(value: boolean) {
-            this.div.style.italic = value;
+            this._div.style.italic = value;
         }
 
         public get stroke(): number {
-            return this.div.style.stroke;
+            return this._div.style.stroke;
         }
 
         public set stroke(value: number) {
-            this.div.style.stroke = value;
+            this._div.style.stroke = value;
         }
 
         public get strokeColor(): string {
-            return this.div.style.strokeColor;
+            return this._div.style.strokeColor;
         }
 
         public set strokeColor(value: string) {
-            this.div.style.strokeColor = value;
+            this._div.style.strokeColor = value;
             this.updateGear(4);
         }
 
@@ -135,11 +156,24 @@ namespace fgui {
             return this._ubbEnabled;
         }
 
-        protected handleSizeChanged(): void {
-            this.div.size(this.width, this.height);
+        public get textWidth(): number {
+            var w: number = this._div.contextWidth;
+            if (w > 0)
+                w += 8;
+            return w;
+        }
 
-            this.div.style.width = this.width;
-            this.div.style.height = this.height;
+        protected updateAutoSize(): void {
+            this._div.style.wordWrap = !this._widthAutoSize;
+        }
+
+        protected handleSizeChanged(): void {
+            if (this._updatingSize)
+                return;
+
+            this._div.size(this._width, this._height);
+            this._div.style.width = this._width;
+            this._div.style.height = this._height;
         }
     }
 }

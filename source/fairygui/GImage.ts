@@ -1,11 +1,15 @@
 namespace fgui {
     export class GImage extends GObject {
-        public image: Image;
-
+        private _image: Image;
         private _flip: number = 0;
+        private _contentItem: PackageItem;
 
         constructor() {
             super();
+        }
+
+        public get image(): Image {
+            return this._image;
         }
 
         public get color(): string {
@@ -19,16 +23,10 @@ namespace fgui {
             }
         }
 
-        /**
-         * @see FlipType
-         */
         public get flip(): number {
             return this._flip;
         }
 
-        /**
-         * @see FlipType
-         */
         public set flip(value: number) {
             if (this._flip != value) {
                 this._flip = value;
@@ -76,22 +74,27 @@ namespace fgui {
         }
 
         protected createDisplayObject(): void {
-            this._displayObject = this.image = new Image();
+            this._displayObject = this._image = new Image();
             this.image.mouseEnabled = false;
             this._displayObject["$owner"] = this;
         }
 
         public constructFromResource(): void {
-            this.packageItem.load();
+            this._contentItem = this.packageItem.getBranch();
 
-            this.sourceWidth = this.packageItem.width;
-            this.sourceHeight = this.packageItem.height;
+            this.sourceWidth = this._contentItem.width;
+            this.sourceHeight = this._contentItem.height;
             this.initWidth = this.sourceWidth;
             this.initHeight = this.sourceHeight;
-            this.image.scale9Grid = this.packageItem.scale9Grid;
-            this.image.scaleByTile = this.packageItem.scaleByTile;
-            this.image.tileGridIndice = this.packageItem.tileGridIndice;
-            this.image.texture = this.packageItem.texture;
+
+            this._contentItem = this._contentItem.getHighResolution();
+            this._contentItem.load();
+
+            this.image.scale9Grid = this._contentItem.scale9Grid;
+            this.image.scaleByTile = this._contentItem.scaleByTile;
+            this.image.tileGridIndice = this._contentItem.tileGridIndice;
+            this.image.texture = this._contentItem.texture;
+
             this.setSize(this.sourceWidth, this.sourceHeight);
         }
 
@@ -136,5 +139,4 @@ namespace fgui {
             }
         }
     }
-
 }

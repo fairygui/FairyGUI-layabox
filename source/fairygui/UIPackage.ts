@@ -8,18 +8,47 @@ namespace fgui {
         private _itemsByName: Object;
         private _customId: string;
         private _sprites: Object;
+        private _dependencies: Array<any>;
+        private _branches: Array<string>;
+        public _branchIndex: number;
 
-        //public
         public static _constructing: number = 0;
 
         private static _instById: Object = {};
         private static _instByName: Object = {};
+        private static _branch: string = "";
+        private static _vars: any = {};
 
         constructor() {
             this._items = [];
             this._itemsById = {};
             this._itemsByName = {};
             this._sprites = {};
+            this._dependencies = Array<any>();
+            this._branches = Array<string>();
+            this._branchIndex = -1;
+        }
+
+        public static get branch(): string {
+            return UIPackage._branch;
+        }
+
+        public static set branch(value: string) {
+            UIPackage._branch = value;
+            for (var pkgId in UIPackage._instById) {
+                var pkg: UIPackage = UIPackage._instById[pkgId];
+                if (pkg._branches) {
+                    pkg._branchIndex = pkg._branches.indexOf(value);
+                }
+            }
+        }
+
+        public static getVar(key: string): any {
+            return UIPackage._vars[key];
+        }
+
+        public static setVar(key: string, value: any) {
+            UIPackage._vars[key] = value;
         }
 
         public static getById(id: string): UIPackage {
@@ -47,7 +76,7 @@ namespace fgui {
             return pkg;
         }
 
-        public static loadPackage(resKey: string, completeHandler:Laya.Handler): void {
+        public static loadPackage(resKey: string, completeHandler: Laya.Handler): void {
             let url: string = resKey + "." + UIConfig.packageFileExtension;
 
             var descCompleteHandler: Laya.Handler = Laya.Handler.create(this, function (asset) {
@@ -63,8 +92,7 @@ namespace fgui {
                         urls.push({ url: pi.file, type: Laya.Loader.SOUND });
                 }
 
-                if(urls.length>0)
-                {
+                if (urls.length > 0) {
                     AssetProxy.inst.load(urls, Laya.Handler.create(this, function (): void {
                         UIPackage._instById[pkg.id] = pkg;
                         UIPackage._instByName[pkg.name] = pkg;
@@ -183,6 +211,7 @@ namespace fgui {
                 throw new Error("FairyGUI: old namespace sunnyboxs found in '" + resKey + "'");
 
             buffer.version = buffer.getInt32();
+            var ver2: boolean = buffer.version >= 2;
             var compressed: boolean = buffer.readBool();
             this._id = buffer.readUTFString();
             this._name = buffer.readUTFString();
@@ -199,7 +228,10 @@ namespace fgui {
             var indexTablePos: number = buffer.pos;
             var cnt: number;
             var i: number;
+            var j: number;
             var nextPos: number;
+            var str: string;
+            var branchIncluded: boolean;
 
             buffer.seek(indexTablePos, 4);
 
@@ -208,6 +240,22 @@ namespace fgui {
             for (i = 0; i < cnt; i++)
                 stringTable[i] = buffer.readUTFString();
             buffer.stringTable = stringTable;
+
+            buffer.seek(indexTablePos, 0);
+            cnt = buffer.getInt16();
+            for (i = 0; i < cnt; i++)
+                this._dependencies.push({ id: buffer.readS(), name: buffer.readS() });
+
+            if (ver2) {
+                cnt = buffer.getInt16();
+                if (cnt > 0) {
+                    this._branches = buffer.readSArray(cnt);
+                    if (UIPackage._branch)
+                        this._branchIndex = this._branches.indexOf(UIPackage._branch);
+                }
+
+                branchIncluded = cnt > 0;
+            }
 
             buffer.seek(indexTablePos, 1);
 
@@ -225,7 +273,9 @@ namespace fgui {
                 pi.id = buffer.readS();
                 pi.name = buffer.readS();
                 buffer.readS(); //path
-                pi.file = buffer.readS();
+                str = buffer.readS();
+                if (str)
+                    pi.file = str;
                 buffer.readBool();//exported
                 pi.width = buffer.getInt32();
                 pi.height = buffer.getInt32();
@@ -286,6 +336,25 @@ namespace fgui {
                             break;
                         }
                 }
+
+                if (ver2) {
+                    str = buffer.readS();//branch
+                    if (str)
+                        pi.name = str + "/" + pi.name;
+
+                    var branchCnt: number = buffer.getUint8();
+                    if (branchCnt > 0) {
+                        if (branchIncluded)
+                            pi.branches = buffer.readSArray(branchCnt);
+                        else
+                            this._itemsById[buffer.readS()] = pi;
+                    }
+
+                    var highResCnt: number = buffer.getUint8();
+                    if (highResCnt > 0)
+                        pi.highResolution = buffer.readSArray(highResCnt);
+                }
+
                 this._items.push(pi);
                 this._itemsById[pi.id] = pi;
                 if (pi.name != null)
@@ -582,9 +651,11 @@ namespace fgui {
                 if (!font.ttf) {
                     var charImg: PackageItem = this._itemsById[img];
                     if (charImg) {
-                        this.getItemAsset(charImg);
+                        charImg = charImg.getBranch();
                         bg.width = charImg.width;
                         bg.height = charImg.height;
+                        charImg = charImg.getHighResolution();
+                        this.getItemAsset(charImg);
                         bg.texture = charImg.texture;
                     }
                 }

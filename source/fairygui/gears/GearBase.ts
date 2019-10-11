@@ -6,6 +6,17 @@ namespace fgui {
         protected _controller: Controller;
         protected _tweenConfig: GearTweenConfig;
 
+        private static Classes: Array<typeof GearBase>;
+
+        public static create(owner: GObject, index: number): GearBase {
+            if(!GearBase.Classes)
+                GearBase.Classes= [
+                    GearDisplay, GearXY, GearSize, GearLook, GearColor,
+                    GearAnimation, GearText, GearIcon, GearDisplay2, GearFontSize
+                ];
+            return new (GearBase.Classes[index])(owner);
+        }
+
         constructor(owner: GObject) {
             this._owner = owner;
         }
@@ -39,19 +50,17 @@ namespace fgui {
             this._controller = this._owner.parent.getControllerAt(buffer.getInt16());
             this.init();
 
-            var cnt: number;
             var i: number;
             var page: string;
+            var cnt: number = buffer.getInt16();
 
             if (this instanceof GearDisplay) {
-                cnt = buffer.getInt16();
-                var pages: any[] = [];
-                for (i = 0; i < cnt; i++)
-                    pages[i] = buffer.readS();
-                (<GearDisplay>(this)).pages = pages;
+                (<GearDisplay>this).pages = buffer.readSArray(cnt);
+            }
+            else if (this instanceof GearDisplay2) {
+                (<GearDisplay2>this).pages = buffer.readSArray(cnt);
             }
             else {
-                cnt = buffer.getInt16();
                 for (i = 0; i < cnt; i++) {
                     page = buffer.readS();
                     if (page == null)
@@ -69,6 +78,13 @@ namespace fgui {
                 this._tweenConfig.easeType = buffer.readByte();
                 this._tweenConfig.duration = buffer.getFloat32();
                 this._tweenConfig.delay = buffer.getFloat32();
+            }
+
+            if (buffer.version >= 2) {
+                if (this instanceof GearXY)
+                    (<GearXY>this).positionsInPercent = buffer.readBool();
+                else if (this instanceof GearDisplay2)
+                    (<GearDisplay2>this).condition = buffer.readByte();
             }
         }
 
