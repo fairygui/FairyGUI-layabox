@@ -12647,7 +12647,7 @@ window.fgui = {};
                         if (pathLen > 0) {
                             item.tweenConfig.path = new fgui.GPath();
                             var pts = new Array();
-                            for (i = 0; i < pathLen; i++) {
+                            for (var j = 0; j < pathLen; j++) {
                                 var curveType = buffer.getUint8();
                                 switch (curveType) {
                                     case fgui.CurveType.Bezier:

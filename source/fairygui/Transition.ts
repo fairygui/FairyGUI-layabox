@@ -1070,7 +1070,7 @@ namespace fgui {
                             item.tweenConfig.path = new GPath();
                             var pts: Array<GPathPoint> = new Array<GPathPoint>();
 
-                            for (i = 0; i < pathLen; i++) {
+                            for (var j:number = 0; j < pathLen; j++) {
                                 var curveType: number = buffer.getUint8();
                                 switch (curveType) {
                                     case CurveType.Bezier:
