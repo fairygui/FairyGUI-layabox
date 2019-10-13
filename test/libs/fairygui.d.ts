@@ -1261,6 +1261,7 @@ declare namespace fgui {
         private _indent;
         private _clickToExpand;
         private _rootNode;
+        private _expandedStatusInEvt;
         private static helperIntList;
         constructor();
         readonly rootNode: GTreeNode;
@@ -1283,6 +1284,7 @@ declare namespace fgui {
         private checkChildren;
         private hideFolderNode;
         private removeNode;
+        private __cellMouseDown;
         private __expandedStateChanged;
         protected dispatchItemEvent(item: GObject, evt: Laya.Event): void;
         setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
@@ -1460,6 +1462,7 @@ declare namespace fgui {
         private _refreshBarAxis;
         private _displayOnLeft;
         private _snapToItem;
+        _displayInDemand: boolean;
         private _mouseWheelEnabled;
         private _pageMode;
         private _inertiaDisabled;
@@ -1479,9 +1482,11 @@ declare namespace fgui {
         private _lastMoveTime;
         private _isHoldAreaDone;
         private _aniFlag;
+        _loop: number;
         private _headerLockedSize;
         private _footerLockedSize;
         private _refreshEventDispatching;
+        private _dragged;
         private _tweening;
         private _tweenTime;
         private _tweenDuration;
@@ -1492,9 +1497,6 @@ declare namespace fgui {
         private _vtScrollBar;
         private _header;
         private _footer;
-        _displayInDemand: boolean;
-        _loop: number;
-        isDragged: boolean;
         static draggingPane: ScrollPane;
         static _gestureFlag: number;
         private static sHelperPoint;
@@ -1518,6 +1520,7 @@ declare namespace fgui {
         snapToItem: boolean;
         mouseWheelEnabled: boolean;
         decelerationRate: number;
+        readonly isDragged: boolean;
         percX: number;
         setPercX(value: number, ani?: boolean): void;
         percY: number;

@@ -457,14 +457,23 @@ namespace fgui {
                 var item: TransitionItem = this._items[i];
                 if (item.type == TransitionActionType.XY && item.targetId == targetId) {
                     if (item.tweenConfig != null) {
-                        item.tweenConfig.startValue.f1 += dx;
-                        item.tweenConfig.startValue.f2 += dy;
-                        item.tweenConfig.endValue.f1 += dx;
-                        item.tweenConfig.endValue.f2 += dy;
+                        if(!item.tweenConfig.startValue.b3)
+                        {
+                            item.tweenConfig.startValue.f1 += dx;
+                            item.tweenConfig.startValue.f2 += dy;
+                        }
+                        if(!item.tweenConfig.endValue.b3)
+                        {
+                            item.tweenConfig.endValue.f1 += dx;
+                            item.tweenConfig.endValue.f2 += dy;
+                        }
                     }
                     else {
-                        item.value.f1 += dx;
-                        item.value.f2 += dy;
+                        if(!item.value.b3)
+                        {
+                            item.value.f1 += dx;
+                            item.value.f2 += dy;
+                        }
                     }
                 }
             }

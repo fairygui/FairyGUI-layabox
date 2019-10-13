@@ -452,7 +452,7 @@ namespace fgui {
                 this.handleVisibleChanged();
                 if (this._parent)
                     this._parent.setBoundsChangedFlag();
-                if (this._group)
+                if (this._group && this._group.excludeInvisibles)
                     this._group.setBoundsChangedFlag();
             }
         }
@@ -639,7 +639,7 @@ namespace fgui {
                 this._internalVisible = connected;
                 if (this._parent) {
                     this._parent.childStateChanged(this);
-                    if (this._group)
+                    if (this._group && this._group.excludeInvisibles)
                         this._group.setBoundsChangedFlag();
                 }
             }

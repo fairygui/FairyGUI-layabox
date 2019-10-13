@@ -85,9 +85,7 @@ namespace fgui {
             if (!child)
                 throw "child is null";
 
-            var numChildren: number = this._children.length;
-
-            if (index >= 0 && index <= this.numChildren) {
+            if (index >= 0 && index <= this._children.length) {
                 if (child.parent == this) {
                     this.setChildIndex(child, index);
                 }
@@ -144,7 +142,7 @@ namespace fgui {
         }
 
         public removeChildAt(index: number, dispose?: boolean): GObject {
-            if (index >= 0 && index < this.numChildren) {
+            if (index >= 0 && index < this._children.length) {
                 var child: GObject = this._children[index];
                 child.parent = null;
 
@@ -173,15 +171,15 @@ namespace fgui {
         }
 
         public removeChildren(beginIndex: number = 0, endIndex: number = -1, dispose?: boolean): void {
-            if (endIndex < 0 || endIndex >= this.numChildren)
-                endIndex = this.numChildren - 1;
+            if (endIndex < 0 || endIndex >= this._children.length)
+                endIndex = this._children.length - 1;
 
             for (var i: number = beginIndex; i <= endIndex; ++i)
                 this.removeChildAt(beginIndex, dispose);
         }
 
         public getChildAt(index: number): GObject {
-            if (index >= 0 && index < this.numChildren)
+            if (index >= 0 && index < this._children.length)
                 return this._children[index];
             else
                 throw "Invalid child index";

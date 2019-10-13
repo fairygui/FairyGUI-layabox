@@ -7,6 +7,7 @@ namespace fgui {
         private _indent: number;
         private _clickToExpand: number;
         private _rootNode: GTreeNode;
+        private _expandedStatusInEvt: boolean;
 
         private static helperIntList: number[] = new Array<number>();
 
@@ -191,6 +192,8 @@ namespace fgui {
             if (cc)
                 cc.selectedIndex = 1;
 
+            node._cell.on(Laya.Event.MOUSE_DOWN, this, this.__cellMouseDown);
+
             if (node._cell.parent != null)
                 this.checkChildren(node, this.getChildIndex(node._cell));
         }
@@ -276,7 +279,7 @@ namespace fgui {
             var cnt: number = folderNode.numChildren;
             for (var i: number = 0; i < cnt; i++) {
                 var node: GTreeNode = folderNode.getChildAt(i);
-                if (node._cell && node._cell.parent != null)
+                if (node._cell)
                     this.removeChild(node._cell);
                 if (node.isFolder && node.expanded)
                     this.hideFolderNode(node);
@@ -301,6 +304,11 @@ namespace fgui {
             }
         }
 
+        private __cellMouseDown(evt: Laya.Event): void {
+            var node: GTreeNode = GObject.cast(evt.currentTarget)._treeNode;
+            this._expandedStatusInEvt = node.expanded;
+        }
+
         private __expandedStateChanged(cc: Controller): void {
             var node: GTreeNode = cc.parent._treeNode;
             node.expanded = cc.selectedIndex == 1;
@@ -309,7 +317,7 @@ namespace fgui {
         protected dispatchItemEvent(item: GObject, evt: Laya.Event): void {
             if (this._clickToExpand != 0) {
                 var node: GTreeNode = item._treeNode;
-                if (node) {
+                if (node && this._expandedStatusInEvt == node.expanded) {
                     if (this._clickToExpand == 2) {
                         //if (evt.clickCount == 2)
                         // node.expanded = !node.expanded;

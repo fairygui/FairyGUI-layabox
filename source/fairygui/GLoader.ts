@@ -192,16 +192,14 @@ namespace fgui {
         protected loadFromPackage(itemURL: string): void {
             this._contentItem = UIPackage.getItemByURL(itemURL);
             if (this._contentItem != null) {
-                this._contentItem.load();
-
                 this._contentItem = this._contentItem.getBranch();
                 this._contentSourceWidth = this._contentItem.width;
                 this._contentSourceHeight = this._contentItem.height;
+                this._contentItem = this._contentItem.getHighResolution();
+                this._contentItem.load();
 
                 if (this._autoSize)
                     this.setSize(this._contentSourceWidth, this._contentSourceHeight);
-
-                this._contentItem = this._contentItem.getHighResolution();
 
                 if (this._contentItem.type == PackageItemType.Image) {
                     if (this._contentItem.texture == null) {

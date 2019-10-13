@@ -20,6 +20,7 @@ namespace fgui {
 
         private _displayOnLeft: boolean;
         private _snapToItem: boolean;
+        public _displayInDemand: boolean;
         private _mouseWheelEnabled: boolean;
         private _pageMode: boolean;
         private _inertiaDisabled: boolean;
@@ -41,9 +42,11 @@ namespace fgui {
         private _lastMoveTime: number;
         private _isHoldAreaDone: boolean;
         private _aniFlag: number;
+        public _loop: number;
         private _headerLockedSize: number;
         private _footerLockedSize: number;
         private _refreshEventDispatching: boolean;
+        private _dragged: boolean;
 
         private _tweening: number;
         private _tweenTime: Laya.Point;
@@ -57,10 +60,6 @@ namespace fgui {
         private _vtScrollBar: GScrollBar;
         private _header: GComponent;
         private _footer: GComponent;
-
-        public _displayInDemand: boolean;
-        public _loop: number;
-        public isDragged: boolean;
 
         public static draggingPane: ScrollPane;
         public static _gestureFlag: number = 0;
@@ -293,6 +292,10 @@ namespace fgui {
             this._decelerationRate = value;
         }
 
+        public get isDragged(): boolean {
+            return this._dragged;
+        }
+
         public get percX(): number {
             return this._overlapSize.x == 0 ? 0 : this._xPos / this._overlapSize.x;
         }
@@ -422,12 +425,22 @@ namespace fgui {
         }
 
         public setCurrentPageX(value: number, ani?: boolean): void {
-            if (this._pageMode && this._overlapSize.x > 0)
+            if (!this._pageMode)
+                return;
+
+            this._owner.ensureBoundsCorrect();
+
+            if (this._overlapSize.x > 0)
                 this.setPosX(value * this._pageSize.x, ani);
         }
 
         public setCurrentPageY(value: number, ani?: boolean): void {
-            if (this._pageMode && this._overlapSize.y > 0)
+            if (!this._pageMode)
+                return;
+
+            this._owner.ensureBoundsCorrect();
+
+            if (this._overlapSize.y > 0)
                 this.setPosY(value * this._pageSize.y, ani);
         }
 
@@ -576,7 +589,7 @@ namespace fgui {
                 ScrollPane.draggingPane = null;
 
             ScrollPane._gestureFlag = 0;
-            this.isDragged = false;
+            this._dragged = false;
             this._maskContainer.mouseEnabled = true;
         }
 
@@ -756,7 +769,7 @@ namespace fgui {
                     this._yPos = -this._container.y;
                 }
             }
-            else if (this.isDragged) {
+            else if (this._dragged) {
                 if (deltaPosX != 0) {
                     this._container.x -= deltaPosX;
                     this._containerPos.x -= deltaPosX;
@@ -906,7 +919,7 @@ namespace fgui {
         }
 
         private refresh2(): void {
-            if (this._aniFlag == 1 && !this.isDragged) {
+            if (this._aniFlag == 1 && !this._dragged) {
                 var posX: number;
                 var posY: number;
 
@@ -953,10 +966,10 @@ namespace fgui {
 
             if (this._tweening != 0) {
                 this.killTween();
-                this.isDragged = true;
+                this._dragged = true;
             }
             else
-                this.isDragged = false;
+                this._dragged = false;
 
             var pt: Laya.Point = this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, ScrollPane.sHelperPoint);
 
@@ -975,7 +988,7 @@ namespace fgui {
         }
 
         private __mouseMove(): void {
-            if (!this._touchEffect)
+            if (!this._touchEffect || this.owner.isDisposed)
                 return;
 
             if (ScrollPane.draggingPane != null && ScrollPane.draggingPane != this || GObject.draggingObject != null) //已经有其他拖动
@@ -1138,7 +1151,7 @@ namespace fgui {
 
             ScrollPane.draggingPane = this;
             this._isHoldAreaDone = true;
-            this.isDragged = true;
+            this._dragged = true;
             this._maskContainer.mouseEnabled = false;
 
             this.updateScrollBarPos();
@@ -1159,13 +1172,13 @@ namespace fgui {
 
             ScrollPane._gestureFlag = 0;
 
-            if (!this.isDragged || !this._touchEffect) {
-                this.isDragged = false;
+            if (!this._dragged || !this._touchEffect) {
+                this._dragged = false;
                 this._maskContainer.mouseEnabled = true;
                 return;
             }
 
-            this.isDragged = false;
+            this._dragged = false;
             this._maskContainer.mouseEnabled = true;
 
             this._tweenStart.setTo(this._container.x, this._container.y);
@@ -1259,7 +1272,7 @@ namespace fgui {
         }
 
         private __click(): void {
-            this.isDragged = false;
+            this._dragged = false;
         }
 
         private __mouseWheel(evt: Laya.Event): void {
@@ -1297,7 +1310,7 @@ namespace fgui {
                 if (this._viewSize.y <= this._vtScrollBar.minSize || this._vScrollNone)
                     this._vtScrollBar.displayObject.visible = false;
                 else
-                    this.updateScrollBarVisible2(this._vtScrollBar); 
+                    this.updateScrollBarVisible2(this._vtScrollBar);
             }
 
             if (this._hzScrollBar) {
@@ -1312,7 +1325,7 @@ namespace fgui {
             if (this._scrollBarDisplayAuto)
                 GTween.kill(bar, false, "alpha");
 
-            if (this._scrollBarDisplayAuto && this._tweening == 0 && !this.isDragged && !bar.gripDragging) {
+            if (this._scrollBarDisplayAuto && this._tweening == 0 && !this._dragged && !bar.gripDragging) {
                 if (bar.displayObject.visible)
                     GTween.to(1, 0, 0.5).setDelay(0.5).onComplete(this.__barTweenComplete).setTarget(bar, "alpha");
             }
@@ -1585,7 +1598,7 @@ namespace fgui {
             Laya.timer.clear(this, this.tweenUpdate);
 
             this.updateScrollBarVisible();
-            
+
             Events.dispatch(Events.SCROLL_END, this._owner.displayObject);
         }
 

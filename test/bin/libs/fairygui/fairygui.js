@@ -1096,7 +1096,7 @@ window.fgui = {};
                 this.handleVisibleChanged();
                 if (this._parent)
                     this._parent.setBoundsChangedFlag();
-                if (this._group)
+                if (this._group && this._group.excludeInvisibles)
                     this._group.setBoundsChangedFlag();
             }
         }
@@ -1248,7 +1248,7 @@ window.fgui = {};
                 this._internalVisible = connected;
                 if (this._parent) {
                     this._parent.childStateChanged(this);
-                    if (this._group)
+                    if (this._group && this._group.excludeInvisibles)
                         this._group.setBoundsChangedFlag();
                 }
             }
@@ -2545,8 +2545,7 @@ window.fgui = {};
         addChildAt(child, index = 0) {
             if (!child)
                 throw "child is null";
-            var numChildren = this._children.length;
-            if (index >= 0 && index <= this.numChildren) {
+            if (index >= 0 && index <= this._children.length) {
                 if (child.parent == this) {
                     this.setChildIndex(child, index);
                 }
@@ -2595,7 +2594,7 @@ window.fgui = {};
             return child;
         }
         removeChildAt(index, dispose) {
-            if (index >= 0 && index < this.numChildren) {
+            if (index >= 0 && index < this._children.length) {
                 var child = this._children[index];
                 child.parent = null;
                 if (child.sortingOrder != 0)
@@ -2617,13 +2616,13 @@ window.fgui = {};
             }
         }
         removeChildren(beginIndex = 0, endIndex = -1, dispose) {
-            if (endIndex < 0 || endIndex >= this.numChildren)
-                endIndex = this.numChildren - 1;
+            if (endIndex < 0 || endIndex >= this._children.length)
+                endIndex = this._children.length - 1;
             for (var i = beginIndex; i <= endIndex; ++i)
                 this.removeChildAt(beginIndex, dispose);
         }
         getChildAt(index) {
-            if (index >= 0 && index < this.numChildren)
+            if (index >= 0 && index < this._children.length)
                 return this._children[index];
             else
                 throw "Invalid child index";
@@ -7461,13 +7460,13 @@ window.fgui = {};
         loadFromPackage(itemURL) {
             this._contentItem = fgui.UIPackage.getItemByURL(itemURL);
             if (this._contentItem != null) {
-                this._contentItem.load();
                 this._contentItem = this._contentItem.getBranch();
                 this._contentSourceWidth = this._contentItem.width;
                 this._contentSourceHeight = this._contentItem.height;
+                this._contentItem = this._contentItem.getHighResolution();
+                this._contentItem.load();
                 if (this._autoSize)
                     this.setSize(this._contentSourceWidth, this._contentSourceHeight);
-                this._contentItem = this._contentItem.getHighResolution();
                 if (this._contentItem.type == fgui.PackageItemType.Image) {
                     if (this._contentItem.texture == null) {
                         this.setErrorState();
@@ -9160,6 +9159,7 @@ window.fgui = {};
             var cc = node._cell.getController("expanded");
             if (cc)
                 cc.selectedIndex = 1;
+            node._cell.on(Laya.Event.MOUSE_DOWN, this, this.__cellMouseDown);
             if (node._cell.parent != null)
                 this.checkChildren(node, this.getChildIndex(node._cell));
         }
@@ -9231,7 +9231,7 @@ window.fgui = {};
             var cnt = folderNode.numChildren;
             for (var i = 0; i < cnt; i++) {
                 var node = folderNode.getChildAt(i);
-                if (node._cell && node._cell.parent != null)
+                if (node._cell)
                     this.removeChild(node._cell);
                 if (node.isFolder && node.expanded)
                     this.hideFolderNode(node);
@@ -9253,6 +9253,10 @@ window.fgui = {};
                 }
             }
         }
+        __cellMouseDown(evt) {
+            var node = fgui.GObject.cast(evt.currentTarget)._treeNode;
+            this._expandedStatusInEvt = node.expanded;
+        }
         __expandedStateChanged(cc) {
             var node = cc.parent._treeNode;
             node.expanded = cc.selectedIndex == 1;
@@ -9260,7 +9264,7 @@ window.fgui = {};
         dispatchItemEvent(item, evt) {
             if (this._clickToExpand != 0) {
                 var node = item._treeNode;
-                if (node) {
+                if (node && this._expandedStatusInEvt == node.expanded) {
                     if (this._clickToExpand == 2) {
                     }
                     else
@@ -10556,6 +10560,9 @@ window.fgui = {};
         set decelerationRate(value) {
             this._decelerationRate = value;
         }
+        get isDragged() {
+            return this._dragged;
+        }
         get percX() {
             return this._overlapSize.x == 0 ? 0 : this._xPos / this._overlapSize.x;
         }
@@ -10655,11 +10662,17 @@ window.fgui = {};
             this.setCurrentPageY(value, false);
         }
         setCurrentPageX(value, ani) {
-            if (this._pageMode && this._overlapSize.x > 0)
+            if (!this._pageMode)
+                return;
+            this._owner.ensureBoundsCorrect();
+            if (this._overlapSize.x > 0)
                 this.setPosX(value * this._pageSize.x, ani);
         }
         setCurrentPageY(value, ani) {
-            if (this._pageMode && this._overlapSize.y > 0)
+            if (!this._pageMode)
+                return;
+            this._owner.ensureBoundsCorrect();
+            if (this._overlapSize.y > 0)
                 this.setPosY(value * this._pageSize.y, ani);
         }
         get isBottomMost() {
@@ -10785,7 +10798,7 @@ window.fgui = {};
             if (ScrollPane.draggingPane == this)
                 ScrollPane.draggingPane = null;
             ScrollPane._gestureFlag = 0;
-            this.isDragged = false;
+            this._dragged = false;
             this._maskContainer.mouseEnabled = true;
         }
         lockHeader(size) {
@@ -10938,7 +10951,7 @@ window.fgui = {};
                     this._yPos = -this._container.y;
                 }
             }
-            else if (this.isDragged) {
+            else if (this._dragged) {
                 if (deltaPosX != 0) {
                     this._container.x -= deltaPosX;
                     this._containerPos.x -= deltaPosX;
@@ -11061,7 +11074,7 @@ window.fgui = {};
             this._aniFlag = 0;
         }
         refresh2() {
-            if (this._aniFlag == 1 && !this.isDragged) {
+            if (this._aniFlag == 1 && !this._dragged) {
                 var posX;
                 var posY;
                 if (this._overlapSize.x > 0)
@@ -11101,10 +11114,10 @@ window.fgui = {};
                 return;
             if (this._tweening != 0) {
                 this.killTween();
-                this.isDragged = true;
+                this._dragged = true;
             }
             else
-                this.isDragged = false;
+                this._dragged = false;
             var pt = this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, ScrollPane.sHelperPoint);
             this._containerPos.setTo(this._container.x, this._container.y);
             this._beginTouchPos.setTo(pt.x, pt.y);
@@ -11119,7 +11132,7 @@ window.fgui = {};
             this._owner.displayObject.stage.on(Laya.Event.CLICK, this, this.__click);
         }
         __mouseMove() {
-            if (!this._touchEffect)
+            if (!this._touchEffect || this.owner.isDisposed)
                 return;
             if (ScrollPane.draggingPane != null && ScrollPane.draggingPane != this || fgui.GObject.draggingObject != null)
                 return;
@@ -11251,7 +11264,7 @@ window.fgui = {};
             }
             ScrollPane.draggingPane = this;
             this._isHoldAreaDone = true;
-            this.isDragged = true;
+            this._dragged = true;
             this._maskContainer.mouseEnabled = false;
             this.updateScrollBarPos();
             this.updateScrollBarVisible();
@@ -11266,12 +11279,12 @@ window.fgui = {};
             if (ScrollPane.draggingPane == this)
                 ScrollPane.draggingPane = null;
             ScrollPane._gestureFlag = 0;
-            if (!this.isDragged || !this._touchEffect) {
-                this.isDragged = false;
+            if (!this._dragged || !this._touchEffect) {
+                this._dragged = false;
                 this._maskContainer.mouseEnabled = true;
                 return;
             }
-            this.isDragged = false;
+            this._dragged = false;
             this._maskContainer.mouseEnabled = true;
             this._tweenStart.setTo(this._container.x, this._container.y);
             ScrollPane.sEndPos.setTo(this._tweenStart.x, this._tweenStart.y);
@@ -11352,7 +11365,7 @@ window.fgui = {};
             this.startTween(2);
         }
         __click() {
-            this.isDragged = false;
+            this._dragged = false;
         }
         __mouseWheel(evt) {
             if (!this._mouseWheelEnabled)
@@ -11396,7 +11409,7 @@ window.fgui = {};
         updateScrollBarVisible2(bar) {
             if (this._scrollBarDisplayAuto)
                 fgui.GTween.kill(bar, false, "alpha");
-            if (this._scrollBarDisplayAuto && this._tweening == 0 && !this.isDragged && !bar.gripDragging) {
+            if (this._scrollBarDisplayAuto && this._tweening == 0 && !this._dragged && !bar.gripDragging) {
                 if (bar.displayObject.visible)
                     fgui.GTween.to(1, 0, 0.5).setDelay(0.5).onComplete(this.__barTweenComplete).setTarget(bar, "alpha");
             }
@@ -12132,14 +12145,20 @@ window.fgui = {};
                 var item = this._items[i];
                 if (item.type == TransitionActionType.XY && item.targetId == targetId) {
                     if (item.tweenConfig != null) {
-                        item.tweenConfig.startValue.f1 += dx;
-                        item.tweenConfig.startValue.f2 += dy;
-                        item.tweenConfig.endValue.f1 += dx;
-                        item.tweenConfig.endValue.f2 += dy;
+                        if (!item.tweenConfig.startValue.b3) {
+                            item.tweenConfig.startValue.f1 += dx;
+                            item.tweenConfig.startValue.f2 += dy;
+                        }
+                        if (!item.tweenConfig.endValue.b3) {
+                            item.tweenConfig.endValue.f1 += dx;
+                            item.tweenConfig.endValue.f2 += dy;
+                        }
                     }
                     else {
-                        item.value.f1 += dx;
-                        item.value.f2 += dy;
+                        if (!item.value.b3) {
+                            item.value.f1 += dx;
+                            item.value.f2 += dy;
+                        }
                     }
                 }
             }
@@ -12866,7 +12885,8 @@ window.fgui = {};
                 dataLen = buffer.getInt16();
                 curPos = buffer.pos;
                 buffer.seek(curPos, 0);
-                var type = buffer.readByte();
+                var baseType = buffer.readByte();
+                var type = baseType;
                 buffer.skip(4);
                 elementId = buffer.readS();
                 if (type == fgui.ObjectType.Component) {
@@ -12898,6 +12918,20 @@ window.fgui = {};
                     }
                     buffer.pos = nextPos;
                 }
+                if (baseType == fgui.ObjectType.Component && buffer.version >= 2) {
+                    buffer.seek(curPos, 4);
+                    buffer.skip(2);
+                    buffer.skip(4 * buffer.getUint16());
+                    var cpCount = buffer.getUint16();
+                    for (var k = 0; k < cpCount; k++) {
+                        var target = buffer.readS();
+                        var propertyId = buffer.getUint16();
+                        if (propertyId == 0 && (value = compStrings[elementId + "-cp-" + target]) != null)
+                            buffer.writeS(value);
+                        else
+                            buffer.skip(2);
+                    }
+                }
                 switch (type) {
                     case fgui.ObjectType.Text:
                     case fgui.ObjectType.RichText:
@@ -12914,20 +12948,36 @@ window.fgui = {};
                             break;
                         }
                     case fgui.ObjectType.List:
+                    case fgui.ObjectType.Tree:
                         {
                             buffer.seek(curPos, 8);
                             buffer.skip(2);
-                            itemCount = buffer.getInt16();
+                            itemCount = buffer.getUint16();
                             for (j = 0; j < itemCount; j++) {
-                                nextPos = buffer.getInt16();
+                                nextPos = buffer.getUint16();
                                 nextPos += buffer.pos;
                                 buffer.skip(2);
+                                if (type == fgui.ObjectType.Tree)
+                                    buffer.skip(2);
                                 if ((value = compStrings[elementId + "-" + j]) != null)
                                     buffer.writeS(value);
                                 else
                                     buffer.skip(2);
                                 if ((value = compStrings[elementId + "-" + j + "-0"]) != null)
                                     buffer.writeS(value);
+                                if (buffer.version >= 2) {
+                                    buffer.skip(6);
+                                    buffer.skip(buffer.getUint16() * 4);
+                                    var cpCount = buffer.getUint16();
+                                    for (var k = 0; k < cpCount; k++) {
+                                        var target = buffer.readS();
+                                        var propertyId = buffer.getUint16();
+                                        if (propertyId == 0 && (value = compStrings[elementId + "-" + j + "-" + target]) != null)
+                                            buffer.writeS(value);
+                                        else
+                                            buffer.skip(2);
+                                    }
+                                }
                                 buffer.pos = nextPos;
                             }
                             break;
