@@ -43,7 +43,7 @@ namespace fgui {
         public set min(value: number) {
             if (this._min != value) {
                 this._min = value;
-                this.update(value);
+                this.update(this._value);
             }
         }
 
@@ -54,7 +54,7 @@ namespace fgui {
         public set max(value: number) {
             if (this._max != value) {
                 this._max = value;
-                this.update(value);
+                this.update(this._value);
             }
         }
 

@@ -380,6 +380,16 @@ namespace fgui {
                 sprite.rect.width = buffer.getInt32();
                 sprite.rect.height = buffer.getInt32();
                 sprite.rotated = buffer.readBool();
+                if (ver2 && buffer.readBool()) {
+                    sprite.offset.x = buffer.getInt32();
+                    sprite.offset.y = buffer.getInt32();
+                    sprite.originalSize.x = buffer.getInt32();
+                    sprite.originalSize.y = buffer.getInt32();
+                }
+                else {
+                    sprite.originalSize.x = sprite.rect.width;
+                    sprite.originalSize.y = sprite.rect.height;
+                }
                 this._sprites[itemId] = sprite;
 
                 buffer.pos = nextPos;
@@ -512,7 +522,9 @@ namespace fgui {
                         if (sprite != null) {
                             var atlasTexture: Laya.Texture = <Laya.Texture>(this.getItemAsset(sprite.atlas));
                             item.texture = Laya.Texture.create(atlasTexture,
-                                sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height);
+                                sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height,
+                                sprite.offset.x, sprite.offset.y,
+                                sprite.originalSize.x, sprite.originalSize.y);
                         }
                         else
                             item.texture = null;
@@ -608,12 +620,14 @@ namespace fgui {
             buffer.seek(0, 0);
 
             font.ttf = buffer.readBool();
-            buffer.readBool(); //tint
+            font.tint = buffer.readBool(); //tint
             font.resizable = buffer.readBool();
             buffer.readBool(); //has channel
             font.size = buffer.getInt32();
             var xadvance: number = buffer.getInt32();
             var lineHeight: number = buffer.getInt32();
+            var bgWidth: number;
+            var bgHeight: number;
 
             var mainTexture: Laya.Texture = null;
             var mainSprite: AtlasSprite = this._sprites[item.id];
@@ -635,10 +649,10 @@ namespace fgui {
                 var img: string = buffer.readS();
                 var bx: number = buffer.getInt32();
                 var by: number = buffer.getInt32();
-                bg.offsetX = buffer.getInt32();
-                bg.offsetY = buffer.getInt32();
-                bg.width = buffer.getInt32();
-                bg.height = buffer.getInt32();
+                bg.x = buffer.getInt32();
+                bg.y = buffer.getInt32();
+                bgWidth = buffer.getInt32();
+                bgHeight = buffer.getInt32();
                 bg.advance = buffer.getInt32();
                 bg.channel = buffer.readByte();
                 if (bg.channel == 1)
@@ -648,36 +662,37 @@ namespace fgui {
                 else if (bg.channel == 3)
                     bg.channel = 1;
 
-                if (!font.ttf) {
+                if (font.ttf) {
+                    bg.texture = Laya.Texture.create(mainTexture,
+                        bx + mainSprite.rect.x, by + mainSprite.rect.y, bgWidth, bgHeight);
+
+                    bg.lineHeight = lineHeight;
+                }
+                else {
                     var charImg: PackageItem = this._itemsById[img];
                     if (charImg) {
                         charImg = charImg.getBranch();
-                        bg.width = charImg.width;
-                        bg.height = charImg.height;
+                        bgWidth = charImg.width;
+                        bgHeight = charImg.height;
                         charImg = charImg.getHighResolution();
                         this.getItemAsset(charImg);
                         bg.texture = charImg.texture;
                     }
-                }
-                else {
-                    bg.texture = Laya.Texture.create(mainTexture,
-                        bx + mainSprite.rect.x, by + mainSprite.rect.y, bg.width, bg.height);
-                }
 
-                if (font.ttf)
-                    bg.lineHeight = lineHeight;
-                else {
                     if (bg.advance == 0) {
                         if (xadvance == 0)
-                            bg.advance = bg.offsetX + bg.width;
+                            bg.advance = bg.x + bgWidth;
                         else
                             bg.advance = xadvance;
                     }
 
-                    bg.lineHeight = bg.offsetY < 0 ? bg.height : (bg.offsetY + bg.height);
+                    bg.lineHeight = bg.y < 0 ? bgHeight : (bg.y + bgHeight);
                     if (bg.lineHeight < font.size)
                         bg.lineHeight = font.size;
                 }
+
+                bg.xMax = bg.x + bgWidth;
+                bg.yMax = bg.y + bgHeight;
 
                 buffer.pos = nextPos;
             }
@@ -688,10 +703,14 @@ namespace fgui {
     class AtlasSprite {
         public atlas: PackageItem;
         public rect: Laya.Rectangle;
+        public offset: Laya.Point;
+        public originalSize: Laya.Point;
         public rotated: boolean;
 
         constructor() {
             this.rect = new Laya.Rectangle();
+            this.offset = new Laya.Point();
+            this.originalSize = new Laya.Point();
         }
     }
 }

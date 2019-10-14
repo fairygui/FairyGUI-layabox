@@ -35,8 +35,7 @@ namespace fgui {
             this._displayObject.mouseEnabled = false;
         }
 
-        public get nativeText():Laya.Text
-        {
+        public get nativeText(): Laya.Text {
             return this._textField;
         }
 
@@ -468,6 +467,7 @@ namespace fgui {
             var charIndent: number = 0;
             rectWidth = this.width - GBasicTextField.GUTTER_X * 2;
             var lineCount: number = this._lines.length;
+            var color: string = this._bitmapFont.tint ? this._color : null;
             for (var i: number = 0; i < lineCount; i++) {
                 line = this._lines[i];
                 charX = GBasicTextField.GUTTER_X;
@@ -496,10 +496,10 @@ namespace fgui {
                         charIndent = (line.height + line.textHeight) / 2 - Math.ceil(glyph.lineHeight * fontScale);
                         if (glyph.texture) {
                             gr.drawTexture(glyph.texture,
-                                charX + lineIndent + Math.ceil(glyph.offsetX * fontScale),
-                                line.y + charIndent + Math.ceil(glyph.offsetY * fontScale),
-                                glyph.texture.width * fontScale,
-                                glyph.texture.height * fontScale);
+                                charX + lineIndent + Math.ceil(glyph.x * fontScale),
+                                line.y + charIndent + Math.ceil(glyph.y * fontScale),
+                                glyph.xMax * fontScale,
+                                glyph.yMax * fontScale, null, 1, color);
                         }
                         charX += this._letterSpacing + Math.ceil(glyph.advance * fontScale);
                     }

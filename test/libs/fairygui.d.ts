@@ -1848,18 +1848,18 @@ declare namespace fgui {
         ttf: boolean;
         glyphs: Object;
         resizable: boolean;
+        tint: boolean;
         constructor();
     }
     class BMGlyph {
-        offsetX: number;
-        offsetY: number;
-        width: number;
-        height: number;
+        x: number;
+        y: number;
+        xMax: number;
+        yMax: number;
         advance: number;
         lineHeight: number;
         channel: number;
         texture: Laya.Texture;
-        constructor();
     }
 }
 declare namespace fgui {

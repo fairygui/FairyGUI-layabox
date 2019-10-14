@@ -2319,6 +2319,7 @@ window.fgui = {};
             var charIndent = 0;
             rectWidth = this.width - GBasicTextField.GUTTER_X * 2;
             var lineCount = this._lines.length;
+            var color = this._bitmapFont.tint ? this._color : null;
             for (var i = 0; i < lineCount; i++) {
                 line = this._lines[i];
                 charX = GBasicTextField.GUTTER_X;
@@ -2342,7 +2343,7 @@ window.fgui = {};
                     if (glyph != null) {
                         charIndent = (line.height + line.textHeight) / 2 - Math.ceil(glyph.lineHeight * fontScale);
                         if (glyph.texture) {
-                            gr.drawTexture(glyph.texture, charX + lineIndent + Math.ceil(glyph.offsetX * fontScale), line.y + charIndent + Math.ceil(glyph.offsetY * fontScale), glyph.texture.width * fontScale, glyph.texture.height * fontScale);
+                            gr.drawTexture(glyph.texture, charX + lineIndent + Math.ceil(glyph.x * fontScale), line.y + charIndent + Math.ceil(glyph.y * fontScale), glyph.xMax * fontScale, glyph.yMax * fontScale, null, 1, color);
                         }
                         charX += this._letterSpacing + Math.ceil(glyph.advance * fontScale);
                     }
@@ -7865,7 +7866,7 @@ window.fgui = {};
         set min(value) {
             if (this._min != value) {
                 this._min = value;
-                this.update(value);
+                this.update(this._value);
             }
         }
         get max() {
@@ -7874,7 +7875,7 @@ window.fgui = {};
         set max(value) {
             if (this._max != value) {
                 this._max = value;
-                this.update(value);
+                this.update(this._value);
             }
         }
         get value() {
@@ -13468,6 +13469,16 @@ window.fgui = {};
                 sprite.rect.width = buffer.getInt32();
                 sprite.rect.height = buffer.getInt32();
                 sprite.rotated = buffer.readBool();
+                if (ver2 && buffer.readBool()) {
+                    sprite.offset.x = buffer.getInt32();
+                    sprite.offset.y = buffer.getInt32();
+                    sprite.originalSize.x = buffer.getInt32();
+                    sprite.originalSize.y = buffer.getInt32();
+                }
+                else {
+                    sprite.originalSize.x = sprite.rect.width;
+                    sprite.originalSize.y = sprite.rect.height;
+                }
                 this._sprites[itemId] = sprite;
                 buffer.pos = nextPos;
             }
@@ -13579,7 +13590,7 @@ window.fgui = {};
                         var sprite = this._sprites[item.id];
                         if (sprite != null) {
                             var atlasTexture = (this.getItemAsset(sprite.atlas));
-                            item.texture = Laya.Texture.create(atlasTexture, sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height);
+                            item.texture = Laya.Texture.create(atlasTexture, sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height, sprite.offset.x, sprite.offset.y, sprite.originalSize.x, sprite.originalSize.y);
                         }
                         else
                             item.texture = null;
@@ -13652,12 +13663,14 @@ window.fgui = {};
             var buffer = item.rawData;
             buffer.seek(0, 0);
             font.ttf = buffer.readBool();
-            buffer.readBool();
+            font.tint = buffer.readBool();
             font.resizable = buffer.readBool();
             buffer.readBool();
             font.size = buffer.getInt32();
             var xadvance = buffer.getInt32();
             var lineHeight = buffer.getInt32();
+            var bgWidth;
+            var bgHeight;
             var mainTexture = null;
             var mainSprite = this._sprites[item.id];
             if (mainSprite != null)
@@ -13674,10 +13687,10 @@ window.fgui = {};
                 var img = buffer.readS();
                 var bx = buffer.getInt32();
                 var by = buffer.getInt32();
-                bg.offsetX = buffer.getInt32();
-                bg.offsetY = buffer.getInt32();
-                bg.width = buffer.getInt32();
-                bg.height = buffer.getInt32();
+                bg.x = buffer.getInt32();
+                bg.y = buffer.getInt32();
+                bgWidth = buffer.getInt32();
+                bgHeight = buffer.getInt32();
                 bg.advance = buffer.getInt32();
                 bg.channel = buffer.readByte();
                 if (bg.channel == 1)
@@ -13686,33 +13699,32 @@ window.fgui = {};
                     bg.channel = 2;
                 else if (bg.channel == 3)
                     bg.channel = 1;
-                if (!font.ttf) {
+                if (font.ttf) {
+                    bg.texture = Laya.Texture.create(mainTexture, bx + mainSprite.rect.x, by + mainSprite.rect.y, bgWidth, bgHeight);
+                    bg.lineHeight = lineHeight;
+                }
+                else {
                     var charImg = this._itemsById[img];
                     if (charImg) {
                         charImg = charImg.getBranch();
-                        bg.width = charImg.width;
-                        bg.height = charImg.height;
+                        bgWidth = charImg.width;
+                        bgHeight = charImg.height;
                         charImg = charImg.getHighResolution();
                         this.getItemAsset(charImg);
                         bg.texture = charImg.texture;
                     }
-                }
-                else {
-                    bg.texture = Laya.Texture.create(mainTexture, bx + mainSprite.rect.x, by + mainSprite.rect.y, bg.width, bg.height);
-                }
-                if (font.ttf)
-                    bg.lineHeight = lineHeight;
-                else {
                     if (bg.advance == 0) {
                         if (xadvance == 0)
-                            bg.advance = bg.offsetX + bg.width;
+                            bg.advance = bg.x + bgWidth;
                         else
                             bg.advance = xadvance;
                     }
-                    bg.lineHeight = bg.offsetY < 0 ? bg.height : (bg.offsetY + bg.height);
+                    bg.lineHeight = bg.y < 0 ? bgHeight : (bg.y + bgHeight);
                     if (bg.lineHeight < font.size)
                         bg.lineHeight = font.size;
                 }
+                bg.xMax = bg.x + bgWidth;
+                bg.yMax = bg.y + bgHeight;
                 buffer.pos = nextPos;
             }
         }
@@ -13726,6 +13738,8 @@ window.fgui = {};
     class AtlasSprite {
         constructor() {
             this.rect = new Laya.Rectangle();
+            this.offset = new Laya.Point();
+            this.originalSize = new Laya.Point();
         }
     }
 })(fgui || (fgui = {}));
@@ -14079,10 +14093,10 @@ window.fgui = {};
     fgui.BitmapFont = BitmapFont;
     class BMGlyph {
         constructor() {
-            this.offsetX = 0;
-            this.offsetY = 0;
-            this.width = 0;
-            this.height = 0;
+            this.x = 0;
+            this.y = 0;
+            this.xMax = 0;
+            this.yMax = 0;
             this.advance = 0;
             this.lineHeight = 0;
             this.channel = 0;
