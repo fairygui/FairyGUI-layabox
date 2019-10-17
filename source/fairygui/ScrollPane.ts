@@ -893,6 +893,9 @@ namespace fgui {
         }
 
         private refresh(): void {
+            if(this._owner.displayObject == null){
+                return;
+            }
             this._needRefresh = false;
             Laya.timer.clear(this, this.refresh);
 
