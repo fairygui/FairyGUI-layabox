@@ -687,7 +687,7 @@ namespace fgui {
 
             if (this._hzScrollBar) {
                 this._hzScrollBar.y = aHeight - this._hzScrollBar.height;
-                if (this._vtScrollBar && !this._vScrollNone) {
+                if (this._vtScrollBar) {
                     this._hzScrollBar.width = aWidth - this._vtScrollBar.width - this._scrollBarMargin.left - this._scrollBarMargin.right;
                     if (this._displayOnLeft)
                         this._hzScrollBar.x = this._scrollBarMargin.left + this._vtScrollBar.width;
@@ -1327,7 +1327,7 @@ namespace fgui {
 
             if (this._scrollBarDisplayAuto && this._tweening == 0 && !this._dragged && !bar.gripDragging) {
                 if (bar.displayObject.visible)
-                    GTween.to(1, 0, 0.5).setDelay(0.5).onComplete(this.__barTweenComplete).setTarget(bar, "alpha");
+                    GTween.to(1, 0, 0.5).setDelay(0.5).onComplete(this.__barTweenComplete, this).setTarget(bar, "alpha");
             }
             else {
                 bar.alpha = 1;

@@ -403,6 +403,7 @@ namespace fgui {
             }
             this._list.selectedIndex = -1;
             this.dropdown.width = this.width;
+            this._list.ensureBoundsCorrect();
 
             var downward: any = null;
             if (this._popupDirection == PopupDirection.Down)

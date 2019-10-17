@@ -7,11 +7,11 @@ namespace fgui {
         private _target: ScrollPane;
 
         private _vertical: boolean;
-        private _scrollPerc: number = 0;
+        private _scrollPerc: number;
         private _fixedGripSize: boolean;
-        private _gripDragging: boolean;
 
         private _dragOffset: Laya.Point;
+        private _gripDragging: boolean;
 
         constructor() {
             super();
@@ -89,9 +89,6 @@ namespace fgui {
         }
 
         private __gripMouseDown(evt: Laya.Event): void {
-            if (!this._bar)
-                return;
-
             evt.stopPropagation();
 
             this._gripDragging = true;
@@ -107,6 +104,9 @@ namespace fgui {
 
         private static sScrollbarHelperPoint: Laya.Point = new Laya.Point();
         private __gripMouseMove(): void {
+            if (!this.onStage)
+                return;
+
             var pt: Laya.Point = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GScrollBar.sScrollbarHelperPoint);
             if (this._vertical) {
                 var curY: number = pt.y - this._dragOffset.y;
@@ -119,7 +119,7 @@ namespace fgui {
         }
 
         private __gripMouseUp(evt: Laya.Event): void {
-            if (!this._bar)
+            if (!this.onStage)
                 return;
 
             Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);

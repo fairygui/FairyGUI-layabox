@@ -27,14 +27,16 @@ namespace fgui {
             }
             gv.x = buffer.getInt32();
             gv.y = buffer.getInt32();
-            if (buffer.version >= 2) {
-                gv.px = buffer.getFloat32();
-                gv.py = buffer.getFloat32();
-            }
-            else {
-                gv.px = gv.x / this._owner.parent.width;
-                gv.py = gv.y / this._owner.parent.height;
-            }
+        }
+
+        public addExtStatus(pageId: string, buffer: ByteBuffer): void {
+            var gv: any;
+            if (pageId == null)
+                gv = this._default;
+            else
+                gv = this._storage[pageId];
+            gv.px = buffer.getFloat32();
+            gv.py = buffer.getFloat32();
         }
 
         public apply(): void {

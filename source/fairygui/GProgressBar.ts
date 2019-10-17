@@ -92,19 +92,19 @@ namespace fgui {
             if (this._titleObject) {
                 switch (this._titleType) {
                     case ProgressTitleType.Percent:
-                        this._titleObject.text = Math.round(percent * 100) + "%";
+                        this._titleObject.text = Math.floor(percent * 100) + "%";
                         break;
 
                     case ProgressTitleType.ValueAndMax:
-                        this._titleObject.text = Math.round(newValue) + "/" + Math.round(this._max);
+                        this._titleObject.text = Math.floor(newValue) + "/" + Math.floor(this._max);
                         break;
 
                     case ProgressTitleType.Value:
-                        this._titleObject.text = "" + Math.round(newValue);
+                        this._titleObject.text = "" + Math.floor(newValue);
                         break;
 
                     case ProgressTitleType.Max:
-                        this._titleObject.text = "" + Math.round(this._max);
+                        this._titleObject.text = "" + Math.floor(this._max);
                         break;
                 }
             }
@@ -116,13 +116,13 @@ namespace fgui {
                     if ((this._barObjectH instanceof GImage) && (<GImage>this._barObjectH).fillMethod != FillMethod.None)
                         (<GImage>this._barObjectH).fillAmount = percent;
                     else
-                        this._barObjectH.width = Math.round(fullWidth * percent);
+                        this._barObjectH.width = Math.floor(fullWidth * percent);
                 }
                 if (this._barObjectV) {
                     if ((this._barObjectV instanceof GImage) && (<GImage>this._barObjectV).fillMethod != FillMethod.None)
                         (<GImage>this._barObjectV).fillAmount = percent;
                     else
-                        this._barObjectV.height = Math.round(fullHeight * percent);
+                        this._barObjectV.height = Math.floor(fullHeight * percent);
                 }
             }
             else {
@@ -130,7 +130,7 @@ namespace fgui {
                     if ((this._barObjectH instanceof GImage) && (<GImage>this._barObjectH).fillMethod != FillMethod.None)
                         (<GImage>this._barObjectH).fillAmount = 1 - percent;
                     else {
-                        this._barObjectH.width = Math.round(fullWidth * percent);
+                        this._barObjectH.width = Math.floor(fullWidth * percent);
                         this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
                     }
 
@@ -139,13 +139,13 @@ namespace fgui {
                     if ((this._barObjectV instanceof GImage) && (<GImage>this._barObjectV).fillMethod != FillMethod.None)
                         (<GImage>this._barObjectV).fillAmount = 1 - percent;
                     else {
-                        this._barObjectV.height = Math.round(fullHeight * percent);
+                        this._barObjectV.height = Math.floor(fullHeight * percent);
                         this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
                     }
                 }
             }
             if (this._aniObject instanceof GMovieClip)
-                (<GMovieClip>this._aniObject).frame = Math.round(percent * 100);
+                (<GMovieClip>this._aniObject).frame = Math.floor(percent * 100);
         }
 
         protected constructExtension(buffer: ByteBuffer): void {

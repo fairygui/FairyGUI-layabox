@@ -9,8 +9,8 @@ namespace fgui {
         private static Classes: Array<typeof GearBase>;
 
         public static create(owner: GObject, index: number): GearBase {
-            if(!GearBase.Classes)
-                GearBase.Classes= [
+            if (!GearBase.Classes)
+                GearBase.Classes = [
                     GearDisplay, GearXY, GearSize, GearLook, GearColor,
                     GearAnimation, GearText, GearIcon, GearDisplay2, GearFontSize
                 ];
@@ -81,8 +81,21 @@ namespace fgui {
             }
 
             if (buffer.version >= 2) {
-                if (this instanceof GearXY)
-                    (<GearXY>this).positionsInPercent = buffer.readBool();
+                if (this instanceof GearXY) {
+                    if (buffer.readBool()) {
+                        (<GearXY>this).positionsInPercent = true;
+                        for (i = 0; i < cnt; i++) {
+                            page = buffer.readS();
+                            if (page == null)
+                                continue;
+
+                            (<GearXY>this).addExtStatus(page, buffer);
+                        }
+
+                        if (buffer.readBool())
+                            (<GearXY>this).addExtStatus(null, buffer);
+                    }
+                }
                 else if (this instanceof GearDisplay2)
                     (<GearDisplay2>this).condition = buffer.readByte();
             }

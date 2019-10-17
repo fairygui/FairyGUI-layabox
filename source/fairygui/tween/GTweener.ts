@@ -111,13 +111,13 @@ namespace fgui {
             return this;
         }
 
+        public get target(): any {
+            return this._target;
+        }
+        
         public setPath(value: GPath): GTweener {
             this._path = value;
             return this;
-        }
-
-        public get target(): any {
-            return this._target;
         }
 
         public setUserData(value: any): GTweener {

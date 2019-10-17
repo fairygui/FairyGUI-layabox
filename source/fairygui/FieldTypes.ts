@@ -3,22 +3,22 @@ namespace fgui {
         Common,
         Check,
         Radio
-    };
+    }
     export enum AutoSizeType {
         None,
         Both,
         Height
-    };
+    }
     export enum AlignType {
         Left,
         Center,
         Right
-    };
+    }
     export enum VertAlignType {
         Top,
         Middle,
         Bottom
-    };
+    }
     export enum LoaderFillType {
         None,
         Scale,
@@ -26,25 +26,25 @@ namespace fgui {
         ScaleMatchWidth,
         ScaleFree,
         ScaleNoBorder
-    };
+    }
     export enum ListLayoutType {
         SingleColumn,
         SingleRow,
         FlowHorizontal,
         FlowVertical,
         Pagination
-    };
+    }
     export enum ListSelectionMode {
         Single,
         Multiple,
         Multiple_SingleClick,
         None
-    };
+    }
     export enum OverflowType {
         Visible,
         Hidden,
         Scroll
-    };
+    }
     export enum PackageItemType {
         Image,
         MovieClip,
@@ -55,7 +55,7 @@ namespace fgui {
         Swf,
         Misc,
         Unknown
-    };
+    }
     export enum ObjectType {
         Image,
         MovieClip,
@@ -75,45 +75,45 @@ namespace fgui {
         Slider,
         ScrollBar,
         Tree
-    };
+    }
     export enum ProgressTitleType {
         Percent,
         ValueAndMax,
         Value,
         Max
-    };
+    }
     export enum ScrollBarDisplayType {
         Default,
         Visible,
         Auto,
         Hidden
-    };
+    }
     export enum ScrollType {
         Horizontal,
         Vertical,
         Both
-    };
+    }
     export enum FlipType {
         None,
         Horizontal,
         Vertical,
         Both
-    };
+    }
     export enum ChildrenRenderOrder {
         Ascent,
         Descent,
         Arch
-    };
+    }
     export enum GroupLayoutType {
         None,
         Horizontal,
         Vertical
-    };
+    }
     export enum PopupDirection {
         Auto,
         Up,
         Down
-    };
+    }
     export enum RelationType {
         Left_Left = 0,
         Left_Center = 1,
@@ -144,7 +144,7 @@ namespace fgui {
         BottomExt_Bottom = 23,
 
         Size = 24
-    };
+    }
     export enum FillMethod {
         None,
         Horizontal,
@@ -152,7 +152,7 @@ namespace fgui {
         Radial90,
         Radial180,
         Radial360,
-    };
+    }
 
     export enum FillOrigin {
         Top,
@@ -164,13 +164,13 @@ namespace fgui {
         TopRight = 1,
         BottomLeft = 2,
         BottomRight = 3
-    };
+    }
     export enum FillOrigin90 {
         TopLeft,
         TopRight,
         BottomLeft,
         BottomRight
-    };
+    }
 
     export enum ObjectPropID {
         Text,
@@ -183,6 +183,6 @@ namespace fgui {
         TimeScale,
         FontSize,
         Selected
-    };
+    }
 
 }

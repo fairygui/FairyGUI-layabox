@@ -7,9 +7,9 @@ Official website: [www.fairygui.com](http://www.fairygui.com)
 
 # 关于版本
 目前有三个主要的分支:
-master 是用于LayaAir2.2或更新的版本
-layair2.0-2.1 是用于LayaAir2.0,2.1这两个版本
-layair1.x 用于LayaAir1.x版本
+* master 是用于LayaAir2.2或更新的版本
+* layair2.0-2.1 是用于LayaAir2.0,2.1这两个版本
+* layair1.x 用于LayaAir1.x版本
 
 # 目录结构
 * source fairygui的源码
