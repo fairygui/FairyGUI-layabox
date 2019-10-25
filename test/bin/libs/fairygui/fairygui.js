@@ -520,28 +520,24 @@ window.fgui = {};
         ButtonMode[ButtonMode["Check"] = 1] = "Check";
         ButtonMode[ButtonMode["Radio"] = 2] = "Radio";
     })(ButtonMode = fgui.ButtonMode || (fgui.ButtonMode = {}));
-    ;
     let AutoSizeType;
     (function (AutoSizeType) {
         AutoSizeType[AutoSizeType["None"] = 0] = "None";
         AutoSizeType[AutoSizeType["Both"] = 1] = "Both";
         AutoSizeType[AutoSizeType["Height"] = 2] = "Height";
     })(AutoSizeType = fgui.AutoSizeType || (fgui.AutoSizeType = {}));
-    ;
     let AlignType;
     (function (AlignType) {
         AlignType[AlignType["Left"] = 0] = "Left";
         AlignType[AlignType["Center"] = 1] = "Center";
         AlignType[AlignType["Right"] = 2] = "Right";
     })(AlignType = fgui.AlignType || (fgui.AlignType = {}));
-    ;
     let VertAlignType;
     (function (VertAlignType) {
         VertAlignType[VertAlignType["Top"] = 0] = "Top";
         VertAlignType[VertAlignType["Middle"] = 1] = "Middle";
         VertAlignType[VertAlignType["Bottom"] = 2] = "Bottom";
     })(VertAlignType = fgui.VertAlignType || (fgui.VertAlignType = {}));
-    ;
     let LoaderFillType;
     (function (LoaderFillType) {
         LoaderFillType[LoaderFillType["None"] = 0] = "None";
@@ -551,7 +547,6 @@ window.fgui = {};
         LoaderFillType[LoaderFillType["ScaleFree"] = 4] = "ScaleFree";
         LoaderFillType[LoaderFillType["ScaleNoBorder"] = 5] = "ScaleNoBorder";
     })(LoaderFillType = fgui.LoaderFillType || (fgui.LoaderFillType = {}));
-    ;
     let ListLayoutType;
     (function (ListLayoutType) {
         ListLayoutType[ListLayoutType["SingleColumn"] = 0] = "SingleColumn";
@@ -560,7 +555,6 @@ window.fgui = {};
         ListLayoutType[ListLayoutType["FlowVertical"] = 3] = "FlowVertical";
         ListLayoutType[ListLayoutType["Pagination"] = 4] = "Pagination";
     })(ListLayoutType = fgui.ListLayoutType || (fgui.ListLayoutType = {}));
-    ;
     let ListSelectionMode;
     (function (ListSelectionMode) {
         ListSelectionMode[ListSelectionMode["Single"] = 0] = "Single";
@@ -568,14 +562,12 @@ window.fgui = {};
         ListSelectionMode[ListSelectionMode["Multiple_SingleClick"] = 2] = "Multiple_SingleClick";
         ListSelectionMode[ListSelectionMode["None"] = 3] = "None";
     })(ListSelectionMode = fgui.ListSelectionMode || (fgui.ListSelectionMode = {}));
-    ;
     let OverflowType;
     (function (OverflowType) {
         OverflowType[OverflowType["Visible"] = 0] = "Visible";
         OverflowType[OverflowType["Hidden"] = 1] = "Hidden";
         OverflowType[OverflowType["Scroll"] = 2] = "Scroll";
     })(OverflowType = fgui.OverflowType || (fgui.OverflowType = {}));
-    ;
     let PackageItemType;
     (function (PackageItemType) {
         PackageItemType[PackageItemType["Image"] = 0] = "Image";
@@ -588,7 +580,6 @@ window.fgui = {};
         PackageItemType[PackageItemType["Misc"] = 7] = "Misc";
         PackageItemType[PackageItemType["Unknown"] = 8] = "Unknown";
     })(PackageItemType = fgui.PackageItemType || (fgui.PackageItemType = {}));
-    ;
     let ObjectType;
     (function (ObjectType) {
         ObjectType[ObjectType["Image"] = 0] = "Image";
@@ -610,7 +601,6 @@ window.fgui = {};
         ObjectType[ObjectType["ScrollBar"] = 16] = "ScrollBar";
         ObjectType[ObjectType["Tree"] = 17] = "Tree";
     })(ObjectType = fgui.ObjectType || (fgui.ObjectType = {}));
-    ;
     let ProgressTitleType;
     (function (ProgressTitleType) {
         ProgressTitleType[ProgressTitleType["Percent"] = 0] = "Percent";
@@ -618,7 +608,6 @@ window.fgui = {};
         ProgressTitleType[ProgressTitleType["Value"] = 2] = "Value";
         ProgressTitleType[ProgressTitleType["Max"] = 3] = "Max";
     })(ProgressTitleType = fgui.ProgressTitleType || (fgui.ProgressTitleType = {}));
-    ;
     let ScrollBarDisplayType;
     (function (ScrollBarDisplayType) {
         ScrollBarDisplayType[ScrollBarDisplayType["Default"] = 0] = "Default";
@@ -626,14 +615,12 @@ window.fgui = {};
         ScrollBarDisplayType[ScrollBarDisplayType["Auto"] = 2] = "Auto";
         ScrollBarDisplayType[ScrollBarDisplayType["Hidden"] = 3] = "Hidden";
     })(ScrollBarDisplayType = fgui.ScrollBarDisplayType || (fgui.ScrollBarDisplayType = {}));
-    ;
     let ScrollType;
     (function (ScrollType) {
         ScrollType[ScrollType["Horizontal"] = 0] = "Horizontal";
         ScrollType[ScrollType["Vertical"] = 1] = "Vertical";
         ScrollType[ScrollType["Both"] = 2] = "Both";
     })(ScrollType = fgui.ScrollType || (fgui.ScrollType = {}));
-    ;
     let FlipType;
     (function (FlipType) {
         FlipType[FlipType["None"] = 0] = "None";
@@ -641,28 +628,24 @@ window.fgui = {};
         FlipType[FlipType["Vertical"] = 2] = "Vertical";
         FlipType[FlipType["Both"] = 3] = "Both";
     })(FlipType = fgui.FlipType || (fgui.FlipType = {}));
-    ;
     let ChildrenRenderOrder;
     (function (ChildrenRenderOrder) {
         ChildrenRenderOrder[ChildrenRenderOrder["Ascent"] = 0] = "Ascent";
         ChildrenRenderOrder[ChildrenRenderOrder["Descent"] = 1] = "Descent";
         ChildrenRenderOrder[ChildrenRenderOrder["Arch"] = 2] = "Arch";
     })(ChildrenRenderOrder = fgui.ChildrenRenderOrder || (fgui.ChildrenRenderOrder = {}));
-    ;
     let GroupLayoutType;
     (function (GroupLayoutType) {
         GroupLayoutType[GroupLayoutType["None"] = 0] = "None";
         GroupLayoutType[GroupLayoutType["Horizontal"] = 1] = "Horizontal";
         GroupLayoutType[GroupLayoutType["Vertical"] = 2] = "Vertical";
     })(GroupLayoutType = fgui.GroupLayoutType || (fgui.GroupLayoutType = {}));
-    ;
     let PopupDirection;
     (function (PopupDirection) {
         PopupDirection[PopupDirection["Auto"] = 0] = "Auto";
         PopupDirection[PopupDirection["Up"] = 1] = "Up";
         PopupDirection[PopupDirection["Down"] = 2] = "Down";
     })(PopupDirection = fgui.PopupDirection || (fgui.PopupDirection = {}));
-    ;
     let RelationType;
     (function (RelationType) {
         RelationType[RelationType["Left_Left"] = 0] = "Left_Left";
@@ -691,7 +674,6 @@ window.fgui = {};
         RelationType[RelationType["BottomExt_Bottom"] = 23] = "BottomExt_Bottom";
         RelationType[RelationType["Size"] = 24] = "Size";
     })(RelationType = fgui.RelationType || (fgui.RelationType = {}));
-    ;
     let FillMethod;
     (function (FillMethod) {
         FillMethod[FillMethod["None"] = 0] = "None";
@@ -701,7 +683,6 @@ window.fgui = {};
         FillMethod[FillMethod["Radial180"] = 4] = "Radial180";
         FillMethod[FillMethod["Radial360"] = 5] = "Radial360";
     })(FillMethod = fgui.FillMethod || (fgui.FillMethod = {}));
-    ;
     let FillOrigin;
     (function (FillOrigin) {
         FillOrigin[FillOrigin["Top"] = 0] = "Top";
@@ -713,7 +694,6 @@ window.fgui = {};
         FillOrigin[FillOrigin["BottomLeft"] = 2] = "BottomLeft";
         FillOrigin[FillOrigin["BottomRight"] = 3] = "BottomRight";
     })(FillOrigin = fgui.FillOrigin || (fgui.FillOrigin = {}));
-    ;
     let FillOrigin90;
     (function (FillOrigin90) {
         FillOrigin90[FillOrigin90["TopLeft"] = 0] = "TopLeft";
@@ -721,7 +701,6 @@ window.fgui = {};
         FillOrigin90[FillOrigin90["BottomLeft"] = 2] = "BottomLeft";
         FillOrigin90[FillOrigin90["BottomRight"] = 3] = "BottomRight";
     })(FillOrigin90 = fgui.FillOrigin90 || (fgui.FillOrigin90 = {}));
-    ;
     let ObjectPropID;
     (function (ObjectPropID) {
         ObjectPropID[ObjectPropID["Text"] = 0] = "Text";
@@ -735,7 +714,6 @@ window.fgui = {};
         ObjectPropID[ObjectPropID["FontSize"] = 8] = "FontSize";
         ObjectPropID[ObjectPropID["Selected"] = 9] = "Selected";
     })(ObjectPropID = fgui.ObjectPropID || (fgui.ObjectPropID = {}));
-    ;
 })(fgui || (fgui = {}));
 
 (function (fgui) {
@@ -4287,6 +4265,7 @@ window.fgui = {};
             }
             this._list.selectedIndex = -1;
             this.dropdown.width = this.width;
+            this._list.ensureBoundsCorrect();
             var downward = null;
             if (this._popupDirection == fgui.PopupDirection.Down)
                 downward = true;
@@ -6533,7 +6512,7 @@ window.fgui = {};
             }
             if (deltaSize != 0 || firstItemDeltaSize != 0)
                 this._scrollPane.changeContentSizeOnScrolling(0, deltaSize, 0, firstItemDeltaSize);
-            if (curIndex > 0 && this.numChildren > 0 && this._container.y < 0 && this.getChildAt(0).y > -this._container.y)
+            if (curIndex > 0 && this.numChildren > 0 && this._container.y <= 0 && this.getChildAt(0).y > -this._container.y)
                 return true;
             else
                 return false;
@@ -6665,7 +6644,7 @@ window.fgui = {};
             }
             if (deltaSize != 0 || firstItemDeltaSize != 0)
                 this._scrollPane.changeContentSizeOnScrolling(deltaSize, 0, firstItemDeltaSize, 0);
-            if (curIndex > 0 && this.numChildren > 0 && this._container.x < 0 && this.getChildAt(0).x > -this._container.x)
+            if (curIndex > 0 && this.numChildren > 0 && this._container.x <= 0 && this.getChildAt(0).x > -this._container.x)
                 return true;
             else
                 return false;
@@ -7901,20 +7880,20 @@ window.fgui = {};
             return fgui.GTween.to(oldValule, this._value, duration).setTarget(this, this.update).setEase(fgui.EaseType.Linear);
         }
         update(newValue) {
-            var percent = fgui.ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
+            var percent = fgui.ToolSet.clamp01((newValue - this._min) / (this._max - this._min));
             if (this._titleObject) {
                 switch (this._titleType) {
                     case fgui.ProgressTitleType.Percent:
-                        this._titleObject.text = Math.round(percent * 100) + "%";
+                        this._titleObject.text = Math.floor(percent * 100) + "%";
                         break;
                     case fgui.ProgressTitleType.ValueAndMax:
-                        this._titleObject.text = Math.round(newValue) + "/" + Math.round(this._max);
+                        this._titleObject.text = Math.floor(newValue) + "/" + Math.floor(this._max);
                         break;
                     case fgui.ProgressTitleType.Value:
-                        this._titleObject.text = "" + Math.round(newValue);
+                        this._titleObject.text = "" + Math.floor(newValue);
                         break;
                     case fgui.ProgressTitleType.Max:
-                        this._titleObject.text = "" + Math.round(this._max);
+                        this._titleObject.text = "" + Math.floor(this._max);
                         break;
                 }
             }
@@ -7925,13 +7904,13 @@ window.fgui = {};
                     if ((this._barObjectH instanceof fgui.GImage) && this._barObjectH.fillMethod != fgui.FillMethod.None)
                         this._barObjectH.fillAmount = percent;
                     else
-                        this._barObjectH.width = Math.round(fullWidth * percent);
+                        this._barObjectH.width = Math.floor(fullWidth * percent);
                 }
                 if (this._barObjectV) {
                     if ((this._barObjectV instanceof fgui.GImage) && this._barObjectV.fillMethod != fgui.FillMethod.None)
                         this._barObjectV.fillAmount = percent;
                     else
-                        this._barObjectV.height = Math.round(fullHeight * percent);
+                        this._barObjectV.height = Math.floor(fullHeight * percent);
                 }
             }
             else {
@@ -7939,7 +7918,7 @@ window.fgui = {};
                     if ((this._barObjectH instanceof fgui.GImage) && this._barObjectH.fillMethod != fgui.FillMethod.None)
                         this._barObjectH.fillAmount = 1 - percent;
                     else {
-                        this._barObjectH.width = Math.round(fullWidth * percent);
+                        this._barObjectH.width = Math.floor(fullWidth * percent);
                         this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
                     }
                 }
@@ -7947,13 +7926,13 @@ window.fgui = {};
                     if ((this._barObjectV instanceof fgui.GImage) && this._barObjectV.fillMethod != fgui.FillMethod.None)
                         this._barObjectV.fillAmount = 1 - percent;
                     else {
-                        this._barObjectV.height = Math.round(fullHeight * percent);
+                        this._barObjectV.height = Math.floor(fullHeight * percent);
                         this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
                     }
                 }
             }
             if (this._aniObject instanceof fgui.GMovieClip)
-                this._aniObject.frame = Math.round(percent * 100);
+                this._aniObject.frame = Math.floor(percent * 100);
         }
         constructExtension(buffer) {
             buffer.seek(0, 6);
@@ -8514,7 +8493,6 @@ window.fgui = {};
     class GScrollBar extends fgui.GComponent {
         constructor() {
             super();
-            this._scrollPerc = 0;
             this._dragOffset = new Laya.Point();
             this._scrollPerc = 0;
         }
@@ -8574,8 +8552,6 @@ window.fgui = {};
             this.on(Laya.Event.MOUSE_DOWN, this, this.__barMouseDown);
         }
         __gripMouseDown(evt) {
-            if (!this._bar)
-                return;
             evt.stopPropagation();
             this._gripDragging = true;
             this._target.updateScrollBarVisible();
@@ -8586,6 +8562,8 @@ window.fgui = {};
             this._dragOffset.y -= this._grip.y;
         }
         __gripMouseMove() {
+            if (!this.onStage)
+                return;
             var pt = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GScrollBar.sScrollbarHelperPoint);
             if (this._vertical) {
                 var curY = pt.y - this._dragOffset.y;
@@ -8597,7 +8575,7 @@ window.fgui = {};
             }
         }
         __gripMouseUp(evt) {
-            if (!this._bar)
+            if (!this.onStage)
                 return;
             Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__gripMouseMove);
             Laya.stage.off(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
@@ -10898,7 +10876,7 @@ window.fgui = {};
             this.adjustMaskContainer();
             if (this._hzScrollBar) {
                 this._hzScrollBar.y = aHeight - this._hzScrollBar.height;
-                if (this._vtScrollBar && !this._vScrollNone) {
+                if (this._vtScrollBar) {
                     this._hzScrollBar.width = aWidth - this._vtScrollBar.width - this._scrollBarMargin.left - this._scrollBarMargin.right;
                     if (this._displayOnLeft)
                         this._hzScrollBar.x = this._scrollBarMargin.left + this._vtScrollBar.width;
@@ -11072,6 +11050,9 @@ window.fgui = {};
             Laya.timer.callLater(this, this.refresh);
         }
         refresh() {
+            if (this._owner.displayObject == null) {
+                return;
+            }
             this._needRefresh = false;
             Laya.timer.clear(this, this.refresh);
             if (this._pageMode || this._snapToItem) {
@@ -11428,7 +11409,7 @@ window.fgui = {};
                 fgui.GTween.kill(bar, false, "alpha");
             if (this._scrollBarDisplayAuto && this._tweening == 0 && !this._dragged && !bar.gripDragging) {
                 if (bar.displayObject.visible)
-                    fgui.GTween.to(1, 0, 0.5).setDelay(0.5).onComplete(this.__barTweenComplete).setTarget(bar, "alpha");
+                    fgui.GTween.to(1, 0, 0.5).setDelay(0.5).onComplete(this.__barTweenComplete, this).setTarget(bar, "alpha");
             }
             else {
                 bar.alpha = 1;
@@ -14886,8 +14867,19 @@ window.fgui = {};
                 this._tweenConfig.delay = buffer.getFloat32();
             }
             if (buffer.version >= 2) {
-                if (this instanceof fgui.GearXY)
-                    this.positionsInPercent = buffer.readBool();
+                if (this instanceof fgui.GearXY) {
+                    if (buffer.readBool()) {
+                        this.positionsInPercent = true;
+                        for (i = 0; i < cnt; i++) {
+                            page = buffer.readS();
+                            if (page == null)
+                                continue;
+                            this.addExtStatus(page, buffer);
+                        }
+                        if (buffer.readBool())
+                            this.addExtStatus(null, buffer);
+                    }
+                }
                 else if (this instanceof fgui.GearDisplay2)
                     this.condition = buffer.readByte();
             }
@@ -15402,14 +15394,15 @@ window.fgui = {};
             }
             gv.x = buffer.getInt32();
             gv.y = buffer.getInt32();
-            if (buffer.version >= 2) {
-                gv.px = buffer.getFloat32();
-                gv.py = buffer.getFloat32();
-            }
-            else {
-                gv.px = gv.x / this._owner.parent.width;
-                gv.py = gv.y / this._owner.parent.height;
-            }
+        }
+        addExtStatus(pageId, buffer) {
+            var gv;
+            if (pageId == null)
+                gv = this._default;
+            else
+                gv = this._storage[pageId];
+            gv.px = buffer.getFloat32();
+            gv.py = buffer.getFloat32();
         }
         apply() {
             var pt = this._storage[this._controller.selectedPageId];
@@ -16092,12 +16085,12 @@ window.fgui = {};
             this._propType = propType;
             return this;
         }
+        get target() {
+            return this._target;
+        }
         setPath(value) {
             this._path = value;
             return this;
-        }
-        get target() {
-            return this._target;
         }
         setUserData(value) {
             this._userData = value;

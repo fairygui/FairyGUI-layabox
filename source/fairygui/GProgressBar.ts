@@ -88,7 +88,7 @@ namespace fgui {
         }
 
         public update(newValue: number): void {
-            var percent: number = ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
+            var percent: number = ToolSet.clamp01((newValue - this._min) / (this._max - this._min));
             if (this._titleObject) {
                 switch (this._titleType) {
                     case ProgressTitleType.Percent:

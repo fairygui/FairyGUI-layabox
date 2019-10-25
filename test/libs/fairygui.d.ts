@@ -1166,8 +1166,8 @@ declare namespace fgui {
         private _vertical;
         private _scrollPerc;
         private _fixedGripSize;
-        private _gripDragging;
         private _dragOffset;
+        private _gripDragging;
         constructor();
         setScrollPane(target: ScrollPane, vertical: boolean): void;
         setDisplayPerc(value: number): void;
@@ -2088,6 +2088,7 @@ declare namespace fgui {
         constructor(owner: GObject);
         protected init(): void;
         protected addStatus(pageId: string, buffer: ByteBuffer): void;
+        addExtStatus(pageId: string, buffer: ByteBuffer): void;
         apply(): void;
         private __tweenUpdate;
         private __tweenComplete;
@@ -2244,8 +2245,8 @@ declare namespace fgui {
         setTimeScale(value: number): GTweener;
         setSnapping(value: boolean): GTweener;
         setTarget(value: any, propType?: any): GTweener;
-        setPath(value: GPath): GTweener;
         readonly target: any;
+        setPath(value: GPath): GTweener;
         setUserData(value: any): GTweener;
         readonly userData: any;
         onUpdate(callback: Function, caller?: any): GTweener;
