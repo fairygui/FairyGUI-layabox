@@ -18,13 +18,12 @@ Official website: [www.fairygui.com](http://www.fairygui.com)
 
 # 获取fairygui库
 如果你只是想添加或者更新fairygui库到你的项目,那么下载以下文件即可:
-* test/bin/libs/fairygui/fairygui.js
-* test/bin/libs/fairygui/fairygui.min.js
-* test/bin/libs/fairygui/rawinflate.min.js
-* test/libs/fairygui.d.ts
+* source/bin/fairygui.js
+* source/bin/fairygui.min.js
+* source/bin/fairygui.d.ts
 
 # 编译源码
-使用VSC打开目录,执行gulp build任务后,将在test/bin/libs/fairygui/下生成新的fairygui.js,在test/libs/下生成新的fairygui.d.ts.
+使用VSC打开source目录,执行gulp build任务.
 
 # License
 MIT

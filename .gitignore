@@ -1,5 +1,4 @@
-/node_modules
-/bin
+node_modules
 .DS_Store
-test/.rpt2_cache
-test/UIProject/.objs
+demo/.rpt2_cache
+demo/UIProject/.objs
