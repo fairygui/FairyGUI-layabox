@@ -17092,7 +17092,7 @@ window.fairygui = window.fgui;
             }
             if ((!toApplyColor && toApplyColor != 0) && !toApplyGray) {
                 if (filters && filter) {
-                    var i = filters.indexOf(filter);
+                    let i = filters.indexOf(filter);
                     if (i != -1) {
                         filters.splice(i, 1);
                         if (filters.length > 0)
@@ -17109,8 +17109,11 @@ window.fairygui = window.fgui;
             }
             if (!filters)
                 filters = [filter];
-            else
-                filters.push(filter);
+            else {
+                let i = filters.indexOf(filter);
+                if (i == -1)
+                    filters.push(filter);
+            }
             obj.filters = filters;
             filter.$_color_ = toApplyColor;
             filter.$_grayed_ = toApplyGray;
@@ -17126,6 +17129,7 @@ window.fairygui = window.fgui;
                 filter.adjustSaturation(toApplyColor[2]);
                 filter.adjustHue(toApplyColor[3]);
             }
+            obj.filters = filters;
         }
     }
     ToolSet.defaultUBBParser = new fgui.UBBParser();

@@ -192,7 +192,7 @@ namespace fgui {
 
             if ((!toApplyColor && toApplyColor != 0) && !toApplyGray) {
                 if (filters && filter) {
-                    var i: number = filters.indexOf(filter);
+                    let i: number = filters.indexOf(filter);
                     if (i != -1) {
                         filters.splice(i, 1);
                         if (filters.length > 0)
@@ -210,8 +210,11 @@ namespace fgui {
             }
             if (!filters)
                 filters = [filter];
-            else
-                filters.push(filter);
+            else {
+                let i: number = filters.indexOf(filter);
+                if (i == -1)
+                    filters.push(filter);
+            }
             obj.filters = filters;
 
             (<any>filter).$_color_ = toApplyColor;

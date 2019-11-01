@@ -332,6 +332,8 @@
         }
         __clickButton() {
             console.log("click button");
+            var obj = this._demoObjects["Button"];
+            obj.getChild("n32").grayed = !obj.getChild("n32").grayed;
         }
         playText() {
             var obj = this._demoObjects["Text"];
