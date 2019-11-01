@@ -1,5 +1,6 @@
 window.fgui = {};
 window.fairygui = window.fgui;
+
 (function (fgui) {
     class AssetProxy {
         constructor() {
@@ -17129,7 +17130,6 @@ window.fairygui = window.fgui;
                 filter.adjustSaturation(toApplyColor[2]);
                 filter.adjustHue(toApplyColor[3]);
             }
-            obj.filters = filters;
         }
     }
     ToolSet.defaultUBBParser = new fgui.UBBParser();
