@@ -222,17 +222,12 @@ namespace fgui {
 
             filter.reset();
 
-            if (toApplyGray) {
+            if (toApplyGray)
                 filter.gray();
-            }
             else if (toApplyColor.length == 20)
                 filter.setByMatrix(toApplyColor);
-            else {
-                filter.adjustBrightness(toApplyColor[0]);
-                filter.adjustContrast(toApplyColor[1]);
-                filter.adjustSaturation(toApplyColor[2]);
-                filter.adjustHue(toApplyColor[3]);
-            }
+            else
+                filter.setByMatrix(ColorMatrix.getMatrix(toApplyColor[0], toApplyColor[1], toApplyColor[2], toApplyColor[3]));
         }
     }
 }
