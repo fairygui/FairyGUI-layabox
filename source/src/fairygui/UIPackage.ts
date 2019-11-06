@@ -211,7 +211,6 @@ namespace fgui {
                 throw new Error("FairyGUI: old namespace sunnyboxs found in '" + resKey + "'");
 
             buffer.version = buffer.getInt32();
-            var ver2: boolean = buffer.version >= 2;
             var compressed: boolean = buffer.readBool();
             this._id = buffer.readUTFString();
             this._name = buffer.readUTFString();
@@ -222,9 +221,12 @@ namespace fgui {
                 var inflater = new Zlib.RawInflate(buf);
                 buf = inflater.decompress();
 
-                buffer = new ByteBuffer(buf);
+                let buffer2: ByteBuffer = new ByteBuffer(buf);
+                buffer2.version = buffer.version;
+                buffer = buffer2;
             }
 
+            var ver2: boolean = buffer.version >= 2;
             var indexTablePos: number = buffer.pos;
             var cnt: number;
             var i: number;

@@ -13316,7 +13316,6 @@ window.fairygui = window.fgui;
             if (buffer.getUint32() != 0x46475549)
                 throw new Error("FairyGUI: old namespace sunnyboxs found in '" + resKey + "'");
             buffer.version = buffer.getInt32();
-            var ver2 = buffer.version >= 2;
             var compressed = buffer.readBool();
             this._id = buffer.readUTFString();
             this._name = buffer.readUTFString();
@@ -13325,8 +13324,11 @@ window.fairygui = window.fgui;
                 var buf = new Uint8Array(buffer.buffer, buffer.pos, buffer.length - buffer.pos);
                 var inflater = new Zlib.RawInflate(buf);
                 buf = inflater.decompress();
-                buffer = new fgui.ByteBuffer(buf);
+                let buffer2 = new fgui.ByteBuffer(buf);
+                buffer2.version = buffer.version;
+                buffer = buffer2;
             }
+            var ver2 = buffer.version >= 2;
             var indexTablePos = buffer.pos;
             var cnt;
             var i;
