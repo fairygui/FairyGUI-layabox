@@ -6,6 +6,7 @@ namespace fgui {
         private _items: PackageItem[];
         private _itemsById: Object;
         private _itemsByName: Object;
+        private _resKey: string;
         private _customId: string;
         private _sprites: Object;
         private _dependencies: Array<any>;
@@ -69,19 +70,27 @@ namespace fgui {
             var buffer: ByteBuffer = new ByteBuffer(descData);
 
             var pkg: UIPackage = new UIPackage();
-            pkg.loadPackage(buffer, resKey);
+            pkg._resKey = resKey;
+            pkg.loadPackage(buffer);
             UIPackage._instById[pkg.id] = pkg;
             UIPackage._instByName[pkg.name] = pkg;
-            pkg._customId = resKey;
+            UIPackage._instById[resKey] = pkg;
             return pkg;
         }
 
         public static loadPackage(resKey: string, completeHandler: Laya.Handler): void {
+            let pkg: UIPackage = UIPackage._instById[resKey];
+            if (pkg) {
+                completeHandler.runWith(pkg);
+                return;
+            }
+
             let url: string = resKey + "." + UIConfig.packageFileExtension;
 
             var descCompleteHandler: Laya.Handler = Laya.Handler.create(this, function (asset) {
                 let pkg: UIPackage = new UIPackage();
-                pkg.loadPackage(new ByteBuffer(asset), resKey);
+                pkg._resKey = resKey;
+                pkg.loadPackage(new ByteBuffer(asset));
                 let cnt: number = pkg._items.length;
                 let urls = [];
                 for (var i: number = 0; i < cnt; i++) {
@@ -96,12 +105,13 @@ namespace fgui {
                     AssetProxy.inst.load(urls, Laya.Handler.create(this, function (): void {
                         UIPackage._instById[pkg.id] = pkg;
                         UIPackage._instByName[pkg.name] = pkg;
+                        UIPackage._instByName[pkg._resKey] = pkg;
 
-                        completeHandler.run();
+                        completeHandler.runWith(pkg);
                     }));
                 }
                 else
-                    completeHandler.run();
+                    completeHandler.runWith(pkg);
             });
 
             AssetProxy.inst.load(url, descCompleteHandler, null, Laya.Loader.BUFFER);
@@ -116,9 +126,10 @@ namespace fgui {
 
             pkg.dispose();
             delete UIPackage._instById[pkg.id];
+            delete UIPackage._instByName[pkg.name];
+            delete UIPackage._instById[pkg._resKey];
             if (pkg._customId != null)
                 delete UIPackage._instById[pkg._customId];
-            delete UIPackage._instByName[pkg.name];
         }
 
         public static createObject(pkgName: string, resName: string, userClass?: any): GObject {
@@ -206,9 +217,9 @@ namespace fgui {
             TranslationHelper.loadFromXML(source);
         }
 
-        private loadPackage(buffer: ByteBuffer, resKey: string): void {
+        private loadPackage(buffer: ByteBuffer): void {
             if (buffer.getUint32() != 0x46475549)
-                throw new Error("FairyGUI: old namespace sunnyboxs found in '" + resKey + "'");
+                throw new Error("FairyGUI: old namespace sunnyboxs found in '" + this._resKey + "'");
 
             buffer.version = buffer.getInt32();
             var compressed: boolean = buffer.readBool();
@@ -262,7 +273,7 @@ namespace fgui {
             buffer.seek(indexTablePos, 1);
 
             var pi: PackageItem;
-            resKey = resKey + "_";
+            var fileNamePrefix: string = this._resKey + "_";
 
             cnt = buffer.getUint16();
             for (i = 0; i < cnt; i++) {
@@ -334,7 +345,7 @@ namespace fgui {
                     case PackageItemType.Sound:
                     case PackageItemType.Misc:
                         {
-                            pi.file = resKey + pi.file;
+                            pi.file = fileNamePrefix + pi.file;
                             break;
                         }
                 }
