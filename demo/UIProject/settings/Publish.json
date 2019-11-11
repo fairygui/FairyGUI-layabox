@@ -1,4 +1,9 @@
 {
+	"atlasSetting":{
+		"paging":true,
+		"sizeOption":"pot",
+		"trimImage":true
+	},
 	"binaryFormat":true,
 	"codeGeneration":{
 		"classNamePrefix":"",

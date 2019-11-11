@@ -332,8 +332,6 @@
         }
         __clickButton() {
             console.log("click button");
-            var obj = this._demoObjects["Button"];
-            obj.getChild("n32").grayed = !obj.getChild("n32").grayed;
         }
         playText() {
             var obj = this._demoObjects["Text"];
@@ -518,12 +516,14 @@
             this._g3 = fgui.UIPackage.createObject("Transition", "TRAP").asCom;
             this._g4 = fgui.UIPackage.createObject("Transition", "GoodHit").asCom;
             this._g5 = fgui.UIPackage.createObject("Transition", "PowerUp").asCom;
+            this._g6 = fgui.UIPackage.createObject("Transition", "PathDemo").asCom;
             this._g5.getTransition("t0").setHook("play_num_now", Laya.Handler.create(this, this.__playNum, null, false));
             this._view.getChild("btn0").onClick(this, function () { this.__play(this._g1); });
             this._view.getChild("btn1").onClick(this, function () { this.__play(this._g2); });
             this._view.getChild("btn2").onClick(this, function () { this.__play(this._g3); });
             this._view.getChild("btn3").onClick(this, this.__play4);
             this._view.getChild("btn4").onClick(this, this.__play5);
+            this._view.getChild("btn5").onClick(this, function () { this.__play(this._g6); });
         }
         __play(target) {
             this._btnGroup.visible = false;
@@ -744,7 +744,6 @@
         constructor() {
             fgui.UIConfig.globalModalWaiting = "ui://ModalWaiting/GlobalModalWaiting";
             fgui.UIConfig.windowModalWaiting = "ui://ModalWaiting/WindowModalWaiting";
-            fgui.UIObjectFactory.setExtension("ui://ModalWaiting/GlobalModalWaiting", GlobalWaiting);
             fgui.UIPackage.loadPackage("res/UI/ModalWaiting", Laya.Handler.create(this, this.onUILoaded));
         }
         onUILoaded() {
@@ -757,29 +756,6 @@
             Laya.timer.once(3000, this, function () {
                 fgui.GRoot.inst.closeModalWait();
             });
-        }
-    }
-    class GlobalWaiting extends fgui.GComponent {
-        constructor() {
-            super();
-        }
-        onConstruct() {
-            this._obj = this.getChild("n1");
-            this.on(Laya.Event.DISPLAY, this, this.onAddedToStage);
-            this.on(Laya.Event.UNDISPLAY, this, this.onRemoveFromStage);
-        }
-        onAddedToStage() {
-            Laya.timer.frameLoop(2, this, this.onTimer);
-        }
-        onRemoveFromStage() {
-            Laya.timer.clear(this, this.onTimer);
-        }
-        onTimer() {
-            var i = this._obj.rotation;
-            i += 10;
-            if (i > 360)
-                i = i % 360;
-            this._obj.rotation = i;
         }
     }
 
@@ -1191,6 +1167,53 @@
             this._view = fgui.UIPackage.createObject("TreeView", "Main").asCom;
             this._view.makeFullScreen();
             fgui.GRoot.inst.addChild(this._view);
+            this._fileURL = "ui://TreeView/file";
+            this._tree1 = this._view.getChild("tree").asTree;
+            this._tree1.on(fgui.Events.CLICK_ITEM, this, this.__clickNode);
+            this._tree2 = this._view.getChild("tree2").asTree;
+            this._tree2.on(fgui.Events.CLICK_ITEM, this, this.__clickNode);
+            this._tree2.treeNodeRender = Laya.Handler.create(this, this.renderTreeNode, null, false);
+            var topNode = new fgui.GTreeNode(true);
+            topNode.data = "I'm a top node";
+            this._tree2.rootNode.addChild(topNode);
+            for (var i = 0; i < 5; i++) {
+                var node = new fgui.GTreeNode(false);
+                node.data = "Hello " + i;
+                topNode.addChild(node);
+            }
+            var aFolderNode = new fgui.GTreeNode(true);
+            aFolderNode.data = "A folder node";
+            topNode.addChild(aFolderNode);
+            for (var i = 0; i < 5; i++) {
+                var node = new fgui.GTreeNode(false);
+                node.data = "Good " + i;
+                aFolderNode.addChild(node);
+            }
+            for (var i = 0; i < 3; i++) {
+                var node = new fgui.GTreeNode(false);
+                node.data = "World " + i;
+                topNode.addChild(node);
+            }
+            var anotherTopNode = new fgui.GTreeNode(false);
+            anotherTopNode.data = ["I'm a top node too", "ui://TreeView/heart"];
+            this._tree2.rootNode.addChild(anotherTopNode);
+        }
+        renderTreeNode(node, obj) {
+            if (node.isFolder) {
+                obj.text = node.data;
+            }
+            else if (node.data instanceof Array) {
+                obj.icon = node.data[1];
+                obj.text = node.data[0];
+            }
+            else {
+                obj.icon = this._fileURL;
+                obj.text = node.data;
+            }
+        }
+        __clickNode(itemObject) {
+            var node = itemObject.treeNode;
+            console.log(node.text);
         }
     }
 

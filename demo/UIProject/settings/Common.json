@@ -5,6 +5,7 @@
 	"fontScheme":["Default font"],
 	"fontSize":12,
 	"fontSizeScheme":["自定义字体大小 30"],
+	"pivot":"default",
 	"scrollBars":{
 		"defaultDisplay":"visible",
 		"horizontal":"ui://9leh0eyfi3s65i",

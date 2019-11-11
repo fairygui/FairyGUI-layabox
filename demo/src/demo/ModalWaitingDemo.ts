@@ -8,8 +8,6 @@ export default class ModalWaitingDemo {
         fgui.UIConfig.globalModalWaiting = "ui://ModalWaiting/GlobalModalWaiting";
         fgui.UIConfig.windowModalWaiting = "ui://ModalWaiting/WindowModalWaiting";
 
-        fgui.UIObjectFactory.setExtension("ui://ModalWaiting/GlobalModalWaiting", GlobalWaiting);
-
         fgui.UIPackage.loadPackage("res/UI/ModalWaiting", Laya.Handler.create(this, this.onUILoaded));
     }
 
@@ -26,36 +24,5 @@ export default class ModalWaitingDemo {
         Laya.timer.once(3000,this, function(): void {
             fgui.GRoot.inst.closeModalWait();
         });
-    }
-}
-
-class GlobalWaiting extends fgui.GComponent {
-    private _obj: fgui.GObject;
-
-    public constructor() {
-        super();
-    }
-
-    protected onConstruct():void
-    {        
-        this._obj = this.getChild("n1");
-        this.on(Laya.Event.DISPLAY,this,this.onAddedToStage);
-        this.on(Laya.Event.UNDISPLAY,this,this.onRemoveFromStage);
-    }
-    
-    private onAddedToStage():void {
-        Laya.timer.frameLoop(2, this, this.onTimer);
-    }
-    
-    private onRemoveFromStage():void {
-        Laya.timer.clear(this, this.onTimer);
-    }
-    
-    private onTimer():void {
-        var i:number = this._obj.rotation;
-        i += 10;
-        if(i > 360)
-            i = i % 360;
-        this._obj.rotation = i;
     }
 }
