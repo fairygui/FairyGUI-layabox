@@ -1305,7 +1305,8 @@ declare namespace fgui {
         expanded: boolean;
         readonly isFolder: boolean;
         readonly parent: GTreeNode;
-        readonly text: string;
+        text: string;
+        icon: string;
         readonly cell: GComponent;
         readonly level: number;
         _setLevel(value: number): void;
@@ -1712,6 +1713,7 @@ declare namespace fgui {
         private _items;
         private _itemsById;
         private _itemsByName;
+        private _resKey;
         private _customId;
         private _sprites;
         private _dependencies;

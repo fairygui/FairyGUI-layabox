@@ -9081,7 +9081,7 @@ window.fairygui = window.fgui;
             }
         }
         createCell(node) {
-            var child = this.getFromPool(node._resURL);
+            var child = this.getFromPool(node._resURL ? node._resURL : this.defaultItem);
             if (!child)
                 throw new Error("cannot create tree node object.");
             child._treeNode = node;
@@ -9348,6 +9348,20 @@ window.fairygui = window.fgui;
                 return this._cell.text;
             else
                 return null;
+        }
+        set text(value) {
+            if (this._cell != null)
+                this._cell.text = value;
+        }
+        get icon() {
+            if (this._cell != null)
+                return this._cell.icon;
+            else
+                return null;
+        }
+        set icon(value) {
+            if (this._cell != null)
+                this._cell.icon = value;
         }
         get cell() {
             return this._cell;
@@ -13198,17 +13212,24 @@ window.fairygui = window.fgui;
             }
             var buffer = new fgui.ByteBuffer(descData);
             var pkg = new UIPackage();
-            pkg.loadPackage(buffer, resKey);
+            pkg._resKey = resKey;
+            pkg.loadPackage(buffer);
             UIPackage._instById[pkg.id] = pkg;
             UIPackage._instByName[pkg.name] = pkg;
-            pkg._customId = resKey;
+            UIPackage._instById[resKey] = pkg;
             return pkg;
         }
         static loadPackage(resKey, completeHandler) {
+            let pkg = UIPackage._instById[resKey];
+            if (pkg) {
+                completeHandler.runWith(pkg);
+                return;
+            }
             let url = resKey + "." + fgui.UIConfig.packageFileExtension;
             var descCompleteHandler = Laya.Handler.create(this, function (asset) {
                 let pkg = new UIPackage();
-                pkg.loadPackage(new fgui.ByteBuffer(asset), resKey);
+                pkg._resKey = resKey;
+                pkg.loadPackage(new fgui.ByteBuffer(asset));
                 let cnt = pkg._items.length;
                 let urls = [];
                 for (var i = 0; i < cnt; i++) {
@@ -13222,11 +13243,12 @@ window.fairygui = window.fgui;
                     fgui.AssetProxy.inst.load(urls, Laya.Handler.create(this, function () {
                         UIPackage._instById[pkg.id] = pkg;
                         UIPackage._instByName[pkg.name] = pkg;
-                        completeHandler.run();
+                        UIPackage._instByName[pkg._resKey] = pkg;
+                        completeHandler.runWith(pkg);
                     }));
                 }
                 else
-                    completeHandler.run();
+                    completeHandler.runWith(pkg);
             });
             fgui.AssetProxy.inst.load(url, descCompleteHandler, null, Laya.Loader.BUFFER);
         }
@@ -13238,9 +13260,10 @@ window.fairygui = window.fgui;
                 throw new Error("unknown package: " + packageIdOrName);
             pkg.dispose();
             delete UIPackage._instById[pkg.id];
+            delete UIPackage._instByName[pkg.name];
+            delete UIPackage._instById[pkg._resKey];
             if (pkg._customId != null)
                 delete UIPackage._instById[pkg._customId];
-            delete UIPackage._instByName[pkg.name];
         }
         static createObject(pkgName, resName, userClass) {
             var pkg = UIPackage.getByName(pkgName);
@@ -13312,9 +13335,9 @@ window.fairygui = window.fgui;
         static setStringsSource(source) {
             fgui.TranslationHelper.loadFromXML(source);
         }
-        loadPackage(buffer, resKey) {
+        loadPackage(buffer) {
             if (buffer.getUint32() != 0x46475549)
-                throw new Error("FairyGUI: old namespace sunnyboxs found in '" + resKey + "'");
+                throw new Error("FairyGUI: old namespace sunnyboxs found in '" + this._resKey + "'");
             buffer.version = buffer.getInt32();
             var compressed = buffer.readBool();
             this._id = buffer.readUTFString();
@@ -13357,7 +13380,7 @@ window.fairygui = window.fgui;
             }
             buffer.seek(indexTablePos, 1);
             var pi;
-            resKey = resKey + "_";
+            var fileNamePrefix = this._resKey + "_";
             cnt = buffer.getUint16();
             for (i = 0; i < cnt; i++) {
                 nextPos = buffer.getInt32();
@@ -13419,7 +13442,7 @@ window.fairygui = window.fgui;
                     case fgui.PackageItemType.Sound:
                     case fgui.PackageItemType.Misc:
                         {
-                            pi.file = resKey + pi.file;
+                            pi.file = fileNamePrefix + pi.file;
                             break;
                         }
                 }

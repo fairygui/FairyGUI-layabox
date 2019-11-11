@@ -111,7 +111,7 @@ namespace fgui {
         }
 
         private createCell(node: GTreeNode): void {
-            var child: GComponent = this.getFromPool(node._resURL) as GComponent;
+            var child: GComponent = this.getFromPool(node._resURL?node._resURL:this.defaultItem) as GComponent;
             if (!child)
                 throw new Error("cannot create tree node object.");
 
