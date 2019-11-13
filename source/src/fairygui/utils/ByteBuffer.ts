@@ -90,6 +90,7 @@ namespace fgui {
         public readBuffer(): ByteBuffer {
             var count: number = this.getUint32();
             var ba: ByteBuffer = new ByteBuffer(this.buffer, this._pos_, count);
+            this.pos += count;
             ba.stringTable = this.stringTable;
             ba.version = this.version;
             return ba;

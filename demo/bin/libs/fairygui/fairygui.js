@@ -9316,6 +9316,7 @@ window.fairygui = window.fgui;
 (function (fgui) {
     class GTreeNode {
         constructor(hasChild, resURL) {
+            this._expanded = false;
             this._level = 0;
             this._resURL = resURL;
             if (hasChild)
@@ -16690,6 +16691,7 @@ window.fairygui = window.fgui;
         readBuffer() {
             var count = this.getUint32();
             var ba = new ByteBuffer(this.buffer, this._pos_, count);
+            this.pos += count;
             ba.stringTable = this.stringTable;
             ba.version = this.version;
             return ba;
