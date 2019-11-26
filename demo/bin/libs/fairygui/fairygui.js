@@ -4425,7 +4425,7 @@ window.fairygui = window.fgui;
                         ["arcTo", 0, 0, this._cornerRadius[0], 0, this._cornerRadius[0]],
                         ["closePath"]
                     ];
-                    gr.drawPath(0, 0, paths, { fillStyle: fillColor }, this._lineSize > 0 ? { strokeStyle: lineColor, lineWidth: this._lineSize } : null);
+                    gr.drawPath(0, 0, paths, fillColor != null ? { fillStyle: fillColor } : null, this._lineSize > 0 ? { strokeStyle: lineColor, lineWidth: this._lineSize } : null);
                 }
                 else
                     gr.drawRect(0, 0, w, h, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
