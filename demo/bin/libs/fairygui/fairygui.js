@@ -13246,11 +13246,15 @@ window.fairygui = window.fgui;
                         UIPackage._instByName[pkg.name] = pkg;
                         UIPackage._instByName[pkg._resKey] = pkg;
                         completeHandler.runWith(pkg);
-                    }));
+                    }, null, true));
                 }
-                else
+                else {
+                    UIPackage._instById[pkg.id] = pkg;
+                    UIPackage._instByName[pkg.name] = pkg;
+                    UIPackage._instByName[pkg._resKey] = pkg;
                     completeHandler.runWith(pkg);
-            });
+                }
+            }, null, true);
             fgui.AssetProxy.inst.load(url, descCompleteHandler, null, Laya.Loader.BUFFER);
         }
         static removePackage(packageIdOrName) {

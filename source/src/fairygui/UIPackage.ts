@@ -108,11 +108,17 @@ namespace fgui {
                         UIPackage._instByName[pkg._resKey] = pkg;
 
                         completeHandler.runWith(pkg);
-                    }));
+                    }, null, true));
                 }
                 else
+                {
+                    UIPackage._instById[pkg.id] = pkg;
+                    UIPackage._instByName[pkg.name] = pkg;
+                    UIPackage._instByName[pkg._resKey] = pkg;
+
                     completeHandler.runWith(pkg);
-            });
+                }
+            }, null, true);
 
             AssetProxy.inst.load(url, descCompleteHandler, null, Laya.Loader.BUFFER);
         }
