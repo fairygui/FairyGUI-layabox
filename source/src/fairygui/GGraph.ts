@@ -41,7 +41,7 @@ namespace fgui {
         }
 
         public drawRegularPolygon(lineSize: number, lineColor: string, fillColor: string, sides: number, startAngle: number = 0, distances: number[] = null): void {
-            this._type = 3;
+            this._type = 4;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
@@ -52,7 +52,7 @@ namespace fgui {
         }
 
         public drawPolygon(lineSize: number, lineColor: string, fillColor: string, points: any[]): void {
-            this._type = 4;
+            this._type = 3;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;

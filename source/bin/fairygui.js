@@ -4358,7 +4358,7 @@ window.fairygui = window.fgui;
             this.updateGraph();
         }
         drawRegularPolygon(lineSize, lineColor, fillColor, sides, startAngle = 0, distances = null) {
-            this._type = 3;
+            this._type = 4;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
@@ -4368,7 +4368,7 @@ window.fairygui = window.fgui;
             this.updateGraph();
         }
         drawPolygon(lineSize, lineColor, fillColor, points) {
-            this._type = 4;
+            this._type = 3;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
