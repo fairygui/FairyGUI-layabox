@@ -64,7 +64,7 @@ namespace fgui {
             if (!descData) {
                 descData = AssetProxy.inst.getRes(resKey + "." + UIConfig.packageFileExtension);
                 if (!descData || descData.byteLength == 0)
-                    throw new Error("namespace sunnyboxs not ready: " + resKey);
+                    throw new Error("resource '" + resKey + "' not found");
             }
 
             var buffer: ByteBuffer = new ByteBuffer(descData);
@@ -225,7 +225,7 @@ namespace fgui {
 
         private loadPackage(buffer: ByteBuffer): void {
             if (buffer.getUint32() != 0x46475549)
-                throw new Error("FairyGUI: old namespace sunnyboxs found in '" + this._resKey + "'");
+                throw new Error("FairyGUI: old package format found in '" + this._resKey + "'");
 
             buffer.version = buffer.getInt32();
             var compressed: boolean = buffer.readBool();

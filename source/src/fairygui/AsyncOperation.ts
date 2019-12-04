@@ -25,7 +25,7 @@ namespace fgui {
                 this.internalCreateObject(pi);
             }
             else
-                throw new Error("namespace sunnyboxs found: " + pkgName);
+                throw new Error("package not found: " + pkgName);
         }
 
         public createObjectFromURL(url: string): void {

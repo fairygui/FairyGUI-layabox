@@ -39,7 +39,7 @@ window.fairygui = window.fgui;
                 this.internalCreateObject(pi);
             }
             else
-                throw new Error("namespace sunnyboxs found: " + pkgName);
+                throw new Error("package not found: " + pkgName);
         }
         createObjectFromURL(url) {
             var pi = fgui.UIPackage.getItemByURL(url);
@@ -13209,7 +13209,7 @@ window.fairygui = window.fgui;
             if (!descData) {
                 descData = fgui.AssetProxy.inst.getRes(resKey + "." + fgui.UIConfig.packageFileExtension);
                 if (!descData || descData.byteLength == 0)
-                    throw new Error("namespace sunnyboxs not ready: " + resKey);
+                    throw new Error("Resource '" + resKey + "' not found");
             }
             var buffer = new fgui.ByteBuffer(descData);
             var pkg = new UIPackage();
@@ -13342,7 +13342,7 @@ window.fairygui = window.fgui;
         }
         loadPackage(buffer) {
             if (buffer.getUint32() != 0x46475549)
-                throw new Error("FairyGUI: old namespace sunnyboxs found in '" + this._resKey + "'");
+                throw new Error("FairyGUI: old package format found in '" + this._resKey + "'");
             buffer.version = buffer.getInt32();
             var compressed = buffer.readBool();
             this._id = buffer.readUTFString();
