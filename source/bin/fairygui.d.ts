@@ -471,7 +471,6 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class GTextField extends GObject {
-        protected _gearColor: GearColor;
         protected _templateVars: Object;
         protected _text: string;
         protected _autoSize: number;
@@ -501,7 +500,6 @@ declare namespace fgui {
         templateVars: Object;
         setVar(name: string, value: string): GTextField;
         flushVars(): void;
-        handleControllerChanged(c: Controller): void;
         getProp(index: number): any;
         setProp(index: number, value: any): void;
         setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
@@ -1087,7 +1085,6 @@ declare namespace fgui {
 declare namespace fgui {
     class GRichTextField extends GTextField {
         private _div;
-        private _color;
         constructor();
         protected createDisplayObject(): void;
         readonly div: Laya.HTMLDivElement;
@@ -1104,6 +1101,7 @@ declare namespace fgui {
         strokeColor: string;
         ubbEnabled: boolean;
         readonly textWidth: number;
+        private refresh;
         protected updateAutoSize(): void;
         protected handleSizeChanged(): void;
     }

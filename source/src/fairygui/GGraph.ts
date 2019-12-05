@@ -76,6 +76,7 @@ namespace fgui {
 
         public set color(value: string) {
             this._fillColor = value;
+            this.updateGear(4);
             if (this._type != 0)
                 this.updateGraph();
         }

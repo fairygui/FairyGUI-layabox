@@ -105,9 +105,7 @@ namespace fgui {
         public set color(value: string) {
             if (this._color != value) {
                 this._color = value;
-
-                if (this._gearColor.controller)
-                    this._gearColor.updateState();
+                this.updateGear(4);
 
                 if (this.grayed)
                     this._textField.color = "#AAAAAA";
@@ -194,8 +192,10 @@ namespace fgui {
         }
 
         public set strokeColor(value: string) {
-            this._textField.strokeColor = value;
-            this.updateGear(4);
+            if (this._textField.strokeColor != value) {
+                this._textField.strokeColor = value;
+                this.updateGear(4);
+            }
         }
 
         protected updateAutoSize(): void {

@@ -2,8 +2,6 @@ namespace fgui {
     export class GRichTextField extends GTextField {
         private _div: Laya.HTMLDivElement;
 
-        private _color: string;
-
         constructor() {
             super();
             this._text = "";
@@ -79,15 +77,14 @@ namespace fgui {
         }
 
         public get color(): string {
-            return this._color;
+            return this._div.style.color;
         }
 
         public set color(value: string) {
-            if (this._color != value) {
-                this._color = value;
+            if (this._div.style.color != value) {
                 this._div.style.color = value;
-                if (this._gearColor.controller)
-                    this._gearColor.updateState();
+                this.refresh();
+                this.updateGear(4);
             }
         }
 
@@ -96,7 +93,10 @@ namespace fgui {
         }
 
         public set align(value: string) {
-            this._div.style.align = value;
+            if (this._div.style.align != value) {
+                this._div.style.align = value;
+                this.refresh();
+            }
         }
 
         public get valign(): string {
@@ -104,7 +104,10 @@ namespace fgui {
         }
 
         public set valign(value: string) {
-            this._div.style.valign = value;
+            if (this._div.style.valign != value) {
+                this._div.style.valign = value;
+                this.refresh();
+            }
         }
 
         public get leading(): number {
@@ -112,7 +115,10 @@ namespace fgui {
         }
 
         public set leading(value: number) {
-            this._div.style.leading = value;
+            if (this._div.style.leading != value) {
+                this._div.style.leading = value;
+                this.refresh();
+            }
         }
 
         public get bold(): boolean {
@@ -120,7 +126,10 @@ namespace fgui {
         }
 
         public set bold(value: boolean) {
-            this._div.style.bold = value;
+            if (this._div.style.bold != value) {
+                this._div.style.bold = value;
+                this.refresh();
+            }
         }
 
         public get italic(): boolean {
@@ -128,7 +137,10 @@ namespace fgui {
         }
 
         public set italic(value: boolean) {
-            this._div.style.italic = value;
+            if (this._div.style.italic != value) {
+                this._div.style.italic = value;
+                this.refresh();
+            }
         }
 
         public get stroke(): number {
@@ -136,7 +148,10 @@ namespace fgui {
         }
 
         public set stroke(value: number) {
-            this._div.style.stroke = value;
+            if (this._div.style.stroke != value) {
+                this._div.style.stroke = value;
+                this.refresh();
+            }
         }
 
         public get strokeColor(): string {
@@ -144,8 +159,11 @@ namespace fgui {
         }
 
         public set strokeColor(value: string) {
-            this._div.style.strokeColor = value;
-            this.updateGear(4);
+            if (this._div.style.strokeColor != value) {
+                this._div.style.strokeColor = value;
+                this.refresh();
+                this.updateGear(4);
+            }
         }
 
         public set ubbEnabled(value: boolean) {
@@ -161,6 +179,11 @@ namespace fgui {
             if (w > 0)
                 w += 8;
             return w;
+        }
+
+        private refresh(): void {
+            if (this._text.length > 0 && (<any>this._div)._refresh)
+                (<any>this._div)._refresh();
         }
 
         protected updateAutoSize(): void {

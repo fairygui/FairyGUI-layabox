@@ -2,7 +2,6 @@
 
 namespace fgui {
     export class GTextField extends GObject {
-        protected _gearColor: GearColor;
         protected _templateVars: Object;
         protected _text: string;
         protected _autoSize: number;
@@ -13,8 +12,6 @@ namespace fgui {
 
         constructor() {
             super();
-
-            this._gearColor = new GearColor(this);
         }
 
         public get font(): string {
@@ -208,13 +205,6 @@ namespace fgui {
 
         public flushVars(): void {
             this.text = this._text;
-        }
-
-        public handleControllerChanged(c: Controller): void {
-            super.handleControllerChanged(c);
-
-            if (this._gearColor.controller == c)
-                this._gearColor.apply();
         }
 
         public getProp(index: number): any {

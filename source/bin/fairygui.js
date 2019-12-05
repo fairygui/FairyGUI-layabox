@@ -1695,7 +1695,6 @@ window.fairygui = window.fgui;
     class GTextField extends fgui.GObject {
         constructor() {
             super();
-            this._gearColor = new fgui.GearColor(this);
         }
         get font() {
             return null;
@@ -1844,11 +1843,6 @@ window.fairygui = window.fgui;
         flushVars() {
             this.text = this._text;
         }
-        handleControllerChanged(c) {
-            super.handleControllerChanged(c);
-            if (this._gearColor.controller == c)
-                this._gearColor.apply();
-        }
         getProp(index) {
             switch (index) {
                 case fgui.ObjectPropID.Color:
@@ -1995,8 +1989,7 @@ window.fairygui = window.fgui;
         set color(value) {
             if (this._color != value) {
                 this._color = value;
-                if (this._gearColor.controller)
-                    this._gearColor.updateState();
+                this.updateGear(4);
                 if (this.grayed)
                     this._textField.color = "#AAAAAA";
                 else
@@ -2062,8 +2055,10 @@ window.fairygui = window.fgui;
             return this._textField.strokeColor;
         }
         set strokeColor(value) {
-            this._textField.strokeColor = value;
-            this.updateGear(4);
+            if (this._textField.strokeColor != value) {
+                this._textField.strokeColor = value;
+                this.updateGear(4);
+            }
         }
         updateAutoSize() {
             this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
@@ -4388,6 +4383,7 @@ window.fairygui = window.fgui;
         }
         set color(value) {
             this._fillColor = value;
+            this.updateGear(4);
             if (this._type != 0)
                 this.updateGraph();
         }
@@ -8052,58 +8048,78 @@ window.fairygui = window.fgui;
             this._div.style.fontSize = value;
         }
         get color() {
-            return this._color;
+            return this._div.style.color;
         }
         set color(value) {
-            if (this._color != value) {
-                this._color = value;
+            if (this._div.style.color != value) {
                 this._div.style.color = value;
-                if (this._gearColor.controller)
-                    this._gearColor.updateState();
+                this.refresh();
+                this.updateGear(4);
             }
         }
         get align() {
             return this._div.style.align;
         }
         set align(value) {
-            this._div.style.align = value;
+            if (this._div.style.align != value) {
+                this._div.style.align = value;
+                this.refresh();
+            }
         }
         get valign() {
             return this._div.style.valign;
         }
         set valign(value) {
-            this._div.style.valign = value;
+            if (this._div.style.valign != value) {
+                this._div.style.valign = value;
+                this.refresh();
+            }
         }
         get leading() {
             return this._div.style.leading;
         }
         set leading(value) {
-            this._div.style.leading = value;
+            if (this._div.style.leading != value) {
+                this._div.style.leading = value;
+                this.refresh();
+            }
         }
         get bold() {
             return this._div.style.bold;
         }
         set bold(value) {
-            this._div.style.bold = value;
+            if (this._div.style.bold != value) {
+                this._div.style.bold = value;
+                this.refresh();
+            }
         }
         get italic() {
             return this._div.style.italic;
         }
         set italic(value) {
-            this._div.style.italic = value;
+            if (this._div.style.italic != value) {
+                this._div.style.italic = value;
+                this.refresh();
+            }
         }
         get stroke() {
             return this._div.style.stroke;
         }
         set stroke(value) {
-            this._div.style.stroke = value;
+            if (this._div.style.stroke != value) {
+                this._div.style.stroke = value;
+                this.refresh();
+            }
         }
         get strokeColor() {
             return this._div.style.strokeColor;
         }
         set strokeColor(value) {
-            this._div.style.strokeColor = value;
-            this.updateGear(4);
+            if (this._div.style.strokeColor != value) {
+                this._div.style.strokeColor = value;
+                this.refresh();
+                this.updateGear(4);
+            }
         }
         set ubbEnabled(value) {
             this._ubbEnabled = value;
@@ -8116,6 +8132,10 @@ window.fairygui = window.fgui;
             if (w > 0)
                 w += 8;
             return w;
+        }
+        refresh() {
+            if (this._text.length > 0 && this._div._refresh)
+                this._div._refresh();
         }
         updateAutoSize() {
             this._div.style.wordWrap = !this._widthAutoSize;
@@ -13209,7 +13229,7 @@ window.fairygui = window.fgui;
             if (!descData) {
                 descData = fgui.AssetProxy.inst.getRes(resKey + "." + fgui.UIConfig.packageFileExtension);
                 if (!descData || descData.byteLength == 0)
-                    throw new Error("Resource '" + resKey + "' not found");
+                    throw new Error("resource '" + resKey + "' not found");
             }
             var buffer = new fgui.ByteBuffer(descData);
             var pkg = new UIPackage();
