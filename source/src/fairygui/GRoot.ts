@@ -289,10 +289,6 @@ namespace fgui {
             }
         }
 
-        public getObjectUnderPoint(globalX: number, globalY: number): GObject {
-            return null;
-        }
-
         public get focus(): GObject {
             if (this._focusedObject && !this._focusedObject.onStage)
                 this._focusedObject = null;

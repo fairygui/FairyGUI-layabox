@@ -11,7 +11,7 @@ gulp.task('buildJs', () => {
         .js.pipe(inject.replace('var fgui;', ''))
         .pipe(inject.prepend('window.fgui = {};\nwindow.fairygui = window.fgui;\n'))
         .pipe(inject.replace('var __extends', 'window.__extends'))
-        .pipe(minify({ ext: { min: ".min.js" } }))
+        //.pipe(minify({ ext: { min: ".min.js" } }))
         .pipe(gulp.dest('./bin'));
 })
 

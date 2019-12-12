@@ -1140,7 +1140,6 @@ declare namespace fgui {
         showTooltips(msg: string): void;
         showTooltipsWin(tooltipWin: GObject, position?: Laya.Point): void;
         hideTooltips(): void;
-        getObjectUnderPoint(globalX: number, globalY: number): GObject;
         focus: GObject;
         private setFocus;
         volumeScale: number;

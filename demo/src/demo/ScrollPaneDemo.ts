@@ -28,13 +28,14 @@ export default class ScrollPaneDemo {
 
     private onClickList(evt: Laya.Event) {
         //点击列表时，查找是否有项目处于编辑状态， 如果有就归位
+        let touchTarget = fgui.GObject.cast(evt.target);
         let cnt = this._list.numChildren;
         for (let i: number = 0; i < cnt; i++) {
             let item: fgui.GButton = this._list.getChildAt(i).asButton;
             if (item.scrollPane.posX != 0) {
                 //Check if clicked on the button
-                if (item.getChild("b0").asButton.isAncestorOf(fgui.GRoot.inst.touchTarget)
-                    || item.getChild("b1").asButton.isAncestorOf(fgui.GRoot.inst.touchTarget)) {
+                if (item.getChild("b0").asButton.isAncestorOf(touchTarget)
+                    || item.getChild("b1").asButton.isAncestorOf(touchTarget)) {
                     return;
                 }
                 item.scrollPane.setPosX(0, true);

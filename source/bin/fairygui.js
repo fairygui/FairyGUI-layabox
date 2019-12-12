@@ -8387,9 +8387,6 @@ window.fairygui = window.fgui;
                 this._tooltipWin = null;
             }
         }
-        getObjectUnderPoint(globalX, globalY) {
-            return null;
-        }
         get focus() {
             if (this._focusedObject && !this._focusedObject.onStage)
                 this._focusedObject = null;
