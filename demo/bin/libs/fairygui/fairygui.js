@@ -5824,9 +5824,9 @@ window.fairygui = window.fgui;
             if (this._virtual) {
                 var lineCount = Math.ceil(itemCount / this._curLineItemCount);
                 if (this._layout == fgui.ListLayoutType.SingleColumn || this._layout == fgui.ListLayoutType.FlowHorizontal)
-                    this.viewHeight = this.lineCount * this._itemSize.y + Math.max(0, this.lineCount - 1) * this._lineGap;
+                    this.viewHeight = lineCount * this._itemSize.y + Math.max(0, lineCount - 1) * this._lineGap;
                 else
-                    this.viewWidth = this.lineCount * this._itemSize.x + Math.max(0, this.lineCount - 1) * this._columnGap;
+                    this.viewWidth = lineCount * this._itemSize.x + Math.max(0, lineCount - 1) * this._columnGap;
             }
             else if (itemCount == 0) {
                 if (this._layout == fgui.ListLayoutType.SingleColumn || this._layout == fgui.ListLayoutType.FlowHorizontal)
@@ -8386,9 +8386,6 @@ window.fairygui = window.fgui;
                     this.removeChild(this._tooltipWin);
                 this._tooltipWin = null;
             }
-        }
-        getObjectUnderPoint(globalX, globalY) {
-            return null;
         }
         get focus() {
             if (this._focusedObject && !this._focusedObject.onStage)
