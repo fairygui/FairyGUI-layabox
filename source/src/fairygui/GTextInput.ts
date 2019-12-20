@@ -173,6 +173,12 @@ namespace fgui {
             return this._input.textWidth;
         }
 
+        public requestFocus(): void {
+            this._input.focus = true;
+
+            super.requestFocus();
+        }
+
         protected handleSizeChanged(): void {
             this._input.size(this._width, this._height);
         }

@@ -1247,6 +1247,7 @@ declare namespace fgui {
         promptText: string;
         restrict: string;
         readonly textWidth: number;
+        requestFocus(): void;
         protected handleSizeChanged(): void;
         setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
     }

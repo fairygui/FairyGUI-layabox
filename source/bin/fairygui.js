@@ -8987,6 +8987,10 @@ window.fairygui = window.fgui;
         get textWidth() {
             return this._input.textWidth;
         }
+        requestFocus() {
+            this._input.focus = true;
+            super.requestFocus();
+        }
         handleSizeChanged() {
             this._input.size(this._width, this._height);
         }
