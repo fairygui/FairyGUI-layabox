@@ -498,8 +498,8 @@ namespace fgui {
                             gr.drawTexture(glyph.texture,
                                 charX + lineIndent + Math.ceil(glyph.x * fontScale),
                                 line.y + charIndent + Math.ceil(glyph.y * fontScale),
-                                glyph.xMax * fontScale,
-                                glyph.yMax * fontScale, null, 1, color);
+                                glyph.width * fontScale,
+                                glyph.height * fontScale, null, 1, color);
                         }
                         charX += this._letterSpacing + Math.ceil(glyph.advance * fontScale);
                     }

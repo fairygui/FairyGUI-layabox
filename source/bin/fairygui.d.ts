@@ -1854,8 +1854,8 @@ declare namespace fgui {
     class BMGlyph {
         x: number;
         y: number;
-        xMax: number;
-        yMax: number;
+        width: number;
+        height: number;
         advance: number;
         lineHeight: number;
         channel: number;

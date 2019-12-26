@@ -2318,7 +2318,7 @@ window.fairygui = window.fgui;
                     if (glyph != null) {
                         charIndent = (line.height + line.textHeight) / 2 - Math.ceil(glyph.lineHeight * fontScale);
                         if (glyph.texture) {
-                            gr.drawTexture(glyph.texture, charX + lineIndent + Math.ceil(glyph.x * fontScale), line.y + charIndent + Math.ceil(glyph.y * fontScale), glyph.xMax * fontScale, glyph.yMax * fontScale, null, 1, color);
+                            gr.drawTexture(glyph.texture, charX + lineIndent + Math.ceil(glyph.x * fontScale), line.y + charIndent + Math.ceil(glyph.y * fontScale), glyph.width * fontScale, glyph.height * fontScale, null, 1, color);
                         }
                         charX += this._letterSpacing + Math.ceil(glyph.advance * fontScale);
                     }
@@ -13729,8 +13729,8 @@ window.fairygui = window.fgui;
                 var by = buffer.getInt32();
                 bg.x = buffer.getInt32();
                 bg.y = buffer.getInt32();
-                bgWidth = buffer.getInt32();
-                bgHeight = buffer.getInt32();
+                bg.width = buffer.getInt32();
+                bg.height = buffer.getInt32();
                 bg.advance = buffer.getInt32();
                 bg.channel = buffer.readByte();
                 if (bg.channel == 1)
@@ -13740,31 +13740,29 @@ window.fairygui = window.fgui;
                 else if (bg.channel == 3)
                     bg.channel = 1;
                 if (font.ttf) {
-                    bg.texture = Laya.Texture.create(mainTexture, bx + mainSprite.rect.x, by + mainSprite.rect.y, bgWidth, bgHeight);
+                    bg.texture = Laya.Texture.create(mainTexture, bx + mainSprite.rect.x, by + mainSprite.rect.y, bg.width, bg.height);
                     bg.lineHeight = lineHeight;
                 }
                 else {
                     var charImg = this._itemsById[img];
                     if (charImg) {
                         charImg = charImg.getBranch();
-                        bgWidth = charImg.width;
-                        bgHeight = charImg.height;
+                        bg.width = charImg.width;
+                        bg.height = charImg.height;
                         charImg = charImg.getHighResolution();
                         this.getItemAsset(charImg);
                         bg.texture = charImg.texture;
                     }
                     if (bg.advance == 0) {
                         if (xadvance == 0)
-                            bg.advance = bg.x + bgWidth;
+                            bg.advance = bg.x + bg.width;
                         else
                             bg.advance = xadvance;
                     }
-                    bg.lineHeight = bg.y < 0 ? bgHeight : (bg.y + bgHeight);
+                    bg.lineHeight = bg.y < 0 ? bg.height : (bg.y + bg.height);
                     if (bg.lineHeight < font.size)
                         bg.lineHeight = font.size;
                 }
-                bg.xMax = bg.x + bgWidth;
-                bg.yMax = bg.y + bgHeight;
                 buffer.pos = nextPos;
             }
         }
@@ -14135,8 +14133,8 @@ window.fairygui = window.fgui;
         constructor() {
             this.x = 0;
             this.y = 0;
-            this.xMax = 0;
-            this.yMax = 0;
+            this.width = 0;
+            this.height = 0;
             this.advance = 0;
             this.lineHeight = 0;
             this.channel = 0;

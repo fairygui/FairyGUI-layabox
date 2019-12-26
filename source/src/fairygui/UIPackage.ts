@@ -670,8 +670,8 @@ namespace fgui {
                 var by: number = buffer.getInt32();
                 bg.x = buffer.getInt32();
                 bg.y = buffer.getInt32();
-                bgWidth = buffer.getInt32();
-                bgHeight = buffer.getInt32();
+                bg.width = buffer.getInt32();
+                bg.height = buffer.getInt32();
                 bg.advance = buffer.getInt32();
                 bg.channel = buffer.readByte();
                 if (bg.channel == 1)
@@ -683,7 +683,7 @@ namespace fgui {
 
                 if (font.ttf) {
                     bg.texture = Laya.Texture.create(mainTexture,
-                        bx + mainSprite.rect.x, by + mainSprite.rect.y, bgWidth, bgHeight);
+                        bx + mainSprite.rect.x, by + mainSprite.rect.y, bg.width, bg.height);
 
                     bg.lineHeight = lineHeight;
                 }
@@ -691,8 +691,8 @@ namespace fgui {
                     var charImg: PackageItem = this._itemsById[img];
                     if (charImg) {
                         charImg = charImg.getBranch();
-                        bgWidth = charImg.width;
-                        bgHeight = charImg.height;
+                        bg.width = charImg.width;
+                        bg.height = charImg.height;
                         charImg = charImg.getHighResolution();
                         this.getItemAsset(charImg);
                         bg.texture = charImg.texture;
@@ -700,18 +700,15 @@ namespace fgui {
 
                     if (bg.advance == 0) {
                         if (xadvance == 0)
-                            bg.advance = bg.x + bgWidth;
+                            bg.advance = bg.x + bg.width;
                         else
                             bg.advance = xadvance;
                     }
 
-                    bg.lineHeight = bg.y < 0 ? bgHeight : (bg.y + bgHeight);
+                    bg.lineHeight = bg.y < 0 ? bg.height : (bg.y + bg.height);
                     if (bg.lineHeight < font.size)
                         bg.lineHeight = font.size;
                 }
-
-                bg.xMax = bg.x + bgWidth;
-                bg.yMax = bg.y + bgHeight;
 
                 buffer.pos = nextPos;
             }
