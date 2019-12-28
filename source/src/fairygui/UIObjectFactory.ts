@@ -30,11 +30,24 @@ namespace fgui {
                 pi.extensionType = extensionType;
         }
 
-        public static newObject(pi: PackageItem): GObject {
-            if (pi.extensionType)
-                return new pi.extensionType();
+        public static newObject(pi: PackageItem, userClass?: any): GObject {
+            var obj: GObject;
+
+            if (pi.type == PackageItemType.Component) {
+                if (userClass)
+                    obj = new userClass();
+                else if (pi.extensionType)
+                    obj = new pi.extensionType();
+                else
+                    obj = UIObjectFactory.newObject2(pi.objectType);
+            }
             else
-                return UIObjectFactory.newObject2(pi.objectType);
+                obj = UIObjectFactory.newObject2(pi.objectType);
+
+            if (obj)
+                obj.packageItem = pi;
+
+            return obj;
         }
 
         /**

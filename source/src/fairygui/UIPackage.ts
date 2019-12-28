@@ -495,21 +495,12 @@ namespace fgui {
         }
 
         public internalCreateObject(item: PackageItem, userClass?: any): GObject {
-            var g: GObject;
-            if (item.type == PackageItemType.Component) {
-                if (userClass)
-                    g = new userClass();
-                else
-                    g = UIObjectFactory.newObject(item);
-            }
-            else
-                g = UIObjectFactory.newObject(item);
+            var g: GObject = UIObjectFactory.newObject(item, userClass);
 
             if (g == null)
                 return null;
 
             UIPackage._constructing++;
-            g.packageItem = item;
             g.constructFromResource();
             UIPackage._constructing--;
             return g;
