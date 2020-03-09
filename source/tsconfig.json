@@ -4,7 +4,7 @@
     "target": "es6",
     "declaration": true,
     "sourceMap": false,
-    "removeComments": true,
+    "removeComments": false,
     "outFile": "./fairygui.js",
   },
   "exclude": [
