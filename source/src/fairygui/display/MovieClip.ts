@@ -254,8 +254,9 @@ namespace fgui {
                         else
                             this._status = 1; //new loop
                     }
-                    else if (this._start != 0)
+                    else{
                         this._status = 1; //new loop
+                    }
                 }
             }
 

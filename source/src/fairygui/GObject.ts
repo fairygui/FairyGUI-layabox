@@ -1061,8 +1061,8 @@ namespace fgui {
             if (buffer.readBool())
                 this.grayed = true;
             var bm: number = buffer.readByte();
-            if (bm == 2)
-                this.blendMode = "lighter";
+            if (BlendMode[bm])
+                this.blendMode = BlendMode[bm];
 
             var filter: number = buffer.readByte();
             if (filter == 1) {
