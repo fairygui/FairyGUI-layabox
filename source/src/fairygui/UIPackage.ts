@@ -110,8 +110,7 @@ namespace fgui {
                         completeHandler.runWith(pkg);
                     }, null, true));
                 }
-                else
-                {
+                else {
                     UIPackage._instById[pkg.id] = pkg;
                     UIPackage._instByName[pkg.name] = pkg;
                     UIPackage._instByName[pkg._resKey] = pkg;
@@ -623,6 +622,7 @@ namespace fgui {
         }
 
         private loadFont(item: PackageItem): void {
+            item = item.getBranch();
             var font: BitmapFont = new BitmapFont();
             item.bitmapFont = font;
             var buffer: ByteBuffer = item.rawData;
