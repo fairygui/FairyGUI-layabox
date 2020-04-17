@@ -622,9 +622,9 @@ namespace fgui {
         }
 
         private loadFont(item: PackageItem): void {
-            item = item.getBranch();
             var font: BitmapFont = new BitmapFont();
             item.bitmapFont = font;
+            item = item.getBranch();
             var buffer: ByteBuffer = item.rawData;
 
             buffer.seek(0, 0);

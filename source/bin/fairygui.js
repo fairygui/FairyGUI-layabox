@@ -13874,6 +13874,7 @@ window.fairygui = window.fgui;
         loadFont(item) {
             var font = new fgui.BitmapFont();
             item.bitmapFont = font;
+            item = item.getBranch();
             var buffer = item.rawData;
             buffer.seek(0, 0);
             font.ttf = buffer.readBool();
