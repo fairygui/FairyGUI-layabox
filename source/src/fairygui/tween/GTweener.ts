@@ -315,6 +315,7 @@ namespace fgui {
 
         public _reset(): void {
             this._target = null;
+            this._propType = null;
             this._userData = null;
             this._path = null;
             this._onStart = this._onUpdate = this._onComplete = null;
