@@ -111,33 +111,65 @@ namespace fgui {
 
             var fullWidth: number = this.width - this._barMaxWidthDelta;
             var fullHeight: number = this.height - this._barMaxHeightDelta;
+            var minPercenterBUG = 0.01
             if (!this._reverse) {
                 if (this._barObjectH) {
-                    if ((this._barObjectH instanceof GImage) && (<GImage>this._barObjectH).fillMethod != FillMethod.None)
-                        (<GImage>this._barObjectH).fillAmount = percent;
+                    if ((this._barObjectH instanceof GImage) && this._barObjectH.fillMethod != FillMethod.None)
+                    {
+                       var _v = Math.max(minPercenterBUG,percent)
+                       if(_v <= minPercenterBUG) {
+                            this._barObjectH.visible = false
+                       } else {
+                            this._barObjectH.visible = true
+                            this._barObjectH.fillAmount = _v;
+                       }
+                    }
                     else
                         this._barObjectH.width = Math.floor(fullWidth * percent);
                 }
                 if (this._barObjectV) {
-                    if ((this._barObjectV instanceof GImage) && (<GImage>this._barObjectV).fillMethod != FillMethod.None)
-                        (<GImage>this._barObjectV).fillAmount = percent;
+                    if ((this._barObjectV instanceof GImage) && this._barObjectV.fillMethod != FillMethod.None)
+                    {
+                        var _v = Math.max(minPercenterBUG,percent);
+                        if(_v <= minPercenterBUG) {
+                            this._barObjectV.visible = false
+                        } else {
+                            this._barObjectV.visible = true
+                            this._barObjectV.fillAmount = _v
+                        }
+                    }
                     else
                         this._barObjectV.height = Math.floor(fullHeight * percent);
                 }
             }
             else {
                 if (this._barObjectH) {
-                    if ((this._barObjectH instanceof GImage) && (<GImage>this._barObjectH).fillMethod != FillMethod.None)
-                        (<GImage>this._barObjectH).fillAmount = 1 - percent;
+                    if ((this._barObjectH instanceof GImage) && this._barObjectH.fillMethod != FillMethod.None)
+                    {
+                        var _v = Math.max(minPercenterBUG,1 - percent);
+                        if(_v <= minPercenterBUG) {
+                            this._barObjectH.visible = false
+                        } else {
+                            this._barObjectH.visible = true
+                            this._barObjectH.fillAmount = _v
+                        }
+                    }
                     else {
                         this._barObjectH.width = Math.floor(fullWidth * percent);
                         this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
                     }
-
                 }
                 if (this._barObjectV) {
-                    if ((this._barObjectV instanceof GImage) && (<GImage>this._barObjectV).fillMethod != FillMethod.None)
-                        (<GImage>this._barObjectV).fillAmount = 1 - percent;
+                    if ((this._barObjectV instanceof GImage) && this._barObjectV.fillMethod != FillMethod.None)
+                    {
+                        var _v = Math.max(minPercenterBUG,1 - percent);
+                        if(_v <= minPercenterBUG) {
+                            this._barObjectV.visible = false
+                        } else {
+                            this._barObjectV.visible = true
+                            this._barObjectV.fillAmount = _v
+                        }
+                    }
                     else {
                         this._barObjectV.height = Math.floor(fullHeight * percent);
                         this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
