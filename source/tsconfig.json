@@ -5,7 +5,7 @@
     "declaration": true,
     "sourceMap": false,
     "removeComments": false,
-    "outFile": "./bin/fairygui.js",
+    "outFile": "./fairygui.js",
   },
   "exclude": [
     "node_modules", 

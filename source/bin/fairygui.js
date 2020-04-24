@@ -1,4 +1,6 @@
-var fgui;
+window.fgui = {};
+window.fairygui = window.fgui;
+
 (function (fgui) {
     class AssetProxy {
         constructor() {
@@ -21,7 +23,7 @@ var fgui;
     }
     fgui.AssetProxy = AssetProxy;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class AsyncOperation {
         constructor() {
@@ -188,7 +190,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     fgui.BlendMode = {
         2: Laya.BlendMode.LIGHTER,
@@ -196,7 +198,7 @@ var fgui;
         4: Laya.BlendMode.SCREEN
     };
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class Controller extends Laya.EventDispatcher {
         constructor() {
@@ -423,7 +425,7 @@ var fgui;
     Controller._nextPageId = 0;
     fgui.Controller = Controller;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class DragDropManager {
         constructor() {
@@ -484,7 +486,7 @@ var fgui;
     }
     fgui.DragDropManager = DragDropManager;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class Events {
         static createEvent(type, target, source = null) {
@@ -521,7 +523,7 @@ var fgui;
     Events.$event = new Laya.Event();
     fgui.Events = Events;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     let ButtonMode;
     (function (ButtonMode) {
@@ -724,7 +726,7 @@ var fgui;
         ObjectPropID[ObjectPropID["Selected"] = 9] = "Selected";
     })(ObjectPropID = fgui.ObjectPropID || (fgui.ObjectPropID = {}));
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GObject {
         constructor() {
@@ -1702,7 +1704,7 @@ var fgui;
     fgui.GObject = GObject;
 })(fgui || (fgui = {}));
 ///<reference path="GObject.ts"/>
-var fgui;
+
 ///<reference path="GObject.ts"/>
 (function (fgui) {
     class GTextField extends fgui.GObject {
@@ -1924,7 +1926,7 @@ var fgui;
     fgui.GTextField = GTextField;
 })(fgui || (fgui = {}));
 ///<reference path="GTextField.ts"/>
-var fgui;
+
 ///<reference path="GTextField.ts"/>
 (function (fgui) {
     class GBasicTextField extends fgui.GTextField {
@@ -2468,7 +2470,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class Margin {
         constructor() {
@@ -2488,7 +2490,7 @@ var fgui;
 })(fgui || (fgui = {}));
 ///<reference path="GObject.ts"/>
 ///<reference path="Margin.ts"/>
-var fgui;
+
 ///<reference path="GObject.ts"/>
 ///<reference path="Margin.ts"/>
 (function (fgui) {
@@ -3537,7 +3539,7 @@ var fgui;
     fgui.GComponent = GComponent;
 })(fgui || (fgui = {}));
 ///<reference path="GComponent.ts"/>
-var fgui;
+
 ///<reference path="GComponent.ts"/>
 (function (fgui) {
     class GButton extends fgui.GComponent {
@@ -3984,7 +3986,7 @@ var fgui;
     GButton.SELECTED_DISABLED = "selectedDisabled";
     fgui.GButton = GButton;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GComboBox extends fgui.GComponent {
         constructor() {
@@ -4375,7 +4377,7 @@ var fgui;
     }
     fgui.GComboBox = GComboBox;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GGraph extends fgui.GObject {
         constructor() {
@@ -4606,7 +4608,7 @@ var fgui;
     }
     fgui.GGraph = GGraph;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GGroup extends fgui.GObject {
         constructor() {
@@ -4983,7 +4985,7 @@ var fgui;
     }
     fgui.GGroup = GGroup;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GImage extends fgui.GObject {
         constructor() {
@@ -5097,7 +5099,7 @@ var fgui;
     }
     fgui.GImage = GImage;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GLabel extends fgui.GComponent {
         constructor() {
@@ -5271,7 +5273,7 @@ var fgui;
     }
     fgui.GLabel = GLabel;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GList extends fgui.GComponent {
         constructor() {
@@ -7350,7 +7352,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GObjectPool {
         constructor() {
@@ -7398,7 +7400,7 @@ var fgui;
     fgui.GObjectPool = GObjectPool;
 })(fgui || (fgui = {}));
 ///<reference path="GObjectPool.ts"/>
-var fgui;
+
 ///<reference path="GObjectPool.ts"/>
 (function (fgui) {
     class GLoader extends fgui.GObject {
@@ -7800,7 +7802,7 @@ var fgui;
     GLoader._errorSignPool = new fgui.GObjectPool();
     fgui.GLoader = GLoader;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GMovieClip extends fgui.GObject {
         constructor() {
@@ -7916,7 +7918,7 @@ var fgui;
     }
     fgui.GMovieClip = GMovieClip;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GProgressBar extends fgui.GComponent {
         constructor() {
@@ -8118,7 +8120,7 @@ var fgui;
     }
     fgui.GProgressBar = GProgressBar;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GRichTextField extends fgui.GTextField {
         constructor() {
@@ -8286,7 +8288,7 @@ var fgui;
     }
     fgui.GRichTextField = GRichTextField;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GRoot extends fgui.GComponent {
         constructor() {
@@ -8646,7 +8648,7 @@ var fgui;
     GRoot.contentScaleLevel = 0;
     fgui.GRoot = GRoot;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GScrollBar extends fgui.GComponent {
         constructor() {
@@ -8773,7 +8775,7 @@ var fgui;
     GScrollBar.sScrollbarHelperPoint = new Laya.Point();
     fgui.GScrollBar = GScrollBar;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GSlider extends fgui.GComponent {
         constructor() {
@@ -8991,7 +8993,7 @@ var fgui;
     GSlider.sSilderHelperPoint = new Laya.Point();
     fgui.GSlider = GSlider;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GTextInput extends fgui.GTextField {
         constructor() {
@@ -9156,7 +9158,7 @@ var fgui;
     }
     fgui.GTextInput = GTextInput;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GTree extends fgui.GList {
         constructor() {
@@ -9472,7 +9474,7 @@ var fgui;
     GTree.helperIntList = new Array();
     fgui.GTree = GTree;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GTreeNode {
         constructor(hasChild, resURL) {
@@ -9676,7 +9678,7 @@ var fgui;
     }
     fgui.GTreeNode = GTreeNode;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class PackageItem {
         constructor() {
@@ -9712,7 +9714,7 @@ var fgui;
     }
     fgui.PackageItem = PackageItem;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class PopupMenu {
         constructor(resourceURL = null) {
@@ -9860,7 +9862,7 @@ var fgui;
     }
     fgui.PopupMenu = PopupMenu;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class RelationItem {
         constructor(owner) {
@@ -10421,7 +10423,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class Relations {
         constructor(owner) {
@@ -10553,7 +10555,7 @@ var fgui;
     }
     fgui.Relations = Relations;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class ScrollPane {
         constructor(owner) {
@@ -11988,7 +11990,7 @@ var fgui;
     ScrollPane.PULL_RATIO = 0.5; //下拉过顶或者上拉过底时允许超过的距离占显示区域的比例
     fgui.ScrollPane = ScrollPane;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class Transition {
         constructor(owner) {
@@ -13052,7 +13054,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class TranslationHelper {
         constructor() {
@@ -13270,7 +13272,7 @@ var fgui;
     TranslationHelper.strings = null;
     fgui.TranslationHelper = TranslationHelper;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class UIConfig {
         constructor() {
@@ -13314,7 +13316,7 @@ var fgui;
     UIConfig.packageFileExtension = "fui";
     fgui.UIConfig = UIConfig;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class UIObjectFactory {
         static setExtension(url, type) {
@@ -13404,7 +13406,7 @@ var fgui;
     UIObjectFactory.packageItemExtensions = {};
     fgui.UIObjectFactory = UIObjectFactory;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class UIPackage {
         constructor() {
@@ -13987,7 +13989,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class Window extends fgui.GComponent {
         constructor() {
@@ -14214,7 +14216,7 @@ var fgui;
     }
     fgui.Window = Window;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class ControllerAction {
         constructor() {
@@ -14255,7 +14257,7 @@ var fgui;
     fgui.ControllerAction = ControllerAction;
 })(fgui || (fgui = {}));
 ///<reference path="ControllerAction.ts"/>
-var fgui;
+
 ///<reference path="ControllerAction.ts"/>
 (function (fgui) {
     class ChangePageAction extends fgui.ControllerAction {
@@ -14293,7 +14295,7 @@ var fgui;
     }
     fgui.ChangePageAction = ChangePageAction;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class PlayTransitionAction extends fgui.ControllerAction {
         constructor() {
@@ -14328,7 +14330,7 @@ var fgui;
     }
     fgui.PlayTransitionAction = PlayTransitionAction;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class BitmapFont {
         constructor() {
@@ -14350,7 +14352,7 @@ var fgui;
     }
     fgui.BMGlyph = BMGlyph;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class FillUtils {
         static fill(w, h, method, origin, clockwise, amount) {
@@ -14628,7 +14630,7 @@ var fgui;
     }
     fgui.FillUtils = FillUtils;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class Image extends Laya.Sprite {
         constructor() {
@@ -14821,7 +14823,7 @@ var fgui;
     fgui.Image = Image;
 })(fgui || (fgui = {}));
 ///<reference path="./Image.ts"/>
-var fgui;
+
 ///<reference path="./Image.ts"/>
 (function (fgui) {
     class MovieClip extends fgui.Image {
@@ -15078,7 +15080,7 @@ var fgui;
     }
     fgui.Frame = Frame;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearBase {
         constructor(owner) {
@@ -15183,7 +15185,7 @@ var fgui;
     fgui.GearTweenConfig = GearTweenConfig;
 })(fgui || (fgui = {}));
 ///<reference path="GearBase.ts"/>
-var fgui;
+
 ///<reference path="GearBase.ts"/>
 (function (fgui) {
     class GearAnimation extends fgui.GearBase {
@@ -15232,7 +15234,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearColor extends fgui.GearBase {
         constructor(owner) {
@@ -15281,7 +15283,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearDisplay extends fgui.GearBase {
         constructor(owner) {
@@ -15317,7 +15319,7 @@ var fgui;
     }
     fgui.GearDisplay = GearDisplay;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearDisplay2 extends fgui.GearBase {
         constructor(owner) {
@@ -15345,7 +15347,7 @@ var fgui;
     }
     fgui.GearDisplay2 = GearDisplay2;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearFontSize extends fgui.GearBase {
         constructor(owner) {
@@ -15377,7 +15379,7 @@ var fgui;
     }
     fgui.GearFontSize = GearFontSize;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearIcon extends fgui.GearBase {
         constructor(owner) {
@@ -15408,7 +15410,7 @@ var fgui;
     }
     fgui.GearIcon = GearIcon;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearLook extends fgui.GearBase {
         constructor(owner) {
@@ -15509,7 +15511,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearSize extends fgui.GearBase {
         constructor(owner) {
@@ -15617,7 +15619,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearText extends fgui.GearBase {
         constructor(owner) {
@@ -15648,7 +15650,7 @@ var fgui;
     }
     fgui.GearText = GearText;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GearXY extends fgui.GearBase {
         constructor(owner) {
@@ -15798,7 +15800,7 @@ var fgui;
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 // EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-var fgui;
+
 // Author: Daniele Giardini - http://www.demigiant.com
 // Created: 2014/07/19 14:11
 // 
@@ -15995,7 +15997,7 @@ var fgui;
         }
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class EaseType {
     }
@@ -16033,7 +16035,7 @@ var fgui;
     EaseType.Custom = 31;
     fgui.EaseType = EaseType;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GPath {
         constructor() {
@@ -16272,7 +16274,7 @@ var fgui;
     class Segment {
     }
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     let CurveType;
     (function (CurveType) {
@@ -16338,7 +16340,7 @@ var fgui;
     }
     fgui.GPathPoint = GPathPoint;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GTween {
         static to(start, end, duration) {
@@ -16375,7 +16377,7 @@ var fgui;
     GTween.catchCallbackExceptions = true;
     fgui.GTween = GTween;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class GTweener {
         constructor() {
@@ -16780,7 +16782,7 @@ var fgui;
     GTweener.helperPoint = new Laya.Point();
     fgui.GTweener = GTweener;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class TweenManager {
         static createTween() {
@@ -16888,7 +16890,7 @@ var fgui;
     TweenManager._inited = false;
     fgui.TweenManager = TweenManager;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class TweenValue {
         constructor() {
@@ -16941,7 +16943,7 @@ var fgui;
     }
     fgui.TweenValue = TweenValue;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class ByteBuffer extends Laya.Byte {
         constructor(data = null, offset = 0, length = -1) {
@@ -17054,7 +17056,7 @@ var fgui;
     }
     fgui.ByteBuffer = ByteBuffer;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     let _func = Laya.HitArea["_isHitGraphic"];
     class ChildHitArea extends Laya.HitArea {
@@ -17080,7 +17082,7 @@ var fgui;
     }
     fgui.ChildHitArea = ChildHitArea;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class ColorMatrix {
         constructor() {
@@ -17218,7 +17220,7 @@ var fgui;
     ColorMatrix.helper = new ColorMatrix();
     fgui.ColorMatrix = ColorMatrix;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class PixelHitTest extends Laya.HitArea {
         constructor(data, offsetX = 0, offsetY = 0) {
@@ -17263,7 +17265,7 @@ var fgui;
     }
     fgui.PixelHitTestData = PixelHitTestData;
 })(fgui || (fgui = {}));
-var fgui;
+
 (function (fgui) {
     class UBBParser {
         constructor() {
@@ -17419,7 +17421,7 @@ var fgui;
     fgui.UBBParser = UBBParser;
 })(fgui || (fgui = {}));
 ///<reference path="UBBParser.ts"/>
-var fgui;
+
 ///<reference path="UBBParser.ts"/>
 (function (fgui) {
     class ToolSet {
