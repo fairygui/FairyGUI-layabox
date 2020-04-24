@@ -15,6 +15,7 @@ namespace fgui {
         public static PULL_DOWN_RELEASE: string = "fui_pull_down_release";
         public static PULL_UP_RELEASE: string = "fui_pull_up_release";
         public static GEAR_STOP: string = "fui_gear_stop";
+        public static VISIBLE_CHANGED: string = "fui_visible_changed";
 
         public static $event: Laya.Event = new Laya.Event();
 

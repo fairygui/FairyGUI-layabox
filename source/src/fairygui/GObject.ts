@@ -957,6 +957,7 @@ namespace fgui {
 
         public handleVisibleChanged(): void {
             this._displayObject.visible = this.internalVisible2;
+            this._displayObject.event(Events.VISIBLE_CHANGED)
         }
 
         public getProp(index: number): any {
