@@ -78,7 +78,7 @@ namespace fgui {
             return pkg;
         }
 
-        public static loadPackage(resKey: string, completeHandler: Laya.Handler): void {
+        public static loadPackage(resKey: string, completeHandler: Laya.Handler, progressHandler?: Laya.Handler): void {
             let pkg: UIPackage = UIPackage._instById[resKey];
             if (pkg) {
                 completeHandler.runWith(pkg);
@@ -108,7 +108,7 @@ namespace fgui {
                         UIPackage._instByName[pkg._resKey] = pkg;
 
                         completeHandler.runWith(pkg);
-                    }, null, true));
+                    }, null, true), progressHandler);
                 }
                 else {
                     UIPackage._instById[pkg.id] = pkg;
