@@ -248,6 +248,11 @@ namespace fgui {
                 return null;
         }
 
+        public setDownEffect(effectId:number,effectValue:number) {
+            this._downEffect = effectId
+            this._downEffectValue = effectValue
+        }
+
         public fireClick(downEffect: boolean = true): void {
             if (downEffect && this._mode == ButtonMode.Common) {
                 this.setState(GButton.OVER);
