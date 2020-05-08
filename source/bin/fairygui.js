@@ -1358,6 +1358,9 @@ window.fairygui = window.fgui;
         offClick(thisObj, listener) {
             this.off(Laya.Event.CLICK, thisObj, listener);
         }
+        offAllClick() {
+            this._displayObject.offAll(Laya.Event.CLICK);
+        }
         hasClickListener() {
             return this._displayObject.hasListener(Laya.Event.CLICK);
         }
@@ -3730,6 +3733,12 @@ window.fairygui = window.fgui;
                 return this._titleObject.getTextField();
             else
                 return null;
+        }
+        setDownEffect(effectId, effectValue) {
+            this._downEffect = effectId;
+            this._downEffectValue = effectValue;
+            if (this._downEffect == 2)
+                this.setPivot(0.5, 0.5, this.pivotAsAnchor);
         }
         fireClick(downEffect = true) {
             if (downEffect && this._mode == fgui.ButtonMode.Common) {

@@ -436,6 +436,7 @@ declare namespace fgui {
         dispose(): void;
         onClick(thisObj: any, listener: Function, args?: any[]): void;
         offClick(thisObj: any, listener: Function): void;
+        offAllClick(): void;
         hasClickListener(): boolean;
         on(type: string, thisObject: any, listener: Function, args?: any[]): void;
         off(type: string, thisObject: any, listener: Function): void;
@@ -719,6 +720,7 @@ declare namespace fgui {
         changeStateOnClick: boolean;
         linkedPopup: GObject;
         getTextField(): GTextField;
+        setDownEffect(effectId: number, effectValue: number): void;
         fireClick(downEffect?: boolean): void;
         protected setState(val: string): void;
         handleControllerChanged(c: Controller): void;
@@ -2497,3 +2499,4 @@ declare namespace fgui {
         static setColorFilter(obj: Laya.Sprite, color?: string | number[] | boolean): void;
     }
 }
+import fairygui = fgui;

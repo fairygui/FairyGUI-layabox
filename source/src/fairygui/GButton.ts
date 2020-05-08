@@ -251,6 +251,9 @@ namespace fgui {
         public setDownEffect(effectId:number,effectValue:number) {
             this._downEffect = effectId
             this._downEffectValue = effectValue
+
+            if (this._downEffect == 2)
+                this.setPivot(0.5, 0.5, this.pivotAsAnchor);
         }
 
         public fireClick(downEffect: boolean = true): void {

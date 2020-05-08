@@ -793,6 +793,10 @@ namespace fgui {
             this.off(Laya.Event.CLICK, thisObj, listener);
         }
 
+        public offAllClick(): void {
+            this._displayObject.offAll(Laya.Event.CLICK)
+        }
+
         public hasClickListener(): boolean {
             return this._displayObject.hasListener(Laya.Event.CLICK);
         }

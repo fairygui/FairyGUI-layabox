@@ -98,7 +98,7 @@ window.fairygui = window.fgui;
                 }
                 else {
                     di = new DisplayListItem(null, type);
-                    if (type == fgui.ObjectType.List)
+                    if (type == fgui.ObjectType.List) //list
                         di.listItemCount = this.collectListChildren(buffer);
                 }
                 this._itemList.push(di);
@@ -165,7 +165,7 @@ window.fairygui = window.fgui;
                     this._objectPool.push(obj);
                     if (di.type == fgui.ObjectType.List && di.listItemCount > 0) {
                         poolStart = this._objectPool.length - di.listItemCount - 1;
-                        for (k = 0; k < di.listItemCount; k++)
+                        for (k = 0; k < di.listItemCount; k++) //把他们都放到pool里，这样GList在创建时就不需要创建对象了
                             obj.itemPool.returnObject(this._objectPool[k + poolStart]);
                         this._objectPool.splice(poolStart, di.listItemCount);
                     }
@@ -189,6 +189,14 @@ window.fairygui = window.fgui;
             this.type = type;
         }
     }
+})(fgui || (fgui = {}));
+
+(function (fgui) {
+    fgui.BlendMode = {
+        2: Laya.BlendMode.LIGHTER,
+        3: Laya.BlendMode.MULTIPLY,
+        4: Laya.BlendMode.SCREEN
+    };
 })(fgui || (fgui = {}));
 
 (function (fgui) {
@@ -221,6 +229,7 @@ window.fairygui = window.fgui;
                 this.changing = false;
             }
         }
+        //功能和设置selectedIndex一样，但不会触发事件
         setSelectedIndex(value = 0) {
             if (this._selectedIndex != value) {
                 if (value > this._pageIds.length - 1)
@@ -247,6 +256,7 @@ window.fairygui = window.fgui;
                 i = 0;
             this.selectedIndex = i;
         }
+        //功能和设置selectedPage一样，但不会触发事件
         setSelectedPage(value) {
             var i = this._pageNames.indexOf(value);
             if (i == -1)
@@ -421,7 +431,7 @@ window.fairygui = window.fgui;
         constructor() {
             this._agent = new fgui.GLoader();
             this._agent.draggable = true;
-            this._agent.touchable = false;
+            this._agent.touchable = false; ////important
             this._agent.setSize(100, 100);
             this._agent.setPivot(0.5, 0.5, true);
             this._agent.align = "center";
@@ -458,7 +468,7 @@ window.fairygui = window.fgui;
             }
         }
         __dragEnd(evt) {
-            if (this._agent.parent == null)
+            if (this._agent.parent == null) //cancelled
                 return;
             fgui.GRoot.inst.removeChild(this._agent);
             var sourceData = this._sourceData;
@@ -510,6 +520,7 @@ window.fairygui = window.fgui;
     Events.PULL_DOWN_RELEASE = "fui_pull_down_release";
     Events.PULL_UP_RELEASE = "fui_pull_up_release";
     Events.GEAR_STOP = "fui_gear_stop";
+    Events.VISIBLE_CHANGED = "fui_visible_changed";
     Events.$event = new Laya.Event();
     fgui.Events = Events;
 })(fgui || (fgui = {}));
@@ -1013,6 +1024,7 @@ window.fairygui = window.fgui;
                 this.updateGear(3);
                 if ((this instanceof fgui.GImage) || (this instanceof fgui.GMovieClip)
                     || (this instanceof fgui.GTextField) && !(this instanceof fgui.GTextInput) && !(this instanceof fgui.GRichTextField))
+                    //Touch is not supported by GImage/GMovieClip/GTextField
                     return;
                 if (this._displayObject != null)
                     this._displayObject.mouseEnabled = this._touchable;
@@ -1346,6 +1358,9 @@ window.fairygui = window.fgui;
         offClick(thisObj, listener) {
             this.off(Laya.Event.CLICK, thisObj, listener);
         }
+        offAllClick() {
+            this._displayObject.offAll(Laya.Event.CLICK);
+        }
         hasClickListener() {
             return this._displayObject.hasListener(Laya.Event.CLICK);
         }
@@ -1479,6 +1494,7 @@ window.fairygui = window.fgui;
         }
         handleVisibleChanged() {
             this._displayObject.visible = this.internalVisible2;
+            this._displayObject.event(fgui.Events.VISIBLE_CHANGED);
         }
         getProp(index) {
             switch (index) {
@@ -1567,8 +1583,8 @@ window.fairygui = window.fgui;
             if (buffer.readBool())
                 this.grayed = true;
             var bm = buffer.readByte();
-            if (bm == 2)
-                this.blendMode = "lighter";
+            if (fgui.BlendMode[bm])
+                this.blendMode = fgui.BlendMode[bm];
             var filter = buffer.readByte();
             if (filter == 1) {
                 fgui.ToolSet.setColorFilter(this._displayObject, [buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()]);
@@ -1678,18 +1694,23 @@ window.fairygui = window.fgui;
                 fgui.Events.dispatch(fgui.Events.DRAG_END, this._displayObject, evt);
             }
         }
+        //-------------------------------------------------------------------
         static cast(sprite) {
             return (sprite["$owner"]);
         }
     }
     GObject._gInstanceCounter = 0;
+    //drag support
+    //-------------------------------------------------------------------
     GObject.sGlobalDragStart = new Laya.Point();
     GObject.sGlobalRect = new Laya.Rectangle();
     GObject.sHelperPoint = new Laya.Point();
     GObject.sDragHelperRect = new Laya.Rectangle();
     fgui.GObject = GObject;
 })(fgui || (fgui = {}));
+///<reference path="GObject.ts"/>
 
+///<reference path="GObject.ts"/>
 (function (fgui) {
     class GTextField extends fgui.GObject {
         constructor() {
@@ -1788,7 +1809,8 @@ window.fairygui = window.fgui;
             var value;
             var result = "";
             while ((pos2 = template.indexOf("{", pos1)) != -1) {
-                if (pos2 > 0 && template.charCodeAt(pos2 - 1) == 92) {
+                if (pos2 > 0 && template.charCodeAt(pos2 - 1) == 92) //\
+                 {
                     result += template.substring(pos1, pos2 - 1);
                     result += "{";
                     pos1 = pos2 + 1;
@@ -1893,7 +1915,7 @@ window.fairygui = window.fgui;
                 this.strokeColor = buffer.readColorS();
                 this.stroke = buffer.getFloat32() + 1;
             }
-            if (buffer.readBool())
+            if (buffer.readBool()) //shadow
                 buffer.skip(12);
             if (buffer.readBool())
                 this._templateVars = {};
@@ -1908,7 +1930,9 @@ window.fairygui = window.fgui;
     }
     fgui.GTextField = GTextField;
 })(fgui || (fgui = {}));
+///<reference path="GTextField.ts"/>
 
+///<reference path="GTextField.ts"/>
 (function (fgui) {
     class GBasicTextField extends fgui.GTextField {
         constructor() {
@@ -1942,7 +1966,7 @@ window.fairygui = window.fgui;
                 var text2 = this._text;
                 if (this._templateVars != null)
                     text2 = this.parseTemplate(text2);
-                if (this._ubbEnabled)
+                if (this._ubbEnabled) //laya还不支持同一个文本不同样式
                     this._textField.text = fgui.ToolSet.removeUBB(fgui.ToolSet.encodeHTML(text2));
                 else
                     this._textField.text = text2;
@@ -2060,6 +2084,11 @@ window.fairygui = window.fgui;
             }
         }
         updateAutoSize() {
+            /*一般没有剪裁文字的需要，感觉HIDDEN有消耗，所以不用了
+            if(this._heightAutoSize)
+            this._textField.overflow = Text.VISIBLE;
+            else
+            this._textField.overflow = Text.HIDDEN;*/
             this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
             if (!this._underConstruct) {
                 if (!this._heightAutoSize)
@@ -2172,7 +2201,8 @@ window.fairygui = window.fgui;
                     wordEnd = 0;
                     continue;
                 }
-                if (cc >= 65 && cc <= 90 || cc >= 97 && cc <= 122) {
+                if (cc >= 65 && cc <= 90 || cc >= 97 && cc <= 122) //a-z,A-Z
+                 {
                     if (wordChars == 0)
                         wordStart = lineWidth;
                     wordChars++;
@@ -2211,10 +2241,10 @@ window.fairygui = window.fgui;
                     line = LineInfo.borrow();
                     line.height = lineHeight;
                     line.textHeight = lineTextHeight;
-                    if (lineBuffer.length == 0) {
+                    if (lineBuffer.length == 0) { //the line cannt fit even a char
                         line.text = ch;
                     }
-                    else if (wordChars > 0 && wordEnd > 0) {
+                    else if (wordChars > 0 && wordEnd > 0) { //if word had broken, move it to new line
                         lineBuffer += ch;
                         var len = lineBuffer.length - wordChars;
                         line.text = fgui.ToolSet.trimRight(lineBuffer.substr(0, len));
@@ -2324,8 +2354,8 @@ window.fairygui = window.fgui;
                     else {
                         charX += this._letterSpacing;
                     }
-                }
-            }
+                } //this.text loop
+            } //line loop
         }
         handleSizeChanged() {
             if (this._updatingSize)
@@ -2421,7 +2451,7 @@ window.fairygui = window.fgui;
             this._lock = false;
         }
         typeset() {
-            this._sizeDirty = true;
+            this._sizeDirty = true; //阻止SIZE_DELAY_CHANGE的触发
             super.typeset();
             if (!this._lock)
                 this._owner.typeset();
@@ -2463,7 +2493,11 @@ window.fairygui = window.fgui;
     }
     fgui.Margin = Margin;
 })(fgui || (fgui = {}));
+///<reference path="GObject.ts"/>
+///<reference path="Margin.ts"/>
 
+///<reference path="GObject.ts"/>
+///<reference path="Margin.ts"/>
 (function (fgui) {
     class GComponent extends fgui.GObject {
         constructor() {
@@ -2503,7 +2537,7 @@ window.fairygui = window.fgui;
             cnt = this._children.length;
             for (i = cnt - 1; i >= 0; --i) {
                 var obj = this._children[i];
-                obj.parent = null;
+                obj.parent = null; //avoid removeFromParent call
                 obj.dispose();
             }
             this._boundsChanged = false;
@@ -2663,7 +2697,7 @@ window.fairygui = window.fgui;
             var oldIndex = this._children.indexOf(child);
             if (oldIndex == -1)
                 throw "Not a child of this container";
-            if (child.sortingOrder != 0)
+            if (child.sortingOrder != 0) //no effect
                 return;
             var cnt = this._children.length;
             if (this._sortingChildCount > 0) {
@@ -2676,7 +2710,7 @@ window.fairygui = window.fgui;
             var oldIndex = this._children.indexOf(child);
             if (oldIndex == -1)
                 throw "Not a child of this container";
-            if (child.sortingOrder != 0)
+            if (child.sortingOrder != 0) //no effect
                 return oldIndex;
             var cnt = this._children.length;
             if (this._sortingChildCount > 0) {
@@ -2915,6 +2949,8 @@ window.fairygui = window.fgui;
                 }
             }
             if (myIndex < maxIndex) {
+                //如果正在applyingController，此时修改显示列表是危险的，但真正排除危险只能用显示列表的副本去做，这样性能可能损耗较大，
+                //这里取个巧，让可能漏过的child补一下handleControllerChanged，反正重复执行是无害的。
                 if (this._applyingController != null)
                     this._children[maxIndex].handleControllerChanged(this._applyingController);
                 this.swapChildrenAt(myIndex, maxIndex);
@@ -2985,9 +3021,15 @@ window.fairygui = window.fgui;
             }
             this.handleSizeChanged();
         }
+        /**
+         * @see ChildrenRenderOrder
+         */
         get childrenRenderOrder() {
             return this._childrenRenderOrder;
         }
+        /**
+         * @see ChildrenRenderOrder
+         */
         set childrenRenderOrder(value) {
             if (this._childrenRenderOrder != value) {
                 this._childrenRenderOrder = value;
@@ -3204,6 +3246,9 @@ window.fairygui = window.fgui;
         getSnappingPosition(xValue, yValue, resultPoint = null) {
             return this.getSnappingPositionWithDir(xValue, yValue, 0, 0, resultPoint);
         }
+        /**
+         * dir正数表示右移或者下移，负数表示左移或者上移
+         */
         getSnappingPositionWithDir(xValue, yValue, xDir, yDir, resultPoint = null) {
             if (!resultPoint)
                 resultPoint = new Laya.Point();
@@ -3227,9 +3272,9 @@ window.fairygui = window.fgui;
                         }
                         else {
                             prev = this._children[i - 1];
-                            if (yValue < prev.y + prev.actualHeight / 2)
+                            if (yValue < prev.y + prev.actualHeight / 2) //top half part
                                 yValue = prev.y;
-                            else
+                            else //bottom half part
                                 yValue = obj.y;
                             break;
                         }
@@ -3250,9 +3295,9 @@ window.fairygui = window.fgui;
                         }
                         else {
                             prev = this._children[i - 1];
-                            if (xValue < prev.x + prev.actualWidth / 2)
+                            if (xValue < prev.x + prev.actualWidth / 2) //top half part
                                 xValue = prev.x;
-                            else
+                            else //bottom half part
                                 xValue = obj.x;
                             break;
                         }
@@ -3403,7 +3448,7 @@ window.fairygui = window.fgui;
                 buffer.pos = nextPos;
             }
             buffer.seek(0, 4);
-            buffer.skip(2);
+            buffer.skip(2); //customData
             this.opaque = buffer.readBool();
             var maskId = buffer.getInt16();
             if (maskId != -1) {
@@ -3452,7 +3497,7 @@ window.fairygui = window.fgui;
         constructExtension(buffer) {
         }
         onConstruct() {
-            this.constructFromXML(null);
+            this.constructFromXML(null); //old version
         }
         constructFromXML(xml) {
         }
@@ -3498,7 +3543,9 @@ window.fairygui = window.fgui;
     }
     fgui.GComponent = GComponent;
 })(fgui || (fgui = {}));
+///<reference path="GComponent.ts"/>
 
+///<reference path="GComponent.ts"/>
 (function (fgui) {
     class GButton extends fgui.GComponent {
         constructor() {
@@ -3634,9 +3681,15 @@ window.fairygui = window.fgui;
         get selected() {
             return this._selected;
         }
+        /**
+         * @see ButtonMode
+         */
         get mode() {
             return this._mode;
         }
+        /**
+         * @see ButtonMode
+         */
         set mode(value) {
             if (this._mode != value) {
                 if (value == fgui.ButtonMode.Common)
@@ -3680,6 +3733,12 @@ window.fairygui = window.fgui;
                 return this._titleObject.getTextField();
             else
                 return null;
+        }
+        setDownEffect(effectId, effectValue) {
+            this._downEffect = effectId;
+            this._downEffectValue = effectValue;
+            if (this._downEffect == 2)
+                this.setPivot(0.5, 0.5, this.pivotAsAnchor);
         }
         fireClick(downEffect = true) {
             if (downEffect && this._mode == fgui.ButtonMode.Common) {
@@ -4003,9 +4062,15 @@ window.fairygui = window.fgui;
         set visibleItemCount(value) {
             this._visibleItemCount = value;
         }
+        /**
+         * @see PopupDirection
+         */
         get popupDirection() {
             return this._popupDirection;
         }
+        /**
+         * @see PopupDirection
+         */
         set popupDirection(value) {
             this._popupDirection = value;
         }
@@ -4396,7 +4461,8 @@ window.fairygui = window.fgui;
                 return;
             var fillColor = this._fillColor;
             var lineColor = this._lineColor;
-            if (fgui.ToolSet.startsWith(fillColor, "rgba")) {
+            if ( /*Render.isWebGL &&*/fgui.ToolSet.startsWith(fillColor, "rgba")) {
+                //webgl下laya未支持rgba格式
                 var arr = fillColor.substring(5, fillColor.lastIndexOf(")")).split(",");
                 var a = parseFloat(arr[3]);
                 if (a == 0)
@@ -4572,9 +4638,15 @@ window.fairygui = window.fgui;
             this._boundsChanged = false;
             super.dispose();
         }
+        /**
+         * @see GroupLayout
+         */
         get layout() {
             return this._layout;
         }
+        /**
+         * @see GroupLayout
+         */
         set layout(value) {
             if (this._layout != value) {
                 this._layout = value;
@@ -5223,10 +5295,10 @@ window.fairygui = window.fgui;
             this._columnGap = 0;
             this._lastSelectedIndex = 0;
             this._numItems = 0;
-            this._firstIndex = 0;
-            this._curLineItemCount = 0;
-            this._virtualListChanged = 0;
-            this.itemInfoVer = 0;
+            this._firstIndex = 0; //the top left index
+            this._curLineItemCount = 0; //item count in one line
+            this._virtualListChanged = 0; //1-content changed, 2-size changed
+            this.itemInfoVer = 0; //用来标志item是否在本次处理中已经被重用了
             this._trackBounds = true;
             this._pool = new fgui.GObjectPool();
             this._layout = fgui.ListLayoutType.SingleColumn;
@@ -5244,9 +5316,15 @@ window.fairygui = window.fgui;
             this._pool.clear();
             super.dispose();
         }
+        /**
+         * @see ListLayoutType
+         */
         get layout() {
             return this._layout;
         }
+        /**
+         * @see ListLayoutType
+         */
         set layout(value) {
             if (this._layout != value) {
                 this._layout = value;
@@ -5353,9 +5431,15 @@ window.fairygui = window.fgui;
                     this.setVirtualListChangedFlag(true);
             }
         }
+        /**
+         * @see ListSelectionMode
+         */
         get selectionMode() {
             return this._selectionMode;
         }
+        /**
+         * @see ListSelectionMode
+         */
         set selectionMode(value) {
             this._selectionMode = value;
         }
@@ -5624,7 +5708,7 @@ window.fairygui = window.fgui;
             if (index == -1)
                 return;
             switch (dir) {
-                case 1:
+                case 1: //up
                     if (this._layout == fgui.ListLayoutType.SingleColumn || this._layout == fgui.ListLayoutType.FlowVertical) {
                         index--;
                         if (index >= 0) {
@@ -5653,7 +5737,7 @@ window.fairygui = window.fgui;
                         }
                     }
                     break;
-                case 3:
+                case 3: //right
                     if (this._layout == fgui.ListLayoutType.SingleRow || this._layout == fgui.ListLayoutType.FlowHorizontal || this._layout == fgui.ListLayoutType.Pagination) {
                         index++;
                         if (index < this.numItems) {
@@ -5683,7 +5767,7 @@ window.fairygui = window.fgui;
                         }
                     }
                     break;
-                case 5:
+                case 5: //down
                     if (this._layout == fgui.ListLayoutType.SingleColumn || this._layout == fgui.ListLayoutType.FlowVertical) {
                         index++;
                         if (index < this.numItems) {
@@ -5713,7 +5797,7 @@ window.fairygui = window.fgui;
                         }
                     }
                     break;
-                case 7:
+                case 7: //left
                     if (this._layout == fgui.ListLayoutType.SingleRow || this._layout == fgui.ListLayoutType.FlowHorizontal || this._layout == fgui.ListLayoutType.Pagination) {
                         index--;
                         if (index >= 0) {
@@ -5974,7 +6058,7 @@ window.fairygui = window.fgui;
                     var page = index / (this._curLineItemCount * this._curLineItemCount2);
                     rect = new Laya.Rectangle(page * this.viewWidth + (index % this._curLineItemCount) * (ii.width + this._columnGap), (index / this._curLineItemCount) % this._curLineItemCount2 * (ii.height + this._lineGap), ii.width, ii.height);
                 }
-                setFirst = true;
+                setFirst = true; //因为在可变item大小的情况下，只有设置在最顶端，位置才不会因为高度变化而改变，所以只能支持setFirst=true
                 if (this._scrollPane != null)
                     this._scrollPane.scrollToView(rect, ani, setFirst);
             }
@@ -6031,6 +6115,9 @@ window.fairygui = window.fgui;
         setVirtual() {
             this._setVirtual(false);
         }
+        /**
+         * Set the list to be virtual list, and has loop behavior.
+         */
         setVirtualAndLoop() {
             this._setVirtual(true);
         }
@@ -6073,6 +6160,11 @@ window.fairygui = window.fgui;
                 this.setVirtualListChangedFlag(true);
             }
         }
+        /**
+         * Set the list item count.
+         * If the list instanceof not virtual, specified number of items will be created.
+         * If the list instanceof virtual, only items in view will be created.
+         */
         get numItems() {
             if (this._virtual)
                 return this._numItems;
@@ -6086,9 +6178,10 @@ window.fairygui = window.fgui;
                     throw new Error("set itemRenderer first!");
                 this._numItems = value;
                 if (this._loop)
-                    this._realNumItems = this._numItems * 6;
+                    this._realNumItems = this._numItems * 6; //设置6倍数量，用于循环滚动
                 else
                     this._realNumItems = this._numItems;
+                //_virtualItems的设计是只增不减的
                 var oldCount = this._virtualItems.length;
                 if (this._realNumItems > oldCount) {
                     for (i = oldCount; i < this._realNumItems; i++) {
@@ -6104,6 +6197,7 @@ window.fairygui = window.fgui;
                 }
                 if (this._virtualListChanged != 0)
                     Laya.timer.clear(this, this._refreshVirtualList);
+                //立即刷新
                 this._refreshVirtualList();
             }
             else {
@@ -6168,7 +6262,8 @@ window.fairygui = window.fgui;
                             this._curLineItemCount = 1;
                     }
                 }
-                else {
+                else //pagination
+                 {
                     if (this._columnCount > 0)
                         this._curLineItemCount = this._columnCount;
                     else {
@@ -6385,7 +6480,8 @@ window.fairygui = window.fgui;
         handleScroll1(forceUpdate) {
             var pos = this._scrollPane.scrollingPosY;
             var max = pos + this._scrollPane.viewHeight;
-            var end = max == this._scrollPane.contentHeight;
+            var end = max == this._scrollPane.contentHeight; //这个标志表示当前需要滚动到最末，无论内容变化大小
+            //寻找当前位置的第一条项目
             GList.pos_param = pos;
             var newFirstIndex = this.getIndexOnPos1(forceUpdate);
             pos = GList.pos_param;
@@ -6424,6 +6520,7 @@ window.fairygui = window.fgui;
                     }
                 }
                 if (ii.obj == null) {
+                    //搜索最适合的重用item，保证每次刷新需要新建或者重新render的item最少
                     if (forward) {
                         for (j = reuseIndex; j >= oldFirstIndex; j--) {
                             ii2 = this._virtualItems[j];
@@ -6475,6 +6572,7 @@ window.fairygui = window.fgui;
                     if (curIndex % this._curLineItemCount == 0) {
                         deltaSize += Math.ceil(ii.obj.height) - ii.height;
                         if (curIndex == newFirstIndex && oldFirstIndex > newFirstIndex) {
+                            //当内容向下滚动时，如果新出现的项目大小发生变化，需要做一个位置补偿，才不会导致滚动跳动
                             firstItemDeltaSize = Math.ceil(ii.obj.height) - ii.height;
                         }
                     }
@@ -6483,7 +6581,7 @@ window.fairygui = window.fgui;
                 }
                 ii.updateFlag = this.itemInfoVer;
                 ii.obj.setXY(curX, curY);
-                if (curIndex == newFirstIndex)
+                if (curIndex == newFirstIndex) //要显示多一条才不会穿帮
                     max += ii.height;
                 curX += ii.width + this._columnGap;
                 if (curIndex % this._curLineItemCount == this._curLineItemCount - 1) {
@@ -6509,7 +6607,7 @@ window.fairygui = window.fgui;
             }
             if (deltaSize != 0 || firstItemDeltaSize != 0)
                 this._scrollPane.changeContentSizeOnScrolling(0, deltaSize, 0, firstItemDeltaSize);
-            if (curIndex > 0 && this.numChildren > 0 && this._container.y <= 0 && this.getChildAt(0).y > -this._container.y)
+            if (curIndex > 0 && this.numChildren > 0 && this._container.y <= 0 && this.getChildAt(0).y > -this._container.y) //最后一页没填满！
                 return true;
             else
                 return false;
@@ -6517,7 +6615,8 @@ window.fairygui = window.fgui;
         handleScroll2(forceUpdate) {
             var pos = this._scrollPane.scrollingPosX;
             var max = pos + this._scrollPane.viewWidth;
-            var end = pos == this._scrollPane.contentWidth;
+            var end = pos == this._scrollPane.contentWidth; //这个标志表示当前需要滚动到最末，无论内容变化大小
+            //寻找当前位置的第一条项目
             GList.pos_param = pos;
             var newFirstIndex = this.getIndexOnPos2(forceUpdate);
             pos = GList.pos_param;
@@ -6607,6 +6706,7 @@ window.fairygui = window.fgui;
                     if (curIndex % this._curLineItemCount == 0) {
                         deltaSize += Math.ceil(ii.obj.width) - ii.width;
                         if (curIndex == newFirstIndex && oldFirstIndex > newFirstIndex) {
+                            //当内容向下滚动时，如果新出现的一个项目大小发生变化，需要做一个位置补偿，才不会导致滚动跳动
                             firstItemDeltaSize = Math.ceil(ii.obj.width) - ii.width;
                         }
                     }
@@ -6615,7 +6715,7 @@ window.fairygui = window.fgui;
                 }
                 ii.updateFlag = this.itemInfoVer;
                 ii.obj.setXY(curX, curY);
-                if (curIndex == newFirstIndex)
+                if (curIndex == newFirstIndex) //要显示多一条才不会穿帮
                     max += ii.width;
                 curY += ii.height + this._lineGap;
                 if (curIndex % this._curLineItemCount == this._curLineItemCount - 1) {
@@ -6641,13 +6741,14 @@ window.fairygui = window.fgui;
             }
             if (deltaSize != 0 || firstItemDeltaSize != 0)
                 this._scrollPane.changeContentSizeOnScrolling(deltaSize, 0, firstItemDeltaSize, 0);
-            if (curIndex > 0 && this.numChildren > 0 && this._container.x <= 0 && this.getChildAt(0).x > -this._container.x)
+            if (curIndex > 0 && this.numChildren > 0 && this._container.x <= 0 && this.getChildAt(0).x > -this._container.x) //最后一页没填满！
                 return true;
             else
                 return false;
         }
         handleScroll3(forceUpdate) {
             var pos = this._scrollPane.scrollingPosX;
+            //寻找当前位置的第一条项目
             GList.pos_param = pos;
             var newFirstIndex = this.getIndexOnPos3(forceUpdate);
             pos = GList.pos_param;
@@ -6655,6 +6756,7 @@ window.fairygui = window.fgui;
                 return;
             var oldFirstIndex = this._firstIndex;
             this._firstIndex = newFirstIndex;
+            //分页模式不支持不等高，所以渲染满一页就好了
             var reuseIndex = oldFirstIndex;
             var virtualItemCount = this._virtualItems.length;
             var pageSize = this._curLineItemCount * this._curLineItemCount2;
@@ -6662,7 +6764,7 @@ window.fairygui = window.fgui;
             var viewWidth = this.viewWidth;
             var page = Math.floor(newFirstIndex / pageSize);
             var startIndex = page * pageSize;
-            var lastIndex = startIndex + pageSize * 2;
+            var lastIndex = startIndex + pageSize * 2; //测试两页
             var needRender;
             var i;
             var ii, ii2;
@@ -6671,6 +6773,7 @@ window.fairygui = window.fgui;
             var partWidth = (this._scrollPane.viewWidth - this._columnGap * (this._curLineItemCount - 1)) / this._curLineItemCount;
             var partHeight = (this._scrollPane.viewHeight - this._lineGap * (this._curLineItemCount2 - 1)) / this._curLineItemCount2;
             this.itemInfoVer++;
+            //先标记这次要用到的项目
             for (i = startIndex; i < lastIndex; i++) {
                 if (i >= this._realNumItems)
                     continue;
@@ -6695,6 +6798,7 @@ window.fairygui = window.fgui;
                 if (ii.updateFlag != this.itemInfoVer)
                     continue;
                 if (ii.obj == null) {
+                    //寻找看有没有可重用的
                     while (reuseIndex < virtualItemCount) {
                         ii2 = this._virtualItems[reuseIndex];
                         if (ii2.obj != null && ii2.updateFlag != this.itemInfoVer) {
@@ -6745,6 +6849,7 @@ window.fairygui = window.fgui;
                     ii.height = Math.ceil(ii.obj.height);
                 }
             }
+            //排列item
             var borderX = (startIndex / pageSize) * viewWidth;
             var xx = borderX;
             var yy = 0;
@@ -6770,6 +6875,7 @@ window.fairygui = window.fgui;
                 else
                     xx += ii.width + this._columnGap;
             }
+            //释放未使用的
             for (i = reuseIndex; i < virtualItemCount; i++) {
                 ii = this._virtualItems[i];
                 if (ii.updateFlag != this.itemInfoVer && ii.obj != null) {
@@ -6944,6 +7050,7 @@ window.fairygui = window.fgui;
                                 if (child.height > maxHeight)
                                     maxHeight = child.height;
                             }
+                            //new line
                             curY += Math.ceil(maxHeight) + this._lineGap;
                             maxHeight = 0;
                             j = 0;
@@ -6963,6 +7070,7 @@ window.fairygui = window.fgui;
                             curX += this._columnGap;
                         if (this._columnCount != 0 && j >= this._columnCount
                             || this._columnCount == 0 && curX + child.width > viewWidth && maxHeight != 0) {
+                            //new line
                             curX = 0;
                             curY += Math.ceil(maxHeight) + this._lineGap;
                             maxHeight = 0;
@@ -7006,6 +7114,7 @@ window.fairygui = window.fgui;
                                 if (child.width > maxWidth)
                                     maxWidth = child.width;
                             }
+                            //new line
                             curX += Math.ceil(maxWidth) + this._columnGap;
                             maxWidth = 0;
                             j = 0;
@@ -7042,7 +7151,8 @@ window.fairygui = window.fgui;
                     ch = Math.ceil(maxHeight);
                 }
             }
-            else {
+            else //pagination
+             {
                 var eachHeight;
                 if (this._autoResizeItem && this._lineCount > 0)
                     eachHeight = Math.floor((viewHeight - (this._lineCount - 1) * this._lineGap) / this._lineCount);
@@ -7053,6 +7163,7 @@ window.fairygui = window.fgui;
                             continue;
                         if (j == 0 && (this._lineCount != 0 && k >= this._lineCount
                             || this._lineCount == 0 && curY + child.height > viewHeight)) {
+                            //new page
                             page++;
                             curY = 0;
                             k = 0;
@@ -7077,6 +7188,7 @@ window.fairygui = window.fgui;
                                 if (child.height > maxHeight)
                                     maxHeight = child.height;
                             }
+                            //new line
                             curY += Math.ceil(maxHeight) + this._lineGap;
                             maxHeight = 0;
                             j = 0;
@@ -7097,13 +7209,15 @@ window.fairygui = window.fgui;
                             child.setSize(child.width, eachHeight, true);
                         if (this._columnCount != 0 && j >= this._columnCount
                             || this._columnCount == 0 && curX + child.width > viewWidth && maxHeight != 0) {
+                            //new line
                             curX = 0;
                             curY += Math.ceil(maxHeight) + this._lineGap;
                             maxHeight = 0;
                             j = 0;
                             k++;
                             if (this._lineCount != 0 && k >= this._lineCount
-                                || this._lineCount == 0 && curY + child.height > viewHeight && maxWidth != 0) {
+                                || this._lineCount == 0 && curY + child.height > viewHeight && maxWidth != 0) //new page
+                             {
                                 page++;
                                 curY = 0;
                                 k = 0;
@@ -7156,7 +7270,7 @@ window.fairygui = window.fgui;
             }
             else
                 this.setupOverflow(overflow);
-            if (buffer.readBool())
+            if (buffer.readBool()) //clipSoftness
                 buffer.skip(8);
             if (buffer.version >= 2) {
                 this.scrollItemToViewOnClick = buffer.readBool();
@@ -7296,7 +7410,9 @@ window.fairygui = window.fgui;
     }
     fgui.GObjectPool = GObjectPool;
 })(fgui || (fgui = {}));
+///<reference path="GObjectPool.ts"/>
 
+///<reference path="GObjectPool.ts"/>
 (function (fgui) {
     class GLoader extends fgui.GObject {
         constructor() {
@@ -7747,6 +7863,7 @@ window.fairygui = window.fgui;
         advance(timeInMiniseconds) {
             this._movieClip.advance(timeInMiniseconds);
         }
+        //从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
         setPlaySettings(start = 0, end = -1, times = 0, endAt = -1, endHandler = null) {
             this._movieClip.setPlaySettings(start, end, times, endAt, endHandler);
         }
@@ -7805,7 +7922,7 @@ window.fairygui = window.fgui;
             buffer.seek(beginPos, 5);
             if (buffer.readBool())
                 this.color = buffer.readColorS();
-            buffer.readByte();
+            buffer.readByte(); //flip
             this._movieClip.frame = buffer.getInt32();
             this._movieClip.playing = buffer.readBool();
         }
@@ -7899,32 +8016,65 @@ window.fairygui = window.fgui;
             }
             var fullWidth = this.width - this._barMaxWidthDelta;
             var fullHeight = this.height - this._barMaxHeightDelta;
+            var minPercenterBUG = 0.01;
             if (!this._reverse) {
                 if (this._barObjectH) {
-                    if ((this._barObjectH instanceof fgui.GImage) && this._barObjectH.fillMethod != fgui.FillMethod.None)
-                        this._barObjectH.fillAmount = percent;
+                    if ((this._barObjectH instanceof fgui.GImage) && this._barObjectH.fillMethod != fgui.FillMethod.None) {
+                        var _v = Math.max(minPercenterBUG, percent);
+                        if (_v <= minPercenterBUG) {
+                            this._barObjectH.visible = false;
+                        }
+                        else {
+                            this._barObjectH.visible = true;
+                            this._barObjectH.fillAmount = _v;
+                        }
+                    }
                     else
                         this._barObjectH.width = Math.floor(fullWidth * percent);
                 }
                 if (this._barObjectV) {
-                    if ((this._barObjectV instanceof fgui.GImage) && this._barObjectV.fillMethod != fgui.FillMethod.None)
-                        this._barObjectV.fillAmount = percent;
+                    if ((this._barObjectV instanceof fgui.GImage) && this._barObjectV.fillMethod != fgui.FillMethod.None) {
+                        var _v = Math.max(minPercenterBUG, percent);
+                        if (_v <= minPercenterBUG) {
+                            this._barObjectV.visible = false;
+                        }
+                        else {
+                            this._barObjectV.visible = true;
+                            this._barObjectV.fillAmount = _v;
+                        }
+                    }
                     else
                         this._barObjectV.height = Math.floor(fullHeight * percent);
                 }
             }
             else {
                 if (this._barObjectH) {
-                    if ((this._barObjectH instanceof fgui.GImage) && this._barObjectH.fillMethod != fgui.FillMethod.None)
-                        this._barObjectH.fillAmount = 1 - percent;
+                    if ((this._barObjectH instanceof fgui.GImage) && this._barObjectH.fillMethod != fgui.FillMethod.None) {
+                        var _v = Math.max(minPercenterBUG, 1 - percent);
+                        if (_v <= minPercenterBUG) {
+                            this._barObjectH.visible = false;
+                        }
+                        else {
+                            this._barObjectH.visible = true;
+                            this._barObjectH.fillAmount = _v;
+                        }
+                    }
                     else {
                         this._barObjectH.width = Math.floor(fullWidth * percent);
                         this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
                     }
                 }
                 if (this._barObjectV) {
-                    if ((this._barObjectV instanceof fgui.GImage) && this._barObjectV.fillMethod != fgui.FillMethod.None)
-                        this._barObjectV.fillAmount = 1 - percent;
+                    if ((this._barObjectV instanceof fgui.GImage) && this._barObjectV.fillMethod != fgui.FillMethod.None) {
+                        var _v = Math.max(minPercenterBUG, 1 - percent);
+                        if (_v <= minPercenterBUG) {
+                            this._barObjectV.visible = false;
+                        }
+                        else {
+                            this._barObjectV.visible = true;
+                            this._barObjectV.fillAmount = _v;
+                        }
+                    }
                     else {
                         this._barObjectV.height = Math.floor(fullHeight * percent);
                         this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
@@ -8497,11 +8647,11 @@ window.fairygui = window.fgui;
             var mat = Laya.stage._canvasTransform;
             var ss = Math.max(mat.getScaleX(), mat.getScaleY());
             if (ss >= 3.5)
-                GRoot.contentScaleLevel = 3;
+                GRoot.contentScaleLevel = 3; //x4
             else if (ss >= 2.5)
-                GRoot.contentScaleLevel = 2;
+                GRoot.contentScaleLevel = 2; //x3
             else if (ss >= 1.5)
-                GRoot.contentScaleLevel = 1;
+                GRoot.contentScaleLevel = 1; //x2
             else
                 GRoot.contentScaleLevel = 0;
         }
@@ -8652,6 +8802,7 @@ window.fairygui = window.fgui;
             this._barStartX = 0;
             this._barStartY = 0;
             this.changeOnClick = true;
+            /**是否可拖动开关**/
             this.canDrag = true;
             this._titleType = fgui.ProgressTitleType.Percent;
             this._value = 50;
@@ -9271,6 +9422,8 @@ window.fairygui = window.fgui;
                 var node = item._treeNode;
                 if (node && node.isFolder && this._expandedStatusInEvt == node.expanded) {
                     if (this._clickToExpand == 2) {
+                        //if (evt.clickCount == 2)
+                        // node.expanded = !node.expanded;
                     }
                     else
                         node.expanded = !node.expanded;
@@ -9543,6 +9696,7 @@ window.fairygui = window.fgui;
             this.width = 0;
             this.height = 0;
             this.tileGridIndice = 0;
+            //movieclip
             this.interval = 0;
             this.repeatDelay = 0;
         }
@@ -9765,6 +9919,8 @@ window.fairygui = window.fgui;
             info.type = relationType;
             info.axis = (relationType <= fgui.RelationType.Right_Right || relationType == fgui.RelationType.Width || relationType >= fgui.RelationType.LeftExt_Left && relationType <= fgui.RelationType.RightExt_Right) ? 0 : 1;
             this._defs.push(info);
+            //当使用中线关联时，因为需要除以2，很容易因为奇数宽度/高度造成小数点坐标；当使用百分比时，也会造成小数坐标；
+            //所以设置了这类关联的对象，自动启用pixelSnapping
             if (usePercent || relationType == fgui.RelationType.Left_Center || relationType == fgui.RelationType.Center_Center || relationType == fgui.RelationType.Right_Center
                 || relationType == fgui.RelationType.Top_Middle || relationType == fgui.RelationType.Middle_Middle || relationType == fgui.RelationType.Bottom_Middle)
                 this._owner.pixelSnapping = true;
@@ -10887,7 +11043,7 @@ window.fairygui = window.fgui;
                     index = this.currentPageY;
                 if (index < this._pageController.pageCount) {
                     var c = this._pageController;
-                    this._pageController = null;
+                    this._pageController = null; //防止HandleControllerChanged的调用
                     c.selectedIndex = index;
                     this._pageController = c;
                 }
@@ -10966,6 +11122,7 @@ window.fairygui = window.fgui;
             this._contentSize.y += deltaHeight;
             this.handleSizeChanged();
             if (this._tweening == 1) {
+                //如果原来滚动位置是贴边，加入处理继续贴边。
                 if (deltaWidth != 0 && isRightmost && this._tweenChange.x < 0) {
                     this._xPos = this._overlapSize.x;
                     this._tweenChange.x = -this._xPos - this._tweenStart.x;
@@ -10976,6 +11133,7 @@ window.fairygui = window.fgui;
                 }
             }
             else if (this._tweening == 2) {
+                //重新调整起始位置，确保能够顺滑滚下去
                 if (deltaPosX != 0) {
                     this._container.x -= deltaPosX;
                     this._tweenStart.x -= deltaPosX;
@@ -11000,6 +11158,7 @@ window.fairygui = window.fgui;
                 }
             }
             else {
+                //如果原来滚动位置是贴边，加入处理继续贴边。
                 if (deltaWidth != 0 && isRightmost) {
                     this._xPos = this._overlapSize.x;
                     this._container.x = -this._xPos;
@@ -11048,6 +11207,7 @@ window.fairygui = window.fgui;
                 this._overlapSize.y = Math.ceil(Math.max(0, this._contentSize.y - this._viewSize.y));
             else
                 this._overlapSize.y = 0;
+            //边界检查
             this._xPos = fgui.ToolSet.clamp(this._xPos, 0, this._overlapSize.x);
             this._yPos = fgui.ToolSet.clamp(this._yPos, 0, this._overlapSize.y);
             if (this._refreshBarAxis != null) {
@@ -11104,7 +11264,8 @@ window.fairygui = window.fgui;
             }
             this.refresh2();
             fgui.Events.dispatch(fgui.Events.SCROLL, this._owner.displayObject);
-            if (this._needRefresh) {
+            if (this._needRefresh) //在onScroll事件里开发者可能修改位置，这里再刷新一次，避免闪烁
+             {
                 this._needRefresh = false;
                 Laya.timer.clear(this, this.refresh);
                 this.refresh2();
@@ -11173,7 +11334,7 @@ window.fairygui = window.fgui;
         __mouseMove() {
             if (!this._touchEffect || this.owner.isDisposed)
                 return;
-            if (ScrollPane.draggingPane != null && ScrollPane.draggingPane != this || fgui.GObject.draggingObject != null)
+            if (ScrollPane.draggingPane != null && ScrollPane.draggingPane != this || fgui.GObject.draggingObject != null) //已经有其他拖动
                 return;
             var sensitivity = fgui.UIConfig.touchScrollSensitivity;
             var pt = this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, ScrollPane.sHelperPoint);
@@ -11181,13 +11342,15 @@ window.fairygui = window.fgui;
             var sv, sh, st;
             if (this._scrollType == fgui.ScrollType.Vertical) {
                 if (!this._isHoldAreaDone) {
+                    //表示正在监测垂直方向的手势
                     ScrollPane._gestureFlag |= 1;
                     diff = Math.abs(this._beginTouchPos.y - pt.y);
                     if (diff < sensitivity)
                         return;
-                    if ((ScrollPane._gestureFlag & 2) != 0) {
+                    if ((ScrollPane._gestureFlag & 2) != 0) //已经有水平方向的手势在监测，那么我们用严格的方式检查是不是按垂直方向移动，避免冲突
+                     {
                         diff2 = Math.abs(this._beginTouchPos.x - pt.x);
-                        if (diff < diff2)
+                        if (diff < diff2) //不通过则不允许滚动了
                             return;
                     }
                 }
@@ -11261,6 +11424,7 @@ window.fairygui = window.fgui;
                 else
                     this._container.x = newPosX;
             }
+            //更新速度
             var frameRate = Laya.stage.frameRate == Laya.Stage.FRAME_SLOW ? 30 : 60;
             var now = Laya.timer.currTimer / 1000;
             var deltaTime = Math.max(now - this._lastMoveTime, 1 / frameRate);
@@ -11272,7 +11436,8 @@ window.fairygui = window.fgui;
                 deltaPositionY = 0;
             if (deltaTime != 0) {
                 var elapsed = deltaTime * frameRate - 1;
-                if (elapsed > 1) {
+                if (elapsed > 1) //速度衰减
+                 {
                     var factor = Math.pow(0.833, elapsed);
                     this._velocity.x = this._velocity.x * factor;
                     this._velocity.y = this._velocity.y * factor;
@@ -11280,6 +11445,8 @@ window.fairygui = window.fgui;
                 this._velocity.x = fgui.ToolSet.lerp(this._velocity.x, deltaPositionX * 60 / frameRate / deltaTime, deltaTime * 10);
                 this._velocity.y = fgui.ToolSet.lerp(this._velocity.y, deltaPositionY * 60 / frameRate / deltaTime, deltaTime * 10);
             }
+            /*速度计算使用的是本地位移，但在后续的惯性滚动判断中需要用到屏幕位移，所以这里要记录一个位移的比例。
+            */
             var deltaGlobalPositionX = this._lastTouchGlobalPos.x - Laya.stage.mouseX;
             var deltaGlobalPositionY = this._lastTouchGlobalPos.y - Laya.stage.mouseY;
             if (deltaPositionX != 0)
@@ -11289,10 +11456,12 @@ window.fairygui = window.fgui;
             this._lastTouchPos.setTo(pt.x, pt.y);
             this._lastTouchGlobalPos.setTo(Laya.stage.mouseX, Laya.stage.mouseY);
             this._lastMoveTime = now;
+            //同步更新pos值
             if (this._overlapSize.x > 0)
                 this._xPos = fgui.ToolSet.clamp(-this._container.x, 0, this._overlapSize.x);
             if (this._overlapSize.y > 0)
                 this._yPos = fgui.ToolSet.clamp(-this._container.y, 0, this._overlapSize.y);
+            //循环滚动特别检查
             if (this._loop != 0) {
                 newPosX = this._container.x;
                 newPosY = this._container.y;
@@ -11374,6 +11543,7 @@ window.fairygui = window.fgui;
                 this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
             }
             else {
+                //更新速度
                 if (!this._inertiaDisabled) {
                     var frameRate = Laya.stage.frameRate == Laya.Stage.FRAME_SLOW ? 30 : 60;
                     var elapsed = (Laya.timer.currTimer / 1000 - this._lastMoveTime) * frameRate - 1;
@@ -11382,11 +11552,13 @@ window.fairygui = window.fgui;
                         this._velocity.x = this._velocity.x * factor;
                         this._velocity.y = this._velocity.y * factor;
                     }
+                    //根据速度计算目标位置和需要时间
                     this.updateTargetAndDuration(this._tweenStart, ScrollPane.sEndPos);
                 }
                 else
                     this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
                 ScrollPane.sOldChange.setTo(ScrollPane.sEndPos.x - this._tweenStart.x, ScrollPane.sEndPos.y - this._tweenStart.y);
+                //调整目标位置
                 this.loopCheckingTarget(ScrollPane.sEndPos);
                 if (this._pageMode || this._snapToItem)
                     this.alignPosition(ScrollPane.sEndPos, true);
@@ -11396,6 +11568,7 @@ window.fairygui = window.fgui;
                     this.updateScrollBarVisible();
                     return;
                 }
+                //如果目标位置已调整，随之调整需要时间
                 if (this._pageMode || this._snapToItem) {
                     this.fixDuration("x", ScrollPane.sOldChange.x);
                     this.fixDuration("y", ScrollPane.sOldChange.y);
@@ -11579,18 +11752,23 @@ window.fairygui = window.fgui;
                 var change = inertialScrolling ? (pos - this._containerPos[axis]) : (pos - this._container[axis]);
                 var testPageSize = Math.min(this._pageSize[axis], this._contentSize[axis] - (page + 1) * this._pageSize[axis]);
                 var delta = -pos - page * this._pageSize[axis];
-                if (Math.abs(change) > this._pageSize[axis]) {
+                //页面吸附策略
+                if (Math.abs(change) > this._pageSize[axis]) //如果滚动距离超过1页,则需要超过页面的一半，才能到更下一页
+                 {
                     if (delta > testPageSize * 0.5)
                         page++;
                 }
-                else {
+                else //否则只需要页面的1/3，当然，需要考虑到左移和右移的情况
+                 {
                     if (delta > testPageSize * (change < 0 ? fgui.UIConfig.defaultScrollPagingThreshold : (1 - fgui.UIConfig.defaultScrollPagingThreshold)))
                         page++;
                 }
+                //重新计算终点
                 pos = -page * this._pageSize[axis];
-                if (pos < -this._overlapSize[axis])
+                if (pos < -this._overlapSize[axis]) //最后一页未必有pageSize那么大
                     pos = -this._overlapSize[axis];
             }
+            //惯性滚动模式下，会增加判断尽量不要滚动超过一页
             if (inertialScrolling) {
                 var oldPos = this._tweenStart[axis];
                 var oldPage;
@@ -11623,9 +11801,12 @@ window.fairygui = window.fgui;
             else if (pos < -this._overlapSize[axis])
                 pos = -this._overlapSize[axis];
             else {
+                //以屏幕像素为基准
                 var v2 = Math.abs(v) * this._velocityScale;
+                //在移动设备上，需要对不同分辨率做一个适配，我们的速度判断以1136分辨率为基准
                 if (Laya.Browser.onMobile)
                     v2 *= 1136 / Math.max(Laya.stage.width, Laya.stage.height);
+                //这里有一些阈值的处理，因为在低速内，不希望产生较大的滚动（甚至不滚动）
                 var ratio = 0;
                 if (this._pageMode || !Laya.Browser.onMobile) {
                     if (v2 > 500)
@@ -11641,7 +11822,11 @@ window.fairygui = window.fgui;
                     v2 *= ratio;
                     v *= ratio;
                     this._velocity[axis] = v;
+                    //算法：v*（_decelerationRate的n次幂）= 60，即在n帧后速度降为60（假设每秒60帧）。
                     duration = Math.log(60 / v2) / Math.log(this._decelerationRate) / 60;
+                    //计算距离要使用本地速度
+                    //理论公式貌似滚动的距离不够，改为经验公式
+                    //var change:number = (v/ 60 - 1) / (1 - this._decelerationRate);
                     var change = Math.floor(v * duration * 0.4);
                     pos += change;
                 }
@@ -11666,7 +11851,8 @@ window.fairygui = window.fgui;
             this.updateScrollBarVisible();
         }
         killTween() {
-            if (this._tweening == 1) {
+            if (this._tweening == 1) //取消类型为1的tween需立刻设置到终点
+             {
                 this._container.pos(this._tweenStart.x + this._tweenChange.x, this._tweenStart.y + this._tweenChange.y);
                 fgui.Events.dispatch(fgui.Events.SCROLL, this._owner.displayObject);
             }
@@ -11770,14 +11956,16 @@ window.fairygui = window.fgui;
                 }
                 if (this._tweening == 2 && this._bouncebackEffect) {
                     if (newValue > 20 + threshold1 && this._tweenChange[axis] > 0
-                        || newValue > threshold1 && this._tweenChange[axis] == 0) {
+                        || newValue > threshold1 && this._tweenChange[axis] == 0) //开始回弹
+                     {
                         this._tweenTime[axis] = 0;
                         this._tweenDuration[axis] = ScrollPane.TWEEN_TIME_DEFAULT;
                         this._tweenChange[axis] = -newValue + threshold1;
                         this._tweenStart[axis] = newValue;
                     }
                     else if (newValue < threshold2 - 20 && this._tweenChange[axis] < 0
-                        || newValue < threshold2 && this._tweenChange[axis] == 0) {
+                        || newValue < threshold2 && this._tweenChange[axis] == 0) //开始回弹
+                     {
                         this._tweenTime[axis] = 0;
                         this._tweenDuration[axis] = ScrollPane.TWEEN_TIME_DEFAULT;
                         this._tweenChange[axis] = threshold2 - newValue;
@@ -11800,7 +11988,7 @@ window.fairygui = window.fgui;
             return newValue;
         }
         static easeFunc(t, d) {
-            return (t = t / d - 1) * t * t + 1;
+            return (t = t / d - 1) * t * t + 1; //cubicOut
         }
     }
     ScrollPane._gestureFlag = 0;
@@ -11808,9 +11996,9 @@ window.fairygui = window.fgui;
     ScrollPane.sHelperRect = new Laya.Rectangle();
     ScrollPane.sEndPos = new Laya.Point();
     ScrollPane.sOldChange = new Laya.Point();
-    ScrollPane.TWEEN_TIME_GO = 0.5;
-    ScrollPane.TWEEN_TIME_DEFAULT = 0.3;
-    ScrollPane.PULL_RATIO = 0.5;
+    ScrollPane.TWEEN_TIME_GO = 0.5; //调用SetPos(ani)时使用的缓动时间
+    ScrollPane.TWEEN_TIME_DEFAULT = 0.3; //惯性滚动的最小缓动时间
+    ScrollPane.PULL_RATIO = 0.5; //下拉过顶或者上拉过底时允许超过的距离占显示区域的比例
     fgui.ScrollPane = ScrollPane;
 })(fgui || (fgui = {}));
 
@@ -11875,7 +12063,8 @@ window.fairygui = window.fgui;
                     if (trans == this)
                         trans = null;
                     if (trans != null) {
-                        if (item.value.playTimes == 0) {
+                        if (item.value.playTimes == 0) //this.stop
+                         {
                             var j;
                             for (j = i - 1; j >= 0; j--) {
                                 var item2 = this._items[j];
@@ -11889,7 +12078,7 @@ window.fairygui = window.fgui;
                             if (j < 0)
                                 item.value.stopTime = 0;
                             else
-                                trans = null;
+                                trans = null; //no need to handle this.stop anymore
                         }
                         else
                             item.value.stopTime = -1;
@@ -11910,7 +12099,7 @@ window.fairygui = window.fgui;
             this._totalTimes = 0;
             var handler = this._onComplete;
             this._onComplete = null;
-            fgui.GTween.kill(this);
+            fgui.GTween.kill(this); //delay start
             var cnt = this._items.length;
             if (this._reversed) {
                 for (var i = cnt - 1; i >= 0; i--) {
@@ -11940,7 +12129,8 @@ window.fairygui = window.fgui;
             if (item.tweener != null) {
                 item.tweener.kill(setToComplete);
                 item.tweener = null;
-                if (item.type == TransitionActionType.Shake && !setToComplete) {
+                if (item.type == TransitionActionType.Shake && !setToComplete) //震动必须归位，否则下次就越震越远了。
+                 {
                     item.target._gearLocked = true;
                     item.target.setXY(item.target.x - item.value.lastOffsetX, item.target.y - item.value.lastOffsetY);
                     item.target._gearLocked = false;
@@ -11982,7 +12172,7 @@ window.fairygui = window.fgui;
         }
         dispose() {
             if (this._playing)
-                fgui.GTween.kill(this);
+                fgui.GTween.kill(this); //delay start
             var cnt = this._items.length;
             for (var i = 0; i < cnt; i++) {
                 var item = this._items[i];
@@ -12412,7 +12602,8 @@ window.fairygui = window.fgui;
         }
         onTweenStart(tweener) {
             var item = tweener.target;
-            if (item.type == TransitionActionType.XY || item.type == TransitionActionType.Size) {
+            if (item.type == TransitionActionType.XY || item.type == TransitionActionType.Size) //位置和大小要到start才最终确认起始值
+             {
                 var startValue;
                 var endValue;
                 if (this._reversed) {
@@ -12427,11 +12618,11 @@ window.fairygui = window.fgui;
                     if (item.target != this._owner) {
                         if (!startValue.b1)
                             tweener.startValue.x = item.target.x;
-                        else if (startValue.b3)
+                        else if (startValue.b3) //percent
                             tweener.startValue.x = startValue.f1 * this._owner.width;
                         if (!startValue.b2)
                             tweener.startValue.y = item.target.y;
-                        else if (startValue.b3)
+                        else if (startValue.b3) //percent
                             tweener.startValue.y = startValue.f2 * this._owner.height;
                         if (!endValue.b1)
                             tweener.endValue.x = tweener.startValue.x;
@@ -12508,7 +12699,7 @@ window.fairygui = window.fgui;
             var item = tweener.target;
             item.tweener = null;
             this._totalTasks--;
-            if (tweener.allCompleted)
+            if (tweener.allCompleted) //当整体播放结束时间在这个tween的中间时不应该调用结尾钩子
                 this.callHook(item, true);
             this.checkAllComplete();
         }
@@ -12568,7 +12759,8 @@ window.fairygui = window.fgui;
                             item.target.y = value.f2 + this._ownerBaseY;
                     }
                     else {
-                        if (value.b3) {
+                        if (value.b3) //position in percent
+                         {
                             if (value.b1 && value.b2)
                                 item.target.setXY(value.f1 * this._owner.width, value.f2 * this._owner.height);
                             else if (value.b1)
@@ -12743,7 +12935,7 @@ window.fairygui = window.fgui;
                     value.f1 = buffer.getFloat32();
                     value.f2 = buffer.getFloat32();
                     if (buffer.version >= 2 && item.type == TransitionActionType.XY)
-                        value.b3 = buffer.readBool();
+                        value.b3 = buffer.readBool(); //percent
                     break;
                 case TransitionActionType.Alpha:
                 case TransitionActionType.Rotation:
@@ -12940,8 +13132,9 @@ window.fairygui = window.fgui;
                 for (j = 0; j < gearCnt; j++) {
                     nextPos = buffer.getInt16();
                     nextPos += buffer.pos;
-                    if (buffer.readByte() == 6) {
-                        buffer.skip(2);
+                    if (buffer.readByte() == 6) //gearText
+                     {
+                        buffer.skip(2); //controller
                         valueCnt = buffer.getInt16();
                         for (k = 0; k < valueCnt; k++) {
                             page = buffer.readS();
@@ -12959,7 +13152,7 @@ window.fairygui = window.fgui;
                 }
                 if (baseType == fgui.ObjectType.Component && buffer.version >= 2) {
                     buffer.seek(curPos, 4);
-                    buffer.skip(2);
+                    buffer.skip(2); //pageController
                     buffer.skip(4 * buffer.getUint16());
                     var cpCount = buffer.getUint16();
                     for (var k = 0; k < cpCount; k++) {
@@ -12995,20 +13188,22 @@ window.fairygui = window.fgui;
                             for (j = 0; j < itemCount; j++) {
                                 nextPos = buffer.getUint16();
                                 nextPos += buffer.pos;
-                                buffer.skip(2);
+                                buffer.skip(2); //url
                                 if (type == fgui.ObjectType.Tree)
                                     buffer.skip(2);
+                                //title
                                 if ((value = compStrings[elementId + "-" + j]) != null)
                                     buffer.writeS(value);
                                 else
                                     buffer.skip(2);
+                                //selected title
                                 if ((value = compStrings[elementId + "-" + j + "-0"]) != null)
                                     buffer.writeS(value);
                                 else
                                     buffer.skip(2);
                                 if (buffer.version >= 2) {
                                     buffer.skip(6);
-                                    buffer.skip(buffer.getUint16() * 4);
+                                    buffer.skip(buffer.getUint16() * 4); //controllers
                                     var cpCount = buffer.getUint16();
                                     for (var k = 0; k < cpCount; k++) {
                                         var target = buffer.readS();
@@ -13094,20 +13289,38 @@ window.fairygui = window.fgui;
         constructor() {
         }
     }
+    //Default font name
     UIConfig.defaultFont = "SimSun";
+    //When a modal window is in front, the background becomes dark.
     UIConfig.modalLayerColor = "rgba(33,33,33,0.2)";
     UIConfig.buttonSoundVolumeScale = 1;
+    //Scrolling step in pixels
     UIConfig.defaultScrollStep = 25;
+    //Deceleration ratio of scrollpane when its in touch dragging.
     UIConfig.defaultScrollDecelerationRate = 0.967;
+    //Default scrollbar display mode. Recommened visible for Desktop and Auto for mobile.
     UIConfig.defaultScrollBarDisplay = fgui.ScrollBarDisplayType.Visible;
+    //Allow dragging the content to scroll. Recommeded true for mobile.
     UIConfig.defaultScrollTouchEffect = true;
+    //The "rebound" effect in the scolling container. Recommeded true for mobile.
     UIConfig.defaultScrollBounceEffect = true;
+    /**
+      * 当滚动容器设置为“贴近ITEM”时，判定贴近到哪一个ITEM的滚动距离阀值。
+      */
     UIConfig.defaultScrollSnappingThreshold = 0.1;
+    /**
+      * 当滚动容器设置为“页面模式”时，判定翻到哪一页的滚动距离阀值。
+      */
     UIConfig.defaultScrollPagingThreshold = 0.3;
+    //Max items displayed in combobox without scrolling.
     UIConfig.defaultComboBoxVisibleItemCount = 10;
+    // Pixel offsets of finger to trigger scrolling.
     UIConfig.touchScrollSensitivity = 20;
+    // Pixel offsets of finger to trigger dragging.
     UIConfig.touchDragSensitivity = 10;
+    // Pixel offsets of mouse pointer to trigger dragging.
     UIConfig.clickDragSensitivity = 2;
+    // When click the window, brings to front automatically.
     UIConfig.bringWindowToFrontOnClick = true;
     UIConfig.frameTimeForAsyncUIConstruction = 2;
     UIConfig.textureLinearSampling = true;
@@ -13154,6 +13367,9 @@ window.fairygui = window.fgui;
                 obj.packageItem = pi;
             return obj;
         }
+        /**
+         * @see ObjectType
+         */
         static newObject2(type) {
             switch (type) {
                 case fgui.ObjectType.Image:
@@ -13427,11 +13643,11 @@ window.fairygui = window.fgui;
                 pi.type = buffer.readByte();
                 pi.id = buffer.readS();
                 pi.name = buffer.readS();
-                buffer.readS();
+                buffer.readS(); //path
                 str = buffer.readS();
                 if (str)
                     pi.file = str;
-                buffer.readBool();
+                buffer.readBool(); //exported
                 pi.width = buffer.getInt32();
                 pi.height = buffer.getInt32();
                 switch (pi.type) {
@@ -13484,7 +13700,7 @@ window.fairygui = window.fgui;
                         }
                 }
                 if (ver2) {
-                    str = buffer.readS();
+                    str = buffer.readS(); //branch
                     if (str)
                         pi.name = str + "/" + pi.name;
                     var branchCnt = buffer.getUint8();
@@ -13640,6 +13856,8 @@ window.fairygui = window.fgui;
                     if (!item.decoded) {
                         item.decoded = true;
                         item.texture = fgui.AssetProxy.inst.getRes(item.file);
+                        //if(!fgui.UIConfig.textureLinearSampling)
+                        //item.texture.isLinearSampling = false;
                     }
                     return item.texture;
                 case fgui.PackageItemType.Font:
@@ -13685,8 +13903,8 @@ window.fairygui = window.fgui;
                 frame = new fgui.Frame();
                 fx = buffer.getInt32();
                 fy = buffer.getInt32();
-                buffer.getInt32();
-                buffer.getInt32();
+                buffer.getInt32(); //width
+                buffer.getInt32(); //height
                 frame.addDelay = buffer.getInt32();
                 spriteId = buffer.readS();
                 if (spriteId != null && (sprite = this._sprites[spriteId]) != null) {
@@ -13698,6 +13916,7 @@ window.fairygui = window.fgui;
             }
         }
         loadFont(item) {
+            item = item.getBranch();
             var font = new fgui.BitmapFont();
             item.bitmapFont = font;
             var buffer = item.rawData;
@@ -13705,7 +13924,7 @@ window.fairygui = window.fgui;
             font.ttf = buffer.readBool();
             font.tint = buffer.readBool();
             font.resizable = buffer.readBool();
-            buffer.readBool();
+            buffer.readBool(); //has channel
             font.size = buffer.getInt32();
             var xadvance = buffer.getInt32();
             var lineHeight = buffer.getInt32();
@@ -14048,7 +14267,9 @@ window.fairygui = window.fgui;
     }
     fgui.ControllerAction = ControllerAction;
 })(fgui || (fgui = {}));
+///<reference path="ControllerAction.ts"/>
 
+///<reference path="ControllerAction.ts"/>
 (function (fgui) {
     class ChangePageAction extends fgui.ControllerAction {
         constructor() {
@@ -14602,6 +14823,7 @@ window.fairygui = window.fgui;
                 return;
             var points = fgui.FillUtils.fill(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
             if (points == null) {
+                //不知道为什么，不这样操作一下空白的遮罩不能生效
                 this.mask = null;
                 this.mask = this._mask;
                 return;
@@ -14611,7 +14833,9 @@ window.fairygui = window.fgui;
     }
     fgui.Image = Image;
 })(fgui || (fgui = {}));
+///<reference path="./Image.ts"/>
 
+///<reference path="./Image.ts"/>
 (function (fgui) {
     class MovieClip extends fgui.Image {
         constructor() {
@@ -14627,9 +14851,9 @@ window.fairygui = window.fgui;
             this._end = 0;
             this._times = 0;
             this._endAt = 0;
-            this._status = 0;
+            this._status = 0; //0-none, 1-next loop, 2-ending, 3-ended
             this._endHandler = null;
-            this._frameElapsed = 0;
+            this._frameElapsed = 0; //当前帧延迟
             this._reversed = false;
             this._repeatedCount = 0;
             this.mouseEnabled = false;
@@ -14685,6 +14909,7 @@ window.fairygui = window.fgui;
                 this.checkTimer();
             }
         }
+        //从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
         rewind() {
             this._frame = 0;
             this._frameElapsed = 0;
@@ -14737,13 +14962,15 @@ window.fairygui = window.fgui;
                         this._repeatedCount++;
                     }
                 }
-                if (this._frame == beginFrame && this._reversed == beginReversed) {
-                    var roundTime = backupTime - timeInMiniseconds;
-                    timeInMiniseconds -= Math.floor(timeInMiniseconds / roundTime) * roundTime;
+                if (this._frame == beginFrame && this._reversed == beginReversed) //走了一轮了
+                 {
+                    var roundTime = backupTime - timeInMiniseconds; //这就是一轮需要的时间
+                    timeInMiniseconds -= Math.floor(timeInMiniseconds / roundTime) * roundTime; //跳过
                 }
             }
             this.drawFrame();
         }
+        //从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
         setPlaySettings(start = 0, end = -1, times = 0, endAt = -1, endHandler = null) {
             this._start = start;
             this._end = end;
@@ -14799,15 +15026,18 @@ window.fairygui = window.fgui;
                     this._repeatedCount++;
                 }
             }
-            if (this._status == 1) {
+            if (this._status == 1) //new loop
+             {
                 this._frame = this._start;
                 this._frameElapsed = 0;
                 this._status = 0;
             }
-            else if (this._status == 2) {
+            else if (this._status == 2) //ending
+             {
                 this._frame = this._endAt;
                 this._frameElapsed = 0;
-                this._status = 3;
+                this._status = 3; //ended
+                //play end
                 if (this._endHandler != null) {
                     var handler = this._endHandler;
                     this._endHandler = null;
@@ -14819,12 +15049,13 @@ window.fairygui = window.fgui;
                     if (this._times > 0) {
                         this._times--;
                         if (this._times == 0)
-                            this._status = 2;
+                            this._status = 2; //ending
                         else
-                            this._status = 1;
+                            this._status = 1; //new loop
                     }
-                    else if (this._start != 0)
-                        this._status = 1;
+                    else {
+                        this._status = 1; //new loop
+                    }
                 }
             }
             this.drawFrame();
@@ -14964,7 +15195,9 @@ window.fairygui = window.fgui;
     }
     fgui.GearTweenConfig = GearTweenConfig;
 })(fgui || (fgui = {}));
+///<reference path="GearBase.ts"/>
 
+///<reference path="GearBase.ts"/>
 (function (fgui) {
     class GearAnimation extends fgui.GearBase {
         constructor(owner) {
@@ -15541,7 +15774,81 @@ window.fairygui = window.fgui;
     }
     fgui.GearXY = GearXY;
 })(fgui || (fgui = {}));
+// Author: Daniele Giardini - http://www.demigiant.com
+// Created: 2014/07/19 14:11
+// 
+// License Copyright (c) Daniele Giardini.
+// This work is subject to the terms at http://dotween.demigiant.com/license.php
+// 
+// =============================================================
+// Contains Daniele Giardini's C# port of the easing equations created by Robert Penner
+// (all easing equations except for Flash, InFlash, OutFlash, InOutFlash,
+// which use some parts of Robert Penner's equations but were created by Daniele Giardini)
+// http://robertpenner.com/easing, see license below:
+// =============================================================
+//
+// TERMS OF USE - EASING EQUATIONS
+//
+// Open source under the BSD License.
+//
+// Copyright ? 2001 Robert Penner
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without modification,
+// are permitted provided that the following conditions are met:
+//
+// - Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer.
+// - Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+// - Neither the name of the author nor the names of contributors may be used to endorse
+// or promote products derived from this software without specific prior written permission.
+// - THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+// IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+// EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Author: Daniele Giardini - http://www.demigiant.com
+// Created: 2014/07/19 14:11
+// 
+// License Copyright (c) Daniele Giardini.
+// This work is subject to the terms at http://dotween.demigiant.com/license.php
+// 
+// =============================================================
+// Contains Daniele Giardini's C# port of the easing equations created by Robert Penner
+// (all easing equations except for Flash, InFlash, OutFlash, InOutFlash,
+// which use some parts of Robert Penner's equations but were created by Daniele Giardini)
+// http://robertpenner.com/easing, see license below:
+// =============================================================
+//
+// TERMS OF USE - EASING EQUATIONS
+//
+// Open source under the BSD License.
+//
+// Copyright ? 2001 Robert Penner
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without modification,
+// are permitted provided that the following conditions are met:
+//
+// - Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer.
+// - Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+// - Neither the name of the author nor the names of contributors may be used to endorse
+// or promote products derived from this software without specific prior written permission.
+// - THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+// IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+// EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (function (fgui) {
     class EaseManager {
         static evaluate(easeType, time, duration, overshootOrAmplitude, period) {
@@ -15934,7 +16241,7 @@ window.fairygui = window.fgui;
             return points;
         }
         onCRSplineCurve(ptStart, ptCount, t, result) {
-            var adjustedIndex = Math.floor(t * (ptCount - 4)) + ptStart;
+            var adjustedIndex = Math.floor(t * (ptCount - 4)) + ptStart; //Since the equation works with 4 points, we adjust the starting point depending on t to return a point on the specific segment
             var p0x = this._points[adjustedIndex].x;
             var p0y = this._points[adjustedIndex].y;
             var p1x = this._points[adjustedIndex + 1].x;
@@ -15943,7 +16250,7 @@ window.fairygui = window.fgui;
             var p2y = this._points[adjustedIndex + 2].y;
             var p3x = this._points[adjustedIndex + 3].x;
             var p3y = this._points[adjustedIndex + 3].y;
-            var adjustedT = (t == 1) ? 1 : fgui.ToolSet.repeat(t * (ptCount - 4), 1);
+            var adjustedT = (t == 1) ? 1 : fgui.ToolSet.repeat(t * (ptCount - 4), 1); // Then we adjust t to be that value on that new piece of segment... for t == 1f don't use repeat (that would return 0f);
             var t0 = ((-adjustedT + 2) * adjustedT - 1) * adjustedT * 0.5;
             var t1 = (((3 * adjustedT - 5) * adjustedT) * adjustedT + 2) * 0.5;
             var t2 = ((-3 * adjustedT + 4) * adjustedT + 1) * adjustedT * 0.5;
@@ -16196,6 +16503,9 @@ window.fairygui = window.fgui;
             this._paused = paused;
             return this;
         }
+        /**
+         * seek position of the tween, in seconds.
+         */
         seek(time) {
             if (this._killed)
                 return;
@@ -16312,6 +16622,7 @@ window.fairygui = window.fgui;
         }
         _reset() {
             this._target = null;
+            this._propType = null;
             this._userData = null;
             this._path = null;
             this._onStart = this._onUpdate = this._onComplete = null;
@@ -16322,7 +16633,8 @@ window.fairygui = window.fgui;
                 dt *= this._timeScale;
             if (dt == 0)
                 return;
-            if (this._ended != 0) {
+            if (this._ended != 0) //Maybe completed by seek
+             {
                 this.callCompleteCallback();
                 this._killed = true;
                 return;
@@ -16338,7 +16650,8 @@ window.fairygui = window.fgui;
         }
         update() {
             this._ended = 0;
-            if (this._valueSize == 0) {
+            if (this._valueSize == 0) //DelayedCall
+             {
                 if (this._elapsedTime >= this._delay + this._duration)
                     this._ended = 1;
                 return;
@@ -16571,7 +16884,8 @@ window.fairygui = window.fgui;
                 }
             }
             if (freePosStart >= 0) {
-                if (TweenManager._totalActiveTweens != cnt) {
+                if (TweenManager._totalActiveTweens != cnt) //new tweens added
+                 {
                     var j = cnt;
                     cnt = TweenManager._totalActiveTweens - cnt;
                     for (i = 0; i < cnt; i++)
@@ -16664,7 +16978,7 @@ window.fairygui = window.fgui;
         }
         readS() {
             var index = this.getUint16();
-            if (index == 65534)
+            if (index == 65534) //null
                 return null;
             else if (index == 65533)
                 return "";
@@ -16803,6 +17117,7 @@ window.fairygui = window.fgui;
             }
             return result;
         }
+        // public methods:
         reset() {
             for (var i = 0; i < ColorMatrix.LENGTH; i++) {
                 this.matrix[i] = ColorMatrix.IDENTITY_MATRIX[i];
@@ -16902,6 +17217,7 @@ window.fairygui = window.fgui;
             return Math.min(p_limit, Math.max(-p_limit, p_val));
         }
     }
+    // identity matrix constant:
     ColorMatrix.IDENTITY_MATRIX = [
         1, 0, 0, 0, 0,
         0, 1, 0, 0, 0,
@@ -17043,7 +17359,8 @@ window.fairygui = window.fgui;
             var pos2;
             var result = "";
             while ((pos2 = this._text.indexOf("[", pos1)) != -1) {
-                if (this._text.charCodeAt(pos2 - 1) == 92) {
+                if (this._text.charCodeAt(pos2 - 1) == 92) //\
+                 {
                     result += this._text.substring(pos1, pos2 - 1);
                     result += "[";
                     pos1 = pos2 + 1;
@@ -17070,7 +17387,8 @@ window.fairygui = window.fgui;
             var func;
             var result = "";
             while ((pos2 = this._text.indexOf("[", pos1)) != -1) {
-                if (pos2 > 0 && this._text.charCodeAt(pos2 - 1) == 92) {
+                if (pos2 > 0 && this._text.charCodeAt(pos2 - 1) == 92) //\
+                 {
                     result += this._text.substring(pos1, pos2 - 1);
                     result += "[";
                     pos1 = pos2 + 1;
@@ -17113,7 +17431,9 @@ window.fairygui = window.fgui;
     UBBParser.inst = new UBBParser();
     fgui.UBBParser = UBBParser;
 })(fgui || (fgui = {}));
+///<reference path="UBBParser.ts"/>
 
+///<reference path="UBBParser.ts"/>
 (function (fgui) {
     class ToolSet {
         static getFileName(source) {
@@ -17255,12 +17575,13 @@ window.fairygui = window.fgui;
             return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
         }
         static setColorFilter(obj, color) {
-            var filter = obj.$_colorFilter_;
+            var filter = obj.$_colorFilter_; //cached instance
             var filters = obj.filters;
             var toApplyColor;
             var toApplyGray;
             var tp = typeof (color);
-            if (tp == "boolean") {
+            if (tp == "boolean") //gray
+             {
                 toApplyColor = filter ? filter.$_color_ : null;
                 toApplyGray = color;
             }
