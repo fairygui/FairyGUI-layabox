@@ -13425,10 +13425,7 @@ window.fairygui = window.fgui;
             return pkg;
         }
         /**
-         * 加载包资源
-         * @param resKey
-         * @param completeHandler
-         * @param progressHandler
+         * @param resKey resKey 或 [resKey1,resKey2,resKey3....]
          */
         static loadPackage(resKey, completeHandler, progressHandler) {
             let loadKeyArr = [];

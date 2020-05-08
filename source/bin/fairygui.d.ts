@@ -1803,10 +1803,7 @@ declare namespace fgui {
         static getByName(name: string): UIPackage;
         static addPackage(resKey: string, descData?: ArrayBuffer): UIPackage;
         /**
-         * 加载包资源
-         * @param resKey
-         * @param completeHandler
-         * @param progressHandler
+         * @param resKey resKey 或 [resKey1,resKey2,resKey3....]
          */
         static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler, progressHandler?: Laya.Handler): void;
         static removePackage(packageIdOrName: string): void;
