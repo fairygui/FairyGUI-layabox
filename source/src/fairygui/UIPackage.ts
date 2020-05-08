@@ -77,49 +77,87 @@ namespace fgui {
             UIPackage._instById[resKey] = pkg;
             return pkg;
         }
-
-        public static loadPackage(resKey: string, completeHandler: Laya.Handler, progressHandler?: Laya.Handler): void {
-            let pkg: UIPackage = UIPackage._instById[resKey];
-            if (pkg) {
-                completeHandler.runWith(pkg);
+        /**
+         * @param resKey resKey 或 [resKey1,resKey2,resKey3....]
+         */
+        public static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler, progressHandler?: Laya.Handler): void {
+            let loadKeyArr = [];
+            let keys: Array<string> = [];
+            let i: number;
+            if (typeof (resKey) == "string") {
+                loadKeyArr = [{ url: resKey + "." + UIConfig.packageFileExtension, type: Laya.Loader.BUFFER }];
+                keys = [resKey];
+            }
+            else {
+                for (i = 0; i < resKey.length; i++) {
+                    loadKeyArr.push({ url: resKey[i] + "." + UIConfig.packageFileExtension, type: Laya.Loader.BUFFER });
+                    keys.push(resKey[i]);
+                }
+            }
+            let pkgArr: Array<UIPackage> = [];
+            let pkg: UIPackage;
+            for (i = 0; i < loadKeyArr.length; i++) {
+                pkg = UIPackage._instById[keys[i]];
+                if (pkg) {
+                    pkgArr.push(pkg);
+                    loadKeyArr.splice(i, 1);
+                    keys.splice(i, 1);
+                    i--;
+                }
+            }
+            if (loadKeyArr.length == 0) {
+                completeHandler.runWith([pkgArr]);
                 return;
             }
-
-            let url: string = resKey + "." + UIConfig.packageFileExtension;
-
-            var descCompleteHandler: Laya.Handler = Laya.Handler.create(this, function (asset) {
-                let pkg: UIPackage = new UIPackage();
-                pkg._resKey = resKey;
-                pkg.loadPackage(new ByteBuffer(asset));
-                let cnt: number = pkg._items.length;
+            var descCompleteHandler: Laya.Handler = Laya.Handler.create(this, function () {
+                let pkg: UIPackage;
                 let urls = [];
-                for (var i: number = 0; i < cnt; i++) {
-                    var pi: PackageItem = pkg._items[i];
-                    if (pi.type == PackageItemType.Atlas)
-                        urls.push({ url: pi.file, type: Laya.Loader.IMAGE });
-                    else if (pi.type == PackageItemType.Sound)
-                        urls.push({ url: pi.file, type: Laya.Loader.SOUND });
+                for (i = 0; i < loadKeyArr.length; i++) {
+                    let asset = AssetProxy.inst.getRes(loadKeyArr[i].url);
+                    if (asset) {
+                        pkg = new UIPackage();
+                        pkgArr.push(pkg);
+                        pkg._resKey = keys[i];
+                        pkg.loadPackage(new ByteBuffer(asset));
+                        let cnt: number = pkg._items.length;
+                        for (let j: number = 0; j < cnt; j++) {
+                            let pi: PackageItem = pkg._items[j];
+                            if (pi.type == PackageItemType.Atlas) {
+                                urls.push({ url: pi.file, type: Laya.Loader.IMAGE });
+                            }
+                            else if (pi.type == PackageItemType.Sound) {
+                                urls.push({ url: pi.file, type: Laya.Loader.SOUND });
+                            }
+                        }
+                    }
                 }
-
                 if (urls.length > 0) {
                     AssetProxy.inst.load(urls, Laya.Handler.create(this, function (): void {
-                        UIPackage._instById[pkg.id] = pkg;
-                        UIPackage._instByName[pkg.name] = pkg;
-                        UIPackage._instByName[pkg._resKey] = pkg;
-
-                        completeHandler.runWith(pkg);
+                        for (i = 0; i < pkgArr.length; i++) {
+                            pkg = pkgArr[i];
+                            if (!UIPackage._instById[pkg.id]) {
+                                UIPackage._instById[pkg.id] = pkg;
+                                UIPackage._instByName[pkg.name] = pkg;
+                                UIPackage._instByName[pkg._resKey] = pkg;
+                            }
+                        }
+                        completeHandler.runWith([pkgArr]);
                     }, null, true), progressHandler);
                 }
                 else {
-                    UIPackage._instById[pkg.id] = pkg;
-                    UIPackage._instByName[pkg.name] = pkg;
-                    UIPackage._instByName[pkg._resKey] = pkg;
-
-                    completeHandler.runWith(pkg);
+                    for (i = 0; i < pkgArr.length; i++) {
+                        pkg = pkgArr[i];
+                        if (!UIPackage._instById[pkg.id]) {
+                            UIPackage._instById[pkg.id] = pkg;
+                            UIPackage._instByName[pkg.name] = pkg;
+                            UIPackage._instByName[pkg._resKey] = pkg;
+                        }
+                    }
+                    completeHandler.runWith([pkgArr]);
                 }
             }, null, true);
 
-            AssetProxy.inst.load(url, descCompleteHandler, null, Laya.Loader.BUFFER);
+            AssetProxy.inst.load(loadKeyArr, descCompleteHandler, null, Laya.Loader.BUFFER);
         }
 
         public static removePackage(packageIdOrName: string): void {

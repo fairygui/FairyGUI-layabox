@@ -13424,42 +13424,89 @@ window.fairygui = window.fgui;
             UIPackage._instById[resKey] = pkg;
             return pkg;
         }
-        static loadPackage(resKey, completeHandler) {
-            let pkg = UIPackage._instById[resKey];
-            if (pkg) {
-                completeHandler.runWith(pkg);
+        /**
+         * 加载包资源
+         * @param resKey
+         * @param completeHandler
+         * @param progressHandler
+         */
+        static loadPackage(resKey, completeHandler, progressHandler) {
+            let loadKeyArr = [];
+            let keys = [];
+            let i;
+            if (typeof (resKey) == "string") {
+                loadKeyArr = [{ url: resKey + "." + fgui.UIConfig.packageFileExtension, type: Laya.Loader.BUFFER }];
+                keys = [resKey];
+            }
+            else {
+                for (i = 0; i < resKey.length; i++) {
+                    loadKeyArr.push({ url: resKey[i] + "." + fgui.UIConfig.packageFileExtension, type: Laya.Loader.BUFFER });
+                    keys.push(resKey[i]);
+                }
+            }
+            let pkgArr = [];
+            let pkg;
+            for (i = 0; i < loadKeyArr.length; i++) {
+                pkg = UIPackage._instById[keys[i]];
+                if (pkg) {
+                    pkgArr.push(pkg);
+                    loadKeyArr.splice(i, 1);
+                    keys.splice(i, 1);
+                    i--;
+                }
+            }
+            if (loadKeyArr.length == 0) {
+                completeHandler.runWith([pkgArr]);
                 return;
             }
-            let url = resKey + "." + fgui.UIConfig.packageFileExtension;
-            var descCompleteHandler = Laya.Handler.create(this, function (asset) {
-                let pkg = new UIPackage();
-                pkg._resKey = resKey;
-                pkg.loadPackage(new fgui.ByteBuffer(asset));
-                let cnt = pkg._items.length;
+            var descCompleteHandler = Laya.Handler.create(this, function () {
+                let pkg;
                 let urls = [];
-                for (var i = 0; i < cnt; i++) {
-                    var pi = pkg._items[i];
-                    if (pi.type == fgui.PackageItemType.Atlas)
-                        urls.push({ url: pi.file, type: Laya.Loader.IMAGE });
-                    else if (pi.type == fgui.PackageItemType.Sound)
-                        urls.push({ url: pi.file, type: Laya.Loader.SOUND });
+                for (i = 0; i < loadKeyArr.length; i++) {
+                    let asset = fgui.AssetProxy.inst.getRes(loadKeyArr[i].url);
+                    if (asset) {
+                        pkg = new UIPackage();
+                        pkgArr.push(pkg);
+                        pkg._resKey = keys[i];
+                        pkg.loadPackage(new fgui.ByteBuffer(asset));
+                        let cnt = pkg._items.length;
+                        for (let j = 0; j < cnt; j++) {
+                            let pi = pkg._items[j];
+                            if (pi.type == fgui.PackageItemType.Atlas) {
+                                urls.push({ url: pi.file, type: Laya.Loader.IMAGE });
+                            }
+                            else if (pi.type == fgui.PackageItemType.Sound) {
+                                urls.push({ url: pi.file, type: Laya.Loader.SOUND });
+                            }
+                        }
+                    }
                 }
                 if (urls.length > 0) {
                     fgui.AssetProxy.inst.load(urls, Laya.Handler.create(this, function () {
-                        UIPackage._instById[pkg.id] = pkg;
-                        UIPackage._instByName[pkg.name] = pkg;
-                        UIPackage._instByName[pkg._resKey] = pkg;
-                        completeHandler.runWith(pkg);
-                    }, null, true));
+                        for (i = 0; i < pkgArr.length; i++) {
+                            pkg = pkgArr[i];
+                            if (!UIPackage._instById[pkg.id]) {
+                                UIPackage._instById[pkg.id] = pkg;
+                                UIPackage._instByName[pkg.name] = pkg;
+                                UIPackage._instByName[pkg._resKey] = pkg;
+                            }
+                        }
+                        completeHandler.runWith([pkgArr]);
+                    }, null, true), progressHandler);
                 }
                 else {
-                    UIPackage._instById[pkg.id] = pkg;
-                    UIPackage._instByName[pkg.name] = pkg;
-                    UIPackage._instByName[pkg._resKey] = pkg;
-                    completeHandler.runWith(pkg);
+                    for (i = 0; i < pkgArr.length; i++) {
+                        pkg = pkgArr[i];
+                        if (!UIPackage._instById[pkg.id]) {
+                            UIPackage._instById[pkg.id] = pkg;
+                            UIPackage._instByName[pkg.name] = pkg;
+                            UIPackage._instByName[pkg._resKey] = pkg;
+                        }
+                    }
+                    completeHandler.runWith([pkgArr]);
                 }
             }, null, true);
-            fgui.AssetProxy.inst.load(url, descCompleteHandler, null, Laya.Loader.BUFFER);
+            fgui.AssetProxy.inst.load(loadKeyArr, descCompleteHandler, null, Laya.Loader.BUFFER);
         }
         static removePackage(packageIdOrName) {
             var pkg = UIPackage._instById[packageIdOrName];
@@ -13872,6 +13919,7 @@ window.fairygui = window.fgui;
             }
         }
         loadFont(item) {
+            item = item.getBranch();
             var font = new fgui.BitmapFont();
             item.bitmapFont = font;
             var buffer = item.rawData;
@@ -16577,6 +16625,7 @@ window.fairygui = window.fgui;
         }
         _reset() {
             this._target = null;
+            this._propType = null;
             this._userData = null;
             this._path = null;
             this._onStart = this._onUpdate = this._onComplete = null;
