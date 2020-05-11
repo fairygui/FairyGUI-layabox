@@ -7978,6 +7978,9 @@ window.fairygui = window.fgui;
             return this._value;
         }
         set value(value) {
+            if (value == Infinity || value == NaN) {
+                value = 0;
+            }
             if (this._value != value) {
                 fgui.GTween.kill(this, false, this.update);
                 this._value = value;

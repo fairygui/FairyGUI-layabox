@@ -767,6 +767,7 @@ window.fairygui = window.fgui;
             this._rawWidth = 0;
             this._rawHeight = 0;
             this._sizePercentInGroup = 0;
+            this._inner_platform_scale = 1.0;
             this._id = "" + GObject._gInstanceCounter++;
             this._name = "";
             this.createDisplayObject();
@@ -933,6 +934,8 @@ window.fairygui = window.fgui;
             this.setScale(this._scaleX, value);
         }
         setScale(sx, sy) {
+            sx = sx * (1.0 / this._inner_platform_scale);
+            sy = sy * (1.0 / this._inner_platform_scale);
             if (this._scaleX != sx || this._scaleY != sy) {
                 this._scaleX = sx;
                 this._scaleY = sy;
@@ -1715,6 +1718,9 @@ window.fairygui = window.fgui;
     class GTextField extends fgui.GObject {
         constructor() {
             super();
+            this._fontSize = 0;
+            this._strokeSize = 0;
+            this._inner_platform_scale = 2.0;
         }
         get font() {
             return null;
@@ -1722,9 +1728,10 @@ window.fairygui = window.fgui;
         set font(value) {
         }
         get fontSize() {
-            return 0;
+            return this._fontSize;
         }
         set fontSize(value) {
+            this._fontSize = value * this._inner_platform_scale;
         }
         get color() {
             return null;
@@ -1772,9 +1779,10 @@ window.fairygui = window.fgui;
         set singleLine(value) {
         }
         get stroke() {
-            return 0;
+            return this._strokeSize;
         }
         set stroke(value) {
+            this._strokeSize = value * this._inner_platform_scale;
         }
         get strokeColor() {
             return null;
@@ -1893,6 +1901,7 @@ window.fairygui = window.fgui;
             }
         }
         setup_beforeAdd(buffer, beginPos) {
+            this._inner_platform_scale = 2;
             super.setup_beforeAdd(buffer, beginPos);
             buffer.seek(beginPos, 5);
             var iv;
@@ -1940,6 +1949,7 @@ window.fairygui = window.fgui;
             this._letterSpacing = 0;
             this._textWidth = 0;
             this._textHeight = 0;
+            this._inner_platform_scale = 2.0;
             this._text = "";
             this._color = "#000000";
             this._textField.align = "left";
@@ -2004,7 +2014,7 @@ window.fairygui = window.fgui;
             return this._textField.fontSize;
         }
         set fontSize(value) {
-            this._textField.fontSize = value;
+            this._textField.fontSize = value * this._inner_platform_scale;
         }
         get color() {
             return this._color;
@@ -2072,7 +2082,7 @@ window.fairygui = window.fgui;
             return this._textField.stroke;
         }
         set stroke(value) {
-            this._textField.stroke = value;
+            this._textField.stroke = value * this._inner_platform_scale;
         }
         get strokeColor() {
             return this._textField.strokeColor;
@@ -8137,6 +8147,7 @@ window.fairygui = window.fgui;
         constructor() {
             super();
             this._text = "";
+            this._inner_platform_scale = 2.0;
         }
         createDisplayObject() {
             this._displayObject = this._div = new Laya.HTMLDivElement();
@@ -8194,7 +8205,7 @@ window.fairygui = window.fgui;
             return this._div.style.fontSize;
         }
         set fontSize(value) {
-            this._div.style.fontSize = value;
+            this._div.style.fontSize = value * this._inner_platform_scale;
         }
         get color() {
             return this._div.style.color;
@@ -8256,7 +8267,7 @@ window.fairygui = window.fgui;
         }
         set stroke(value) {
             if (this._div.style.stroke != value) {
-                this._div.style.stroke = value;
+                this._div.style.stroke = value * this._inner_platform_scale;
                 this.refresh();
             }
         }

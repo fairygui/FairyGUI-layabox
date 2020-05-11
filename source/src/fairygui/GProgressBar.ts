@@ -63,6 +63,9 @@ namespace fgui {
         }
 
         public set value(value: number) {
+            if(value == Infinity || value == NaN) {
+                value = 0
+            } 
 
             if (this._value != value) {
                 GTween.kill(this, false, this.update);

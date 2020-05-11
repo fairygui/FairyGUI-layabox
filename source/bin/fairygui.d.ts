@@ -345,6 +345,7 @@ declare namespace fgui {
         _sizePercentInGroup: number;
         _treeNode: GTreeNode;
         static _gInstanceCounter: number;
+        protected _inner_platform_scale: number;
         constructor();
         readonly id: string;
         name: string;
@@ -490,6 +491,8 @@ declare namespace fgui {
         protected _heightAutoSize: boolean;
         protected _ubbEnabled: boolean;
         protected _updatingSize: boolean;
+        private _fontSize;
+        private _strokeSize;
         constructor();
         font: string;
         fontSize: number;
