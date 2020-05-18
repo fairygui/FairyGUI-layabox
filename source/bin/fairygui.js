@@ -13872,6 +13872,7 @@ window.fairygui = window.fgui;
             }
         }
         loadFont(item) {
+            item = item.getBranch();
             var font = new fgui.BitmapFont();
             item.bitmapFont = font;
             var buffer = item.rawData;
@@ -14761,7 +14762,7 @@ window.fairygui = window.fgui;
                     var right = Math.max(tw - this._scale9Grid.right, 0);
                     var top = this._scale9Grid.y;
                     var bottom = Math.max(th - this._scale9Grid.bottom, 0);
-                    this._sizeGrid = [top, right, bottom, left];
+                    this._sizeGrid = [top, right, bottom, left, this._tileGridIndice];
                 }
                 g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid);
             }
@@ -16577,6 +16578,7 @@ window.fairygui = window.fgui;
         }
         _reset() {
             this._target = null;
+            this._propType = null;
             this._userData = null;
             this._path = null;
             this._onStart = this._onUpdate = this._onComplete = null;

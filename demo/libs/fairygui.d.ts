@@ -11,6 +11,9 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class AsyncOperation {
+        /**
+         * this.callback(obj:GObject)
+         */
         callback: Laya.Handler;
         private _itemList;
         private _objectPool;
@@ -24,6 +27,13 @@ declare namespace fgui {
         private collectListChildren;
         private run;
     }
+}
+declare namespace fgui {
+    const BlendMode: {
+        2: string;
+        3: string;
+        4: string;
+    };
 }
 declare namespace fgui {
     class Controller extends Laya.EventDispatcher {
@@ -616,6 +626,12 @@ declare namespace fgui {
         readonly scrollPane: ScrollPane;
         opaque: boolean;
         margin: Margin;
+        /**
+         * @see ChildrenRenderOrder
+         */
+        /**
+        * @see ChildrenRenderOrder
+        */
         childrenRenderOrder: number;
         apexIndex: number;
         mask: Laya.Sprite;
@@ -636,6 +652,9 @@ declare namespace fgui {
         viewWidth: number;
         viewHeight: number;
         getSnappingPosition(xValue: number, yValue: number, resultPoint?: Laya.Point): Laya.Point;
+        /**
+         * dir正数表示右移或者下移，负数表示左移或者上移
+         */
         getSnappingPositionWithDir(xValue: number, yValue: number, xDir: number, yDir: number, resultPoint?: Laya.Point): Laya.Point;
         childSortingOrderChanged(child: GObject, oldValue: number, newValue?: number): void;
         constructFromResource(): void;
@@ -687,6 +706,12 @@ declare namespace fgui {
         sound: string;
         soundVolumeScale: number;
         selected: boolean;
+        /**
+         * @see ButtonMode
+         */
+        /**
+        * @see ButtonMode
+        */
         mode: number;
         relatedController: Controller;
         relatedPageId: string;
@@ -731,6 +756,12 @@ declare namespace fgui {
         titleFontSize: number;
         icon: string;
         visibleItemCount: number;
+        /**
+         * @see PopupDirection
+         */
+        /**
+        * @see PopupDirection
+        */
         popupDirection: number;
         items: any[];
         icons: any[];
@@ -805,6 +836,12 @@ declare namespace fgui {
         _updating: number;
         constructor();
         dispose(): void;
+        /**
+         * @see GroupLayout
+         */
+        /**
+        * @see GroupLayout
+        */
         layout: number;
         lineGap: number;
         columnGap: number;
@@ -867,7 +904,13 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class GList extends GComponent {
+        /**
+         * this.itemRenderer(number index, GObject item);
+         */
         itemRenderer: Laya.Handler;
+        /**
+         * this.itemProvider(index:number):string;
+         */
         itemProvider: Laya.Handler;
         scrollItemToViewOnClick: boolean;
         foldInvisibleItems: boolean;
@@ -898,6 +941,12 @@ declare namespace fgui {
         private itemInfoVer;
         constructor();
         dispose(): void;
+        /**
+         * @see ListLayoutType
+         */
+        /**
+        * @see ListLayoutType
+        */
         layout: number;
         lineCount: number;
         columnCount: number;
@@ -908,6 +957,12 @@ declare namespace fgui {
         virtualItemSize: Laya.Point;
         defaultItem: string;
         autoResizeItem: boolean;
+        /**
+         * @see ListSelectionMode
+         */
+        /**
+        * @see ListSelectionMode
+        */
         selectionMode: number;
         selectionController: Controller;
         readonly itemPool: GObjectPool;
@@ -945,8 +1000,16 @@ declare namespace fgui {
         childIndexToItemIndex(index: number): number;
         itemIndexToChildIndex(index: number): number;
         setVirtual(): void;
+        /**
+         * Set the list to be virtual list, and has loop behavior.
+         */
         setVirtualAndLoop(): void;
         private _setVirtual;
+        /**
+         * Set the list item count.
+         * If the list instanceof not virtual, specified number of items will be created.
+         * If the list instanceof virtual, only items in view will be created.
+         */
         numItems: number;
         refreshVirtualList(): void;
         private checkVirtualList;
@@ -1202,6 +1265,7 @@ declare namespace fgui {
         private _barStartX;
         private _barStartY;
         changeOnClick: boolean;
+        /**是否可拖动开关**/
         canDrag: boolean;
         constructor();
         titleType: number;
@@ -1676,7 +1740,13 @@ declare namespace fgui {
         static defaultScrollBarDisplay: number;
         static defaultScrollTouchEffect: boolean;
         static defaultScrollBounceEffect: boolean;
+        /**
+          * 当滚动容器设置为“贴近ITEM”时，判定贴近到哪一个ITEM的滚动距离阀值。
+          */
         static defaultScrollSnappingThreshold: number;
+        /**
+          * 当滚动容器设置为“页面模式”时，判定翻到哪一页的滚动距离阀值。
+          */
         static defaultScrollPagingThreshold: number;
         static popupMenu: string;
         static popupMenu_seperator: string;
@@ -1701,6 +1771,9 @@ declare namespace fgui {
         static setLoaderExtension(type: any): void;
         static resolvePackageItemExtension(pi: PackageItem): void;
         static newObject(pi: PackageItem, userClass?: any): GObject;
+        /**
+         * @see ObjectType
+         */
         static newObject2(type: number): GObject;
     }
 }
@@ -2260,6 +2333,9 @@ declare namespace fgui {
         readonly completed: boolean;
         readonly allCompleted: boolean;
         setPaused(paused: boolean): GTweener;
+        /**
+         * seek position of the tween, in seconds.
+         */
         seek(time: number): void;
         kill(complete?: boolean): void;
         _to(start: number, end: number, duration: number): GTweener;
