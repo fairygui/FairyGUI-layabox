@@ -1166,9 +1166,6 @@ namespace fgui {
         }
 
         private __mouseUp(): void {
-            if(this._owner.displayObject == null){
-                return;
-            }
             this._owner.displayObject.stage.off(Laya.Event.MOUSE_MOVE, this, this.__mouseMove);
             this._owner.displayObject.stage.off(Laya.Event.MOUSE_UP, this, this.__mouseUp);
             this._owner.displayObject.stage.off(Laya.Event.CLICK, this, this.__click);
