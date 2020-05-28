@@ -206,6 +206,10 @@ namespace fgui {
         }
 
         public dispose(): void {
+            this.owner.displayObject.stage.offAllCaller(this);
+            if(ScrollPane.draggingPane == this){
+                ScrollPane.draggingPane = null;
+            }
             if (this._tweening != 0)
                 Laya.timer.clear(this, this.tweenUpdate);
 
