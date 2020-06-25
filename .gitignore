@@ -3,4 +3,6 @@ node_modules
 .rpt2_cache
 .objs
 .laya
+.idea
+yarn.lock
 release
