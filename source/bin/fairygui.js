@@ -1,4 +1,4 @@
-window.fairygui = window.fgui = {};
+;window.fairygui = window.fgui = {};
 (function (fgui) {
     class AssetProxy {
         constructor() {

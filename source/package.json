@@ -1,13 +1,22 @@
 {
   "name": "fairygui-layabox",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A flexible UI framework for LayaAir Engine",
+  "homepage": "https://www.fairygui.com",
+  "repository": "https://github.com/fairygui/FairyGUI-layabox",
+  "bugs": "https://github.com/fairygui/FairyGUI-layabox/issues",
+  "files": [
+    "bin",
+    "postinstall.js"
+  ],
   "scripts": {
+    "start": "gulp start",
     "build": "gulp build",
-    "copy": "gulp copy"
+    "compile": "gulp compile",
+    "copy": "gulp copy",
+    "postinstall": "node postinstall.js"
   },
-  "author": "",
+  "author": "guzhu",
   "license": "MIT",
   "devDependencies": {
     "gulp": "^4.0.2",
@@ -15,5 +24,13 @@
     "gulp-typescript": "^6.0.0-alpha.1",
     "merge2": "^1.4.1",
     "typescript": "^2.9.2"
-  }
+  },
+  "keywords": [
+    "laya",
+    "layabox",
+    "layaair",
+    "fairygui",
+    "fgui",
+    "gui"
+  ]
 }
