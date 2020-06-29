@@ -166,7 +166,9 @@
 	        this.resetLayoutY();
 	    }
 	    _onParentResize() {
-	        if (this.resetLayoutX() || this.resetLayoutY())
+	        var flagX = this.resetLayoutX();
+	        var flagY = this.resetLayoutY();
+	        if (flagX || flagY)
 	            this.owner.event(Laya.Event.RESIZE);
 	    }
 	    resetLayoutX() {
@@ -4424,11 +4426,11 @@
 	        this.callLater(this.changeScroll);
 	    }
 	    destroy(destroyChild = true) {
-	        super.destroy(destroyChild);
 	        this._vScrollBar && this._vScrollBar.destroy();
 	        this._hScrollBar && this._hScrollBar.destroy();
 	        this._vScrollBar = null;
 	        this._hScrollBar = null;
+	        super.destroy(destroyChild);
 	    }
 	    initialize() {
 	        this.width = 180;
@@ -4939,7 +4941,8 @@
 	    }
 	    getArray() {
 	        var arr = [];
-	        for (let item of this._source) {
+	        for (let key in this._source) {
+	            let item = this._source[key];
 	            if (this.getParentOpenStatus(item)) {
 	                item.x = this._spaceLeft * this.getDepth(item);
 	                arr.push(item);
@@ -5035,7 +5038,8 @@
 	        if (!isRoot) {
 	            obj = {};
 	            var list2 = xml.attributes;
-	            for (let attrs of list2) {
+	            for (let key in list2) {
+	                var attrs = list2[key];
 	                var prop = attrs.nodeName;
 	                var value = attrs.nodeValue;
 	                obj[prop] = value == "true" ? true : value == "false" ? false : value;
@@ -6066,4 +6070,4 @@
 	exports.WXOpenDataViewer = WXOpenDataViewer;
 	exports.Widget = Widget;
 
-}(window.Laya = window.Laya|| {}, Laya));
+}(window.Laya = window.Laya || {}, Laya));

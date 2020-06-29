@@ -4206,4 +4206,4 @@
     exports.Transform = Transform;
     exports.UVTools = UVTools;
 
-}(window.Laya = window.Laya|| {}, Laya));
+}(window.Laya = window.Laya || {}, Laya));

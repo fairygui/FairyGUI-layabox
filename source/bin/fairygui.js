@@ -10640,6 +10640,10 @@
             this.setSize(this.owner.width, this.owner.height);
         }
         dispose() {
+            this.owner.displayObject.stage.offAllCaller(this);
+            if (ScrollPane.draggingPane == this) {
+                ScrollPane.draggingPane = null;
+            }
             if (this._tweening != 0)
                 Laya.timer.clear(this, this.tweenUpdate);
             this._pageController = null;
@@ -13422,10 +13426,36 @@
             UIPackage._instById[resKey] = pkg;
             return pkg;
         }
+        /**
+         * @param resKey resKey 或 [resKey1,resKey2,resKey3....]
+         */
         static loadPackage(resKey, completeHandler, progressHandler) {
-            let pkg = UIPackage._instById[resKey];
-            if (pkg) {
-                completeHandler.runWith(pkg);
+            let loadKeyArr = [];
+            let keys = [];
+            let i;
+            if (typeof (resKey) == "string") {
+                loadKeyArr = [{ url: resKey + "." + fgui.UIConfig.packageFileExtension, type: Laya.Loader.BUFFER }];
+                keys = [resKey];
+            }
+            else {
+                for (i = 0; i < resKey.length; i++) {
+                    loadKeyArr.push({ url: resKey[i] + "." + fgui.UIConfig.packageFileExtension, type: Laya.Loader.BUFFER });
+                    keys.push(resKey[i]);
+                }
+            }
+            let pkgArr = [];
+            let pkg;
+            for (i = 0; i < loadKeyArr.length; i++) {
+                pkg = UIPackage._instById[keys[i]];
+                if (pkg) {
+                    pkgArr.push(pkg);
+                    loadKeyArr.splice(i, 1);
+                    keys.splice(i, 1);
+                    i--;
+                }
+            }
+            if (loadKeyArr.length == 0) {
+                completeHandler.runWith([pkgArr]);
                 return;
             }
             var descCompleteHandler = Laya.Handler.create(this, function () {
@@ -13452,10 +13482,15 @@
                 }
                 if (urls.length > 0) {
                     fgui.AssetProxy.inst.load(urls, Laya.Handler.create(this, function () {
-                        UIPackage._instById[pkg.id] = pkg;
-                        UIPackage._instByName[pkg.name] = pkg;
-                        UIPackage._instByName[pkg._resKey] = pkg;
-                        completeHandler.runWith(pkg);
+                        for (i = 0; i < pkgArr.length; i++) {
+                            pkg = pkgArr[i];
+                            if (!UIPackage._instById[pkg.id]) {
+                                UIPackage._instById[pkg.id] = pkg;
+                                UIPackage._instByName[pkg.name] = pkg;
+                                UIPackage._instByName[pkg._resKey] = pkg;
+                            }
+                        }
+                        completeHandler.runWith([pkgArr]);
                     }, null, true), progressHandler);
                 }
                 else {
