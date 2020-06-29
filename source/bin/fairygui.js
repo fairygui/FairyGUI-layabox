@@ -14806,7 +14806,7 @@ window.fairygui = window.fgui;
                     var right = Math.max(tw - this._scale9Grid.right, 0);
                     var top = this._scale9Grid.y;
                     var bottom = Math.max(th - this._scale9Grid.bottom, 0);
-                    this._sizeGrid = [top, right, bottom, left];
+                    this._sizeGrid = [top, right, bottom, left, this._tileGridIndice];
                 }
                 g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid);
             }
