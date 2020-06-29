@@ -1,0 +1,8 @@
+{
+    "name": "FairyGUI-layabox-demo",
+    "version": "0.0.0",
+    "private": true,
+    "dependencies": {
+        "fairygui-layabox": "file:../source"
+    }
+}

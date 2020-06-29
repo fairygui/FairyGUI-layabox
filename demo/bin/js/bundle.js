@@ -1136,12 +1136,13 @@
             item.getChild("b1").onClick(this, this.onClickDelete);
         }
         onClickList(evt) {
+            let touchTarget = fgui.GObject.cast(evt.target);
             let cnt = this._list.numChildren;
             for (let i = 0; i < cnt; i++) {
                 let item = this._list.getChildAt(i).asButton;
                 if (item.scrollPane.posX != 0) {
-                    if (item.getChild("b0").asButton.isAncestorOf(fgui.GRoot.inst.touchTarget)
-                        || item.getChild("b1").asButton.isAncestorOf(fgui.GRoot.inst.touchTarget)) {
+                    if (item.getChild("b0").asButton.isAncestorOf(touchTarget)
+                        || item.getChild("b1").asButton.isAncestorOf(touchTarget)) {
                         return;
                     }
                     item.scrollPane.setPosX(0, true);

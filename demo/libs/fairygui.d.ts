@@ -1802,7 +1802,7 @@ declare namespace fgui {
         static getById(id: string): UIPackage;
         static getByName(name: string): UIPackage;
         static addPackage(resKey: string, descData?: ArrayBuffer): UIPackage;
-        static loadPackage(resKey: string, completeHandler: Laya.Handler): void;
+        static loadPackage(resKey: string, completeHandler: Laya.Handler, progressHandler?: Laya.Handler): void;
         static removePackage(packageIdOrName: string): void;
         static createObject(pkgName: string, resName: string, userClass?: any): GObject;
         static createObjectFromURL(url: string, userClass?: any): GObject;
