@@ -1,6 +1,4 @@
-window.fgui = {};
-window.fairygui = window.fgui;
-
+;window.fairygui = window.fgui = {};
 (function (fgui) {
     class AssetProxy {
         constructor() {
@@ -22,7 +20,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.AssetProxy = AssetProxy;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class AsyncOperation {
@@ -189,7 +187,15 @@ window.fairygui = window.fgui;
             this.type = type;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
+
+(function (fgui) {
+    fgui.BlendMode = {
+        2: Laya.BlendMode.LIGHTER,
+        3: Laya.BlendMode.MULTIPLY,
+        4: Laya.BlendMode.SCREEN
+    };
+})(fgui);
 
 (function (fgui) {
     fgui.BlendMode = {
@@ -424,7 +430,7 @@ window.fairygui = window.fgui;
     }
     Controller._nextPageId = 0;
     fgui.Controller = Controller;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class DragDropManager {
@@ -485,7 +491,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.DragDropManager = DragDropManager;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class Events {
@@ -522,7 +528,7 @@ window.fairygui = window.fgui;
     Events.GEAR_STOP = "fui_gear_stop";
     Events.$event = new Laya.Event();
     fgui.Events = Events;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     let ButtonMode;
@@ -725,7 +731,7 @@ window.fairygui = window.fgui;
         ObjectPropID[ObjectPropID["FontSize"] = 8] = "FontSize";
         ObjectPropID[ObjectPropID["Selected"] = 9] = "Selected";
     })(ObjectPropID = fgui.ObjectPropID || (fgui.ObjectPropID = {}));
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GObject {
@@ -1702,7 +1708,7 @@ window.fairygui = window.fgui;
     GObject.sHelperPoint = new Laya.Point();
     GObject.sDragHelperRect = new Laya.Rectangle();
     fgui.GObject = GObject;
-})(fgui || (fgui = {}));
+})(fgui);
 ///<reference path="GObject.ts"/>
 
 ///<reference path="GObject.ts"/>
@@ -1924,7 +1930,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GTextField = GTextField;
-})(fgui || (fgui = {}));
+})(fgui);
 ///<reference path="GTextField.ts"/>
 
 ///<reference path="GTextField.ts"/>
@@ -2469,7 +2475,7 @@ window.fairygui = window.fgui;
             super["isChanged"] = value;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class Margin {
@@ -2487,7 +2493,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.Margin = Margin;
-})(fgui || (fgui = {}));
+})(fgui);
 ///<reference path="GObject.ts"/>
 ///<reference path="Margin.ts"/>
 
@@ -3537,7 +3543,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GComponent = GComponent;
-})(fgui || (fgui = {}));
+})(fgui);
 ///<reference path="GComponent.ts"/>
 
 ///<reference path="GComponent.ts"/>
@@ -3985,7 +3991,7 @@ window.fairygui = window.fgui;
     GButton.DISABLED = "disabled";
     GButton.SELECTED_DISABLED = "selectedDisabled";
     fgui.GButton = GButton;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GComboBox extends fgui.GComponent {
@@ -4376,7 +4382,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GComboBox = GComboBox;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GGraph extends fgui.GObject {
@@ -4607,7 +4613,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GGraph = GGraph;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GGroup extends fgui.GObject {
@@ -4984,7 +4990,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GGroup = GGroup;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GImage extends fgui.GObject {
@@ -5098,7 +5104,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GImage = GImage;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GLabel extends fgui.GComponent {
@@ -5272,7 +5278,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GLabel = GLabel;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GList extends fgui.GComponent {
@@ -7351,7 +7357,7 @@ window.fairygui = window.fgui;
             this.selected = false;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GObjectPool {
@@ -7398,7 +7404,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GObjectPool = GObjectPool;
-})(fgui || (fgui = {}));
+})(fgui);
 ///<reference path="GObjectPool.ts"/>
 
 ///<reference path="GObjectPool.ts"/>
@@ -7801,7 +7807,7 @@ window.fairygui = window.fgui;
     }
     GLoader._errorSignPool = new fgui.GObjectPool();
     fgui.GLoader = GLoader;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GMovieClip extends fgui.GObject {
@@ -7917,7 +7923,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GMovieClip = GMovieClip;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GProgressBar extends fgui.GComponent {
@@ -8086,7 +8092,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GProgressBar = GProgressBar;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GRichTextField extends fgui.GTextField {
@@ -8254,7 +8260,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GRichTextField = GRichTextField;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GRoot extends fgui.GComponent {
@@ -8614,7 +8620,7 @@ window.fairygui = window.fgui;
     }
     GRoot.contentScaleLevel = 0;
     fgui.GRoot = GRoot;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GScrollBar extends fgui.GComponent {
@@ -8741,7 +8747,7 @@ window.fairygui = window.fgui;
     }
     GScrollBar.sScrollbarHelperPoint = new Laya.Point();
     fgui.GScrollBar = GScrollBar;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GSlider extends fgui.GComponent {
@@ -8959,7 +8965,7 @@ window.fairygui = window.fgui;
     }
     GSlider.sSilderHelperPoint = new Laya.Point();
     fgui.GSlider = GSlider;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GTextInput extends fgui.GTextField {
@@ -9124,7 +9130,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GTextInput = GTextInput;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GTree extends fgui.GList {
@@ -9440,7 +9446,7 @@ window.fairygui = window.fgui;
     }
     GTree.helperIntList = new Array();
     fgui.GTree = GTree;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GTreeNode {
@@ -9644,7 +9650,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GTreeNode = GTreeNode;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class PackageItem {
@@ -9680,7 +9686,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.PackageItem = PackageItem;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class PopupMenu {
@@ -9828,7 +9834,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.PopupMenu = PopupMenu;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class RelationItem {
@@ -10389,7 +10395,7 @@ window.fairygui = window.fgui;
             this.axis = source.axis;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class Relations {
@@ -10521,7 +10527,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.Relations = Relations;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class ScrollPane {
@@ -11956,7 +11962,7 @@ window.fairygui = window.fgui;
     ScrollPane.TWEEN_TIME_DEFAULT = 0.3; //惯性滚动的最小缓动时间
     ScrollPane.PULL_RATIO = 0.5; //下拉过顶或者上拉过底时允许超过的距离占显示区域的比例
     fgui.ScrollPane = ScrollPane;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class Transition {
@@ -13020,7 +13026,7 @@ window.fairygui = window.fgui;
             this.b1 = this.b2 = true;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class TranslationHelper {
@@ -13238,7 +13244,7 @@ window.fairygui = window.fgui;
     }
     TranslationHelper.strings = null;
     fgui.TranslationHelper = TranslationHelper;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class UIConfig {
@@ -13282,7 +13288,7 @@ window.fairygui = window.fgui;
     UIConfig.textureLinearSampling = true;
     UIConfig.packageFileExtension = "fui";
     fgui.UIConfig = UIConfig;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class UIObjectFactory {
@@ -13372,7 +13378,7 @@ window.fairygui = window.fgui;
     }
     UIObjectFactory.packageItemExtensions = {};
     fgui.UIObjectFactory = UIObjectFactory;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class UIPackage {
@@ -13424,7 +13430,7 @@ window.fairygui = window.fgui;
             UIPackage._instById[resKey] = pkg;
             return pkg;
         }
-        static loadPackage(resKey, completeHandler) {
+        static loadPackage(resKey, completeHandler, progressHandler) {
             let pkg = UIPackage._instById[resKey];
             if (pkg) {
                 completeHandler.runWith(pkg);
@@ -13450,7 +13456,7 @@ window.fairygui = window.fgui;
                         UIPackage._instByName[pkg.name] = pkg;
                         UIPackage._instByName[pkg._resKey] = pkg;
                         completeHandler.runWith(pkg);
-                    }, null, true));
+                    }, null, true), progressHandler);
                 }
                 else {
                     UIPackage._instById[pkg.id] = pkg;
@@ -13955,7 +13961,7 @@ window.fairygui = window.fgui;
             this.originalSize = new Laya.Point();
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class Window extends fgui.GComponent {
@@ -14182,7 +14188,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.Window = Window;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class ControllerAction {
@@ -14222,7 +14228,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.ControllerAction = ControllerAction;
-})(fgui || (fgui = {}));
+})(fgui);
 ///<reference path="ControllerAction.ts"/>
 
 ///<reference path="ControllerAction.ts"/>
@@ -14261,7 +14267,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.ChangePageAction = ChangePageAction;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class PlayTransitionAction extends fgui.ControllerAction {
@@ -14296,7 +14302,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.PlayTransitionAction = PlayTransitionAction;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class BitmapFont {
@@ -14318,7 +14324,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.BMGlyph = BMGlyph;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class FillUtils {
@@ -14596,7 +14602,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.FillUtils = FillUtils;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class Image extends Laya.Sprite {
@@ -14788,7 +14794,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.Image = Image;
-})(fgui || (fgui = {}));
+})(fgui);
 ///<reference path="./Image.ts"/>
 
 ///<reference path="./Image.ts"/>
@@ -15046,7 +15052,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.Frame = Frame;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearBase {
@@ -15150,7 +15156,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GearTweenConfig = GearTweenConfig;
-})(fgui || (fgui = {}));
+})(fgui);
 ///<reference path="GearBase.ts"/>
 
 ///<reference path="GearBase.ts"/>
@@ -15200,7 +15206,7 @@ window.fairygui = window.fgui;
             this.frame = frame;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearColor extends fgui.GearBase {
@@ -15249,7 +15255,7 @@ window.fairygui = window.fgui;
             this.strokeColor = strokeColor;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearDisplay extends fgui.GearBase {
@@ -15285,7 +15291,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GearDisplay = GearDisplay;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearDisplay2 extends fgui.GearBase {
@@ -15313,7 +15319,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GearDisplay2 = GearDisplay2;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearFontSize extends fgui.GearBase {
@@ -15345,7 +15351,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GearFontSize = GearFontSize;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearIcon extends fgui.GearBase {
@@ -15376,7 +15382,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GearIcon = GearIcon;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearLook extends fgui.GearBase {
@@ -15477,7 +15483,7 @@ window.fairygui = window.fgui;
             this.touchable = touchable;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearSize extends fgui.GearBase {
@@ -15585,7 +15591,7 @@ window.fairygui = window.fgui;
             this.scaleY = scaleY;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearText extends fgui.GearBase {
@@ -15616,7 +15622,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GearText = GearText;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GearXY extends fgui.GearBase {
@@ -15729,7 +15735,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GearXY = GearXY;
-})(fgui || (fgui = {}));
+})(fgui);
 // Author: Daniele Giardini - http://www.demigiant.com
 // Created: 2014/07/19 14:11
 // 
@@ -15963,7 +15969,7 @@ window.fairygui = window.fgui;
             return Bounce.easeOut(time * 2 - duration, duration) * 0.5 + 0.5;
         }
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class EaseType {
@@ -16001,7 +16007,7 @@ window.fairygui = window.fgui;
     EaseType.BounceInOut = 30;
     EaseType.Custom = 31;
     fgui.EaseType = EaseType;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GPath {
@@ -16240,7 +16246,7 @@ window.fairygui = window.fgui;
     fgui.GPath = GPath;
     class Segment {
     }
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     let CurveType;
@@ -16306,7 +16312,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.GPathPoint = GPathPoint;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GTween {
@@ -16343,7 +16349,7 @@ window.fairygui = window.fgui;
     }
     GTween.catchCallbackExceptions = true;
     fgui.GTween = GTween;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class GTweener {
@@ -16748,7 +16754,7 @@ window.fairygui = window.fgui;
     }
     GTweener.helperPoint = new Laya.Point();
     fgui.GTweener = GTweener;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class TweenManager {
@@ -16856,7 +16862,7 @@ window.fairygui = window.fgui;
     TweenManager._totalActiveTweens = 0;
     TweenManager._inited = false;
     fgui.TweenManager = TweenManager;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class TweenValue {
@@ -16909,7 +16915,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.TweenValue = TweenValue;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class ByteBuffer extends Laya.Byte {
@@ -17022,7 +17028,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.ByteBuffer = ByteBuffer;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     let _func = Laya.HitArea["_isHitGraphic"];
@@ -17048,7 +17054,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.ChildHitArea = ChildHitArea;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class ColorMatrix {
@@ -17186,7 +17192,7 @@ window.fairygui = window.fgui;
     ColorMatrix.LUMA_B = 0.114;
     ColorMatrix.helper = new ColorMatrix();
     fgui.ColorMatrix = ColorMatrix;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class PixelHitTest extends Laya.HitArea {
@@ -17231,7 +17237,7 @@ window.fairygui = window.fgui;
         }
     }
     fgui.PixelHitTestData = PixelHitTestData;
-})(fgui || (fgui = {}));
+})(fgui);
 
 (function (fgui) {
     class UBBParser {
@@ -17386,7 +17392,7 @@ window.fairygui = window.fgui;
     }
     UBBParser.inst = new UBBParser();
     fgui.UBBParser = UBBParser;
-})(fgui || (fgui = {}));
+})(fgui);
 ///<reference path="UBBParser.ts"/>
 
 ///<reference path="UBBParser.ts"/>
@@ -17594,4 +17600,4 @@ window.fairygui = window.fgui;
     }
     ToolSet.defaultUBBParser = new fgui.UBBParser();
     fgui.ToolSet = ToolSet;
-})(fgui || (fgui = {}));
+})(fgui);
