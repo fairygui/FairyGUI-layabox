@@ -25,6 +25,7 @@ namespace fgui {
         private _pageMode?: boolean;
         private _inertiaDisabled?: boolean;
         private _floating?: boolean;
+        private _dontClipMargin?: boolean;
 
         private _xPos: number;
         private _yPos: number;
@@ -139,7 +140,7 @@ namespace fgui {
             if ((flags & 256) != 0) this._inertiaDisabled = true;
             if ((flags & 512) == 0) this._maskContainer.scrollRect = new Laya.Rectangle();
             if ((flags & 1024) != 0) this._floating = true;
-            this._floating = (flags & 1024) != 0;
+            if ((flags & 2048) != 0) this._dontClipMargin = true;
 
             if (scrollBarDisplay == ScrollBarDisplayType.Default)
                 scrollBarDisplay = UIConfig.defaultScrollBarDisplay;
@@ -656,26 +657,38 @@ namespace fgui {
         }
 
         public adjustMaskContainer(): void {
-            var mx: number, my: number;
-            if (this._displayOnLeft && this._vtScrollBar != null && !this._floating)
-                mx = Math.floor(this._owner.margin.left + this._vtScrollBar.width);
-            else
-                mx = Math.floor(this._owner.margin.left);
-            my = Math.floor(this._owner.margin.top);
+            var mx: number = 0, my: number = 0;
+            if (this._dontClipMargin) {
+                if (this._displayOnLeft && this._vtScrollBar && !this._floating)
+                    mx = this._vtScrollBar.width;
+            }
+            else {
+                if (this._displayOnLeft && this._vtScrollBar && !this._floating)
+                    mx = this._owner.margin.left + this._vtScrollBar.width;
+                else
+                    mx = this._owner.margin.left;
+                my = this._owner.margin.top;
+            }
 
             this._maskContainer.pos(mx, my);
 
-            if (this._owner._alignOffset.x != 0 || this._owner._alignOffset.y != 0) {
+            mx = this._owner._alignOffset.x;
+            my = this._owner._alignOffset.y;
+
+            if (mx != 0 || my != 0 || this._dontClipMargin) {
                 if (!this._alignContainer) {
                     this._alignContainer = new Laya.Sprite();
                     this._maskContainer.addChild(this._alignContainer);
                     this._alignContainer.addChild(this._container);
                 }
-
-                this._alignContainer.pos(this._owner._alignOffset.x, this._owner._alignOffset.y);
             }
-            else if (this._alignContainer) {
-                this._alignContainer.pos(0, 0);
+
+            if (this._alignContainer) {
+                if (this._dontClipMargin) {
+                    mx += this._owner.margin.left;
+                    my += this._owner.margin.top;
+                }
+                this._alignContainer.pos(mx, my);
             }
         }
 
@@ -824,6 +837,10 @@ namespace fgui {
                     rect.width += this._vtScrollBar.width;
                 if (this._hScrollNone && this._hzScrollBar)
                     rect.height += this._hzScrollBar.height;
+                if (this._dontClipMargin) {
+                    rect.width += (this._owner.margin.left + this._owner.margin.right);
+                    rect.height += (this._owner.margin.top + this._owner.margin.bottom);
+                }
                 this._maskContainer.scrollRect = rect;
             }
 

@@ -10858,7 +10858,8 @@
                 this._maskContainer.scrollRect = new Laya.Rectangle();
             if ((flags & 1024) != 0)
                 this._floating = true;
-            this._floating = (flags & 1024) != 0;
+            if ((flags & 2048) != 0)
+                this._dontClipMargin = true;
             if (scrollBarDisplay == fgui.ScrollBarDisplayType.Default)
                 scrollBarDisplay = fgui.UIConfig.defaultScrollBarDisplay;
             if (scrollBarDisplay != fgui.ScrollBarDisplayType.Hidden) {
@@ -11280,23 +11281,34 @@
             }
         }
         adjustMaskContainer() {
-            var mx, my;
-            if (this._displayOnLeft && this._vtScrollBar != null && !this._floating)
-                mx = Math.floor(this._owner.margin.left + this._vtScrollBar.width);
-            else
-                mx = Math.floor(this._owner.margin.left);
-            my = Math.floor(this._owner.margin.top);
+            var mx = 0, my = 0;
+            if (this._dontClipMargin) {
+                if (this._displayOnLeft && this._vtScrollBar && !this._floating)
+                    mx = this._vtScrollBar.width;
+            }
+            else {
+                if (this._displayOnLeft && this._vtScrollBar && !this._floating)
+                    mx = this._owner.margin.left + this._vtScrollBar.width;
+                else
+                    mx = this._owner.margin.left;
+                my = this._owner.margin.top;
+            }
             this._maskContainer.pos(mx, my);
-            if (this._owner._alignOffset.x != 0 || this._owner._alignOffset.y != 0) {
+            mx = this._owner._alignOffset.x;
+            my = this._owner._alignOffset.y;
+            if (mx != 0 || my != 0 || this._dontClipMargin) {
                 if (!this._alignContainer) {
                     this._alignContainer = new Laya.Sprite();
                     this._maskContainer.addChild(this._alignContainer);
                     this._alignContainer.addChild(this._container);
                 }
-                this._alignContainer.pos(this._owner._alignOffset.x, this._owner._alignOffset.y);
             }
-            else if (this._alignContainer) {
-                this._alignContainer.pos(0, 0);
+            if (this._alignContainer) {
+                if (this._dontClipMargin) {
+                    mx += this._owner.margin.left;
+                    my += this._owner.margin.top;
+                }
+                this._alignContainer.pos(mx, my);
             }
         }
         setSize(aWidth, aHeight) {
@@ -11427,6 +11439,10 @@
                     rect.width += this._vtScrollBar.width;
                 if (this._hScrollNone && this._hzScrollBar)
                     rect.height += this._hzScrollBar.height;
+                if (this._dontClipMargin) {
+                    rect.width += (this._owner.margin.left + this._owner.margin.right);
+                    rect.height += (this._owner.margin.top + this._owner.margin.bottom);
+                }
                 this._maskContainer.scrollRect = rect;
             }
             if (this._scrollType == fgui.ScrollType.Horizontal || this._scrollType == fgui.ScrollType.Both)
@@ -13759,7 +13775,7 @@
             delete UIPackage._instById[pkg.id];
             delete UIPackage._instByName[pkg.name];
             delete UIPackage._instById[pkg._resKey];
-            if (pkg._customId != null)
+            if (pkg._customId)
                 delete UIPackage._instById[pkg._customId];
         }
         static createObject(pkgName, resName, userClass) {
@@ -14029,7 +14045,7 @@
             for (var i = 0; i < cnt; i++) {
                 var pi = this._items[i];
                 if (pi.type == fgui.PackageItemType.Atlas) {
-                    if (pi.texture != null)
+                    if (pi.texture)
                         Laya.loader.clearTextureRes(pi.texture.url);
                 }
             }
@@ -14039,7 +14055,7 @@
             for (var i = 0; i < cnt; i++) {
                 var pi = this._items[i];
                 if (pi.type == fgui.PackageItemType.Atlas) {
-                    if (pi.texture != null) {
+                    if (pi.texture) {
                         pi.texture.destroy();
                         pi.texture = null;
                     }
@@ -14047,6 +14063,8 @@
                 else if (pi.type == fgui.PackageItemType.Sound) {
                     Laya.SoundManager.destroySound(pi.file);
                 }
+                else if (pi.templet)
+                    pi.templet.destroy();
             }
         }
         get id() {
@@ -14059,10 +14077,10 @@
             return this._customId;
         }
         set customId(value) {
-            if (this._customId != null)
+            if (this._customId)
                 delete UIPackage._instById[this._customId];
             this._customId = value;
-            if (this._customId != null)
+            if (this._customId)
                 UIPackage._instById[this._customId] = this;
         }
         createObject(resName, userClass) {

@@ -1452,7 +1452,6 @@ declare namespace fgui {
         bitmapFont?: BitmapFont;
         templet?: Laya.Templet;
         skeletonAnchor?: Laya.Point;
-        armatureName?: string;
         constructor();
         load(): Object;
         getBranch(): PackageItem;
@@ -1560,6 +1559,7 @@ declare namespace fgui {
         private _pageMode?;
         private _inertiaDisabled?;
         private _floating?;
+        private _dontClipMargin?;
         private _xPos;
         private _yPos;
         private _viewSize;
