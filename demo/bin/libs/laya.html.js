@@ -25,6 +25,7 @@
     }
     HTMLExtendStyle.EMPTY = new HTMLExtendStyle();
     Laya.ClassUtils.regClass("laya.html.utils.HTMLExtendStyle", HTMLExtendStyle);
+    Laya.ClassUtils.regClass("Laya.HTMLExtendStyle", HTMLExtendStyle);
 
     class HTMLStyle {
         constructor() {
@@ -173,6 +174,12 @@
         }
         set bold(value) {
             value ? (this._type |= HTMLStyle._BOLD) : (this._type &= ~HTMLStyle._BOLD);
+        }
+        get fontWeight() {
+            return (this._type & HTMLStyle._BOLD) ? "bold" : "none";
+        }
+        set fontWeight(value) {
+            value == "bold" ? (this._type |= HTMLStyle._BOLD) : (this._type &= ~HTMLStyle._BOLD);
         }
         get italic() {
             return (this._type & HTMLStyle._ITALIC) != 0;
@@ -339,7 +346,7 @@
     }
     HTMLStyle._CSSTOVALUE = { 'letter-spacing': 'letterSpacing', 'white-space': 'whiteSpace', 'line-height': 'lineHeight', 'font-family': 'family', 'vertical-align': 'valign', 'text-decoration': 'textDecoration', 'background-color': 'bgColor', 'border-color': 'borderColor' };
     HTMLStyle._parseCSSRegExp = new RegExp("([\.\#]\\w+)\\s*{([\\s\\S]*?)}", "g");
-    HTMLStyle._inheritProps = ["italic", "align", "valign", "leading", "stroke", "strokeColor", "bold", "fontSize", "lineHeight", "wordWrap", "color"];
+    HTMLStyle._inheritProps = ["italic", "align", "valign", "leading", "letterSpacing", "stroke", "strokeColor", "bold", "fontWeight", "fontSize", "lineHeight", "wordWrap", "color"];
     HTMLStyle.ALIGN_LEFT = "left";
     HTMLStyle.ALIGN_CENTER = "center";
     HTMLStyle.ALIGN_RIGHT = "right";
@@ -365,6 +372,7 @@
     HTMLStyle._ALIGN = 0x30;
     HTMLStyle._VALIGN = 0xc0;
     Laya.ClassUtils.regClass("laya.html.utils.HTMLStyle", HTMLStyle);
+    Laya.ClassUtils.regClass("Laya.HTMLStyle", HTMLStyle);
 
     class HTMLDocument {
         constructor() {
@@ -380,6 +388,7 @@
     }
     HTMLDocument.document = new HTMLDocument();
     Laya.ClassUtils.regClass("laya.html.dom.HTMLDocument", HTMLDocument);
+    Laya.ClassUtils.regClass("Laya.HTMLDocument", HTMLDocument);
 
     class HTMLHitRect {
         constructor() {
@@ -399,6 +408,7 @@
         }
     }
     Laya.ClassUtils.regClass("laya.html.dom.HTMLHitRect", HTMLHitRect);
+    Laya.ClassUtils.regClass("Laya.HTMLHitRect", HTMLHitRect);
 
     class IHtml {
     }
@@ -461,6 +471,7 @@
         }
     }
     Laya.ClassUtils.regClass("laya.html.utils.LayoutLine", LayoutLine);
+    Laya.ClassUtils.regClass("Laya.LayoutLine", LayoutLine);
 
     class Layout {
         static later(element) {
@@ -613,6 +624,7 @@
     }
     Layout.DIV_ELEMENT_PADDING = 0;
     Laya.ClassUtils.regClass("laya.html.utils.Layout", Layout);
+    Laya.ClassUtils.regClass("Laya.Layout", Layout);
 
     (function (HTMLElementType) {
         HTMLElementType[HTMLElementType["BASE"] = 0] = "BASE";
@@ -970,7 +982,7 @@
             var cssStyle = this.style;
             var hasLine;
             hasLine = cssStyle.textDecoration != "none";
-            var i, len;
+            var i = 0, len;
             len = wordList.length;
             var tStartWord;
             tStartWord = wordList[i];
@@ -1006,6 +1018,7 @@
     Laya.ILaya.regClass(HTMLElement);
     IHtml.HTMLElementType = exports.HTMLElementType;
     Laya.ClassUtils.regClass("laya.html.dom.HTMLElement", HTMLElement);
+    Laya.ClassUtils.regClass("Laya.HTMLElement", HTMLElement);
 
     class HTMLBrElement {
         _addToLayout(out) {
@@ -1039,6 +1052,7 @@
     IHtml.HTMLBrElement = HTMLBrElement;
     Laya.ILaya.regClass(HTMLBrElement);
     Laya.ClassUtils.regClass("laya.html.dom.HTMLBrElement", HTMLBrElement);
+    Laya.ClassUtils.regClass("Laya.HTMLBrElement", HTMLBrElement);
 
     class HTMLStyleElement extends HTMLElement {
         _creates() {
@@ -1057,6 +1071,7 @@
     }
     Laya.ILaya.regClass(HTMLStyleElement);
     Laya.ClassUtils.regClass("laya.html.dom.HTMLStyleElement", HTMLStyleElement);
+    Laya.ClassUtils.regClass("Laya.HTMLStyleElement", HTMLStyleElement);
 
     class HTMLLinkElement extends HTMLElement {
         _creates() {
@@ -1103,6 +1118,7 @@
     HTMLLinkElement._cuttingStyle = new RegExp("((@keyframes[\\s\\t]+|)(.+))[\\t\\n\\r\\\s]*{", "g");
     Laya.ILaya.regClass(HTMLLinkElement);
     Laya.ClassUtils.regClass("laya.html.dom.HTMLLinkElement", HTMLLinkElement);
+    Laya.ClassUtils.regClass("Laya.HTMLLinkElement", HTMLLinkElement);
 
     class HTMLDivParser extends HTMLElement {
         constructor() {
@@ -1205,6 +1221,7 @@
     IHtml.HTMLDivParser = HTMLDivParser;
     Laya.ILaya.regClass(HTMLDivParser);
     Laya.ClassUtils.regClass("laya.html.dom.HTMLDivParser", HTMLDivParser);
+    Laya.ClassUtils.regClass("Laya.HTMLDivParser", HTMLDivParser);
 
     class HTMLImageElement extends HTMLElement {
         constructor() {
@@ -1262,6 +1279,7 @@
     IHtml.HTMLImageElement = HTMLImageElement;
     Laya.ILaya.regClass(HTMLImageElement);
     Laya.ClassUtils.regClass("laya.html.dom.HTMLImageElement", HTMLImageElement);
+    Laya.ClassUtils.regClass("Laya.HTMLImageElement", HTMLImageElement);
 
     class HTMLParse {
         static getInstance(type) {
@@ -1381,6 +1399,7 @@
     Laya.ClassUtils.regClass('#text', HTMLElement);
     Laya.ClassUtils.regClass('link', HTMLLinkElement);
     Laya.ClassUtils.regClass("laya.html.utils.HTMLParse", HTMLParse);
+    Laya.ClassUtils.regClass("Laya.HTMLParse", HTMLParse);
 
     class HTMLDivElement extends Laya.Sprite {
         constructor() {
@@ -1488,6 +1507,7 @@
     IHtml.HTMLDivElement = HTMLDivElement;
     IHtml.HTMLParse = HTMLParse;
     Laya.ClassUtils.regClass("laya.html.dom.HTMLDivElement", HTMLDivElement);
+    Laya.ClassUtils.regClass("Laya.HTMLDivElement", HTMLDivElement);
 
     class HTMLIframeElement extends HTMLDivElement {
         constructor() {
@@ -1507,6 +1527,7 @@
         }
     }
     Laya.ClassUtils.regClass("laya.html.dom.HTMLIframeElement", HTMLIframeElement);
+    Laya.ClassUtils.regClass("Laya.HTMLIframeElement", HTMLIframeElement);
 
     exports.HTMLBrElement = HTMLBrElement;
     exports.HTMLDivElement = HTMLDivElement;
@@ -1525,4 +1546,4 @@
     exports.Layout = Layout;
     exports.LayoutLine = LayoutLine;
 
-}(window.Laya = window.Laya|| {}, Laya));
+}(window.Laya = window.Laya || {}, Laya));

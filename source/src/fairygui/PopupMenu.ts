@@ -4,7 +4,7 @@ namespace fgui {
         protected _contentPane: GComponent;
         protected _list: GList;
 
-        constructor(resourceURL: string = null) {
+        constructor(resourceURL?: string) {
             if (!resourceURL) {
                 resourceURL = UIConfig.popupMenu;
                 if (!resourceURL)
@@ -24,25 +24,25 @@ namespace fgui {
             this._contentPane.dispose();
         }
 
-        public addItem(caption: string, handler: Laya.Handler = null): GButton {
+        public addItem(caption: string, handler?: Laya.Handler): GButton {
             var item: GButton = this._list.addItemFromPool().asButton;
             item.title = caption;
             item.data = handler;
             item.grayed = false;
             var c: Controller = item.getController("checked");
-            if (c != null)
+            if (c)
                 c.selectedIndex = 0;
             return item;
         }
 
-        public addItemAt(caption: string, index: number, handler: Laya.Handler = null): GButton {
+        public addItemAt(caption: string, index: number, handler?: Laya.Handler): GButton {
             var item: GButton = this._list.getFromPool().asButton;
             this._list.addChildAt(item, index);
             item.title = caption;
             item.data = handler;
             item.grayed = false;
             var c: Controller = item.getController("checked");
-            if (c != null)
+            if (c)
                 c.selectedIndex = 0;
             return item;
         }
@@ -79,7 +79,7 @@ namespace fgui {
         public setItemCheckable(name: string, checkable: boolean): void {
             var item: GButton = this._list.getChild(name).asButton;
             var c: Controller = item.getController("checked");
-            if (c != null) {
+            if (c) {
                 if (checkable) {
                     if (c.selectedIndex == 0)
                         c.selectedIndex = 1;
@@ -92,22 +92,22 @@ namespace fgui {
         public setItemChecked(name: string, checked: boolean): void {
             var item: GButton = this._list.getChild(name).asButton;
             var c: Controller = item.getController("checked");
-            if (c != null)
+            if (c)
                 c.selectedIndex = checked ? 2 : 1;
         }
 
         public isItemChecked(name: string): boolean {
             var item: GButton = this._list.getChild(name).asButton;
             var c: Controller = item.getController("checked");
-            if (c != null)
+            if (c)
                 return c.selectedIndex == 2;
             else
                 return false;
         }
 
         public removeItem(name: string): boolean {
-            var item: GButton = this._list.getChild(name) as GButton;
-            if (item != null) {
+            var item: GObject = this._list.getChild(name);
+            if (item) {
                 var index: number = this._list.getChildIndex(item);
                 this._list.removeChildToPoolAt(index);
                 return true;
@@ -132,9 +132,9 @@ namespace fgui {
             return this._list;
         }
 
-        public show(target: GObject = null, downward: any = null): void {
+        public show(target: GObject = null, dir?: PopupDirection | boolean) {
             var r: GRoot = target != null ? target.root : GRoot.inst;
-            r.showPopup(this.contentPane, (target instanceof GRoot) ? null : target, downward);
+            r.showPopup(this.contentPane, (target instanceof GRoot) ? null : target, dir);
         }
 
         private __clickItem(itemObject: GObject): void {
@@ -149,7 +149,7 @@ namespace fgui {
                 return;
             }
             var c: Controller = itemObject.asCom.getController("checked");
-            if (c != null && c.selectedIndex != 0) {
+            if (c && c.selectedIndex != 0) {
                 if (c.selectedIndex == 1)
                     c.selectedIndex = 2;
                 else

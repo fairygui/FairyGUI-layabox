@@ -20,11 +20,11 @@ namespace fgui {
         public set text(value: string) {
             this._text = value;
             var text2: string = this._text;
-            if (this._templateVars != null)
+            if (this._templateVars)
                 text2 = this.parseTemplate(text2);
             try {
                 if (this._ubbEnabled)
-                    this._div.innerHTML = ToolSet.parseUBB(text2);
+                    this._div.innerHTML = UBBParser.inst.parse(text2);
                 else
                     this._div.innerHTML = text2;
 

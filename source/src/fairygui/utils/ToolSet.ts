@@ -2,21 +2,7 @@
 
 namespace fgui {
     export class ToolSet {
-        public static getFileName(source: string): string {
-            var i: number = source.lastIndexOf("/");
-            if (i != -1)
-                source = source.substr(i + 1);
-            i = source.lastIndexOf("\\");
-            if (i != -1)
-                source = source.substr(i + 1);
-            i = source.lastIndexOf(".");
-            if (i != -1)
-                return source.substring(0, i);
-            else
-                return source;
-        }
-
-        public static startsWith(source: string, str: string, ignoreCase: boolean = false): boolean {
+        public static startsWith(source: string, str: string, ignoreCase?: boolean): boolean {
             if (!source)
                 return false;
             else if (source.length < str.length)
@@ -30,7 +16,7 @@ namespace fgui {
             }
         }
 
-        public static endsWith(source: string, str: string, ignoreCase: boolean = false): boolean {
+        public static endsWith(source: string, str: string, ignoreCase?: boolean): boolean {
             if (!source)
                 return false;
             else if (source.length < str.length)
@@ -44,21 +30,6 @@ namespace fgui {
             }
         }
 
-        public static trim(targetString: string): string {
-            return ToolSet.trimLeft(ToolSet.trimRight(targetString));
-        }
-
-        public static trimLeft(targetString: string): string {
-            var tempChar: string = "";
-            for (var i: number = 0; i < targetString.length; i++) {
-                tempChar = targetString.charAt(i);
-                if (tempChar != " " && tempChar != "\n" && tempChar != "\r") {
-                    break;
-                }
-            }
-            return targetString.substr(i);
-        }
-
         public static trimRight(targetString: string): string {
             var tempChar: string = "";
             for (var i: number = targetString.length - 1; i >= 0; i--) {
@@ -70,8 +41,7 @@ namespace fgui {
             return targetString.substring(0, i + 1);
         }
 
-
-        public static convertToHtmlColor(argb: number, hasAlpha: boolean = false): string {
+        public static convertToHtmlColor(argb: number, hasAlpha?: boolean): string {
             var alpha: string;
             if (hasAlpha)
                 alpha = (argb >> 24 & 0xFF).toString(16);
@@ -91,7 +61,7 @@ namespace fgui {
             return "#" + alpha + red + green + blue;
         }
 
-        public static convertFromHtmlColor(str: string, hasAlpha: boolean = false): number {
+        public static convertFromHtmlColor(str: string, hasAlpha?: boolean): number {
             if (str.length < 1)
                 return 0;
 
@@ -107,7 +77,7 @@ namespace fgui {
         }
 
         public static displayObjectToGObject(obj: Laya.Node): GObject {
-            while (obj != null && !(obj instanceof Laya.Stage)) {
+            while (obj && !(obj instanceof Laya.Stage)) {
                 if (obj["$owner"])
                     return obj["$owner"];
 
@@ -120,16 +90,8 @@ namespace fgui {
             if (!str)
                 return "";
             else
-                return str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&apos;");
-        }
-
-        public static defaultUBBParser: UBBParser = new UBBParser();
-        public static parseUBB(text: string): string {
-            return ToolSet.defaultUBBParser.parse(text);
-        }
-
-        public static removeUBB(text: string): string {
-            return ToolSet.defaultUBBParser.parse(text, true);
+                return str.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;").replace(/'/g, "&apos;").replace(/"/g, "&quot;");
         }
 
         public static clamp(value: number, min: number, max: number): number {
@@ -227,7 +189,16 @@ namespace fgui {
             else if (toApplyColor.length == 20)
                 filter.setByMatrix(toApplyColor);
             else
-                filter.setByMatrix(ColorMatrix.getMatrix(toApplyColor[0], toApplyColor[1], toApplyColor[2], toApplyColor[3]));
+                filter.setByMatrix(getColorMatrix(toApplyColor[0], toApplyColor[1], toApplyColor[2], toApplyColor[3]));
         }
+    }
+
+    let helper: ColorMatrix = new ColorMatrix();
+    function getColorMatrix(p_brightness: number, p_contrast: number, p_saturation: number, p_hue: number, result?: number[]): Array<number> {
+        result = result || new Array<number>(ColorMatrix.length);
+        helper.reset();
+        helper.adjustColor(p_brightness, p_contrast, p_saturation, p_hue);
+        helper.matrix.forEach((e, i) => result[i] = e);
+        return result;
     }
 }

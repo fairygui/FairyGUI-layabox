@@ -26,16 +26,10 @@ namespace fgui {
             super.dispose();
         }
 
-        /**
-         * @see GroupLayout
-         */
         public get layout(): number {
             return this._layout;
         }
 
-        /**
-         * @see GroupLayout
-         */
         public set layout(value: number) {
             if (this._layout != value) {
                 this._layout = value;
@@ -106,8 +100,8 @@ namespace fgui {
             }
         }
 
-        public setBoundsChangedFlag(positionChangedOnly: boolean = false): void {
-            if (this._updating == 0 && this._parent != null) {
+        public setBoundsChangedFlag(positionChangedOnly?: boolean): void {
+            if (this._updating == 0 && this._parent) {
                 if (!positionChangedOnly)
                     this._percentReady = false;
 
@@ -120,7 +114,7 @@ namespace fgui {
         }
 
         public ensureSizeCorrect(): void {
-            if (this._parent == null || !this._boundsChanged || this._layout == 0)
+            if (!this._parent || !this._boundsChanged || this._layout == 0)
                 return;
 
             this._boundsChanged = false;
@@ -133,7 +127,7 @@ namespace fgui {
         }
 
         public ensureBoundsCorrect(): void {
-            if (this._parent == null || !this._boundsChanged)
+            if (!this._parent || !this._boundsChanged)
                 return;
 
             this._boundsChanged = false;
@@ -242,7 +236,7 @@ namespace fgui {
         }
 
         public moveChildren(dx: number, dy: number): void {
-            if ((this._updating & 1) != 0 || this._parent == null)
+            if ((this._updating & 1) != 0 || !this._parent)
                 return;
 
             this._updating |= 1;
@@ -261,7 +255,7 @@ namespace fgui {
         }
 
         public resizeChildren(dw: number, dh: number): void {
-            if (this._layout == GroupLayoutType.None || (this._updating & 2) != 0 || this._parent == null)
+            if (this._layout == GroupLayoutType.None || (this._updating & 2) != 0 || !this._parent)
                 return;
 
             this._updating |= 2;
@@ -451,5 +445,4 @@ namespace fgui {
                 this.handleVisibleChanged();
         }
     }
-
 }

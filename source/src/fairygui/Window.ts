@@ -8,9 +8,9 @@ namespace fgui {
         private _frame: GComponent;
         private _modal: boolean;
 
-        private _uiSources: IUISource[];
-        private _inited: boolean;
-        private _loading: boolean;
+        private _uiSources?: IUISource[];
+        private _inited?: boolean;
+        private _loading?: boolean;
 
         protected _requestingCmd: number = 0;
 
@@ -18,7 +18,7 @@ namespace fgui {
 
         constructor() {
             super();
-            this.focusable = true;
+
             this._uiSources = [];
             this.bringToFontOnClick = UIConfig.bringWindowToFrontOnClick;
 
@@ -33,15 +33,15 @@ namespace fgui {
 
         public set contentPane(val: GComponent) {
             if (this._contentPane != val) {
-                if (this._contentPane != null)
+                if (this._contentPane)
                     this.removeChild(this._contentPane);
                 this._contentPane = val;
-                if (this._contentPane != null) {
+                if (this._contentPane) {
                     this.addChild(this._contentPane);
                     this.setSize(this._contentPane.width, this._contentPane.height);
                     this._contentPane.addRelation(this, RelationType.Size);
                     this._frame = <GComponent>(this._contentPane.getChild("frame"));
-                    if (this._frame != null) {
+                    if (this._frame) {
                         this.closeButton = this._frame.getChild("closeButton");
                         this.dragArea = this._frame.getChild("dragArea");
                         this.contentArea = this._frame.getChild("contentArea");
@@ -63,10 +63,10 @@ namespace fgui {
         }
 
         public set closeButton(value: GObject) {
-            if (this._closeButton != null)
+            if (this._closeButton)
                 this._closeButton.offClick(this, this.closeEventHandler);
             this._closeButton = value;
-            if (this._closeButton != null)
+            if (this._closeButton)
                 this._closeButton.onClick(this, this.closeEventHandler);
         }
 
@@ -76,13 +76,13 @@ namespace fgui {
 
         public set dragArea(value: GObject) {
             if (this._dragArea != value) {
-                if (this._dragArea != null) {
+                if (this._dragArea) {
                     this._dragArea.draggable = false;
                     this._dragArea.off(Events.DRAG_START, this, this.__dragStart);
                 }
 
                 this._dragArea = value;
-                if (this._dragArea != null) {
+                if (this._dragArea) {
                     if (this._dragArea instanceof GGraph)
                         this._dragArea.asGraph.drawRect(0, null, null);
                     this._dragArea.draggable = true;
@@ -113,13 +113,13 @@ namespace fgui {
         }
 
         public hideImmediately(): void {
-            var r: GRoot = (this.parent instanceof GRoot) ? (<GRoot>this.parent) : null;
+            var r: GRoot = (this.parent instanceof GRoot) ? this.parent : null;
             if (!r)
                 r = GRoot.inst;
             r.hideWindowImmediately(this);
         }
 
-        public centerOn(r: GRoot, restraint: boolean = false): void {
+        public centerOn(r: GRoot, restraint?: boolean): void {
             this.setXY(Math.round((r.width - this.width) / 2), Math.round((r.height - this.height) / 2));
             if (restraint) {
                 this.addRelation(r, RelationType.Center_Center);
@@ -154,8 +154,8 @@ namespace fgui {
             this.root.bringToFront(this);
         }
 
-        public showModalWait(requestingCmd: number = 0): void {
-            if (requestingCmd != 0)
+        public showModalWait(requestingCmd?: number): void {
+            if (requestingCmd != null)
                 this._requestingCmd = requestingCmd;
 
             if (fgui.UIConfig.windowModalWaiting) {
@@ -169,7 +169,7 @@ namespace fgui {
         }
 
         protected layoutModalWaitPane(): void {
-            if (this._contentArea != null) {
+            if (this._contentArea) {
                 var pt: Laya.Point = this._frame.localToGlobal();
                 pt = this.globalToLocal(pt.x, pt.y, pt);
                 this._modalWaitPane.setXY(pt.x + this._contentArea.x, pt.y + this._contentArea.y);
@@ -179,8 +179,8 @@ namespace fgui {
                 this._modalWaitPane.setSize(this.width, this.height);
         }
 
-        public closeModalWait(requestingCmd: number = 0): boolean {
-            if (requestingCmd != 0) {
+        public closeModalWait(requestingCmd?: number): boolean {
+            if (requestingCmd != null) {
                 if (this._requestingCmd != requestingCmd)
                     return false;
             }
@@ -257,7 +257,7 @@ namespace fgui {
         }
 
         public dispose(): void {
-            if (this.parent != null)
+            if (this.parent)
                 this.hideImmediately();
 
             super.dispose();

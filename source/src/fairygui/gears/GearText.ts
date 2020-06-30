@@ -1,9 +1,11 @@
+
 namespace fgui {
+
     export class GearText extends GearBase {
-        private _storage: Object;
+        private _storage: { [index: string]: string };
         private _default: string;
 
-        constructor(owner: GObject) {
+        public constructor(owner: GObject) {
             super(owner);
         }
 

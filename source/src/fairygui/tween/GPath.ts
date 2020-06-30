@@ -4,8 +4,6 @@ namespace fgui {
         private _points: Array<Laya.Point>;
         private _fullLength: number;
 
-        private static helperPoints: Array<Laya.Point> = new Array<Laya.Point>();
-
         constructor() {
             this._segments = new Array<Segment>();
             this._points = new Array<Laya.Point>();
@@ -15,18 +13,20 @@ namespace fgui {
             return this._fullLength;
         }
 
-        public create2(pt1: GPathPoint, pt2: GPathPoint, pt3?: GPathPoint, pt4?: GPathPoint): void {
-            var points: Array<GPathPoint> = new Array<GPathPoint>();
-            points.push(pt1);
-            points.push(pt2);
-            if (pt3)
-                points.push(pt3);
-            if (pt4)
-                points.push(pt4);
-            this.create(points);
-        }
-
-        public create(points: Array<GPathPoint>): void {
+        public create(pt1: Array<GPathPoint> | GPathPoint, pt2?: GPathPoint, pt3?: GPathPoint, pt4?: GPathPoint): void {
+            var points: Array<GPathPoint>;
+            if (Array.isArray(pt1))
+                points = pt1;
+            else {
+                points = new Array<GPathPoint>();
+                points.push(pt1);
+                points.push(pt2);
+                if (pt3)
+                    points.push(pt3);
+                if (pt4)
+                    points.push(pt4);
+            }
+            
             this._segments.length = 0;
             this._points.length = 0;
             this._fullLength = 0;
@@ -35,7 +35,7 @@ namespace fgui {
             if (cnt == 0)
                 return;
 
-            var splinePoints: Array<Laya.Point> = GPath.helperPoints;
+            var splinePoints: Array<Laya.Point> = s_points;
             splinePoints.length = 0;
 
             var prev: GPathPoint = points[0];
@@ -46,7 +46,7 @@ namespace fgui {
                 var current: GPathPoint = points[i];
 
                 if (prev.curveType != CurveType.CRSpline) {
-                    var seg: Segment = new Segment();
+                    var seg: Segment = {};
                     seg.type = prev.curveType;
                     seg.ptStart = this._points.length;
                     if (prev.curveType == CurveType.Straight) {
@@ -89,14 +89,14 @@ namespace fgui {
         }
 
         private createSplineSegment(): void {
-            var splinePoints: Array<Laya.Point> = GPath.helperPoints;
+            var splinePoints: Array<Laya.Point> = s_points;
             var cnt: number = splinePoints.length;
             splinePoints.splice(0, 0, splinePoints[0]);
             splinePoints.push(splinePoints[cnt]);
             splinePoints.push(splinePoints[cnt]);
             cnt += 3;
 
-            var seg: Segment = new Segment();
+            var seg: Segment = {};
             seg.type = CurveType.CRSpline;
             seg.ptStart = this._points.length;
             seg.ptCount = cnt;
@@ -122,7 +122,7 @@ namespace fgui {
             if (!result)
                 result = new Laya.Point();
             else
-                result.setTo(0, 0);
+                result.x = result.y = 0;
 
             t = ToolSet.clamp01(t);
             var cnt: number = this._segments.length;
@@ -213,14 +213,14 @@ namespace fgui {
                     var t: number = j / SmoothAmount;
                     if (t > t0 && t < t1) {
                         points.push(func.call(this, seg.ptStart, seg.ptCount, t, new Laya.Point()));
-                        if (ts != null)
+                        if (ts)
                             ts.push(t);
                     }
                 }
                 points.push(func.call(this, seg.ptStart, seg.ptCount, t1, new Laya.Point()));
             }
 
-            if (ts != null)
+            if (ts)
                 ts.push(t1);
 
             return points;
@@ -288,10 +288,12 @@ namespace fgui {
         }
     }
 
-    class Segment {
-        public type: number;
-        public length: number;
-        public ptStart: number;
-        public ptCount: number;
+    var s_points: Array<Laya.Point> = new Array<Laya.Point>();
+
+    interface Segment {
+        type?: number;
+        length?: number;
+        ptStart?: number;
+        ptCount?: number;
     }
 }

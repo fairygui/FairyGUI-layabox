@@ -3,7 +3,7 @@ namespace fgui {
         private _text: string;
         private _readPos: number = 0;
 
-        protected _handlers: Object;
+        protected _handlers: { [index: string]: (tagName: string, end: boolean, attr: string) => string };
 
         public defaultImgWidth: number = 0;
         public defaultImgHeight: number = 0;
@@ -71,8 +71,7 @@ namespace fgui {
         }
 
         protected onTag_COLOR(tagName: string, end: boolean, attr: string): string {
-            if (!end)
-            {
+            if (!end) {
                 this.lastColor = attr;
                 return "<span style=\"color:" + attr + "\">";
             }
@@ -88,8 +87,7 @@ namespace fgui {
         }
 
         protected onTag_SIZE(tagName: string, end: boolean, attr: string): string {
-            if (!end)
-            {
+            if (!end) {
                 this.lastSize = attr;
                 return "<span style=\"font-size:" + attr + "\">";
             }
@@ -97,7 +95,7 @@ namespace fgui {
                 return "</span>";
         }
 
-        protected getTagText(remove: boolean = false): string {
+        protected getTagText(remove?: boolean): string {
             var pos1: number = this._readPos;
             var pos2: number;
             var result: string = "";
@@ -122,7 +120,7 @@ namespace fgui {
             return result;
         }
 
-        public parse(text: string, remove: boolean = false): string {
+        public parse(text: string, remove?: boolean): string {
             this._text = text;
             this.lastColor = null;
             this.lastSize = null;
