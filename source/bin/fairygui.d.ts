@@ -1071,6 +1071,56 @@ declare namespace fgui {
     }
 }
 declare namespace fgui {
+    class GLoader3D extends GObject {
+        private _url;
+        private _align;
+        private _verticalAlign;
+        private _autoSize;
+        private _fill;
+        private _shrinkOnly;
+        private _playing;
+        private _frame;
+        private _loop;
+        private _animationName;
+        private _skinName;
+        private _color;
+        private _contentItem;
+        private _container;
+        private _content;
+        private _updatingLayout;
+        constructor();
+        protected createDisplayObject(): void;
+        dispose(): void;
+        url: string;
+        icon: string;
+        align: AlignType;
+        verticalAlign: VertAlignType;
+        fill: LoaderFillType;
+        shrinkOnly: boolean;
+        autoSize: boolean;
+        playing: boolean;
+        frame: number;
+        animationName: string;
+        skinName: string;
+        loop: boolean;
+        color: string;
+        readonly content: Laya.Sprite;
+        protected loadContent(): void;
+        protected loadFromPackage(itemURL: string): void;
+        private onLoaded;
+        setSkeleton(skeleton: Laya.Skeleton, anchor?: Laya.Point): void;
+        private onChange;
+        protected loadExternal(): void;
+        private updateLayout;
+        private clearContent;
+        protected handleSizeChanged(): void;
+        protected handleGrayedChanged(): void;
+        getProp(index: number): any;
+        setProp(index: number, value: any): void;
+        setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
+    }
+}
+declare namespace fgui {
     class GMovieClip extends GObject {
         private _movieClip;
         constructor();
@@ -1384,6 +1434,7 @@ declare namespace fgui {
         height: number;
         file: string;
         decoded?: boolean;
+        loading?: Array<Function>;
         rawData?: ByteBuffer;
         highResolution?: Array<string>;
         branches?: Array<string>;
@@ -1399,6 +1450,9 @@ declare namespace fgui {
         frames?: Frame[];
         extensionType?: any;
         bitmapFont?: BitmapFont;
+        templet?: Laya.Templet;
+        skeletonAnchor?: Laya.Point;
+        armatureName?: string;
         constructor();
         load(): Object;
         getBranch(): PackageItem;
@@ -1793,6 +1847,7 @@ declare namespace fgui {
         getItemByName(resName: string): PackageItem;
         getItemAssetByName(resName: string): Object;
         getItemAsset(item: PackageItem): Object;
+        getItemAssetAsync(item: PackageItem, onComplete?: (err: any, item: PackageItem) => void): void;
         private loadMovieClip;
         private loadFont;
     }

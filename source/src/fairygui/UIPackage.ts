@@ -173,7 +173,7 @@ namespace fgui {
             delete UIPackage._instById[pkg.id];
             delete UIPackage._instByName[pkg.name];
             delete UIPackage._instById[pkg._resKey];
-            if (pkg._customId != null)
+            if (pkg._customId)
                 delete UIPackage._instById[pkg._customId];
         }
 
@@ -318,7 +318,10 @@ namespace fgui {
             buffer.seek(indexTablePos, 1);
 
             var pi: PackageItem;
-            var fileNamePrefix: string = this._resKey + "_";
+            var path: string = this._resKey;
+            let pos = path.lastIndexOf('/');
+            let shortPath = pos == -1 ? "" : path.substr(0, pos + 1);
+            path = path + "_";
 
             cnt = buffer.getUint16();
             for (i = 0; i < cnt; i++) {
@@ -390,7 +393,17 @@ namespace fgui {
                     case PackageItemType.Sound:
                     case PackageItemType.Misc:
                         {
-                            pi.file = fileNamePrefix + pi.file;
+                            pi.file = path + pi.file;
+                            break;
+                        }
+
+                    case PackageItemType.Spine:
+                    case PackageItemType.DragonBones:
+                        {
+                            pi.file = shortPath + pi.file;
+                            pi.skeletonAnchor = new Laya.Point();
+                            pi.skeletonAnchor.x = buffer.getFloat32();
+                            pi.skeletonAnchor.y = buffer.getFloat32();
                             break;
                         }
                 }
@@ -483,7 +496,7 @@ namespace fgui {
             for (var i: number = 0; i < cnt; i++) {
                 var pi: PackageItem = this._items[i];
                 if (pi.type == PackageItemType.Atlas) {
-                    if (pi.texture != null)
+                    if (pi.texture)
                         Laya.loader.clearTextureRes(pi.texture.url);
                 }
             }
@@ -494,7 +507,7 @@ namespace fgui {
             for (var i: number = 0; i < cnt; i++) {
                 var pi: PackageItem = this._items[i];
                 if (pi.type == PackageItemType.Atlas) {
-                    if (pi.texture != null) {
+                    if (pi.texture) {
                         pi.texture.destroy();
                         pi.texture = null;
                     }
@@ -502,6 +515,8 @@ namespace fgui {
                 else if (pi.type == PackageItemType.Sound) {
                     Laya.SoundManager.destroySound(pi.file);
                 }
+                else if (pi.templet)
+                    pi.templet.destroy();
             }
         }
 
@@ -518,10 +533,10 @@ namespace fgui {
         }
 
         public set customId(value: string) {
-            if (this._customId != null)
+            if (this._customId)
                 delete UIPackage._instById[this._customId];
             this._customId = value;
-            if (this._customId != null)
+            if (this._customId)
                 UIPackage._instById[this._customId] = this;
         }
 
@@ -614,6 +629,45 @@ namespace fgui {
 
                 default:
                     return null;
+            }
+        }
+
+        public getItemAssetAsync(item: PackageItem, onComplete?: (err: any, item: PackageItem) => void): void {
+            if (item.decoded) {
+                onComplete(null, item);
+                return;
+            }
+
+            if (item.loading) {
+                item.loading.push(onComplete);
+                return;
+            }
+
+            switch (item.type) {
+                case PackageItemType.Spine:
+                case PackageItemType.DragonBones:
+                    item.loading = [onComplete];
+                    item.templet = new Laya.Templet();
+                    item.templet.on(Laya.Event.COMPLETE, this, () => {
+                        let arr = item.loading;
+                        delete item.loading;
+                        arr.forEach(e => e(null, item));
+                    });
+                    item.templet.on(Laya.Event.ERROR, this, () => {
+                        let arr = item.loading;
+                        delete item.loading;
+                        delete item.templet;
+                        arr.forEach(e => e('parse error', item));
+                    });
+                    let pos = item.file.lastIndexOf('.');
+                    let str = item.file.substring(0, pos + 1).replace("_ske", "") + "sk";
+                    item.templet.loadAni(str);
+                    break;
+
+                default:
+                    this.getItemAsset(item);
+                    onComplete(null, item);
+                    break;
             }
         }
 

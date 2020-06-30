@@ -94,6 +94,9 @@ module fgui {
                     case ObjectType.Tree:
                         return new GTree();
 
+                    case ObjectType.Loader3D:
+                        return new GLoader3D();
+
                     default:
                         return null;
                 }

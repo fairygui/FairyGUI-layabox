@@ -11,6 +11,7 @@ namespace fgui {
         public height: number = 0;
         public file: string;
         public decoded?: boolean;
+        public loading?: Array<Function>;
         public rawData?: ByteBuffer;
 
         public highResolution?: Array<string>;
@@ -35,6 +36,10 @@ namespace fgui {
 
         //font 
         public bitmapFont?: BitmapFont;
+
+        //skeleton
+        public templet?: Laya.Templet;
+        public skeletonAnchor?: Laya.Point;
 
         constructor() {
         }

@@ -7751,6 +7751,342 @@
 })(fgui);
 
 (function (fgui) {
+    class GLoader3D extends fgui.GObject {
+        constructor() {
+            super();
+            this._frame = 0;
+            this._playing = true;
+            this._url = "";
+            this._fill = fgui.LoaderFillType.None;
+            this._align = fgui.AlignType.Left;
+            this._verticalAlign = fgui.VertAlignType.Top;
+            this._color = "#FFFFFF";
+        }
+        createDisplayObject() {
+            super.createDisplayObject();
+            this._container = new Laya.Sprite();
+            this._displayObject.addChild(this._container);
+        }
+        dispose() {
+            super.dispose();
+        }
+        get url() {
+            return this._url;
+        }
+        set url(value) {
+            if (this._url == value)
+                return;
+            this._url = value;
+            this.loadContent();
+            this.updateGear(7);
+        }
+        get icon() {
+            return this._url;
+        }
+        set icon(value) {
+            this.url = value;
+        }
+        get align() {
+            return this._align;
+        }
+        set align(value) {
+            if (this._align != value) {
+                this._align = value;
+                this.updateLayout();
+            }
+        }
+        get verticalAlign() {
+            return this._verticalAlign;
+        }
+        set verticalAlign(value) {
+            if (this._verticalAlign != value) {
+                this._verticalAlign = value;
+                this.updateLayout();
+            }
+        }
+        get fill() {
+            return this._fill;
+        }
+        set fill(value) {
+            if (this._fill != value) {
+                this._fill = value;
+                this.updateLayout();
+            }
+        }
+        get shrinkOnly() {
+            return this._shrinkOnly;
+        }
+        set shrinkOnly(value) {
+            if (this._shrinkOnly != value) {
+                this._shrinkOnly = value;
+                this.updateLayout();
+            }
+        }
+        get autoSize() {
+            return this._autoSize;
+        }
+        set autoSize(value) {
+            if (this._autoSize != value) {
+                this._autoSize = value;
+                this.updateLayout();
+            }
+        }
+        get playing() {
+            return this._playing;
+        }
+        set playing(value) {
+            if (this._playing != value) {
+                this._playing = value;
+                this.updateGear(5);
+                this.onChange();
+            }
+        }
+        get frame() {
+            return this._frame;
+        }
+        set frame(value) {
+            if (this._frame != value) {
+                this._frame = value;
+                this.updateGear(5);
+                this.onChange();
+            }
+        }
+        get animationName() {
+            return this._animationName;
+        }
+        set animationName(value) {
+            if (this._animationName != value) {
+                this._animationName = value;
+                this.onChange();
+            }
+        }
+        get skinName() {
+            return this._skinName;
+        }
+        set skinName(value) {
+            if (this._skinName != value) {
+                this._skinName = value;
+                this.onChange();
+            }
+        }
+        get loop() {
+            return this._loop;
+        }
+        set loop(value) {
+            if (this._loop != value) {
+                this._loop = value;
+                this.onChange();
+            }
+        }
+        get color() {
+            return this._color;
+        }
+        set color(value) {
+            if (this._color != value) {
+                this._color = value;
+                this.updateGear(4);
+                if (this._content)
+                    fgui.ToolSet.setColorFilter(this._content, this._color);
+            }
+        }
+        get content() {
+            return;
+        }
+        loadContent() {
+            this.clearContent();
+            if (!this._url)
+                return;
+            if (fgui.ToolSet.startsWith(this._url, "ui://"))
+                this.loadFromPackage(this._url);
+            else
+                this.loadExternal();
+        }
+        loadFromPackage(itemURL) {
+            this._contentItem = fgui.UIPackage.getItemByURL(itemURL);
+            if (this._contentItem) {
+                this._contentItem = this._contentItem.getBranch();
+                this.sourceWidth = this._contentItem.width;
+                this.sourceHeight = this._contentItem.height;
+                this._contentItem = this._contentItem.getHighResolution();
+                if (this._autoSize)
+                    this.setSize(this.sourceWidth, this.sourceHeight);
+                if (this._contentItem.type == fgui.PackageItemType.Spine || this._contentItem.type == fgui.PackageItemType.DragonBones)
+                    this._contentItem.owner.getItemAssetAsync(this._contentItem, this.onLoaded.bind(this));
+            }
+        }
+        onLoaded(err, item) {
+            if (this._contentItem != item)
+                return;
+            if (err)
+                console.warn(err);
+            if (!this._contentItem.templet)
+                return;
+            this.setSkeleton(this._contentItem.templet.buildArmature(1), this._contentItem.skeletonAnchor);
+        }
+        setSkeleton(skeleton, anchor) {
+            this.url = null;
+            this._content = skeleton;
+            this._container.addChild(this._content);
+            this._content.pos(anchor.x, anchor.y);
+            fgui.ToolSet.setColorFilter(this._content, this._color);
+            this.onChange();
+            this.updateLayout();
+        }
+        onChange() {
+            if (!this._content)
+                return;
+            if (this._animationName) {
+                if (this._playing)
+                    this._content.play(this._animationName, this._loop);
+                else
+                    this._content.play(this._animationName, false, true, this._frame, this._frame);
+            }
+            else
+                this._content.stop();
+            if (this._skinName)
+                this._content.showSkinByName(this._skinName);
+            else
+                this._content.showSkinByIndex(0);
+        }
+        loadExternal() {
+        }
+        updateLayout() {
+            let cw = this.sourceWidth;
+            let ch = this.sourceHeight;
+            if (this._autoSize) {
+                this._updatingLayout = true;
+                if (cw == 0)
+                    cw = 50;
+                if (ch == 0)
+                    ch = 30;
+                this.setSize(cw, ch);
+                this._updatingLayout = false;
+                if (cw == this._width && ch == this._height) {
+                    this._container.scale(1, 1);
+                    this._container.pos(0, 0);
+                    return;
+                }
+            }
+            var sx = 1, sy = 1;
+            if (this._fill != fgui.LoaderFillType.None) {
+                sx = this.width / this.sourceWidth;
+                sy = this.height / this.sourceHeight;
+                if (sx != 1 || sy != 1) {
+                    if (this._fill == fgui.LoaderFillType.ScaleMatchHeight)
+                        sx = sy;
+                    else if (this._fill == fgui.LoaderFillType.ScaleMatchWidth)
+                        sy = sx;
+                    else if (this._fill == fgui.LoaderFillType.Scale) {
+                        if (sx > sy)
+                            sx = sy;
+                        else
+                            sy = sx;
+                    }
+                    else if (this._fill == fgui.LoaderFillType.ScaleNoBorder) {
+                        if (sx > sy)
+                            sy = sx;
+                        else
+                            sx = sy;
+                    }
+                    if (this._shrinkOnly) {
+                        if (sx > 1)
+                            sx = 1;
+                        if (sy > 1)
+                            sy = 1;
+                    }
+                    cw = this.sourceWidth * sx;
+                    ch = this.sourceHeight * sy;
+                }
+            }
+            this._container.scale(sx, sy);
+            var nx, ny;
+            if (this._align == fgui.AlignType.Center)
+                nx = Math.floor((this.width - cw) / 2);
+            else if (this._align == fgui.AlignType.Right)
+                nx = this.width - cw;
+            else
+                nx = 0;
+            if (this._verticalAlign == fgui.VertAlignType.Middle)
+                ny = Math.floor((this.height - ch) / 2);
+            else if (this._verticalAlign == fgui.VertAlignType.Bottom)
+                ny = this.height - ch;
+            else
+                ny = 0;
+            this._container.pos(nx, ny);
+        }
+        clearContent() {
+            this._contentItem = null;
+            if (this._content) {
+                this._container.removeChild(this._content);
+                this._content.destroy();
+                this._content = null;
+            }
+        }
+        handleSizeChanged() {
+            super.handleSizeChanged();
+            if (!this._updatingLayout)
+                this.updateLayout();
+        }
+        handleGrayedChanged() {
+        }
+        getProp(index) {
+            switch (index) {
+                case fgui.ObjectPropID.Color:
+                    return this.color;
+                case fgui.ObjectPropID.Playing:
+                    return this.playing;
+                case fgui.ObjectPropID.Frame:
+                    return this.frame;
+                case fgui.ObjectPropID.TimeScale:
+                    return 1;
+                default:
+                    return super.getProp(index);
+            }
+        }
+        setProp(index, value) {
+            switch (index) {
+                case fgui.ObjectPropID.Color:
+                    this.color = value;
+                    break;
+                case fgui.ObjectPropID.Playing:
+                    this.playing = value;
+                    break;
+                case fgui.ObjectPropID.Frame:
+                    this.frame = value;
+                    break;
+                case fgui.ObjectPropID.TimeScale:
+                    break;
+                case fgui.ObjectPropID.DeltaTime:
+                    break;
+                default:
+                    super.setProp(index, value);
+                    break;
+            }
+        }
+        setup_beforeAdd(buffer, beginPos) {
+            super.setup_beforeAdd(buffer, beginPos);
+            buffer.seek(beginPos, 5);
+            this._url = buffer.readS();
+            this._align = buffer.readByte();
+            this._verticalAlign = buffer.readByte();
+            this._fill = buffer.readByte();
+            this._shrinkOnly = buffer.readBool();
+            this._autoSize = buffer.readBool();
+            this._animationName = buffer.readS();
+            this._skinName = buffer.readS();
+            this._playing = buffer.readBool();
+            this._frame = buffer.getInt32();
+            this._loop = buffer.readBool();
+            if (buffer.readBool())
+                this.color = buffer.readColorS();
+            if (this._url)
+                this.loadContent();
+        }
+    }
+    fgui.GLoader3D = GLoader3D;
+})(fgui);
+
+(function (fgui) {
     class GMovieClip extends fgui.GObject {
         constructor() {
             super();
@@ -13255,6 +13591,8 @@
                         return new fgui.GComboBox();
                     case fgui.ObjectType.Tree:
                         return new fgui.GTree();
+                    case fgui.ObjectType.Loader3D:
+                        return new fgui.GLoader3D();
                     default:
                         return null;
                 }
@@ -13539,7 +13877,10 @@
             }
             buffer.seek(indexTablePos, 1);
             var pi;
-            var fileNamePrefix = this._resKey + "_";
+            var path = this._resKey;
+            let pos = path.lastIndexOf('/');
+            let shortPath = pos == -1 ? "" : path.substr(0, pos + 1);
+            path = path + "_";
             cnt = buffer.getUint16();
             for (i = 0; i < cnt; i++) {
                 nextPos = buffer.getInt32();
@@ -13601,7 +13942,16 @@
                     case fgui.PackageItemType.Sound:
                     case fgui.PackageItemType.Misc:
                         {
-                            pi.file = fileNamePrefix + pi.file;
+                            pi.file = path + pi.file;
+                            break;
+                        }
+                    case fgui.PackageItemType.Spine:
+                    case fgui.PackageItemType.DragonBones:
+                        {
+                            pi.file = shortPath + pi.file;
+                            pi.skeletonAnchor = new Laya.Point();
+                            pi.skeletonAnchor.x = buffer.getFloat32();
+                            pi.skeletonAnchor.y = buffer.getFloat32();
                             break;
                         }
                 }
@@ -13787,6 +14137,41 @@
                         return null;
                 default:
                     return null;
+            }
+        }
+        getItemAssetAsync(item, onComplete) {
+            if (item.decoded) {
+                onComplete(null, item);
+                return;
+            }
+            if (item.loading) {
+                item.loading.push(onComplete);
+                return;
+            }
+            switch (item.type) {
+                case fgui.PackageItemType.Spine:
+                case fgui.PackageItemType.DragonBones:
+                    item.loading = [onComplete];
+                    item.templet = new Laya.Templet();
+                    item.templet.on(Laya.Event.COMPLETE, this, () => {
+                        let arr = item.loading;
+                        delete item.loading;
+                        arr.forEach(e => e(null, item));
+                    });
+                    item.templet.on(Laya.Event.ERROR, this, () => {
+                        let arr = item.loading;
+                        delete item.loading;
+                        delete item.templet;
+                        arr.forEach(e => e('parse error', item));
+                    });
+                    let pos = item.file.lastIndexOf('.');
+                    let str = item.file.substring(0, pos + 1).replace("_ske", "") + "sk";
+                    item.templet.loadAni(str);
+                    break;
+                default:
+                    this.getItemAsset(item);
+                    onComplete(null, item);
+                    break;
             }
         }
         loadMovieClip(item) {
