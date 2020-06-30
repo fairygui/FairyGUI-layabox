@@ -1,6 +1,6 @@
 namespace fgui {
     export class GObjectPool {
-        private _pool: Object;
+        private _pool: { [index: string]: Array<GObject> };
         private _count: number = 0;
 
         constructor() {
@@ -9,7 +9,7 @@ namespace fgui {
 
         public clear(): void {
             for (var i1 in this._pool) {
-                var arr: any[] = this._pool[i1];
+                var arr: Array<GObject> = this._pool[i1];
                 var cnt: number = arr.length;
                 for (var i: number = 0; i < cnt; i++)
                     arr[i].dispose();
@@ -27,8 +27,8 @@ namespace fgui {
             if (url == null)
                 return null;
 
-            var arr: any[] = this._pool[url];
-            if (arr != null && arr.length > 0) {
+            var arr: Array<GObject> = this._pool[url];
+            if (arr && arr.length > 0) {
                 this._count--;
                 return arr.shift();
             }
@@ -42,7 +42,7 @@ namespace fgui {
             if (!url)
                 return;
 
-            var arr: any[] = this._pool[url];
+            var arr: Array<GObject> = this._pool[url];
             if (arr == null) {
                 arr = [];
                 this._pool[url] = arr;

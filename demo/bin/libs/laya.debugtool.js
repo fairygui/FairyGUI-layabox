@@ -908,13 +908,23 @@
 	    static getObjectDisplayAbleKeys(obj, rst = null) {
 	        if (!rst)
 	            rst = [];
-	        var key;
-	        var tValue;
-	        for (key in obj) {
-	            tValue = obj[key];
-	            if (key.charAt(0) == "_")
+	        for (let key in obj) {
+	            let tValue = obj[key];
+	            let tType = typeof (tValue);
+	            if (key.charAt(0) == "_" || !this.displayTypes[tType])
 	                continue;
 	            rst.push(key);
+	        }
+	        let temp = obj;
+	        while (temp) {
+	            let descript = Object.getOwnPropertyDescriptors(temp);
+	            for (let element in descript) {
+	                let tValue = descript[element];
+	                if (!tValue.get)
+	                    continue;
+	                rst.push(element);
+	            }
+	            temp = Object.getPrototypeOf(temp);
 	        }
 	        ClassTool.getObjectGetSetKeys(obj, rst);
 	        rst = ObjectTools.getNoSameArr(rst);
@@ -954,7 +964,8 @@
 	ClassTool.displayTypes = { "boolean": true, "number": true, "string": true };
 
 	class TraceTool {
-	    constructor() { }
+	    constructor() {
+	    }
 	    static closeAllLog() {
 	        var logFun;
 	        logFun = TraceTool.emptyLog;
@@ -5106,10 +5117,6 @@
 	            dataList = DebugPanel.getObjectData(tTarget);
 	            this.debug_view.setContents(dataList);
 	        }
-	        for (i = 0; i < len; i++) {
-	            key = DebugPanel.tObjKeys[i];
-	            this.preValueO[key] = tTarget[key];
-	        }
 	    }
 	    adptPos() {
 	        if (this.fromMe)
@@ -7722,7 +7729,8 @@
 	}
 
 	class DisResizer {
-	    constructor() { }
+	    constructor() {
+	    }
 	    static init() {
 	        if (DisResizer._up)
 	            return;
@@ -7977,4 +7985,4 @@
 	exports.XML2Object = XML2Object;
 	exports.XML2ObjectNodejs = XML2ObjectNodejs;
 
-}(this.Laya = this.Laya || {}, Laya));
+}(window.Laya = window.Laya || {}, Laya));

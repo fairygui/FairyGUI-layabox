@@ -5,8 +5,8 @@ namespace fgui {
     export class GComponent extends GObject {
         private _sortingChildCount: number = 0;
         private _opaque: boolean;
-        private _applyingController: Controller;
-        private _mask: Laya.Sprite = null;
+        private _applyingController?: Controller;
+        private _mask?: Laya.Sprite;
 
         protected _margin: Margin;
         protected _trackBounds: boolean;
@@ -19,7 +19,7 @@ namespace fgui {
         public _controllers: Controller[];
         public _transitions: Transition[];
         public _container: Laya.Sprite;
-        public _scrollPane: ScrollPane;
+        public _scrollPane?: ScrollPane;
         public _alignOffset: Laya.Point;
 
         constructor() {
@@ -57,7 +57,7 @@ namespace fgui {
                 cc.dispose();
             }
 
-            if (this.scrollPane != null)
+            if (this.scrollPane)
                 this.scrollPane.dispose();
 
             cnt = this._children.length;
@@ -68,7 +68,6 @@ namespace fgui {
             }
 
             this._boundsChanged = false;
-            this._mask = null;
             super.dispose();
         }
 
@@ -81,7 +80,7 @@ namespace fgui {
             return child;
         }
 
-        public addChildAt(child: GObject, index: number = 0): GObject {
+        public addChildAt(child: GObject, index: number): GObject {
             if (!child)
                 throw "child is null";
 
@@ -170,7 +169,10 @@ namespace fgui {
             }
         }
 
-        public removeChildren(beginIndex: number = 0, endIndex: number = -1, dispose?: boolean): void {
+        public removeChildren(beginIndex?: number, endIndex?: number, dispose?: boolean): void {
+            if (beginIndex == undefined) beginIndex = 0;
+            if (endIndex == undefined) endIndex = -1;
+
             if (endIndex < 0 || endIndex >= this._children.length)
                 endIndex = this._children.length - 1;
 
@@ -206,12 +208,12 @@ namespace fgui {
                     break;
 
                 if (i != cnt - 1) {
-                    if (!(gcom instanceof GComponent)) {
+                    if (!(obj instanceof GComponent)) {
                         obj = null;
                         break;
                     }
                     else
-                        gcom = <GComponent>obj;
+                        gcom = obj;
                 }
             }
 
@@ -359,7 +361,7 @@ namespace fgui {
         }
 
         public isAncestorOf(child: GObject): boolean {
-            if (child == null)
+            if (!child)
                 return false;
 
             var p: GComponent = child.parent;
@@ -438,7 +440,7 @@ namespace fgui {
                             if (g == child)
                                 break;
 
-                            if (g.displayObject != null && g.displayObject.parent != null)
+                            if (g.displayObject && g.displayObject.parent)
                                 index++;
                         }
                         this._container.addChildAt(child.displayObject, index);
@@ -449,7 +451,7 @@ namespace fgui {
                             if (g == child)
                                 break;
 
-                            if (g.displayObject != null && g.displayObject.parent != null)
+                            if (g.displayObject && g.displayObject.parent)
                                 index++;
                         }
                         this._container.addChildAt(child.displayObject, index);
@@ -485,7 +487,7 @@ namespace fgui {
                     {
                         for (i = 0; i < cnt; i++) {
                             child = this._children[i];
-                            if (child.displayObject != null && child.internalVisible)
+                            if (child.displayObject && child.internalVisible)
                                 this._container.addChild(child.displayObject);
                         }
                     }
@@ -494,7 +496,7 @@ namespace fgui {
                     {
                         for (i = cnt - 1; i >= 0; i--) {
                             child = this._children[i];
-                            if (child.displayObject != null && child.internalVisible)
+                            if (child.displayObject && child.internalVisible)
                                 this._container.addChild(child.displayObject);
                         }
                     }
@@ -505,12 +507,12 @@ namespace fgui {
                         var apex: number = ToolSet.clamp(this._apexIndex, 0, cnt);
                         for (i = 0; i < apex; i++) {
                             child = this._children[i];
-                            if (child.displayObject != null && child.internalVisible)
+                            if (child.displayObject && child.internalVisible)
                                 this._container.addChild(child.displayObject);
                         }
                         for (i = cnt - 1; i >= apex; i--) {
                             child = this._children[i];
-                            if (child.displayObject != null && child.internalVisible)
+                            if (child.displayObject && child.internalVisible)
                                 this._container.addChild(child.displayObject);
                         }
                     }
@@ -556,7 +558,7 @@ namespace fgui {
             if (myIndex < maxIndex) {
                 //如果正在applyingController，此时修改显示列表是危险的，但真正排除危险只能用显示列表的副本去做，这样性能可能损耗较大，
                 //这里取个巧，让可能漏过的child补一下handleControllerChanged，反正重复执行是无害的。
-                if (this._applyingController != null)
+                if (this._applyingController)
                     this._children[maxIndex].handleControllerChanged(this._applyingController);
                 this.swapChildrenAt(myIndex, maxIndex);
             }
@@ -578,11 +580,11 @@ namespace fgui {
         }
 
         public isChildInView(child: GObject): boolean {
-            if (this._displayObject.scrollRect != null) {
+            if (this._displayObject.scrollRect) {
                 return child.x + child.width >= 0 && child.x <= this.width
                     && child.y + child.height >= 0 && child.y <= this.height;
             }
-            else if (this._scrollPane != null) {
+            else if (this._scrollPane) {
                 return this._scrollPane.isChildInView(child);
             }
             else
@@ -611,7 +613,7 @@ namespace fgui {
             if (this._opaque != value) {
                 this._opaque = value;
                 if (this._opaque) {
-                    if (this._displayObject.hitArea == null)
+                    if (!this._displayObject.hitArea)
                         this._displayObject.hitArea = new Laya.Rectangle();
 
                     if (this._displayObject.hitArea instanceof Laya.Rectangle)
@@ -634,22 +636,16 @@ namespace fgui {
 
         public set margin(value: Margin) {
             this._margin.copy(value);
-            if (this._displayObject.scrollRect != null) {
+            if (this._displayObject.scrollRect) {
                 this._container.pos(this._margin.left + this._alignOffset.x, this._margin.top + this._alignOffset.y);
             }
             this.handleSizeChanged();
         }
 
-        /**
-         * @see ChildrenRenderOrder
-         */
         public get childrenRenderOrder(): number {
             return this._childrenRenderOrder;
         }
 
-        /**
-         * @see ChildrenRenderOrder
-         */
         public set childrenRenderOrder(value: number) {
             if (this._childrenRenderOrder != value) {
                 this._childrenRenderOrder = value;
@@ -727,7 +723,7 @@ namespace fgui {
 
         protected updateMask(): void {
             var rect: Laya.Rectangle = this._displayObject.scrollRect;
-            if (rect == null)
+            if (!rect)
                 rect = new Laya.Rectangle();
 
             rect.x = this._margin.left;
@@ -770,16 +766,16 @@ namespace fgui {
 
             if (this._scrollPane)
                 this._scrollPane.onOwnerSizeChanged();
-            else if (this._displayObject.scrollRect != null)
+            else if (this._displayObject.scrollRect)
                 this.updateMask();
 
-            if (this._displayObject.hitArea != null)
+            if (this._displayObject.hitArea)
                 this.updateHitArea();
         }
 
         protected handleGrayedChanged(): void {
             var c: Controller = this.getController("grayed");
-            if (c != null) {
+            if (c) {
                 c.selectedIndex = this.grayed ? 1 : 0;
                 return;
             }
@@ -794,7 +790,7 @@ namespace fgui {
         public handleControllerChanged(c: Controller): void {
             super.handleControllerChanged(c);
 
-            if (this._scrollPane != null)
+            if (this._scrollPane)
                 this._scrollPane.handleControllerChanged(c);
         }
 
@@ -873,49 +869,49 @@ namespace fgui {
         }
 
         public get viewWidth(): number {
-            if (this._scrollPane != null)
+            if (this._scrollPane)
                 return this._scrollPane.viewWidth;
             else
                 return this.width - this._margin.left - this._margin.right;
         }
 
         public set viewWidth(value: number) {
-            if (this._scrollPane != null)
+            if (this._scrollPane)
                 this._scrollPane.viewWidth = value;
             else
                 this.width = value + this._margin.left + this._margin.right;
         }
 
         public get viewHeight(): number {
-            if (this._scrollPane != null)
+            if (this._scrollPane)
                 return this._scrollPane.viewHeight;
             else
                 return this.height - this._margin.top - this._margin.bottom;
         }
 
         public set viewHeight(value: number) {
-            if (this._scrollPane != null)
+            if (this._scrollPane)
                 this._scrollPane.viewHeight = value;
             else
                 this.height = value + this._margin.top + this._margin.bottom;
         }
 
-        public getSnappingPosition(xValue: number, yValue: number, resultPoint: Laya.Point = null): Laya.Point {
-            return this.getSnappingPositionWithDir(xValue, yValue, 0, 0, resultPoint);
+        public getSnappingPosition(xValue: number, yValue: number, result?: Laya.Point): Laya.Point {
+            return this.getSnappingPositionWithDir(xValue, yValue, 0, 0, result);
         }
 
         /**
          * dir正数表示右移或者下移，负数表示左移或者上移
          */
-        public getSnappingPositionWithDir(xValue: number, yValue: number, xDir: number, yDir: number, resultPoint: Laya.Point = null): Laya.Point {
-            if (!resultPoint)
-                resultPoint = new Laya.Point();
+        public getSnappingPositionWithDir(xValue: number, yValue: number, xDir: number, yDir: number, result?: Laya.Point): Laya.Point {
+            if (!result)
+                result = new Laya.Point();
 
             var cnt: number = this._children.length;
             if (cnt == 0) {
-                resultPoint.x = 0;
-                resultPoint.y = 0;
-                return resultPoint;
+                result.x = 0;
+                result.y = 0;
+                return result;
             }
 
             this.ensureBoundsCorrect();
@@ -971,12 +967,12 @@ namespace fgui {
                     xValue = obj.x;
             }
 
-            resultPoint.x = xValue;
-            resultPoint.y = yValue;
-            return resultPoint;
+            result.x = xValue;
+            result.y = yValue;
+            return result;
         }
 
-        public childSortingOrderChanged(child: GObject, oldValue: number, newValue: number = 0): void {
+        public childSortingOrderChanged(child: GObject, oldValue: number, newValue: number): void {
             if (newValue == 0) {
                 this._sortingChildCount--;
                 this.setChildIndex(child, this._children.length);
@@ -999,7 +995,7 @@ namespace fgui {
         }
 
         public constructFromResource2(objectPool: GObject[], poolIndex: number): void {
-            var contentItem:PackageItem = this.packageItem.getBranch();
+            var contentItem: PackageItem = this.packageItem.getBranch();
 
             if (!contentItem.decoded) {
                 contentItem.decoded = true;
@@ -1085,7 +1081,7 @@ namespace fgui {
                 dataLen = buffer.getInt16();
                 curPos = buffer.pos;
 
-                if (objectPool != null)
+                if (objectPool)
                     child = objectPool[poolIndex + i];
                 else {
                     buffer.seek(curPos, 0);
@@ -1102,15 +1098,15 @@ namespace fgui {
                         else
                             pkg = contentItem.owner;
 
-                        pi = pkg != null ? pkg.getItemById(src) : null;
+                        pi = pkg ? pkg.getItemById(src) : null;
                     }
 
-                    if (pi != null) {
+                    if (pi) {
                         child = UIObjectFactory.newObject(pi);
                         child.constructFromResource();
                     }
                     else
-                        child = UIObjectFactory.newObject2(type);
+                        child = UIObjectFactory.newObject(type);
                 }
 
                 child._underConstruct = true;
@@ -1229,7 +1225,7 @@ namespace fgui {
             buffer.seek(beginPos, 4);
 
             var pageController: number = buffer.getInt16();
-            if (pageController != -1 && this._scrollPane != null)
+            if (pageController != -1 && this._scrollPane)
                 this._scrollPane.pageController = this._parent.getControllerAt(pageController);
 
             var cnt: number;

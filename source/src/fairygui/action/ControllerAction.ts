@@ -1,7 +1,7 @@
 namespace fgui {
     export class ControllerAction {
-        public fromPage: any[];
-        public toPage: any[];
+        public fromPage: string[];
+        public toPage: string[];
 
         public static createAction(type: number): ControllerAction {
             switch (type) {

@@ -1,9 +1,14 @@
 ///<reference path="./Image.ts"/>
 
 namespace fgui {
+    export interface Frame {
+        addDelay: number;
+        texture?: Laya.Texture;
+    }
+
     export class MovieClip extends Image {
         public interval: number = 0;
-        public swing: boolean = false;
+        public swing: boolean;
         public repeatDelay: number = 0;
         public timeScale: number = 1;
 
@@ -16,10 +21,10 @@ namespace fgui {
         private _times: number = 0;
         private _endAt: number = 0;
         private _status: number = 0; //0-none, 1-next loop, 2-ending, 3-ended
-        private _endHandler: Laya.Handler = null;
+        private _endHandler?: Laya.Handler;
 
         private _frameElapsed: number = 0; //当前帧延迟
-        private _reversed: boolean = false;
+        private _reversed: boolean;
         private _repeatedCount: number = 0;
 
         constructor() {
@@ -42,7 +47,7 @@ namespace fgui {
             this._scaleByTile = false;
             this._scale9Grid = null;
 
-            if (this._frames != null) {
+            if (this._frames) {
                 this._frameCount = this._frames.length;
 
                 if (this._end == -1 || this._end > this._frameCount - 1)
@@ -74,7 +79,7 @@ namespace fgui {
 
         public set frame(value: number) {
             if (this._frame != value) {
-                if (this._frames != null && value >= this._frameCount)
+                if (this._frames && value >= this._frameCount)
                     value = this._frameCount - 1;
 
                 this._frame = value;
@@ -165,7 +170,12 @@ namespace fgui {
         }
 
         //从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
-        public setPlaySettings(start: number = 0, end: number = -1, times: number = 0, endAt: number = -1, endHandler: Laya.Handler = null): void {
+        public setPlaySettings(start?: number, end?: number, times?: number, endAt?: number, endHandler?: Laya.Handler): void {
+            if (start == undefined) start = 0;
+            if (end == undefined) end = -1;
+            if (times == undefined) times = 0;
+            if (endAt == undefined) endAt = -1;
+
             this._start = start;
             this._end = end;
             if (this._end == -1 || this._end > this._frameCount - 1)
@@ -239,7 +249,7 @@ namespace fgui {
                 this._status = 3; //ended
 
                 //play end
-                if (this._endHandler != null) {
+                if (this._endHandler) {
                     var handler: Laya.Handler = this._endHandler;
                     this._endHandler = null;
                     handler.run();
@@ -254,7 +264,7 @@ namespace fgui {
                         else
                             this._status = 1; //new loop
                     }
-                    else{
+                    else {
                         this._status = 1; //new loop
                     }
                 }
@@ -287,14 +297,6 @@ namespace fgui {
 
         private __removeFromStage(): void {
             Laya.timer.clear(this, this.update);
-        }
-    }
-
-    export class Frame {
-        public addDelay: number = 0;
-        public texture: Laya.Texture;
-
-        constructor() {
         }
     }
 }

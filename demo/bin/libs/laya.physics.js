@@ -1,4 +1,4 @@
-var COMPILED=!0,goog=goog||{};goog.global=this;goog.isDef=function(a){return void 0!==a};goog.exportPath_=function(a,b,c){a=a.split(".");c=c||goog.global;a[0]in c||!c.execScript||c.execScript("var "+a[0]);for(var d;a.length&&(d=a.shift());)!a.length&&goog.isDef(b)?c[d]=b:c=c[d]?c[d]:c[d]={}};
+var COMPILED=!0,goog=goog||{};goog.global=window;goog.isDef=function(a){return void 0!==a};goog.exportPath_=function(a,b,c){a=a.split(".");c=c||goog.global;a[0]in c||!c.execScript||c.execScript("var "+a[0]);for(var d;a.length&&(d=a.shift());)!a.length&&goog.isDef(b)?c[d]=b:c=c[d]?c[d]:c[d]={}};
 goog.define=function(a,b){var c=b;COMPILED||(goog.global.CLOSURE_UNCOMPILED_DEFINES&&Object.prototype.hasOwnProperty.call(goog.global.CLOSURE_UNCOMPILED_DEFINES,a)?c=goog.global.CLOSURE_UNCOMPILED_DEFINES[a]:goog.global.CLOSURE_DEFINES&&Object.prototype.hasOwnProperty.call(goog.global.CLOSURE_DEFINES,a)&&(c=goog.global.CLOSURE_DEFINES[a]));goog.exportPath_(a,c)};goog.DEBUG=!1;goog.LOCALE="en";goog.TRUSTED_SITE=!0;goog.STRICT_MODE_COMPATIBLE=!1;goog.DISALLOW_TEST_ONLY_CODE=COMPILED&&!goog.DEBUG;
 goog.ENABLE_CHROME_APP_SAFE_SCRIPT_LOADING=!1;goog.provide=function(a){if(!COMPILED&&goog.isProvided_(a))throw Error('Namespace "'+a+'" already declared.');goog.constructNamespace_(a)};goog.constructNamespace_=function(a,b){if(!COMPILED){delete goog.implicitNamespaces_[a];for(var c=a;(c=c.substring(0,c.lastIndexOf(".")))&&!goog.getObjectByName(c);)goog.implicitNamespaces_[c]=!0}goog.exportPath_(a,b)};goog.VALID_MODULE_RE_=/^[a-zA-Z_$][a-zA-Z0-9._$]*$/;
 goog.module=function(a){if(!goog.isString(a)||!a||-1==a.search(goog.VALID_MODULE_RE_))throw Error("Invalid module identifier");if(!goog.isInModuleLoader_())throw Error("Module "+a+" has been loaded incorrectly.");if(goog.moduleLoaderState_.moduleName)throw Error("goog.module may only be called once per module.");goog.moduleLoaderState_.moduleName=a;if(!COMPILED){if(goog.isProvided_(a))throw Error('Namespace "'+a+'" already declared.');delete goog.implicitNamespaces_[a]}};goog.module.get=function(a){return goog.module.getInternal_(a)};
@@ -1562,7 +1562,12 @@ window.box2d=box2d;
             return this._def;
         }
         _onEnable() {
-            this.rigidBody || Laya.Laya.systemTimer.callLater(this, this._checkRigidBody);
+            if (this.rigidBody) {
+                this.refresh();
+            }
+            else {
+                Laya.Laya.systemTimer.callLater(this, this._checkRigidBody);
+            }
         }
         _checkRigidBody() {
             if (!this.rigidBody) {
@@ -1576,7 +1581,7 @@ window.box2d=box2d;
         _onDestroy() {
             if (this.rigidBody) {
                 if (this.fixture) {
-                    if (this.fixture.GetBody() == this.rigidBody.body) {
+                    if (this.fixture.GetBody() == this.rigidBody._getOriBody()) {
                         this.rigidBody.body.DestroyFixture(this.fixture);
                     }
                     this.fixture = null;
@@ -1671,12 +1676,12 @@ window.box2d=box2d;
             this.label = "RigidBody";
         }
         _createBody() {
-            if (this._body)
+            if (this._body || !this.owner)
                 return;
             var sp = this.owner;
             var box2d = window.box2d;
             var def = new box2d.b2BodyDef();
-            var point = this.owner.localToGlobal(Laya.Point.TEMP.setTo(0, 0), false, IPhysics.Physics.I.worldRoot);
+            var point = sp.localToGlobal(Laya.Point.TEMP.setTo(0, 0), false, IPhysics.Physics.I.worldRoot);
             def.position.Set(point.x / IPhysics.Physics.PIXEL_RATIO, point.y / IPhysics.Physics.PIXEL_RATIO);
             def.angle = Laya.Utils.toRadian(sp.rotation);
             def.allowSleep = this._allowSleep;
@@ -1801,7 +1806,7 @@ window.box2d=box2d;
         }
         _onDisable() {
             Laya.Laya.physicsTimer.clear(this, this._sysPhysicToNode);
-            IPhysics.Physics.I._removeBody(this._body);
+            this._body && IPhysics.Physics.I._removeBody(this._body);
             this._body = null;
             var owner = this.owner;
             if (owner._changeByRigidBody) {
@@ -1816,6 +1821,9 @@ window.box2d=box2d;
         getBody() {
             if (!this._body)
                 this._onAwake();
+            return this._body;
+        }
+        _getOriBody() {
             return this._body;
         }
         get body() {
@@ -1965,6 +1973,18 @@ window.box2d=box2d;
     Laya.ClassUtils.regClass("laya.physics.RigidBody", RigidBody);
     Laya.ClassUtils.regClass("Laya.RigidBody", RigidBody);
 
+    class DestructionListener {
+        SayGoodbyeJoint(params) {
+            params.m_userData && (params.m_userData.isDestroy = true);
+        }
+        SayGoodbyeFixture(params) {
+        }
+        SayGoodbyeParticleGroup(params) {
+        }
+        SayGoodbyeParticle(params) {
+        }
+    }
+
     class Physics extends Laya.EventDispatcher {
         constructor() {
             super();
@@ -1987,11 +2007,12 @@ window.box2d=box2d;
                 options || (options = {});
                 var box2d = window.box2d;
                 if (box2d == null) {
-                    console.error("Can not find box2d libs, you should reuqest box2d.js first.");
+                    console.error("Can not find box2d libs, you should request box2d.js first.");
                     return;
                 }
                 var gravity = new box2d.b2Vec2(0, options.gravity || 500 / Physics.PIXEL_RATIO);
                 this.world = new box2d.b2World(gravity);
+                this.world.SetDestructionListener(new DestructionListener());
                 this.world.SetContactListener(new ContactListener());
                 this.allowSleeping = options.allowSleeping == null ? true : options.allowSleeping;
                 if (!options.customUpdate)
@@ -2074,7 +2095,10 @@ window.box2d=box2d;
         }
         _createJoint(def) {
             if (this.world) {
-                return this.world.CreateJoint(def);
+                let joint = this.world.CreateJoint(def);
+                joint.m_userData = {};
+                joint.m_userData.isDestroy = false;
+                return joint;
             }
             else {
                 console.error('The physical engine should be initialized first.use "Physics.enable()"');
@@ -2554,10 +2578,10 @@ window.box2d=box2d;
         _createJoint() {
         }
         _onDisable() {
-            if (this._joint) {
+            if (this._joint && this._joint.m_userData && !this._joint.m_userData.isDestroy) {
                 Physics.I._removeJoint(this._joint);
-                this._joint = null;
             }
+            this._joint = null;
         }
     }
     Laya.ClassUtils.regClass("laya.physics.joint.JointBase", JointBase);
@@ -3176,6 +3200,7 @@ window.box2d=box2d;
     exports.ChainCollider = ChainCollider;
     exports.CircleCollider = CircleCollider;
     exports.ColliderBase = ColliderBase;
+    exports.DestructionListener = DestructionListener;
     exports.DistanceJoint = DistanceJoint;
     exports.GearJoint = GearJoint;
     exports.IPhysics = IPhysics;
@@ -3193,4 +3218,4 @@ window.box2d=box2d;
     exports.WeldJoint = WeldJoint;
     exports.WheelJoint = WheelJoint;
 
-}(window.Laya = window.Laya|| {}, Laya));
+}(window.Laya = window.Laya || {}, Laya));

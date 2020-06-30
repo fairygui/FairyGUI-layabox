@@ -388,6 +388,8 @@ window.miMiniGame = function (exports, Laya) {
 	        return KGMiniAdapter.window.qg.createInnerAudioContext();
 	    }
 	    load(url) {
+	        if (!MiniSound._musicAudio)
+	            MiniSound._musicAudio = MiniSound._createSound();
 	        if (!MiniFileMgr.isLocalNativeFile(url)) {
 	            url = Laya.URL.formatURL(url);
 	        }
@@ -477,12 +479,24 @@ window.miMiniGame = function (exports, Laya) {
 	                        fileNativeUrl = sourceUrl;
 	                    }
 	                }
-	                this._sound = MiniSound._createSound();
-	                this._sound.src = this.url = fileNativeUrl;
+	                if (this.url != Laya.SoundManager._bgMusic) {
+	                    this._sound = MiniSound._createSound();
+	                    this._sound.src = this.url = fileNativeUrl;
+	                }
+	                else {
+	                    this._sound = MiniSound._musicAudio;
+	                    this._sound.src = this.url = fileNativeUrl;
+	                }
 	            }
 	            else {
-	                this._sound = MiniSound._createSound();
-	                this._sound.src = this.url = encodeURI(sourceUrl);
+	                if (this.url != Laya.SoundManager._bgMusic) {
+	                    this._sound = MiniSound._createSound();
+	                    this._sound.src = sourceUrl;
+	                }
+	                else {
+	                    this._sound = MiniSound._musicAudio;
+	                    this._sound.src = sourceUrl;
+	                }
 	            }
 	            this._sound.onCanplay(MiniSound.bindToThis(this.onCanPlay, this));
 	            this._sound.onError(MiniSound.bindToThis(this.onError, this));
@@ -785,14 +799,14 @@ window.miMiniGame = function (exports, Laya) {
 	            thisLoader.onLoaded(Laya.Loader.preLoadedMap[url]);
 	        else {
 	            var tempurl = Laya.URL.formatURL(url);
-	            if (url.indexOf(KGMiniAdapter.window.qg.env.USER_DATA_PATH) == -1 && (tempurl.indexOf("http://") != -1 || tempurl.indexOf("https://") != -1) && !KGMiniAdapter.AutoCacheDownFile) {
+	            if (!MiniFileMgr.isLocalNativeFile(url) && !MiniFileMgr.getFileInfo(tempurl) && url.indexOf(KGMiniAdapter.window.qg.env.USER_DATA_PATH) == -1 && (tempurl.indexOf("http://") != -1 || tempurl.indexOf("https://") != -1) && !KGMiniAdapter.AutoCacheDownFile) {
 	                thisLoader._loadHttpRequest(tempurl, contentType, thisLoader, thisLoader.onLoaded, thisLoader, thisLoader.onProgress, thisLoader, thisLoader.onError);
 	            }
 	            else {
 	                var fileObj = MiniFileMgr.getFileInfo(Laya.URL.formatURL(url));
 	                if (fileObj) {
 	                    fileObj.encoding = fileObj.encoding == null ? "utf8" : fileObj.encoding;
-	                    MiniFileMgr.readFile(fileObj.url, encoding, new Laya.Handler(MiniLoader, MiniLoader.onReadNativeCallBack, [url, contentType, thisLoader]), url);
+	                    MiniFileMgr.readFile(MiniFileMgr.getFileNativePath(fileObj.md5), encoding, new Laya.Handler(MiniLoader, MiniLoader.onReadNativeCallBack, [url, contentType, thisLoader]), url);
 	                }
 	                else if (thisLoader.type == "image" || thisLoader.type == "htmlimage") {
 	                    thisLoader._transformUrl(url, contentType);
@@ -831,10 +845,14 @@ window.miMiniGame = function (exports, Laya) {
 	    }
 	    static _transformImgUrl(url, type, thisLoader) {
 	        if (KGMiniAdapter.isZiYu) {
-	            thisLoader._loadImage(url);
+	            thisLoader._loadImage(url, false);
 	            return;
 	        }
-	        if (!MiniFileMgr.getFileInfo(url)) {
+	        if (MiniFileMgr.isLocalNativeFile(url)) {
+	            thisLoader._loadImage(url, false);
+	            return;
+	        }
+	        if (!MiniFileMgr.isLocalNativeFile(url) && !MiniFileMgr.getFileInfo(Laya.URL.formatURL(url))) {
 	            var tempUrl = Laya.URL.formatURL(url);
 	            if (url.indexOf('http://usr/') == -1 && (tempUrl.indexOf("http://") != -1 || tempUrl.indexOf("https://") != -1)) {
 	                if (KGMiniAdapter.isZiYu) {
@@ -888,56 +906,9 @@ window.miMiniGame = function (exports, Laya) {
 	            else
 	                fileNativeUrl = sourceUrl;
 	        }
-	        thisLoader._loadImage(fileNativeUrl);
+	        thisLoader._loadImage(fileNativeUrl, false);
 	    }
 	}
-
-	class MiniLocalStorage {
-	    constructor() {
-	    }
-	    static __init__() {
-	        MiniLocalStorage.items = MiniLocalStorage;
-	    }
-	    static setItem(key, value) {
-	        try {
-	            KGMiniAdapter.window.qg.setStorageSync(key, value);
-	        }
-	        catch (error) {
-	            KGMiniAdapter.window.qg.setStorage({
-	                key: key,
-	                data: value
-	            });
-	        }
-	    }
-	    static getItem(key) {
-	        return KGMiniAdapter.window.qg.getStorageSync(key);
-	    }
-	    static setJSON(key, value) {
-	        MiniLocalStorage.setItem(key, value);
-	    }
-	    static getJSON(key) {
-	        return MiniLocalStorage.getItem(key);
-	    }
-	    static removeItem(key) {
-	        KGMiniAdapter.window.qg.removeStorageSync(key);
-	    }
-	    static clear() {
-	        KGMiniAdapter.window.qg.clearStorageSync();
-	    }
-	    static getStorageInfoSync() {
-	        try {
-	            var res = KGMiniAdapter.window.qg.getStorageInfoSync();
-	            console.log(res.keys);
-	            console.log(res.currentSize);
-	            console.log(res.limitSize);
-	            return res;
-	        }
-	        catch (e) {
-	        }
-	        return null;
-	    }
-	}
-	MiniLocalStorage.support = true;
 
 	class KGMiniAdapter {
 	    static getJson(data) {
@@ -982,8 +953,6 @@ window.miMiniGame = function (exports, Laya) {
 	        Laya.Loader.prototype._loadResourceFilter = MiniLoader.prototype._loadResourceFilter;
 	        Laya.Loader.prototype._loadSound = MiniLoader.prototype._loadSound;
 	        Laya.Loader.prototype._loadHttpRequestWhat = MiniLoader.prototype._loadHttpRequestWhat;
-	        Laya.LocalStorage._baseClass = MiniLocalStorage;
-	        MiniLocalStorage.__init__();
 	        KGMiniAdapter.window.qg.onMessage && KGMiniAdapter.window.qg.onMessage(KGMiniAdapter._onMessage);
 	    }
 	    static _onMessage(data) {
@@ -1048,9 +1017,44 @@ window.miMiniGame = function (exports, Laya) {
 	        KGMiniAdapter.window["wx"].exitMiniProgram();
 	    }
 	    static onMkdirCallBack(errorCode, data) {
-	        if (!errorCode)
+	        if (!errorCode) {
 	            MiniFileMgr.filesListObj = JSON.parse(data.data);
-	        MiniFileMgr.fakeObj = MiniFileMgr.filesListObj;
+	            MiniFileMgr.fakeObj = MiniFileMgr.filesListObj || {};
+	        }
+	        else {
+	            MiniFileMgr.fakeObj = MiniFileMgr.filesListObj = {};
+	        }
+	        MiniFileMgr.fs.readdir({
+	            dirPath: MiniFileMgr.fileNativeDir,
+	            success: function (data) {
+	                var tempMd5ListObj = {};
+	                var fileObj;
+	                for (let key in MiniFileMgr.filesListObj) {
+	                    if (key != "fileUsedSize") {
+	                        fileObj = MiniFileMgr.filesListObj[key];
+	                        tempMd5ListObj[fileObj.md5] = true;
+	                    }
+	                }
+	                var files = data.files;
+	                var fileName;
+	                for (let i = 0, sz = files.length; i < sz; i++) {
+	                    fileName = files[i];
+	                    if (fileName == MiniFileMgr.fileListName)
+	                        continue;
+	                    var deleteFileUrl = MiniFileMgr.getFileNativePath(fileName);
+	                    if (tempMd5ListObj[deleteFileUrl])
+	                        continue;
+	                    if (tempMd5ListObj[fileName])
+	                        continue;
+	                    MiniFileMgr.fs.unlink({
+	                        filePath: deleteFileUrl,
+	                        success: function (data) {
+	                            console.log("删除无引用的磁盘文件:" + fileName);
+	                        }
+	                    });
+	                }
+	            }
+	        });
 	    }
 	    static pixelRatio() {
 	        if (!KGMiniAdapter.EnvConfig.pixelRatioInt) {
@@ -1422,6 +1426,53 @@ window.miMiniGame = function (exports, Laya) {
 	        }
 	    }
 	}
+
+	class MiniLocalStorage {
+	    constructor() {
+	    }
+	    static __init__() {
+	        MiniLocalStorage.items = MiniLocalStorage;
+	    }
+	    static setItem(key, value) {
+	        try {
+	            KGMiniAdapter.window.qg.setStorageSync(key, value);
+	        }
+	        catch (error) {
+	            KGMiniAdapter.window.qg.setStorage({
+	                key: key,
+	                data: value
+	            });
+	        }
+	    }
+	    static getItem(key) {
+	        return KGMiniAdapter.window.qg.getStorageSync(key);
+	    }
+	    static setJSON(key, value) {
+	        MiniLocalStorage.setItem(key, value);
+	    }
+	    static getJSON(key) {
+	        return MiniLocalStorage.getItem(key);
+	    }
+	    static removeItem(key) {
+	        KGMiniAdapter.window.qg.removeStorageSync(key);
+	    }
+	    static clear() {
+	        KGMiniAdapter.window.qg.clearStorageSync();
+	    }
+	    static getStorageInfoSync() {
+	        try {
+	            var res = KGMiniAdapter.window.qg.getStorageInfoSync();
+	            console.log(res.keys);
+	            console.log(res.currentSize);
+	            console.log(res.limitSize);
+	            return res;
+	        }
+	        catch (e) {
+	        }
+	        return null;
+	    }
+	}
+	MiniLocalStorage.support = true;
 
 	class MiniLocation {
 	    constructor() {

@@ -1,12 +1,11 @@
 namespace fgui {
     export class ByteBuffer extends Laya.Byte {
-        private _byte: Laya.Byte;
-
         public stringTable: string[];
         public version: number;
 
-        constructor(data: any = null, offset: number = 0, length: number = -1) {
-            if (length == -1)
+        constructor(data: any, offset?: number, length?: number) {
+            offset = offset || 0;
+            if (length == null || length == -1)
                 length = data.byteLength - offset;
             if (offset == 0 && length == data.byteLength)
                 super(data);
@@ -51,7 +50,7 @@ namespace fgui {
                 this.stringTable[index] = value;
         }
 
-        public readColor(hasAlpha: boolean = false): number {
+        public readColor(hasAlpha?: boolean): number {
             var r: number = this.getUint8();
             var g: number = this.getUint8();
             var b: number = this.getUint8();
@@ -60,7 +59,7 @@ namespace fgui {
             return (hasAlpha ? (a << 24) : 0) + (r << 16) + (g << 8) + b;
         }
 
-        public readColorS(hasAlpha: boolean = false): string {
+        public readColorS(hasAlpha?: boolean): string {
             var r: number = this.getUint8();
             var g: number = this.getUint8();
             var b: number = this.getUint8();

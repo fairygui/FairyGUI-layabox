@@ -4,14 +4,14 @@ namespace fgui {
         private _items: RelationItem[];
 
         public handling: GObject;
-        public sizeDirty: boolean;
+        public sizeDirty?: boolean;
 
         constructor(owner: GObject) {
             this._owner = owner;
             this._items = [];
         }
 
-        public add(target: GObject, relationType: number, usePercent: boolean = false): void {
+        public add(target: GObject, relationType: number, usePercent?: boolean): void {
             var length: number = this._items.length;
             for (var i: number = 0; i < length; i++) {
                 var item: RelationItem = this._items[i];
@@ -26,7 +26,8 @@ namespace fgui {
             this._items.push(newItem);
         }
 
-        public remove(target: GObject, relationType: number = 0): void {
+        public remove(target: GObject, relationType?: number): void {
+            relationType = relationType || 0;
             var cnt: number = this._items.length;
             var i: number = 0;
             while (i < cnt) {

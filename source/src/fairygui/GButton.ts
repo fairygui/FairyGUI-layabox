@@ -17,10 +17,10 @@ namespace fgui {
         private _relatedController: Controller;
         private _relatedPageId: string;
         private _changeStateOnClick: boolean;
-        private _linkedPopup: GObject;
+        private _linkedPopup?: GObject;
         private _downEffect: number = 0;
-        private _downEffectValue: number = 0;
-        private _downScaled: boolean = false;
+        private _downEffectValue: number;
+        private _downScaled?: boolean;
 
         private _down: boolean;
         private _over: boolean;
@@ -51,7 +51,7 @@ namespace fgui {
         public set icon(value: string) {
             this._icon = value;
             value = (this._selected && this._selectedIcon) ? this._selectedIcon : this._icon;
-            if (this._iconObject != null)
+            if (this._iconObject)
                 this._iconObject.icon = value;
             this.updateGear(7);
         }
@@ -63,7 +63,7 @@ namespace fgui {
         public set selectedIcon(value: string) {
             this._selectedIcon = value;
             value = (this._selected && this._selectedIcon) ? this._selectedIcon : this._icon;
-            if (this._iconObject != null)
+            if (this._iconObject)
                 this._iconObject.icon = value;
         }
 
@@ -98,7 +98,7 @@ namespace fgui {
 
         public get titleColor(): string {
             var tf: GTextField = this.getTextField();
-            if (tf != null)
+            if (tf)
                 return tf.color;
             else
                 return "#000000";
@@ -106,14 +106,14 @@ namespace fgui {
 
         public set titleColor(value: string) {
             var tf: GTextField = this.getTextField();
-            if (tf != null)
+            if (tf)
                 tf.color = value;
             this.updateGear(4);
         }
 
         public get titleFontSize(): number {
             var tf: GTextField = this.getTextField();
-            if (tf != null)
+            if (tf)
                 return tf.fontSize;
             else
                 return 0;
@@ -121,7 +121,7 @@ namespace fgui {
 
         public set titleFontSize(value: number) {
             var tf: GTextField = this.getTextField();
-            if (tf != null)
+            if (tf)
                 tf.fontSize = value;
         }
 
@@ -163,7 +163,7 @@ namespace fgui {
                     this._titleObject.text = this._selected ? this._selectedTitle : this._title;
                 if (this._selectedIcon) {
                     var str: string = this._selected ? this._selectedIcon : this._icon;
-                    if (this._iconObject != null)
+                    if (this._iconObject)
                         this._iconObject.icon = str;
                 }
                 if (this._relatedController
@@ -184,16 +184,10 @@ namespace fgui {
             return this._selected;
         }
 
-        /**
-         * @see ButtonMode
-         */
         public get mode(): number {
             return this._mode;
         }
 
-        /**
-         * @see ButtonMode
-         */
         public set mode(value: number) {
             if (this._mode != value) {
                 if (value == ButtonMode.Common)
@@ -239,11 +233,9 @@ namespace fgui {
 
         public getTextField(): GTextField {
             if (this._titleObject instanceof GTextField)
-                return <GTextField>this._titleObject;
-            else if (this._titleObject instanceof GLabel)
-                return (<GLabel>(this._titleObject)).getTextField();
-            else if (this._titleObject instanceof GButton)
-                return (<GButton>this._titleObject).getTextField();
+                return this._titleObject;
+            else if ((this._titleObject instanceof GLabel) || (this._titleObject instanceof GButton))
+                return this._titleObject.getTextField();
             else
                 return null;
         }
@@ -256,7 +248,8 @@ namespace fgui {
                 this.setPivot(0.5, 0.5, this.pivotAsAnchor);
         }
 
-        public fireClick(downEffect: boolean = true): void {
+        public fireClick(downEffect?: boolean): void {
+            if (downEffect == null) downEffect = true;
             if (downEffect && this._mode == ButtonMode.Common) {
                 this.setState(GButton.OVER);
                 Laya.timer.once(100, this, this.setState, [GButton.DOWN], false);
@@ -389,9 +382,9 @@ namespace fgui {
             this._buttonController = this.getController("button");
             this._titleObject = this.getChild("title");
             this._iconObject = this.getChild("icon");
-            if (this._titleObject != null)
+            if (this._titleObject)
                 this._title = this._titleObject.text;
-            if (this._iconObject != null)
+            if (this._iconObject)
                 this._icon = this._iconObject.icon;
 
             if (this._mode == ButtonMode.Common)
@@ -487,9 +480,9 @@ namespace fgui {
                     this.setState(GButton.DOWN);
             }
 
-            if (this._linkedPopup != null) {
+            if (this._linkedPopup) {
                 if (this._linkedPopup instanceof Window)
-                    (<Window>this._linkedPopup).toggleStatus();
+                    this._linkedPopup.toggleStatus();
                 else
                     this.root.togglePopup(this._linkedPopup, this);
             }

@@ -8,7 +8,6 @@ namespace fgui {
         public static SCROLL: string = "fui_scroll";
         public static SCROLL_END: string = "fui_scroll_end";
         public static DROP: string = "fui_drop";
-        public static FOCUS_CHANGED: string = "fui_focus_changed";
         public static DRAG_START: string = "fui_drag_start";
         public static DRAG_MOVE: string = "fui_drag_move";
         public static DRAG_END: string = "fui_drag_end";
@@ -19,24 +18,18 @@ namespace fgui {
 
         public static $event: Laya.Event = new Laya.Event();
 
-        public static createEvent(type: string, target: Laya.Sprite, source: Laya.Event = null): Laya.Event {
-            Events.$event.setTo(type, target, source ? source.target : target);
-            if (source) {
-                Events.$event.touchId = source.touchId;
-                Events.$event.nativeEvent = source.nativeEvent;
-            }
-            else {
-                Events.$event.nativeEvent = null;
-            }
-            Events.$event["_stoped"] = false;
-            return Events.$event;
+        public static createEvent(type: string, target: Laya.Sprite, source?: { target?: Laya.Sprite, touchId?: number }): Laya.Event {
+            this.$event.setTo(type, target, source ? (source.target || target) : target);
+            this.$event.touchId = source ? (source.touchId || 0) : 0;
+            this.$event.nativeEvent = source;
+            this.$event["_stoped"] = false;
+            return this.$event;
         }
 
-        public static dispatch(type: string, target: Laya.Sprite, source: Laya.Event = null): void {
-            if(target) {
-                target.event(type, Events.createEvent(type, target, source));
+        public static dispatch(type: string, target: Laya.Sprite, source?: { target?: Laya.Sprite, touchId?: number }): void {
+        	if(target) {
+            	target.event(type, this.createEvent(type, target, source));
             }
         }
     }
-
 }

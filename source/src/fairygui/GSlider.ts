@@ -220,13 +220,12 @@ namespace fgui {
             Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__gripMouseUp);
         }
 
-        private static sSilderHelperPoint: Laya.Point = new Laya.Point();
         private __gripMouseMove(evt: Laya.Event): void {
             if (!this.canDrag) {
                 return;
             }
 
-            var pt: Laya.Point = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GSlider.sSilderHelperPoint);
+            var pt: Laya.Point = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, s_vec2);
             var deltaX: number = pt.x - this._clickPos.x;
             var deltaY: number = pt.y - this._clickPos.y;
             if (this._reverse) {
@@ -250,7 +249,7 @@ namespace fgui {
             if (!this.changeOnClick)
                 return;
 
-            var pt: Laya.Point = this._gripObject.globalToLocal(evt.stageX, evt.stageY, GSlider.sSilderHelperPoint);
+            var pt: Laya.Point = this._gripObject.globalToLocal(evt.stageX, evt.stageY, s_vec2);
             var percent: number = ToolSet.clamp01((this._value - this._min) / (this._max - this._min));
             var delta: number;
             if (this._barObjectH)
@@ -264,4 +263,6 @@ namespace fgui {
             this.updateWithPercent(percent, evt);
         }
     }
+
+    var s_vec2: Laya.Point = new Laya.Point();
 }
