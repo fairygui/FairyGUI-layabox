@@ -248,7 +248,7 @@ namespace fgui {
                 return null;
         }
 
-        public setDownEffect(effectId:number,effectValue:number) {
+        public setDownEffect(effectId: number, effectValue: number) {
             this._downEffect = effectId
             this._downEffectValue = effectValue
 
@@ -515,7 +515,7 @@ namespace fgui {
         }
 
         private __click(evt: Laya.Event): void {
-            if (this._sound) {
+            if (this._sound && this._soundVolumeScale > 0) {
                 var pi: PackageItem = UIPackage.getItemByURL(this._sound);
                 if (pi)
                     GRoot.inst.playOneShotSound(pi.file);
