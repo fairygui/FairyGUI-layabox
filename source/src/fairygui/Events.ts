@@ -33,7 +33,9 @@ namespace fgui {
         }
 
         public static dispatch(type: string, target: Laya.Sprite, source: Laya.Event = null): void {
-            target.event(type, Events.createEvent(type, target, source));
+            if(target) {
+                target.event(type, Events.createEvent(type, target, source));
+            }
         }
     }
 

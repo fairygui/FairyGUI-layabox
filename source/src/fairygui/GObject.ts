@@ -776,7 +776,9 @@ namespace fgui {
         public dispose(): void {
             this.removeFromParent();
             this._relations.dispose();
-            this._displayObject.destroy();
+            if(this._displayObject != null) {
+                this._displayObject.destroy();
+            }
             this._displayObject = null;
             for (var i: number = 0; i < 10; i++) {
                 var gear: GearBase = this._gears[i];
@@ -794,19 +796,23 @@ namespace fgui {
         }
 
         public offAllClick(): void {
-            this._displayObject.offAll(Laya.Event.CLICK)
+            if(this._displayObject != null)
+                this._displayObject.offAll(Laya.Event.CLICK)
         }
 
         public hasClickListener(): boolean {
-            return this._displayObject.hasListener(Laya.Event.CLICK);
+            if(this._displayObject != null)
+                return this._displayObject.hasListener(Laya.Event.CLICK);
         }
 
         public on(type: string, thisObject: any, listener: Function, args: any[] = null): void {
-            this._displayObject.on(type, thisObject, listener, args);
+            if(this._displayObject != null)
+                this._displayObject.on(type, thisObject, listener, args);
         }
 
         public off(type: string, thisObject: any, listener: Function): void {
-            this._displayObject.off(type, thisObject, listener);
+            if(this._displayObject != null)
+                this._displayObject.off(type, thisObject, listener);
         }
 
         public get draggable(): boolean {
@@ -829,7 +835,7 @@ namespace fgui {
         }
 
         public startDrag(touchPointID: number = -1): void {
-            if (this._displayObject.stage == null)
+            if (this._displayObject == null || this._displayObject.stage == null)
                 return;
 
             this.dragBegin();
