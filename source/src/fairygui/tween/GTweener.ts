@@ -36,8 +36,6 @@ namespace fgui {
         private _elapsedTime: number;
         private _normalizedTime: number;
 
-        private static helperPoint: Laya.Point = new Laya.Point();
-
         public constructor() {
             this._startValue = new TweenValue();
             this._endValue = new TweenValue();
@@ -114,7 +112,7 @@ namespace fgui {
         public get target(): any {
             return this._target;
         }
-        
+
         public setPath(value: GPath): GTweener {
             this._path = value;
             return this;
@@ -392,7 +390,7 @@ namespace fgui {
                 this._ended = 1;
             }
 
-            this._normalizedTime = EaseManager.evaluate(this._easeType, reversed ? (this._duration - tt) : tt, this._duration,
+            this._normalizedTime = evaluateEase(this._easeType, reversed ? (this._duration - tt) : tt, this._duration,
                 this._easeOvershootOrAmplitude, this._easePeriod);
 
             this._value.setZero();
@@ -415,7 +413,7 @@ namespace fgui {
                 }
             }
             else if (this._path) {
-                var pt: Laya.Point = GTweener.helperPoint;
+                var pt: Laya.Point = s_vec2;
                 this._path.getPointAt(this._normalizedTime, pt);
                 if (this._snapping) {
                     pt.x = Math.round(pt.x);
@@ -438,7 +436,7 @@ namespace fgui {
                 }
             }
 
-            if (this._target != null && this._propType) {
+            if (this._target && this._propType) {
                 if (this._propType instanceof Function) {
                     switch (this._valueSize) {
                         case 1:
@@ -506,4 +504,5 @@ namespace fgui {
         }
     }
 
+    var s_vec2: Laya.Point = new Laya.Point();
 }

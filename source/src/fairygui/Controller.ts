@@ -1,18 +1,18 @@
 namespace fgui {
+    var _nextPageId: number = 0;
+
     export class Controller extends Laya.EventDispatcher {
-        private _selectedIndex: number = 0;
-        private _previousIndex: number = 0;
+        private _selectedIndex: number;
+        private _previousIndex: number;
         private _pageIds: string[];
         private _pageNames: string[];
-        private _actions: ControllerAction[];
+        private _actions?: ControllerAction[];
 
         public name: string;
         public parent: GComponent;
-        public autoRadioGroupDepth: boolean;
+        public autoRadioGroupDepth?: boolean;
 
-        public changing: boolean = false;
-
-        private static _nextPageId: number = 0;
+        public changing: boolean;
 
         constructor() {
             super();
@@ -46,8 +46,10 @@ namespace fgui {
             }
         }
 
-        //功能和设置selectedIndex一样，但不会触发事件
-        public setSelectedIndex(value: number = 0): void {
+        /**
+         * 功能和设置selectedIndex一样，但不会触发事件
+         */
+        public setSelectedIndex(value: number): void {
             if (this._selectedIndex != value) {
                 if (value > this._pageIds.length - 1)
                     throw "index out of bounds: " + value;
@@ -78,7 +80,9 @@ namespace fgui {
             this.selectedIndex = i;
         }
 
-        //功能和设置selectedPage一样，但不会触发事件
+        /**
+         * 功能和设置selectedPage一样，但不会触发事件
+         */
         public setSelectedPage(value: string): void {
             var i: number = this._pageNames.indexOf(value);
             if (i == -1)
@@ -97,28 +101,28 @@ namespace fgui {
             return this._pageIds.length;
         }
 
-        public getPageName(index: number = 0): string {
+        public getPageName(index: number): string {
             return this._pageNames[index];
         }
 
-        public addPage(name: string = ""): void {
-            this.addPageAt(this.name, this._pageIds.length);
+        public addPage(name: string): void {
+            this.addPageAt(name, this._pageIds.length);
         }
 
-        public addPageAt(name: string, index: number = 0): void {
-            var nid: string = "" + (Controller._nextPageId++);
+        public addPageAt(name: string, index: number): void {
+            var nid: string = "" + (_nextPageId++);
             if (index == this._pageIds.length) {
                 this._pageIds.push(nid);
-                this._pageNames.push(this.name);
+                this._pageNames.push(name);
             }
             else {
                 this._pageIds.splice(index, 0, nid);
-                this._pageNames.splice(index, 0, this.name);
+                this._pageNames.splice(index, 0, name);
             }
         }
 
         public removePage(name: string): void {
-            var i: number = this._pageNames.indexOf(this.name);
+            var i: number = this._pageNames.indexOf(name);
             if (i != -1) {
                 this._pageIds.splice(i, 1);
                 this._pageNames.splice(i, 1);
@@ -129,7 +133,7 @@ namespace fgui {
             }
         }
 
-        public removePageAt(index: number = 0): void {
+        public removePageAt(index: number): void {
             this._pageIds.splice(index, 1);
             this._pageNames.splice(index, 1);
             if (this._selectedIndex >= this._pageIds.length)
@@ -171,7 +175,7 @@ namespace fgui {
                 return null;
         }
 
-        public getPageId(index: number = 0): string {
+        public getPageId(index: number): string {
             return this._pageIds[index];
         }
 
@@ -216,7 +220,8 @@ namespace fgui {
             buffer.seek(beginPos, 0);
 
             this.name = buffer.readS();
-            this.autoRadioGroupDepth = buffer.readBool();
+            if (buffer.readBool())
+                this.autoRadioGroupDepth = true;
 
             buffer.seek(beginPos, 1);
 
@@ -255,7 +260,7 @@ namespace fgui {
 
             cnt = buffer.getInt16();
             if (cnt > 0) {
-                if (this._actions == null)
+                if (!this._actions)
                     this._actions = [];
 
                 for (i = 0; i < cnt; i++) {
@@ -270,7 +275,7 @@ namespace fgui {
                 }
             }
 
-            if (this.parent != null && this._pageIds.length > 0)
+            if (this.parent && this._pageIds.length > 0)
                 this._selectedIndex = homePageIndex;
             else
                 this._selectedIndex = -1;

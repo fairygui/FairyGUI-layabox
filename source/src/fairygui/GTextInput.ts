@@ -151,10 +151,10 @@ namespace fgui {
 
         public set promptText(value: string) {
             this._prompt = value;
-            var str:string = ToolSet.removeUBB(value);
+            var str: string = UBBParser.inst.parse(value, true);
             this._input.prompt = str;
-            if(ToolSet.defaultUBBParser.lastColor)
-                this._input.promptColor = ToolSet.defaultUBBParser.lastColor;
+            if (UBBParser.inst.lastColor)
+                this._input.promptColor = UBBParser.inst.lastColor;
         }
 
         public get promptText(): string {

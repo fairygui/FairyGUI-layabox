@@ -1,32 +1,33 @@
 namespace fgui {
+    type PackageDependency = { id: string, name: string };
 
     export class UIPackage {
         private _id: string;
         private _name: string;
         private _items: PackageItem[];
-        private _itemsById: Object;
-        private _itemsByName: Object;
+        private _itemsById: { [index: string]: PackageItem };
+        private _itemsByName: { [index: string]: PackageItem };
         private _resKey: string;
         private _customId: string;
         private _sprites: Object;
-        private _dependencies: Array<any>;
+        private _dependencies: Array<PackageDependency>;
         private _branches: Array<string>;
         public _branchIndex: number;
 
         public static _constructing: number = 0;
 
-        private static _instById: Object = {};
-        private static _instByName: Object = {};
+        private static _instById: { [index: string]: UIPackage } = {};
+        private static _instByName: { [index: string]: UIPackage } = {};
         private static _branch: string = "";
-        private static _vars: any = {};
+        private static _vars: { [index: string]: string } = {};
 
         constructor() {
             this._items = [];
             this._itemsById = {};
             this._itemsByName = {};
             this._sprites = {};
-            this._dependencies = Array<any>();
-            this._branches = Array<string>();
+            this._dependencies = [];
+            this._branches = [];
             this._branchIndex = -1;
         }
 
@@ -44,11 +45,11 @@ namespace fgui {
             }
         }
 
-        public static getVar(key: string): any {
+        public static getVar(key: string): string {
             return UIPackage._vars[key];
         }
 
-        public static setVar(key: string, value: any) {
+        public static setVar(key: string, value: string) {
             UIPackage._vars[key] = value;
         }
 
@@ -84,16 +85,17 @@ namespace fgui {
             let loadKeyArr = [];
             let keys: Array<string> = [];
             let i: number;
-            if (typeof (resKey) == "string") {
-                loadKeyArr = [{ url: resKey + "." + UIConfig.packageFileExtension, type: Laya.Loader.BUFFER }];
-                keys = [resKey];
-            }
-            else {
+            if (Array.isArray(resKey)) {
                 for (i = 0; i < resKey.length; i++) {
                     loadKeyArr.push({ url: resKey[i] + "." + UIConfig.packageFileExtension, type: Laya.Loader.BUFFER });
                     keys.push(resKey[i]);
                 }
             }
+            else {
+                loadKeyArr = [{ url: resKey + "." + UIConfig.packageFileExtension, type: Laya.Loader.BUFFER }];
+                keys = [resKey];
+            }
+
             let pkgArr: Array<UIPackage> = [];
             let pkg: UIPackage;
             for (i = 0; i < loadKeyArr.length; i++) {
@@ -175,7 +177,7 @@ namespace fgui {
                 delete UIPackage._instById[pkg._customId];
         }
 
-        public static createObject(pkgName: string, resName: string, userClass?: any): GObject {
+        public static createObject(pkgName: string, resName: string, userClass?: new () => GObject): GObject {
             var pkg: UIPackage = UIPackage.getByName(pkgName);
             if (pkg)
                 return pkg.createObject(resName, userClass);
@@ -183,7 +185,7 @@ namespace fgui {
                 return null;
         }
 
-        public static createObjectFromURL(url: string, userClass?: any): GObject {
+        public static createObjectFromURL(url: string, userClass?: new () => GObject): GObject {
             var pi: PackageItem = UIPackage.getItemByURL(url);
             if (pi)
                 return pi.owner.internalCreateObject(pi, userClass);
@@ -213,7 +215,7 @@ namespace fgui {
                 if (url.length > 13) {
                     var pkgId: string = url.substr(5, 8);
                     var pkg: UIPackage = UIPackage.getById(pkgId);
-                    if (pkg != null) {
+                    if (pkg) {
                         var srcId: string = url.substr(13);
                         return pkg.getItemById(srcId);
                     }
@@ -222,7 +224,7 @@ namespace fgui {
             else {
                 var pkgName: string = url.substr(pos1 + 2, pos2 - pos1 - 2);
                 pkg = UIPackage.getByName(pkgName);
-                if (pkg != null) {
+                if (pkg) {
                     var srcName: string = url.substr(pos2 + 1);
                     return pkg.getItemByName(srcName);
                 }
@@ -429,7 +431,7 @@ namespace fgui {
                 var itemId: string = buffer.readS();
                 pi = this._itemsById[buffer.readS()];
 
-                var sprite: AtlasSprite = new AtlasSprite();
+                let sprite: AtlasSprite = { atlas: pi, rect: new Laya.Rectangle(), offset: new Laya.Point(), originalSize: new Laya.Point() };
                 sprite.atlas = pi;
                 sprite.rect.x = buffer.getInt32();
                 sprite.rect.y = buffer.getInt32();
@@ -523,7 +525,7 @@ namespace fgui {
                 UIPackage._instById[this._customId] = this;
         }
 
-        public createObject(resName: string, userClass?: any): GObject {
+        public createObject(resName: string, userClass?: new () => GObject): GObject {
             var pi: PackageItem = this._itemsByName[resName];
             if (pi)
                 return this.internalCreateObject(pi, userClass);
@@ -531,7 +533,7 @@ namespace fgui {
                 return null;
         }
 
-        public internalCreateObject(item: PackageItem, userClass?: any): GObject {
+        public internalCreateObject(item: PackageItem, userClass?: new () => GObject): GObject {
             var g: GObject = UIObjectFactory.newObject(item, userClass);
 
             if (g == null)
@@ -566,7 +568,7 @@ namespace fgui {
                     if (!item.decoded) {
                         item.decoded = true;
                         var sprite: AtlasSprite = this._sprites[item.id];
-                        if (sprite != null) {
+                        if (sprite) {
                             var atlasTexture: Laya.Texture = <Laya.Texture>(this.getItemAsset(sprite.atlas));
                             item.texture = Laya.Texture.create(atlasTexture,
                                 sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height,
@@ -630,7 +632,6 @@ namespace fgui {
             item.frames = [];
 
             var spriteId: string;
-            var frame: Frame;
             var sprite: AtlasSprite;
             var fx: number;
             var fy: number;
@@ -639,12 +640,11 @@ namespace fgui {
                 var nextPos: number = buffer.getInt16();
                 nextPos += buffer.pos;
 
-                frame = new Frame();
                 fx = buffer.getInt32();
                 fy = buffer.getInt32();
                 buffer.getInt32(); //width
                 buffer.getInt32(); //height
-                frame.addDelay = buffer.getInt32();
+                let frame: Frame = { addDelay: buffer.getInt32() };
                 spriteId = buffer.readS();
 
                 if (spriteId != null && (sprite = this._sprites[spriteId]) != null) {
@@ -674,12 +674,10 @@ namespace fgui {
             font.size = buffer.getInt32();
             var xadvance: number = buffer.getInt32();
             var lineHeight: number = buffer.getInt32();
-            var bgWidth: number;
-            var bgHeight: number;
 
             var mainTexture: Laya.Texture = null;
             var mainSprite: AtlasSprite = this._sprites[item.id];
-            if (mainSprite != null)
+            if (mainSprite)
                 mainTexture = <Laya.Texture>(this.getItemAsset(mainSprite.atlas));
 
             buffer.seek(0, 1);
@@ -690,7 +688,7 @@ namespace fgui {
                 var nextPos: number = buffer.getInt16();
                 nextPos += buffer.pos;
 
-                bg = new BMGlyph();
+                bg = {};
                 var ch: string = buffer.readChar();
                 font.glyphs[ch] = bg;
 
@@ -744,18 +742,11 @@ namespace fgui {
         }
     }
 
-
-    class AtlasSprite {
-        public atlas: PackageItem;
-        public rect: Laya.Rectangle;
-        public offset: Laya.Point;
-        public originalSize: Laya.Point;
-        public rotated: boolean;
-
-        constructor() {
-            this.rect = new Laya.Rectangle();
-            this.offset = new Laya.Point();
-            this.originalSize = new Laya.Point();
-        }
+    interface AtlasSprite {
+        atlas: PackageItem;
+        rect: Laya.Rectangle;
+        offset: Laya.Point;
+        originalSize: Laya.Point;
+        rotated?: boolean;
     }
 }

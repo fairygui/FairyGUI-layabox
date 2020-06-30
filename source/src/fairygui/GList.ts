@@ -22,23 +22,23 @@ namespace fgui {
         private _selectionMode: number;
         private _align: string;
         private _verticalAlign: string;
-        private _selectionController: Controller;
+        private _selectionController?: Controller;
 
         private _lastSelectedIndex: number = 0;
         private _pool: GObjectPool;
 
         //Virtual List support
-        private _virtual: boolean;
-        private _loop: boolean;
+        private _virtual?: boolean;
+        private _loop?: boolean;
         private _numItems: number = 0;
         private _realNumItems: number;
         private _firstIndex: number = 0; //the top left index
         private _curLineItemCount: number = 0; //item count in one line
         private _curLineItemCount2: number; //只用在页面模式，表示垂直方向的项目数
-        private _itemSize: Laya.Point;
+        private _itemSize?: Laya.Point;
         private _virtualListChanged: number = 0; //1-content changed, 2-size changed
-        private _virtualItems: Array<ItemInfo>;
-        private _eventLocked: boolean;
+        private _virtualItems?: Array<ItemInfo>;
+        private _eventLocked?: boolean;
         private itemInfoVer: number = 0; //用来标志item是否在本次处理中已经被重用了
 
         constructor() {
@@ -64,16 +64,10 @@ namespace fgui {
             super.dispose();
         }
 
-        /**
-         * @see ListLayoutType
-         */
         public get layout(): number {
             return this._layout;
         }
 
-        /**
-         * @see ListLayoutType
-         */
         public set layout(value: number) {
             if (this._layout != value) {
                 this._layout = value;
@@ -199,16 +193,10 @@ namespace fgui {
             }
         }
 
-        /**
-         * @see ListSelectionMode
-         */
         public get selectionMode(): number {
             return this._selectionMode;
         }
 
-        /**
-         * @see ListSelectionMode
-         */
         public set selectionMode(value: number) {
             this._selectionMode = value;
         }
@@ -230,7 +218,7 @@ namespace fgui {
                 url = this._defaultItem;
 
             var obj: GObject = this._pool.getObject(url);
-            if (obj != null)
+            if (obj)
                 obj.visible = true;
             return obj;
         }
@@ -244,9 +232,8 @@ namespace fgui {
             super.addChildAt(child, index);
 
             if (child instanceof GButton) {
-                var button: GButton = <GButton>(child);
-                button.selected = false;
-                button.changeStateOnClick = false;
+                child.selected = false;
+                child.changeStateOnClick = false;
             }
             child.on(Laya.Event.CLICK, this, this.__clickItem);
 
@@ -284,7 +271,9 @@ namespace fgui {
             this.returnToPool(child);
         }
 
-        public removeChildrenToPool(beginIndex: number = 0, endIndex: number = -1): void {
+        public removeChildrenToPool(beginIndex?: number, endIndex?: number): void {
+            if (beginIndex == undefined) beginIndex = 0;
+            if (endIndex == undefined) endIndex = -1;
             if (endIndex < 0 || endIndex >= this._children.length)
                 endIndex = this._children.length - 1;
 
@@ -297,7 +286,7 @@ namespace fgui {
             if (this._virtual) {
                 for (i = 0; i < this._realNumItems; i++) {
                     var ii: ItemInfo = this._virtualItems[i];
-                    if ((ii.obj instanceof GButton) && (<GButton>ii.obj).selected
+                    if ((ii.obj instanceof GButton) && ii.obj.selected
                         || ii.obj == null && ii.selected) {
                         if (this._loop)
                             return i % this._numItems;
@@ -309,8 +298,8 @@ namespace fgui {
             else {
                 var cnt: number = this._children.length;
                 for (i = 0; i < cnt; i++) {
-                    var obj: GButton = this._children[i].asButton;
-                    if (obj != null && obj.selected)
+                    var obj: GObject = this._children[i];
+                    if ((obj instanceof GButton) && obj.selected)
                         return i;
                 }
             }
@@ -335,7 +324,7 @@ namespace fgui {
             if (this._virtual) {
                 for (i = 0; i < this._realNumItems; i++) {
                     var ii: ItemInfo = this._virtualItems[i];
-                    if ((ii.obj instanceof GButton) && (<GButton>ii.obj).selected
+                    if ((ii.obj instanceof GButton) && ii.obj.selected
                         || ii.obj == null && ii.selected) {
                         var j: number = i;
                         if (this._loop) {
@@ -350,8 +339,8 @@ namespace fgui {
             else {
                 var cnt: number = this._children.length;
                 for (i = 0; i < cnt; i++) {
-                    var obj: GButton = this._children[i].asButton;
-                    if (obj != null && obj.selected)
+                    var obj: GObject = this._children[i];
+                    if ((obj instanceof GButton) && obj.selected)
                         result.push(i);
                 }
             }
@@ -371,17 +360,17 @@ namespace fgui {
                 this.scrollToView(index);
 
             this._lastSelectedIndex = index;
-            var obj: GButton = null;
+            var obj: GObject;
             if (this._virtual) {
                 var ii: ItemInfo = this._virtualItems[index];
-                if (ii.obj != null)
-                    obj = ii.obj.asButton;
+                if (ii.obj)
+                    obj = ii.obj;
                 ii.selected = true;
             }
             else
-                obj = this.getChildAt(index).asButton;
+                obj = this.getChildAt(index);
 
-            if (obj != null && !obj.selected) {
+            if ((obj instanceof GButton) && !obj.selected) {
                 obj.selected = true;
                 this.updateSelectionController(index);
             }
@@ -391,17 +380,17 @@ namespace fgui {
             if (this._selectionMode == ListSelectionMode.None)
                 return;
 
-            var obj: GButton = null;
+            var obj: GObject;
             if (this._virtual) {
                 var ii: ItemInfo = this._virtualItems[index];
-                if (ii.obj != null)
-                    obj = ii.obj.asButton;
+                if (ii.obj)
+                    obj = ii.obj;
                 ii.selected = false;
             }
             else
-                obj = this.getChildAt(index).asButton;
+                obj = this.getChildAt(index);
 
-            if (obj != null)
+            if (obj instanceof GButton)
                 obj.selected = false;
         }
 
@@ -411,15 +400,15 @@ namespace fgui {
                 for (i = 0; i < this._realNumItems; i++) {
                     var ii: ItemInfo = this._virtualItems[i];
                     if (ii.obj instanceof GButton)
-                        (<GButton>ii.obj).selected = false;
+                        ii.obj.selected = false;
                     ii.selected = false;
                 }
             }
             else {
                 var cnt: number = this._children.length;
                 for (i = 0; i < cnt; i++) {
-                    var obj: GButton = this._children[i].asButton;
-                    if (obj != null)
+                    var obj: GObject = this._children[i];
+                    if (obj instanceof GButton)
                         obj.selected = false;
                 }
             }
@@ -431,8 +420,8 @@ namespace fgui {
                 for (i = 0; i < this._realNumItems; i++) {
                     var ii: ItemInfo = this._virtualItems[i];
                     if (ii.obj != g) {
-                        if ((ii.obj instanceof GButton))
-                            (<GButton>ii.obj).selected = false;
+                        if (ii.obj instanceof GButton)
+                            ii.obj.selected = false;
                         ii.selected = false;
                     }
                 }
@@ -440,8 +429,8 @@ namespace fgui {
             else {
                 var cnt: number = this._children.length;
                 for (i = 0; i < cnt; i++) {
-                    var obj: GButton = this._children[i].asButton;
-                    if (obj != null && obj != g)
+                    var obj: GObject = this._children[i];
+                    if ((obj instanceof GButton) && obj != g)
                         obj.selected = false;
                 }
             }
@@ -455,8 +444,8 @@ namespace fgui {
             if (this._virtual) {
                 for (i = 0; i < this._realNumItems; i++) {
                     var ii: ItemInfo = this._virtualItems[i];
-                    if ((ii.obj instanceof GButton) && !(<GButton>ii.obj).selected) {
-                        (<GButton>ii.obj).selected = true;
+                    if ((ii.obj instanceof GButton) && !ii.obj.selected) {
+                        ii.obj.selected = true;
                         last = i;
                     }
                     ii.selected = true;
@@ -465,8 +454,8 @@ namespace fgui {
             else {
                 var cnt: number = this._children.length;
                 for (i = 0; i < cnt; i++) {
-                    var obj: GButton = this._children[i].asButton;
-                    if (obj != null && !obj.selected) {
+                    var obj: GObject = this._children[i];
+                    if ((obj instanceof GButton) && !obj.selected) {
                         obj.selected = true;
                         last = i;
                     }
@@ -490,8 +479,8 @@ namespace fgui {
                 for (i = 0; i < this._realNumItems; i++) {
                     var ii: ItemInfo = this._virtualItems[i];
                     if (ii.obj instanceof GButton) {
-                        (<GButton>ii.obj).selected = !(<GButton>ii.obj).selected;
-                        if ((<GButton>ii.obj).selected)
+                        ii.obj.selected = !ii.obj.selected;
+                        if (ii.obj.selected)
                             last = i;
                     }
                     ii.selected = !ii.selected;
@@ -500,8 +489,8 @@ namespace fgui {
             else {
                 var cnt: number = this._children.length;
                 for (i = 0; i < cnt; i++) {
-                    var obj: GButton = this._children[i].asButton;
-                    if (obj != null) {
+                    var obj: GObject = this._children[i];
+                    if (obj instanceof GButton) {
                         obj.selected = !obj.selected;
                         if (obj.selected)
                             last = i;
@@ -644,7 +633,7 @@ namespace fgui {
         }
 
         private __clickItem(evt: Laya.Event): void {
-            if (this._scrollPane != null && this._scrollPane.isDragged)
+            if (this._scrollPane && this._scrollPane.isDragged)
                 return;
 
             var item: GObject = GObject.cast(evt.currentTarget);
@@ -665,18 +654,17 @@ namespace fgui {
                 return;
 
             var dontChangeLastIndex: boolean = false;
-            var button: GButton = <GButton>(item);
             var index: number = this.childIndexToItemIndex(this.getChildIndex(item));
 
             if (this._selectionMode == ListSelectionMode.Single) {
-                if (!button.selected) {
-                    this.clearSelectionExcept(button);
-                    button.selected = true;
+                if (!item.selected) {
+                    this.clearSelectionExcept(item);
+                    item.selected = true;
                 }
             }
             else {
                 if (evt.shiftKey) {
-                    if (!button.selected) {
+                    if (!item.selected) {
                         if (this._lastSelectedIndex != -1) {
                             var min: number = Math.min(this._lastSelectedIndex, index);
                             var max: number = Math.max(this._lastSelectedIndex, index);
@@ -686,14 +674,14 @@ namespace fgui {
                                 for (i = min; i <= max; i++) {
                                     var ii: ItemInfo = this._virtualItems[i];
                                     if (ii.obj instanceof GButton)
-                                        (<GButton>ii.obj).selected = true;
+                                        ii.obj.selected = true;
                                     ii.selected = true;
                                 }
                             }
                             else {
                                 for (i = min; i <= max; i++) {
-                                    var obj: GButton = this.getChildAt(i).asButton;
-                                    if (obj != null)
+                                    var obj: GObject = this.getChildAt(i);
+                                    if (obj instanceof GButton)
                                         obj.selected = true;
                                 }
                             }
@@ -701,31 +689,33 @@ namespace fgui {
                             dontChangeLastIndex = true;
                         }
                         else {
-                            button.selected = true;
+                            item.selected = true;
                         }
                     }
                 }
                 else if (evt.ctrlKey || this._selectionMode == ListSelectionMode.Multiple_SingleClick) {
-                    button.selected = !button.selected;
+                    item.selected = !item.selected;
                 }
                 else {
-                    if (!button.selected) {
-                        this.clearSelectionExcept(button);
-                        button.selected = true;
+                    if (!item.selected) {
+                        this.clearSelectionExcept(item);
+                        item.selected = true;
                     }
                     else
-                        this.clearSelectionExcept(button);
+                        this.clearSelectionExcept(item);
                 }
             }
 
             if (!dontChangeLastIndex)
                 this._lastSelectedIndex = index;
 
-            if (button.selected)
+            if (item.selected)
                 this.updateSelectionController(index);
         }
 
-        public resizeToFit(itemCount: number = 1000000, minSize: number = 0): void {
+        public resizeToFit(itemCount?: number, minSize?: number): void {
+            if (itemCount == null) itemCount = 100000;
+            minSize = minSize || 0;
             this.ensureBoundsCorrect();
 
             var curCount: number = this.numItems;
@@ -805,7 +795,7 @@ namespace fgui {
         }
 
         private updateSelectionController(index: number): void {
-            if (this._selectionController != null && !this._selectionController.changing
+            if (this._selectionController && !this._selectionController.changing
                 && index < this._selectionController.pageCount) {
                 var c: Controller = this._selectionController;
                 this._selectionController = null;
@@ -820,19 +810,19 @@ namespace fgui {
                 || dir == 0 && delta > size / 2;
         }
 
-        public getSnappingPositionWithDir(xValue: number, yValue: number, xDir: number, yDir: number, resultPoint: Laya.Point = null): Laya.Point {
+        public getSnappingPositionWithDir(xValue: number, yValue: number, xDir: number, yDir: number, result?: Laya.Point): Laya.Point {
             if (this._virtual) {
-                if (!resultPoint)
-                    resultPoint = new Laya.Point();
+                if (!result)
+                    result = new Laya.Point();
 
                 var saved: number;
                 var index: number;
                 var size: number;
                 if (this._layout == ListLayoutType.SingleColumn || this._layout == ListLayoutType.FlowHorizontal) {
                     saved = yValue;
-                    GList.pos_param = yValue;
+                    s_n = yValue;
                     index = this.getIndexOnPos1(false);
-                    yValue = GList.pos_param;
+                    yValue = s_n;
                     if (index < this._virtualItems.length && index < this._realNumItems) {
                         size = this._virtualItems[index].height;
                         if (this.shouldSnapToNext(yDir, saved - yValue, size))
@@ -841,9 +831,9 @@ namespace fgui {
                 }
                 else if (this._layout == ListLayoutType.SingleRow || this._layout == ListLayoutType.FlowVertical) {
                     saved = xValue;
-                    GList.pos_param = xValue;
+                    s_n = xValue;
                     index = this.getIndexOnPos2(false);
-                    xValue = GList.pos_param;
+                    xValue = s_n;
                     if (index < this._virtualItems.length && index < this._realNumItems) {
                         size = this._virtualItems[index].width;
                         if (this.shouldSnapToNext(xDir, saved - xValue, size))
@@ -852,9 +842,9 @@ namespace fgui {
                 }
                 else {
                     saved = xValue;
-                    GList.pos_param = xValue;
+                    s_n = xValue;
                     index = this.getIndexOnPos3(false);
-                    xValue = GList.pos_param;
+                    xValue = s_n;
                     if (index < this._virtualItems.length && index < this._realNumItems) {
                         size = this._virtualItems[index].width;
                         if (this.shouldSnapToNext(xDir, saved - xValue, size))
@@ -862,15 +852,15 @@ namespace fgui {
                     }
                 }
 
-                resultPoint.x = xValue;
-                resultPoint.y = yValue;
-                return resultPoint;
+                result.x = xValue;
+                result.y = yValue;
+                return result;
             }
             else
-                return super.getSnappingPositionWithDir(xValue, yValue, xDir, yDir, resultPoint);
+                return super.getSnappingPositionWithDir(xValue, yValue, xDir, yDir, result);
         }
 
-        public scrollToView(index: number, ani: boolean = false, setFirst: boolean = false): void {
+        public scrollToView(index: number, ani?: boolean, setFirst?: boolean): void {
             if (this._virtual) {
                 if (this._numItems == 0)
                     return;
@@ -904,15 +894,14 @@ namespace fgui {
                         ii.width, ii.height);
                 }
 
-                setFirst = true;//因为在可变item大小的情况下，只有设置在最顶端，位置才不会因为高度变化而改变，所以只能支持setFirst=true
-                if (this._scrollPane != null)
+                if (this._scrollPane)
                     this._scrollPane.scrollToView(rect, ani, setFirst);
             }
             else {
                 var obj: GObject = this.getChildAt(index);
-                if (this._scrollPane != null)
+                if (this._scrollPane)
                     this._scrollPane.scrollToView(obj, ani, setFirst);
-                else if (this._parent != null && this._parent.scrollPane != null)
+                else if (this._parent && this._parent.scrollPane)
                     this._parent.scrollPane.scrollToView(obj, ani, setFirst);
             }
         }
@@ -927,7 +916,7 @@ namespace fgui {
 
             if (this._layout == ListLayoutType.Pagination) {
                 for (var i: number = this._firstIndex; i < this._realNumItems; i++) {
-                    if (this._virtualItems[i].obj != null) {
+                    if (this._virtualItems[i].obj) {
                         index--;
                         if (index < 0)
                             return i;
@@ -1053,9 +1042,11 @@ namespace fgui {
                 var oldCount: number = this._virtualItems.length;
                 if (this._realNumItems > oldCount) {
                     for (i = oldCount; i < this._realNumItems; i++) {
-                        var ii: ItemInfo = new ItemInfo();
-                        ii.width = this._itemSize.x;
-                        ii.height = this._itemSize.y;
+                        var ii: ItemInfo = {
+                            width: this._itemSize.x,
+                            height: this._itemSize.y,
+                            updateFlag: 0
+                        };
 
                         this._virtualItems.push(ii);
                     }
@@ -1103,7 +1094,7 @@ namespace fgui {
             }
         }
 
-        private setVirtualListChangedFlag(layoutChanged: boolean = false): void {
+        private setVirtualListChangedFlag(layoutChanged?: boolean): void {
             if (layoutChanged)
                 this._virtualListChanged = 2;
             else if (this._virtualListChanged == 0)
@@ -1217,7 +1208,7 @@ namespace fgui {
 
         private getIndexOnPos1(forceUpdate: boolean): number {
             if (this._realNumItems < this._curLineItemCount) {
-                GList.pos_param = 0;
+                s_n = 0;
                 return 0;
             }
 
@@ -1227,29 +1218,29 @@ namespace fgui {
 
             if (this.numChildren > 0 && !forceUpdate) {
                 pos2 = this.getChildAt(0).y;
-                if (pos2 > GList.pos_param) {
+                if (pos2 > s_n) {
                     for (i = this._firstIndex - this._curLineItemCount; i >= 0; i -= this._curLineItemCount) {
                         pos2 -= (this._virtualItems[i].height + this._lineGap);
-                        if (pos2 <= GList.pos_param) {
-                            GList.pos_param = pos2;
+                        if (pos2 <= s_n) {
+                            s_n = pos2;
                             return i;
                         }
                     }
 
-                    GList.pos_param = 0;
+                    s_n = 0;
                     return 0;
                 }
                 else {
                     for (i = this._firstIndex; i < this._realNumItems; i += this._curLineItemCount) {
                         pos3 = pos2 + this._virtualItems[i].height + this._lineGap;
-                        if (pos3 > GList.pos_param) {
-                            GList.pos_param = pos2;
+                        if (pos3 > s_n) {
+                            s_n = pos2;
                             return i;
                         }
                         pos2 = pos3;
                     }
 
-                    GList.pos_param = pos2;
+                    s_n = pos2;
                     return this._realNumItems - this._curLineItemCount;
                 }
             }
@@ -1257,21 +1248,21 @@ namespace fgui {
                 pos2 = 0;
                 for (i = 0; i < this._realNumItems; i += this._curLineItemCount) {
                     pos3 = pos2 + this._virtualItems[i].height + this._lineGap;
-                    if (pos3 > GList.pos_param) {
-                        GList.pos_param = pos2;
+                    if (pos3 > s_n) {
+                        s_n = pos2;
                         return i;
                     }
                     pos2 = pos3;
                 }
 
-                GList.pos_param = pos2;
+                s_n = pos2;
                 return this._realNumItems - this._curLineItemCount;
             }
         }
 
         private getIndexOnPos2(forceUpdate: boolean): number {
             if (this._realNumItems < this._curLineItemCount) {
-                GList.pos_param = 0;
+                s_n = 0;
                 return 0;
             }
 
@@ -1281,29 +1272,29 @@ namespace fgui {
 
             if (this.numChildren > 0 && !forceUpdate) {
                 pos2 = this.getChildAt(0).x;
-                if (pos2 > GList.pos_param) {
+                if (pos2 > s_n) {
                     for (i = this._firstIndex - this._curLineItemCount; i >= 0; i -= this._curLineItemCount) {
                         pos2 -= (this._virtualItems[i].width + this._columnGap);
-                        if (pos2 <= GList.pos_param) {
-                            GList.pos_param = pos2;
+                        if (pos2 <= s_n) {
+                            s_n = pos2;
                             return i;
                         }
                     }
 
-                    GList.pos_param = 0;
+                    s_n = 0;
                     return 0;
                 }
                 else {
                     for (i = this._firstIndex; i < this._realNumItems; i += this._curLineItemCount) {
                         pos3 = pos2 + this._virtualItems[i].width + this._columnGap;
-                        if (pos3 > GList.pos_param) {
-                            GList.pos_param = pos2;
+                        if (pos3 > s_n) {
+                            s_n = pos2;
                             return i;
                         }
                         pos2 = pos3;
                     }
 
-                    GList.pos_param = pos2;
+                    s_n = pos2;
                     return this._realNumItems - this._curLineItemCount;
                 }
             }
@@ -1311,40 +1302,40 @@ namespace fgui {
                 pos2 = 0;
                 for (i = 0; i < this._realNumItems; i += this._curLineItemCount) {
                     pos3 = pos2 + this._virtualItems[i].width + this._columnGap;
-                    if (pos3 > GList.pos_param) {
-                        GList.pos_param = pos2;
+                    if (pos3 > s_n) {
+                        s_n = pos2;
                         return i;
                     }
                     pos2 = pos3;
                 }
 
-                GList.pos_param = pos2;
+                s_n = pos2;
                 return this._realNumItems - this._curLineItemCount;
             }
         }
 
         private getIndexOnPos3(forceUpdate: boolean): number {
             if (this._realNumItems < this._curLineItemCount) {
-                GList.pos_param = 0;
+                s_n = 0;
                 return 0;
             }
 
             var viewWidth: number = this.viewWidth;
-            var page: number = Math.floor(GList.pos_param / viewWidth);
+            var page: number = Math.floor(s_n / viewWidth);
             var startIndex: number = page * (this._curLineItemCount * this._curLineItemCount2);
             var pos2: number = page * viewWidth;
             var i: number;
             var pos3: number;
             for (i = 0; i < this._curLineItemCount; i++) {
                 pos3 = pos2 + this._virtualItems[startIndex + i].width + this._columnGap;
-                if (pos3 > GList.pos_param) {
-                    GList.pos_param = pos2;
+                if (pos3 > s_n) {
+                    s_n = pos2;
                     return startIndex + i;
                 }
                 pos2 = pos3;
             }
 
-            GList.pos_param = pos2;
+            s_n = pos2;
             return startIndex + this._curLineItemCount - 1;
         }
 
@@ -1383,17 +1374,15 @@ namespace fgui {
             this._boundsChanged = false;
         }
 
-        private static pos_param: number;
-
         private handleScroll1(forceUpdate: boolean): boolean {
             var pos: number = this._scrollPane.scrollingPosY;
             var max: number = pos + this._scrollPane.viewHeight;
             var end: boolean = max == this._scrollPane.contentHeight;//这个标志表示当前需要滚动到最末，无论内容变化大小
 
             //寻找当前位置的第一条项目
-            GList.pos_param = pos;
+            s_n = pos;
             var newFirstIndex: number = this.getIndexOnPos1(forceUpdate);
-            pos = GList.pos_param;
+            pos = s_n;
             if (newFirstIndex == this._firstIndex && !forceUpdate)
                 return false;
 
@@ -1426,9 +1415,9 @@ namespace fgui {
                         url = UIPackage.normalizeURL(url);
                     }
 
-                    if (ii.obj != null && ii.obj.resourceURL != url) {
+                    if (ii.obj && ii.obj.resourceURL != url) {
                         if (ii.obj instanceof GButton)
-                            ii.selected = (<GButton>ii.obj).selected;
+                            ii.selected = ii.obj.selected;
                         this.removeChildToPool(ii.obj);
                         ii.obj = null;
                     }
@@ -1439,9 +1428,9 @@ namespace fgui {
                     if (forward) {
                         for (j = reuseIndex; j >= oldFirstIndex; j--) {
                             ii2 = this._virtualItems[j];
-                            if (ii2.obj != null && ii2.updateFlag != this.itemInfoVer && ii2.obj.resourceURL == url) {
+                            if (ii2.obj && ii2.updateFlag != this.itemInfoVer && ii2.obj.resourceURL == url) {
                                 if (ii2.obj instanceof GButton)
-                                    ii2.selected = (<GButton>ii2.obj).selected;
+                                    ii2.selected = ii2.obj.selected;
                                 ii.obj = ii2.obj;
                                 ii2.obj = null;
                                 if (j == reuseIndex)
@@ -1453,9 +1442,9 @@ namespace fgui {
                     else {
                         for (j = reuseIndex; j <= lastIndex; j++) {
                             ii2 = this._virtualItems[j];
-                            if (ii2.obj != null && ii2.updateFlag != this.itemInfoVer && ii2.obj.resourceURL == url) {
+                            if (ii2.obj && ii2.updateFlag != this.itemInfoVer && ii2.obj.resourceURL == url) {
                                 if (ii2.obj instanceof GButton)
-                                    ii2.selected = (<GButton>ii2.obj).selected;
+                                    ii2.selected = ii2.obj.selected;
                                 ii.obj = ii2.obj;
                                 ii2.obj = null;
                                 if (j == reuseIndex)
@@ -1465,7 +1454,7 @@ namespace fgui {
                         }
                     }
 
-                    if (ii.obj != null) {
+                    if (ii.obj) {
                         this.setChildIndex(ii.obj, forward ? curIndex - newFirstIndex : this.numChildren);
                     }
                     else {
@@ -1476,7 +1465,7 @@ namespace fgui {
                             this.addChild(ii.obj);
                     }
                     if (ii.obj instanceof GButton)
-                        (<GButton>ii.obj).selected = ii.selected;
+                        ii.obj.selected = ii.selected;
 
                     needRender = true;
                 }
@@ -1515,9 +1504,9 @@ namespace fgui {
 
             for (i = 0; i < childCount; i++) {
                 ii = this._virtualItems[oldFirstIndex + i];
-                if (ii.updateFlag != this.itemInfoVer && ii.obj != null) {
+                if (ii.updateFlag != this.itemInfoVer && ii.obj) {
                     if (ii.obj instanceof GButton)
-                        ii.selected = (<GButton>ii.obj).selected;
+                        ii.selected = ii.obj.selected;
                     this.removeChildToPool(ii.obj);
                     ii.obj = null;
                 }
@@ -1545,9 +1534,9 @@ namespace fgui {
             var end: boolean = pos == this._scrollPane.contentWidth;//这个标志表示当前需要滚动到最末，无论内容变化大小
 
             //寻找当前位置的第一条项目
-            GList.pos_param = pos;
+            s_n = pos;
             var newFirstIndex: number = this.getIndexOnPos2(forceUpdate);
-            pos = GList.pos_param;
+            pos = s_n;
             if (newFirstIndex == this._firstIndex && !forceUpdate)
                 return false;
 
@@ -1580,9 +1569,9 @@ namespace fgui {
                         url = UIPackage.normalizeURL(url);
                     }
 
-                    if (ii.obj != null && ii.obj.resourceURL != url) {
+                    if (ii.obj && ii.obj.resourceURL != url) {
                         if (ii.obj instanceof GButton)
-                            ii.selected = (<GButton>ii.obj).selected;
+                            ii.selected = ii.obj.selected;
                         this.removeChildToPool(ii.obj);
                         ii.obj = null;
                     }
@@ -1592,9 +1581,9 @@ namespace fgui {
                     if (forward) {
                         for (j = reuseIndex; j >= oldFirstIndex; j--) {
                             ii2 = this._virtualItems[j];
-                            if (ii2.obj != null && ii2.updateFlag != this.itemInfoVer && ii2.obj.resourceURL == url) {
+                            if (ii2.obj && ii2.updateFlag != this.itemInfoVer && ii2.obj.resourceURL == url) {
                                 if (ii2.obj instanceof GButton)
-                                    ii2.selected = (<GButton>ii2.obj).selected;
+                                    ii2.selected = ii2.obj.selected;
                                 ii.obj = ii2.obj;
                                 ii2.obj = null;
                                 if (j == reuseIndex)
@@ -1606,9 +1595,9 @@ namespace fgui {
                     else {
                         for (j = reuseIndex; j <= lastIndex; j++) {
                             ii2 = this._virtualItems[j];
-                            if (ii2.obj != null && ii2.updateFlag != this.itemInfoVer && ii2.obj.resourceURL == url) {
+                            if (ii2.obj && ii2.updateFlag != this.itemInfoVer && ii2.obj.resourceURL == url) {
                                 if (ii2.obj instanceof GButton)
-                                    ii2.selected = (<GButton>ii2.obj).selected;
+                                    ii2.selected = ii2.obj.selected;
                                 ii.obj = ii2.obj;
                                 ii2.obj = null;
                                 if (j == reuseIndex)
@@ -1618,7 +1607,7 @@ namespace fgui {
                         }
                     }
 
-                    if (ii.obj != null) {
+                    if (ii.obj) {
                         this.setChildIndex(ii.obj, forward ? curIndex - newFirstIndex : this.numChildren);
                     }
                     else {
@@ -1629,7 +1618,7 @@ namespace fgui {
                             this.addChild(ii.obj);
                     }
                     if (ii.obj instanceof GButton)
-                        (<GButton>ii.obj).selected = ii.selected;
+                        ii.obj.selected = ii.selected;
 
                     needRender = true;
                 }
@@ -1668,9 +1657,9 @@ namespace fgui {
 
             for (i = 0; i < childCount; i++) {
                 ii = this._virtualItems[oldFirstIndex + i];
-                if (ii.updateFlag != this.itemInfoVer && ii.obj != null) {
+                if (ii.updateFlag != this.itemInfoVer && ii.obj) {
                     if (ii.obj instanceof GButton)
-                        ii.selected = (<GButton>ii.obj).selected;
+                        ii.selected = ii.obj.selected;
                     this.removeChildToPool(ii.obj);
                     ii.obj = null;
                 }
@@ -1696,9 +1685,9 @@ namespace fgui {
             var pos: number = this._scrollPane.scrollingPosX;
 
             //寻找当前位置的第一条项目
-            GList.pos_param = pos;
+            s_n = pos;
             var newFirstIndex: number = this.getIndexOnPos3(forceUpdate);
-            pos = GList.pos_param;
+            pos = s_n;
             if (newFirstIndex == this._firstIndex && !forceUpdate)
                 return;
 
@@ -1758,9 +1747,9 @@ namespace fgui {
                     //寻找看有没有可重用的
                     while (reuseIndex < virtualItemCount) {
                         ii2 = this._virtualItems[reuseIndex];
-                        if (ii2.obj != null && ii2.updateFlag != this.itemInfoVer) {
+                        if (ii2.obj && ii2.updateFlag != this.itemInfoVer) {
                             if (ii2.obj instanceof GButton)
-                                ii2.selected = (<GButton>ii2.obj).selected;
+                                ii2.selected = ii2.obj.selected;
                             ii.obj = ii2.obj;
                             ii2.obj = null;
                             break;
@@ -1788,7 +1777,7 @@ namespace fgui {
                     insertIndex++;
 
                     if (ii.obj instanceof GButton)
-                        (<GButton>ii.obj).selected = ii.selected;
+                        ii.obj.selected = ii.selected;
 
                     needRender = true;
                 }
@@ -1847,9 +1836,9 @@ namespace fgui {
             //释放未使用的
             for (i = reuseIndex; i < virtualItemCount; i++) {
                 ii = this._virtualItems[i];
-                if (ii.updateFlag != this.itemInfoVer && ii.obj != null) {
+                if (ii.updateFlag != this.itemInfoVer && ii.obj) {
                     if (ii.obj instanceof GButton)
-                        ii.selected = (<GButton>ii.obj).selected;
+                        ii.selected = ii.obj.selected;
                     this.removeChildToPool(ii.obj);
                     ii.obj = null;
                 }
@@ -1918,7 +1907,7 @@ namespace fgui {
 
             if (newOffsetX != this._alignOffset.x || newOffsetY != this._alignOffset.y) {
                 this._alignOffset.setTo(newOffsetX, newOffsetY);
-                if (this._scrollPane != null)
+                if (this._scrollPane)
                     this._scrollPane.adjustMaskContainer();
                 else
                     this._container.pos(this._margin.left + this._alignOffset.x, this._margin.top + this._alignOffset.y);
@@ -2320,7 +2309,7 @@ namespace fgui {
                 }
 
                 var obj: GObject = this.getFromPool(str);
-                if (obj != null) {
+                if (obj) {
                     this.addChild(obj);
                     this.setupItem(buffer, obj);
                 }
@@ -2337,13 +2326,13 @@ namespace fgui {
                 obj.text = str;
             str = buffer.readS();
             if (str != null && (obj instanceof GButton))
-                (<GButton>obj).selectedTitle = str;
+                obj.selectedTitle = str;
             str = buffer.readS();
             if (str != null)
                 obj.icon = str;
             str = buffer.readS();
             if (str != null && (obj instanceof GButton))
-                (<GButton>obj).selectedIcon = str;
+                obj.selectedIcon = str;
             str = buffer.readS();
             if (str != null)
                 obj.name = str;
@@ -2354,9 +2343,9 @@ namespace fgui {
             if (obj instanceof GComponent) {
                 cnt = buffer.getInt16();
                 for (i = 0; i < cnt; i++) {
-                    var cc: Controller = (<GComponent>obj).getController(buffer.readS());
+                    var cc: Controller = obj.getController(buffer.readS());
                     str = buffer.readS();
-                    if (cc != null)
+                    if (cc)
                         cc.selectedPageId = str;
                 }
 
@@ -2366,7 +2355,7 @@ namespace fgui {
                         var target: string = buffer.readS();
                         var propertyId: number = buffer.getInt16();
                         var value: String = buffer.readS();
-                        var obj2: GObject = (<GComponent>obj).getChildByPath(target);
+                        var obj2: GObject = obj.getChildByPath(target);
                         if (obj2)
                             obj2.setProp(propertyId, value);
                     }
@@ -2385,12 +2374,13 @@ namespace fgui {
         }
     }
 
-    class ItemInfo {
-        public width: number = 0;
-        public height: number = 0;
-        public obj: GObject;
-        public updateFlag: number = 0;
-        public selected: boolean = false;
+    interface ItemInfo {
+        width: number;
+        height: number;
+        obj?: GObject;
+        updateFlag: number;
+        selected?: boolean;
     }
 
+    var s_n: number = 0;
 }

@@ -49,11 +49,11 @@ namespace fgui {
 
         public get minSize(): number {
             if (this._vertical)
-                return (this._arrowButton1 != null ? this._arrowButton1.height : 0) + (this._arrowButton2 != null ? this._arrowButton2.height : 0);
+                return (this._arrowButton1 ? this._arrowButton1.height : 0) + (this._arrowButton2 ? this._arrowButton2.height : 0);
             else
-                return (this._arrowButton1 != null ? this._arrowButton1.width : 0) + (this._arrowButton2 != null ? this._arrowButton2.width : 0);
+                return (this._arrowButton1 ? this._arrowButton1.width : 0) + (this._arrowButton2 ? this._arrowButton2.width : 0);
         }
-        
+
         public get gripDragging(): boolean {
             return this._gripDragging;
         }
@@ -102,12 +102,11 @@ namespace fgui {
             this._dragOffset.y -= this._grip.y;
         }
 
-        private static sScrollbarHelperPoint: Laya.Point = new Laya.Point();
         private __gripMouseMove(): void {
             if (!this.onStage)
                 return;
 
-            var pt: Laya.Point = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GScrollBar.sScrollbarHelperPoint);
+            var pt: Laya.Point = this.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, s_vec2);
             if (this._vertical) {
                 var curY: number = pt.y - this._dragOffset.y;
                 this._target.setPercY((curY - this._bar.y) / (this._bar.height - this._grip.height), false);
@@ -148,7 +147,7 @@ namespace fgui {
         }
 
         private __barMouseDown(evt: Laya.Event): void {
-            var pt: Laya.Point = this._grip.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, GScrollBar.sScrollbarHelperPoint);
+            var pt: Laya.Point = this._grip.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, s_vec2);
             if (this._vertical) {
                 if (pt.y < 0)
                     this._target.scrollUp(4);
@@ -163,4 +162,6 @@ namespace fgui {
             }
         }
     }
+
+    var s_vec2: Laya.Point = new Laya.Point();
 }

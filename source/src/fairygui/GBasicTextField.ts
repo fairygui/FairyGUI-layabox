@@ -11,11 +11,8 @@ namespace fgui {
         private _textWidth: number = 0;
         private _textHeight: number = 0;
 
-        private _bitmapFont: BitmapFont;
-        private _lines: Array<LineInfo>;
-
-        private static GUTTER_X: number = 2;
-        private static GUTTER_Y: number = 2;
+        private _bitmapFont?: BitmapFont;
+        private _lines?: Array<LineInfo>;
 
         constructor() {
             super();
@@ -48,10 +45,10 @@ namespace fgui {
                 if (this._widthAutoSize)
                     this._textField.width = 10000;
                 var text2: string = this._text;
-                if (this._templateVars != null)
+                if (this._templateVars)
                     text2 = this.parseTemplate(text2);
                 if (this._ubbEnabled) //laya还不支持同一个文本不同样式
-                    this._textField.text = ToolSet.removeUBB(ToolSet.encodeHTML(text2));
+                    this._textField.text = UBBParser.inst.parse(ToolSet.encodeHTML(text2), true);
                 else
                     this._textField.text = text2;
             }
@@ -75,11 +72,11 @@ namespace fgui {
         public set font(value: string) {
             this._font = value;
             if (ToolSet.startsWith(this._font, "ui://"))
-                this._bitmapFont = UIPackage.getItemAssetByURL(this._font) as BitmapFont;
+                this._bitmapFont = <BitmapFont>UIPackage.getItemAssetByURL(this._font);
             else
-                this._bitmapFont = null;
+                delete this._bitmapFont;
 
-            if (this._bitmapFont != null) {
+            if (this._bitmapFont) {
                 this._textField["setChanged"]();
             }
             else {
@@ -225,7 +222,7 @@ namespace fgui {
         }
 
         public typeset(): void {
-            if (this._bitmapFont != null)
+            if (this._bitmapFont)
                 this.renderWithBitmapFont();
             else if (this._widthAutoSize || this._heightAutoSize)
                 this.updateSize();
@@ -274,16 +271,16 @@ namespace fgui {
             if (!this._lines)
                 this._lines = new Array<LineInfo>();
             else
-                LineInfo.returnList(this._lines);
+                returnList(this._lines);
 
             var lineSpacing: number = this.leading - 1;
-            var rectWidth: number = this.width - GBasicTextField.GUTTER_X * 2;
+            var rectWidth: number = this.width - GUTTER_X * 2;
             var lineWidth: number = 0, lineHeight: number = 0, lineTextHeight: number = 0;
             var glyphWidth: number = 0, glyphHeight: number = 0;
             var wordChars: number = 0, wordStart: number = 0, wordEnd: number = 0;
             var lastLineHeight: number = 0;
             var lineBuffer: string = "";
-            var lineY: number = GBasicTextField.GUTTER_Y;
+            var lineY: number = GUTTER_Y;
             var line: LineInfo;
             var wordWrap: boolean = !this._widthAutoSize && !this._singleLine;
             var fontSize: number = this.fontSize;
@@ -292,7 +289,7 @@ namespace fgui {
             this._textHeight = 0;
 
             var text2: string = this._text;
-            if (this._templateVars != null)
+            if (this._templateVars)
                 text2 = this.parseTemplate(text2);
             var textLength: number = text2.length;
             for (var offset: number = 0; offset < textLength; ++offset) {
@@ -301,7 +298,7 @@ namespace fgui {
 
                 if (cc == 10) {
                     lineBuffer += ch;
-                    line = LineInfo.borrow();
+                    line = borrow();
                     line.width = lineWidth;
                     if (lineTextHeight == 0) {
                         if (lastLineHeight == 0)
@@ -371,7 +368,7 @@ namespace fgui {
                     lineBuffer += ch;
                 }
                 else {
-                    line = LineInfo.borrow();
+                    line = borrow();
                     line.height = lineHeight;
                     line.textHeight = lineTextHeight;
 
@@ -407,7 +404,7 @@ namespace fgui {
             }
 
             if (lineBuffer.length > 0) {
-                line = LineInfo.borrow();
+                line = borrow();
                 line.width = lineWidth;
                 if (lineHeight == 0)
                     lineHeight = lastLineHeight;
@@ -423,7 +420,7 @@ namespace fgui {
             }
 
             if (this._textWidth > 0)
-                this._textWidth += GBasicTextField.GUTTER_X * 2;
+                this._textWidth += GUTTER_X * 2;
 
             var count: number = this._lines.length;
             if (count == 0) {
@@ -431,7 +428,7 @@ namespace fgui {
             }
             else {
                 line = this._lines[this._lines.length - 1];
-                this._textHeight = line.y + line.height + GBasicTextField.GUTTER_Y;
+                this._textHeight = line.y + line.height + GUTTER_Y;
             }
 
             var w: number, h: number = 0;
@@ -462,15 +459,15 @@ namespace fgui {
             if (w == 0 || h == 0)
                 return;
 
-            var charX: number = GBasicTextField.GUTTER_X;
+            var charX: number = GUTTER_X;
             var lineIndent: number = 0;
             var charIndent: number = 0;
-            rectWidth = this.width - GBasicTextField.GUTTER_X * 2;
+            rectWidth = this.width - GUTTER_X * 2;
             var lineCount: number = this._lines.length;
             var color: string = this._bitmapFont.tint ? this._color : null;
             for (var i: number = 0; i < lineCount; i++) {
                 line = this._lines[i];
-                charX = GBasicTextField.GUTTER_X;
+                charX = GUTTER_X;
 
                 if (this.align == "center")
                     lineIndent = (rectWidth - line.width) / 2;
@@ -492,7 +489,7 @@ namespace fgui {
                     }
 
                     glyph = this._bitmapFont.glyphs[ch];
-                    if (glyph != null) {
+                    if (glyph) {
                         charIndent = (line.height + line.textHeight) / 2 - Math.ceil(glyph.lineHeight * fontScale);
                         if (glyph.texture) {
                             gr.drawTexture(glyph.texture,
@@ -517,7 +514,7 @@ namespace fgui {
             if (this._underConstruct)
                 this._textField.size(this._width, this._height);
             else {
-                if (this._bitmapFont != null) {
+                if (this._bitmapFont) {
                     if (!this._widthAutoSize)
                         this._textField["setChanged"]();
                     else
@@ -545,7 +542,7 @@ namespace fgui {
 
         private doAlign(): void {
             if (this.valign == "top" || this._textHeight == 0)
-                this._yOffset = GBasicTextField.GUTTER_Y;
+                this._yOffset = GUTTER_Y;
             else {
                 var dh: number = this.height - this._textHeight;
                 if (dh < 0)
@@ -560,43 +557,6 @@ namespace fgui {
 
         public flushVars(): void {
             this.text = this._text;
-        }
-    }
-
-    class LineInfo {
-        public width: number = 0;
-        public height: number = 0;
-        public textHeight: number = 0;
-        public text: string;
-        public y: number = 0;
-
-        private static pool: any[] = [];
-
-        public static borrow(): LineInfo {
-            if (LineInfo.pool.length) {
-                var ret: LineInfo = LineInfo.pool.pop();
-                ret.width = 0;
-                ret.height = 0;
-                ret.textHeight = 0;
-                ret.text = null;
-                ret.y = 0;
-                return ret;
-            }
-            else
-                return new LineInfo();
-        }
-
-        public static returns(value: LineInfo): void {
-            LineInfo.pool.push(value);
-        }
-
-        public static returnList(value: Array<LineInfo>): void {
-            var length: number = value.length;
-            for (var i: number = 0; i < length; i++) {
-                var li: LineInfo = value[i];
-                LineInfo.pool.push(li);
-            }
-            value.length = 0;
         }
     }
 
@@ -644,4 +604,45 @@ namespace fgui {
         }
     }
 
+    export interface LineInfo {
+        width: number;
+        height: number;
+        textHeight: number;
+        text: string;
+        y: number;
+    }
+
+    var pool: Array<LineInfo> = [];
+
+    function borrow(): LineInfo {
+        if (pool.length) {
+            var ret: LineInfo = pool.pop();
+            ret.width = 0;
+            ret.height = 0;
+            ret.textHeight = 0;
+            ret.text = null;
+            ret.y = 0;
+            return ret;
+        }
+        else
+            return {
+                width: 0,
+                height: 0,
+                textHeight: 0,
+                text: null,
+                y: 0
+            };
+    }
+
+    function returnList(value: Array<LineInfo>): void {
+        var length: number = value.length;
+        for (var i: number = 0; i < length; i++) {
+            var li: LineInfo = value[i];
+            pool.push(li);
+        }
+        value.length = 0;
+    }
+
+    const GUTTER_X: number = 2;
+    const GUTTER_Y: number = 2;
 }

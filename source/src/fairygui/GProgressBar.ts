@@ -76,7 +76,7 @@ namespace fgui {
             var oldValule: number;
 
             var tweener: GTweener = GTween.getTween(this, this.update);
-            if (tweener != null) {
+            if (tweener) {
                 oldValule = tweener.value.x;
                 tweener.kill();
             }
@@ -113,39 +113,40 @@ namespace fgui {
             var fullHeight: number = this.height - this._barMaxHeightDelta;
             if (!this._reverse) {
                 if (this._barObjectH) {
-                    if ((this._barObjectH instanceof GImage) && (<GImage>this._barObjectH).fillMethod != FillMethod.None)
-                        (<GImage>this._barObjectH).fillAmount = percent;
-                    else
-                        this._barObjectH.width = Math.floor(fullWidth * percent);
+                    if (!this.setFillAmount(this._barObjectH, percent))
+                        this._barObjectH.width = Math.round(fullWidth * percent);
                 }
                 if (this._barObjectV) {
-                    if ((this._barObjectV instanceof GImage) && (<GImage>this._barObjectV).fillMethod != FillMethod.None)
-                        (<GImage>this._barObjectV).fillAmount = percent;
-                    else
-                        this._barObjectV.height = Math.floor(fullHeight * percent);
+                    if (!this.setFillAmount(this._barObjectV, percent))
+                        this._barObjectV.height = Math.round(fullHeight * percent);
                 }
             }
             else {
                 if (this._barObjectH) {
-                    if ((this._barObjectH instanceof GImage) && (<GImage>this._barObjectH).fillMethod != FillMethod.None)
-                        (<GImage>this._barObjectH).fillAmount = 1 - percent;
-                    else {
-                        this._barObjectH.width = Math.floor(fullWidth * percent);
+                    if (!this.setFillAmount(this._barObjectH, 1 - percent)) {
+                        this._barObjectH.width = Math.round(fullWidth * percent);
                         this._barObjectH.x = this._barStartX + (fullWidth - this._barObjectH.width);
                     }
 
                 }
                 if (this._barObjectV) {
-                    if ((this._barObjectV instanceof GImage) && (<GImage>this._barObjectV).fillMethod != FillMethod.None)
-                        (<GImage>this._barObjectV).fillAmount = 1 - percent;
-                    else {
-                        this._barObjectV.height = Math.floor(fullHeight * percent);
+                    if (!this.setFillAmount(this._barObjectV, 1 - percent)) {
+                        this._barObjectV.height = Math.round(fullHeight * percent);
                         this._barObjectV.y = this._barStartY + (fullHeight - this._barObjectV.height);
                     }
                 }
             }
             if (this._aniObject)
                 this._aniObject.setProp(ObjectPropID.Frame, Math.floor(percent * 100));
+        }
+
+        private setFillAmount(bar: GObject, percent: number): boolean {
+            if (((bar instanceof GImage) || (bar instanceof GLoader)) && bar.fillMethod != FillMethod.None) {
+                bar.fillAmount = percent;
+                return true;
+            }
+            else
+                return false;
         }
 
         protected constructExtension(buffer: ByteBuffer): void {

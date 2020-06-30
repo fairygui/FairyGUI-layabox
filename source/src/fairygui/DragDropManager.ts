@@ -2,11 +2,11 @@ namespace fgui {
     export class DragDropManager {
 
         private _agent: GLoader;
-        private _sourceData: Object;
+        private _sourceData: any;
 
         private static _inst: DragDropManager;
         public static get inst(): DragDropManager {
-            if (DragDropManager._inst == null)
+            if (!DragDropManager._inst)
                 DragDropManager._inst = new DragDropManager();
             return DragDropManager._inst;
         }
@@ -31,8 +31,8 @@ namespace fgui {
             return this._agent.parent != null;
         }
 
-        public startDrag(source: GObject, icon: string, sourceData: any, touchPointID: number = -1): void {
-            if (this._agent.parent != null)
+        public startDrag(source: GObject, icon: string, sourceData?: any, touchID?: number): void {
+            if (this._agent.parent)
                 return;
 
             this._sourceData = sourceData;
@@ -40,11 +40,11 @@ namespace fgui {
             GRoot.inst.addChild(this._agent);
             var pt: Laya.Point = GRoot.inst.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY);
             this._agent.setXY(pt.x, pt.y);
-            this._agent.startDrag(touchPointID);
+            this._agent.startDrag(touchID);
         }
 
         public cancel(): void {
-            if (this._agent.parent != null) {
+            if (this._agent.parent) {
                 this._agent.stopDrag();
                 GRoot.inst.removeChild(this._agent);
                 this._sourceData = null;
@@ -52,7 +52,7 @@ namespace fgui {
         }
 
         private __dragEnd(evt: Laya.Event): void {
-            if (this._agent.parent == null) //cancelled
+            if (!this._agent.parent) //cancelled
                 return;
 
             GRoot.inst.removeChild(this._agent);
@@ -61,7 +61,7 @@ namespace fgui {
             this._sourceData = null;
 
             var obj: GObject = GObject.cast(evt.target);
-            while (obj != null) {
+            while (obj) {
                 if (obj.displayObject.hasListener(Events.DROP)) {
                     obj.requestFocus();
                     obj.displayObject.event(Events.DROP, [sourceData, Events.createEvent(Events.DROP, obj.displayObject, evt)]);

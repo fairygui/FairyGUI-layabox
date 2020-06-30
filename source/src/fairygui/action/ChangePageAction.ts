@@ -16,7 +16,7 @@ namespace fgui {
 
             var gcom: GComponent;
             if (this.objectId)
-                gcom = controller.parent.getChildById(this.objectId) as GComponent;
+                gcom = <GComponent>controller.parent.getChildById(this.objectId);
             else
                 gcom = controller.parent;
             if (gcom) {

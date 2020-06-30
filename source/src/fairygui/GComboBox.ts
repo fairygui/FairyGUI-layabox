@@ -6,16 +6,16 @@ namespace fgui {
         protected _iconObject: GObject;
         protected _list: GList;
 
-        protected _items: any[];
-        protected _icons: any[];
-        protected _values: any[];
-        protected _popupDirection: number;
+        protected _items: string[];
+        protected _icons?: string[];
+        protected _values: string[];
+        protected _popupDirection: PopupDirection;
 
         private _visibleItemCount: number;
         private _itemsUpdated: boolean;
         private _selectedIndex: number;
         private _buttonController: Controller;
-        private _selectionController: Controller;
+        private _selectionController?: Controller;
 
         private _down: boolean;
         private _over: boolean;
@@ -45,7 +45,7 @@ namespace fgui {
 
         public get titleColor(): string {
             var tf: GTextField = this.getTextField();
-            if (tf != null)
+            if (tf)
                 return tf.color;
             else
                 return "#000000";
@@ -53,14 +53,14 @@ namespace fgui {
 
         public set titleColor(value: string) {
             var tf: GTextField = this.getTextField();
-            if (tf != null)
+            if (tf)
                 tf.color = value;
             this.updateGear(4);
         }
 
         public get titleFontSize(): number {
             var tf: GTextField = this.getTextField();
-            if (tf != null)
+            if (tf)
                 return tf.fontSize;
             else
                 return 0;
@@ -68,7 +68,7 @@ namespace fgui {
 
         public set titleFontSize(value: number) {
             var tf: GTextField = this.getTextField();
-            if (tf != null)
+            if (tf)
                 tf.fontSize = value;
         }
 
@@ -93,25 +93,19 @@ namespace fgui {
             this._visibleItemCount = value;
         }
 
-        /**
-         * @see PopupDirection
-         */
         public get popupDirection(): number {
             return this._popupDirection;
         }
 
-        /**
-         * @see PopupDirection
-         */
         public set popupDirection(value: number) {
             this._popupDirection = value;
         }
 
-        public get items(): any[] {
+        public get items(): string[] {
             return this._items;
         }
 
-        public set items(value: any[]) {
+        public set items(value: string[]) {
             if (!value)
                 this._items.length = 0;
             else
@@ -123,33 +117,33 @@ namespace fgui {
                     this._selectedIndex = 0;
 
                 this.text = this._items[this._selectedIndex];
-                if (this._icons != null && this._selectedIndex < this._icons.length)
+                if (this._icons && this._selectedIndex < this._icons.length)
                     this.icon = this._icons[this._selectedIndex];
             }
             else {
                 this.text = "";
-                if (this._icons != null)
+                if (this._icons)
                     this.icon = null;
                 this._selectedIndex = -1;
             }
             this._itemsUpdated = true;
         }
 
-        public get icons(): any[] {
+        public get icons(): string[] {
             return this._icons;
         }
 
-        public set icons(value: any[]) {
+        public set icons(value: string[]) {
             this._icons = value;
-            if (this._icons != null && this._selectedIndex != -1 && this._selectedIndex < this._icons.length)
+            if (this._icons && this._selectedIndex != -1 && this._selectedIndex < this._icons.length)
                 this.icon = this._icons[this._selectedIndex];
         }
 
-        public get values(): any[] {
+        public get values(): string[] {
             return this._values;
         }
 
-        public set values(value: any[]) {
+        public set values(value: string[]) {
             if (!value)
                 this._values.length = 0;
             else
@@ -167,12 +161,12 @@ namespace fgui {
             this._selectedIndex = val;
             if (this._selectedIndex >= 0 && this._selectedIndex < this._items.length) {
                 this.text = this._items[this._selectedIndex];
-                if (this._icons != null && this._selectedIndex < this._icons.length)
+                if (this._icons && this._selectedIndex < this._icons.length)
                     this.icon = this._icons[this._selectedIndex];
             }
             else {
                 this.text = "";
-                if (this._icons != null)
+                if (this._icons)
                     this.icon = null;
             }
 
@@ -192,11 +186,9 @@ namespace fgui {
 
         public getTextField(): GTextField {
             if (this._titleObject instanceof GTextField)
-                return <GTextField>this._titleObject;
-            else if (this._titleObject instanceof GLabel)
-                return (<GLabel>this._titleObject).getTextField();
-            else if (this._titleObject instanceof GButton)
-                return (<GButton>this._titleObject).getTextField();
+                return this._titleObject;
+            else if ((this._titleObject instanceof GLabel) || (this._titleObject instanceof GButton))
+                return this._titleObject.getTextField();
             else
                 return null;
         }
@@ -222,7 +214,7 @@ namespace fgui {
         }
 
         private updateSelectionController(): void {
-            if (this._selectionController != null && !this._selectionController.changing
+            if (this._selectionController && !this._selectionController.changing
                 && this._selectedIndex < this._selectionController.pageCount) {
                 var c: Controller = this._selectionController;
                 this._selectionController = null;
@@ -308,8 +300,8 @@ namespace fgui {
                     return;
                 }
                 this.dropdown.name = "this._dropdownObject";
-                this._list = this.dropdown.getChild("list").asList;
-                if (this._list == null) {
+                this._list = <GList>this.dropdown.getChild("list");
+                if (!this._list) {
                     Laya.Log.print(this.resourceURL + ": 下拉框的弹出元件里必须包含名为list的列表");
                     return;
                 }
@@ -351,7 +343,7 @@ namespace fgui {
                 this._values[i] = buffer.readS();
                 str = buffer.readS();
                 if (str != null) {
-                    if (this._icons == null)
+                    if (!this._icons)
                         this._icons = [];
                     this._icons[i] = str;
                 }
@@ -397,7 +389,7 @@ namespace fgui {
                     var item: GObject = this._list.addItemFromPool();
                     item.name = i < this._values.length ? this._values[i] : "";
                     item.text = this._items[i];
-                    item.icon = (this._icons != null && i < this._icons.length) ? this._icons[i] : null;
+                    item.icon = (this._icons && i < this._icons.length) ? this._icons[i] : null;
                 }
                 this._list.resizeToFit(this._visibleItemCount);
             }
@@ -429,7 +421,7 @@ namespace fgui {
 
         private __clickItem2(index: number, evt: Laya.Event): void {
             if (this.dropdown.parent instanceof GRoot)
-                (<GRoot>this.dropdown.parent).hidePopup();
+                this.dropdown.parent.hidePopup();
 
             this._selectedIndex = -1;
             this.selectedIndex = index;
@@ -479,5 +471,4 @@ namespace fgui {
             }
         }
     }
-
 }

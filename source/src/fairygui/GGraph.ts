@@ -4,12 +4,12 @@ namespace fgui {
         private _lineSize: number;
         private _lineColor: string;
         private _fillColor: string;
-        private _cornerRadius: any[];
-        private _hitArea: Laya.HitArea;
-        private _sides: number;
-        private _startAngle: number;
-        private _polygonPoints: any[];
-        private _distances: number[];
+        private _cornerRadius?: number[];
+        private _hitArea?: Laya.HitArea;
+        private _sides?: number;
+        private _startAngle?: number;
+        private _polygonPoints?: number[];
+        private _distances?: number[];
 
         constructor() {
             super();
@@ -18,12 +18,9 @@ namespace fgui {
             this._lineSize = 1;
             this._lineColor = "#000000"
             this._fillColor = "#FFFFFF";
-            this._cornerRadius = null;
-            this._sides = 3;
-            this._startAngle = 0;
         }
 
-        public drawRect(lineSize: number, lineColor: string, fillColor: string, cornerRadius: any[] = null): void {
+        public drawRect(lineSize: number, lineColor: string, fillColor: string, cornerRadius?: number[]): void {
             this._type = 1;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
@@ -40,18 +37,18 @@ namespace fgui {
             this.updateGraph();
         }
 
-        public drawRegularPolygon(lineSize: number, lineColor: string, fillColor: string, sides: number, startAngle: number = 0, distances: number[] = null): void {
+        public drawRegularPolygon(lineSize: number, lineColor: string, fillColor: string, sides: number, startAngle?: number, distances?: number[]): void {
             this._type = 4;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
             this._sides = sides;
-            this._startAngle = startAngle;
+            this._startAngle = startAngle || 0;
             this._distances = distances;
             this.updateGraph();
         }
 
-        public drawPolygon(lineSize: number, lineColor: string, fillColor: string, points: any[]): void {
+        public drawPolygon(lineSize: number, lineColor: string, fillColor: string, points: number[]): void {
             this._type = 3;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
@@ -105,7 +102,7 @@ namespace fgui {
                 }
             }
             if (this._type == 1) {
-                if (this._cornerRadius != null) {
+                if (this._cornerRadius) {
                     var paths: any[] = [
                         ["moveTo", this._cornerRadius[0], 0],
                         ["lineTo", w - this._cornerRadius[1], 0],
@@ -118,7 +115,7 @@ namespace fgui {
                         ["arcTo", 0, 0, this._cornerRadius[0], 0, this._cornerRadius[0]],
                         ["closePath"]
                     ];
-                    gr.drawPath(0, 0, paths, fillColor != null ? { fillStyle: fillColor } : null, this._lineSize > 0 ? { strokeStyle: lineColor, lineWidth: this._lineSize } : null);
+                    gr.drawPath(0, 0, paths, fillColor ? { fillStyle: fillColor } : null, this._lineSize > 0 ? { strokeStyle: lineColor, lineWidth: this._lineSize } : null);
                 }
                 else
                     gr.drawRect(0, 0, w, h, fillColor, this._lineSize > 0 ? lineColor : null, this._lineSize);
@@ -179,7 +176,7 @@ namespace fgui {
         }
 
         public addBeforeMe(target: GObject): void {
-            if (this._parent == null)
+            if (!this._parent)
                 throw "parent not set";
 
             var index: number = this._parent.getChildIndex(this);
@@ -187,7 +184,7 @@ namespace fgui {
         }
 
         public addAfterMe(target: GObject): void {
-            if (this._parent == null)
+            if (!this._parent)
                 throw "parent not set";
 
             var index: number = this._parent.getChildIndex(this);

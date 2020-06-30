@@ -63,9 +63,7 @@ namespace fgui {
         }
 
         //从start帧开始，播放到end帧（-1表示结尾），重复times次（0表示无限循环），循环结束后，停止在endAt帧（-1表示参数end）
-        public setPlaySettings(start: number = 0, end: number = -1,
-            times: number = 0, endAt: number = -1,
-            endHandler: Laya.Handler = null): void {
+        public setPlaySettings(start?: number, end?: number, times?: number, endAt?: number, endHandler?: Laya.Handler): void {
             this._movieClip.setPlaySettings(start, end, times, endAt, endHandler);
         }
 

@@ -1,15 +1,16 @@
 namespace fgui {
     export class TranslationHelper {
-        public static strings: Object = null;
+        public static strings: { [index: string]: { [index: string]: string } };
 
         constructor() {
         }
 
         public static loadFromXML(source: string): void {
-            TranslationHelper.strings = {};
+            let strings = {};
+            TranslationHelper.strings = strings;
 
             var xml: any = Laya.Utils.parseXMLFromString(source);
-            var resNode: any = TranslationHelper.findChildNode(xml, "resources");
+            var resNode: any = findChildNode(xml, "resources");
             var nodes: any[] = resNode.childNodes;
             var length1: number = nodes.length;
             for (var i1: number = 0; i1 < length1; i1++) {
@@ -23,10 +24,10 @@ namespace fgui {
 
                     var key2: string = key.substr(0, i);
                     var key3: string = key.substr(i + 1);
-                    var col: Object = TranslationHelper.strings[key2];
+                    var col: Object = strings[key2];
                     if (!col) {
                         col = {};
-                        TranslationHelper.strings[key2] = col;
+                        strings[key2] = col;
                     }
                     col[key3] = text;
                 }
@@ -37,7 +38,7 @@ namespace fgui {
             if (TranslationHelper.strings == null)
                 return;
 
-            var compStrings: Object = TranslationHelper.strings[item.owner.id + item.id];
+            var compStrings: { [index: string]: string } = TranslationHelper.strings[item.owner.id + item.id];
             if (compStrings == null)
                 return;
 
@@ -239,20 +240,20 @@ namespace fgui {
                 buffer.pos = curPos + dataLen;
             }
         }
+    }
 
-        private static findChildNode(xml: any, name: string): Object {
-            var col: any[] = xml.childNodes;
-            var length1: number = col.length;
-            if (length1 > 0) {
-                for (var i1: number = 0; i1 < length1; i1++) {
-                    var cxml: any = col[i1];
-                    if (cxml.nodeName == name) {
-                        return cxml;
-                    }
+    function findChildNode(xml: any, name: string): Object {
+        var col: any[] = xml.childNodes;
+        var length1: number = col.length;
+        if (length1 > 0) {
+            for (var i1: number = 0; i1 < length1; i1++) {
+                var cxml: any = col[i1];
+                if (cxml.nodeName == name) {
+                    return cxml;
                 }
             }
-
-            return null;
         }
+
+        return null;
     }
 }

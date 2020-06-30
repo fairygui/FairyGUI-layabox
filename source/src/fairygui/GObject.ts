@@ -10,28 +10,29 @@ namespace fgui {
         private _rotation: number = 0;
         private _visible: boolean = true;
         private _touchable: boolean = true;
-        private _grayed: boolean = false;
-        private _draggable: boolean = false;
+        private _grayed: boolean;
+        private _draggable?: boolean;
         private _scaleX: number = 1;
         private _scaleY: number = 1;
         private _skewX: number = 0;
         private _skewY: number = 0;
         private _pivotX: number = 0;
         private _pivotY: number = 0;
-        private _pivotAsAnchor: boolean = false;
+        private _pivotAsAnchor: boolean;
         private _pivotOffsetX: number = 0;
         private _pivotOffsetY: number = 0;
         private _sortingOrder: number = 0;
         private _internalVisible: boolean = true;
-        private _handlingController: boolean = false;
-        private _focusable: boolean = false;
-        private _tooltips: string;
-        private _pixelSnapping: boolean = false;
+        private _handlingController?: boolean;
+        private _tooltips?: string;
+        private _pixelSnapping?: boolean;
 
         private _relations: Relations;
-        private _group: GGroup;
+        private _group?: GGroup;
         private _gears: GearBase[];
-        private _dragBounds: Laya.Rectangle;
+        private _dragBounds?: Laya.Rectangle;
+        private _dragTesting?: boolean;
+        private _dragStartPos?: Laya.Point;
 
         protected _displayObject: Laya.Sprite;
         protected _yOffset: number = 0;
@@ -53,14 +54,12 @@ namespace fgui {
         public _id: string;
         public _name: string;
         public _underConstruct: boolean;
-        public _gearLocked: boolean;
+        public _gearLocked?: boolean;
         public _sizePercentInGroup: number = 0;
-        public _treeNode: GTreeNode;
-
-        public static _gInstanceCounter: number = 0;
+        public _treeNode?: GTreeNode;
 
         constructor() {
-            this._id = "" + GObject._gInstanceCounter++;
+            this._id = "" + _gInstanceCounter++;
             this._name = "";
 
             this.createDisplayObject();
@@ -106,19 +105,19 @@ namespace fgui {
 
                 this.handleXYChanged();
                 if (this instanceof GGroup)
-                    (<GGroup>(this)).moveChildren(dx, dy);
+                    this.moveChildren(dx, dy);
 
                 this.updateGear(1);
 
                 if (this._parent && !(this._parent instanceof GList)) {
                     this._parent.setBoundsChangedFlag();
-                    if (this._group != null)
+                    if (this._group)
                         this._group.setBoundsChangedFlag(true);
                     this.displayObject.event(Events.XY_CHANGED);
                 }
 
-                if (GObject.draggingObject == this && !GObject.sUpdateInDragging)
-                    this.localToGlobalRect(0, 0, this.width, this.height, GObject.sGlobalRect);
+                if (GObject.draggingObject == this && !sUpdateInDragging)
+                    this.localToGlobalRect(0, 0, this.width, this.height, sGlobalRect);
             }
         }
 
@@ -155,9 +154,9 @@ namespace fgui {
             }
         }
 
-        public center(restraint: boolean = false): void {
+        public center(restraint?: boolean): void {
             var r: GComponent;
-            if (this._parent != null)
+            if (this._parent)
                 r = this.parent;
             else
                 r = this.root;
@@ -191,7 +190,7 @@ namespace fgui {
             this.setSize(this._rawWidth, value);
         }
 
-        public setSize(wv: number, hv: number, ignorePivot: boolean = false): void {
+        public setSize(wv: number, hv: number, ignorePivot?: boolean): void {
             if (this._rawWidth != wv || this._rawHeight != hv) {
                 this._rawWidth = wv;
                 this._rawHeight = hv;
@@ -220,14 +219,14 @@ namespace fgui {
                 }
 
                 if (this instanceof GGroup)
-                    (<GGroup>(this)).resizeChildren(dWidth, dHeight);
+                    this.resizeChildren(dWidth, dHeight);
 
                 this.updateGear(2);
 
                 if (this._parent) {
                     this._relations.onOwnerSizeChanged(dWidth, dHeight, this._pivotAsAnchor || !ignorePivot);
                     this._parent.setBoundsChangedFlag();
-                    if (this._group != null)
+                    if (this._group)
                         this._group.setBoundsChangedFlag();
                 }
 
@@ -297,7 +296,7 @@ namespace fgui {
             if (this._skewX != sx || this._skewY != sy) {
                 this._skewX = sx;
                 this._skewY = sy;
-                if (this._displayObject != null) {
+                if (this._displayObject) {
                     this._displayObject.skew(-sx, sy);
                     this.applyPivot();
                 }
@@ -320,7 +319,7 @@ namespace fgui {
             this.setPivot(this._pivotX, value);
         }
 
-        public setPivot(xv: number, yv: number = 0, asAnchor: boolean = false): void {
+        public setPivot(xv: number, yv: number = 0, asAnchor?: boolean): void {
             if (this._pivotX != xv || this._pivotY != yv || this._pivotAsAnchor != asAnchor) {
                 this._pivotX = xv;
                 this._pivotY = yv;
@@ -344,11 +343,11 @@ namespace fgui {
         }
 
         private updatePivotOffset(): void {
-            if (this._displayObject != null) {
+            if (this._displayObject) {
                 if (this._displayObject.transform && (this._pivotX != 0 || this._pivotY != 0)) {
-                    GObject.sHelperPoint.x = this._pivotX * this._width;
-                    GObject.sHelperPoint.y = this._pivotY * this._height;
-                    var pt: Laya.Point = this._displayObject.transform.transformPoint(GObject.sHelperPoint);
+                    sHelperPoint.x = this._pivotX * this._width;
+                    sHelperPoint.y = this._pivotY * this._height;
+                    var pt: Laya.Point = this._displayObject.transform.transformPoint(sHelperPoint);
                     this._pivotOffsetX = this._pivotX * this._width - pt.x;
                     this._pivotOffsetY = this._pivotY * this._height - pt.y;
                 }
@@ -380,7 +379,7 @@ namespace fgui {
                     //Touch is not supported by GImage/GMovieClip/GTextField
                     return;
 
-                if (this._displayObject != null)
+                if (this._displayObject)
                     this._displayObject.mouseEnabled = this._touchable;
             }
         }
@@ -413,7 +412,7 @@ namespace fgui {
         public set rotation(value: number) {
             if (this._rotation != value) {
                 this._rotation = value;
-                if (this._displayObject != null) {
+                if (this._displayObject) {
                     this._displayObject.rotation = this.normalizeRotation;
                     this.applyPivot();
                 }
@@ -480,17 +479,9 @@ namespace fgui {
             if (this._sortingOrder != value) {
                 var old: number = this._sortingOrder;
                 this._sortingOrder = value;
-                if (this._parent != null)
+                if (this._parent)
                     this._parent.childSortingOrderChanged(this, old, this._sortingOrder);
             }
-        }
-
-        public get focusable(): boolean {
-            return this._focusable;
-        }
-
-        public set focusable(value: boolean) {
-            this._focusable = value;
         }
 
         public get focused(): boolean {
@@ -498,11 +489,7 @@ namespace fgui {
         }
 
         public requestFocus(): void {
-            var p: GObject = this;
-            while (p && !p._focusable)
-                p = p.parent;
-            if (p != null)
-                this.root.focus = p;
+            this.root.focus = this;
         }
 
         public get tooltips(): string {
@@ -562,7 +549,7 @@ namespace fgui {
         }
 
         public get resourceURL(): string {
-            if (this.packageItem != null)
+            if (this.packageItem)
                 return "ui://" + this.packageItem.owner.id + this.packageItem.id;
             else
                 return null;
@@ -570,10 +557,10 @@ namespace fgui {
 
         public set group(value: GGroup) {
             if (this._group != value) {
-                if (this._group != null)
+                if (this._group)
                     this._group.setBoundsChangedFlag();
                 this._group = value;
-                if (this._group != null)
+                if (this._group)
                     this._group.setBoundsChangedFlag();
             }
         }
@@ -584,7 +571,7 @@ namespace fgui {
 
         public getGear(index: number): GearBase {
             var gear: GearBase = this._gears[index];
-            if (gear == null)
+            if (!gear)
                 this._gears[index] = gear = GearBase.create(this, index);
             return gear;
         }
@@ -594,16 +581,16 @@ namespace fgui {
                 return;
 
             var gear: GearBase = this._gears[index];
-            if (gear != null && gear.controller != null)
+            if (gear && gear.controller)
                 gear.updateState();
         }
 
         public checkGearController(index: number, c: Controller): boolean {
-            return this._gears[index] != null && this._gears[index].controller == c;
+            return this._gears[index] && this._gears[index].controller == c;
         }
 
         public updateGearFromRelations(index: number, dx: number, dy: number): void {
-            if (this._gears[index] != null)
+            if (this._gears[index])
                 this._gears[index].updateFromRelations(dx, dy);
         }
 
@@ -631,7 +618,7 @@ namespace fgui {
             if (this._handlingController)
                 return;
 
-            var connected: boolean = this._gears[0] == null || (<GearDisplay>(this._gears[0])).connected;
+            var connected: boolean = !this._gears[0] || (<GearDisplay>(this._gears[0])).connected;
             if (this._gears[8])
                 connected = (<GearDisplay2>this._gears[8]).evaluate(connected);
 
@@ -649,11 +636,11 @@ namespace fgui {
             return this._relations;
         }
 
-        public addRelation(target: GObject, relationType: number, usePercent: boolean = false): void {
+        public addRelation(target: GObject, relationType: number, usePercent?: boolean): void {
             this._relations.add(target, relationType, usePercent);
         }
 
-        public removeRelation(target: GObject, relationType: number = 0): void {
+        public removeRelation(target: GObject, relationType?: number): void {
             this._relations.remove(target, relationType);
         }
 
@@ -676,12 +663,12 @@ namespace fgui {
 
         public get root(): GRoot {
             if (this instanceof GRoot)
-                return <GRoot>(this);
+                return this;
 
             var p: GObject = this._parent;
             while (p) {
                 if (p instanceof GRoot)
-                    return <GRoot>(p);
+                    return p;
                 p = p.parent;
             }
             return GRoot.inst;
@@ -780,12 +767,12 @@ namespace fgui {
             this._displayObject = null;
             for (var i: number = 0; i < 10; i++) {
                 var gear: GearBase = this._gears[i];
-                if (gear != null)
+                if (gear)
                     gear.dispose();
             }
         }
 
-        public onClick(thisObj: any, listener: Function, args: any[] = null): void {
+        public onClick(thisObj: any, listener: Function, args?: any[]): void {
             this.on(Laya.Event.CLICK, thisObj, listener, args);
         }
 
@@ -797,7 +784,7 @@ namespace fgui {
             return this._displayObject.hasListener(Laya.Event.CLICK);
         }
 
-        public on(type: string, thisObject: any, listener: Function, args: any[] = null): void {
+        public on(type: string, thisObject: any, listener: Function, args?: any[]): void {
             this._displayObject.on(type, thisObject, listener, args);
         }
 
@@ -824,11 +811,11 @@ namespace fgui {
             this._dragBounds = value;
         }
 
-        public startDrag(touchPointID: number = -1): void {
+        public startDrag(touchID?: number): void {
             if (this._displayObject.stage == null)
                 return;
 
-            this.dragBegin();
+            this.dragBegin(touchID);
         }
 
         public stopDrag(): void {
@@ -839,79 +826,72 @@ namespace fgui {
             return GObject.draggingObject == this;
         }
 
-        public localToGlobal(ax: number = 0, ay: number = 0, resultPoint: Laya.Point = null): Laya.Point {
+        public localToGlobal(ax?: number, ay?: number, result?: Laya.Point): Laya.Point {
+            ax = ax || 0;
+            ay = ay || 0;
+
             if (this._pivotAsAnchor) {
                 ax += this._pivotX * this._width;
                 ay += this._pivotY * this._height;
             }
 
-            if (!resultPoint) {
-                resultPoint = GObject.sHelperPoint;
-                resultPoint.x = ax;
-                resultPoint.y = ay;
-                return this._displayObject.localToGlobal(resultPoint, true);
-            }
-            else {
-                resultPoint.x = ax;
-                resultPoint.y = ay;
-                return this._displayObject.localToGlobal(resultPoint, false);
-            }
+            result = result || new Laya.Point();
+            result.x = ax;
+            result.y = ay;
+            return this._displayObject.localToGlobal(result, false);
         }
 
-        public globalToLocal(ax: number = 0, ay: number = 0, resultPoint: Laya.Point = null): Laya.Point {
-            if (!resultPoint) {
-                resultPoint = GObject.sHelperPoint;
-                resultPoint.x = ax;
-                resultPoint.y = ay;
-                resultPoint = this._displayObject.globalToLocal(resultPoint, true);
-            }
-            else {
-                resultPoint.x = ax;
-                resultPoint.y = ay;
-                this._displayObject.globalToLocal(resultPoint, false);
-            }
+        public globalToLocal(ax?: number, ay?: number, result?: Laya.Point): Laya.Point {
+            ax = ax || 0;
+            ay = ay || 0;
+            result = result || new Laya.Point();
+            result.x = ax;
+            result.y = ay;
+            result = this._displayObject.globalToLocal(result, false);
 
             if (this._pivotAsAnchor) {
-                resultPoint.x -= this._pivotX * this._width;
-                resultPoint.y -= this._pivotY * this._height;
+                result.x -= this._pivotX * this._width;
+                result.y -= this._pivotY * this._height;
             }
 
-            return resultPoint;
+            return result;
         }
 
-        public localToGlobalRect(ax: number = 0, ay: number = 0,
-            aWidth: number = 0, aHeight: number = 0,
-            resultRect: Laya.Rectangle = null): Laya.Rectangle {
-            if (resultRect == null)
-                resultRect = new Laya.Rectangle();
+        public localToGlobalRect(ax?: number, ay?: number, aw?: number, ah?: number, result?: Laya.Rectangle): Laya.Rectangle {
+            ax = ax || 0;
+            ay = ay || 0;
+            aw = aw || 0;
+            ah = ah || 0;
+            result = result || new Laya.Rectangle();
             var pt: Laya.Point = this.localToGlobal(ax, ay);
-            resultRect.x = pt.x;
-            resultRect.y = pt.y;
-            pt = this.localToGlobal(ax + aWidth, ay + aHeight);
-            resultRect.width = pt.x - resultRect.x;
-            resultRect.height = pt.y - resultRect.y;
-            return resultRect;
+            result.x = pt.x;
+            result.y = pt.y;
+            pt = this.localToGlobal(ax + aw, ay + ah);
+            result.width = pt.x - result.x;
+            result.height = pt.y - result.y;
+            return result;
         }
 
-        public globalToLocalRect(ax: number = 0, ay: number = 0,
-            aWidth: number = 0, aHeight: number = 0,
-            resultRect: Laya.Rectangle = null): Laya.Rectangle {
-            if (resultRect == null)
-                resultRect = new Laya.Rectangle();
+        public globalToLocalRect(ax?: number, ay?: number, aw?: number, ah?: number, result?: Laya.Rectangle): Laya.Rectangle {
+            ax = ax || 0;
+            ay = ay || 0;
+            aw = aw || 0;
+            ah = ah || 0;
+            result = result || new Laya.Rectangle();
             var pt: Laya.Point = this.globalToLocal(ax, ay);
-            resultRect.x = pt.x;
-            resultRect.y = pt.y;
-            pt = this.globalToLocal(ax + aWidth, ay + aHeight);
-            resultRect.width = pt.x - resultRect.x;
-            resultRect.height = pt.y - resultRect.y;
-            return resultRect;
+            result.x = pt.x;
+            result.y = pt.y;
+            pt = this.globalToLocal(ax + aw, ay + ah);
+            result.width = pt.x - result.x;
+            result.height = pt.y - result.y;
+            return result;
         }
 
         public handleControllerChanged(c: Controller): void {
             this._handlingController = true;
             for (var i: number = 0; i < 10; i++) {
                 var gear: GearBase = this._gears[i];
-                if (gear != null && gear.controller == c)
+                if (gear && gear.controller == c)
                     gear.apply();
             }
             this._handlingController = false;
@@ -1102,14 +1082,6 @@ namespace fgui {
 
         //drag support
         //-------------------------------------------------------------------
-        private static sGlobalDragStart: Laya.Point = new Laya.Point();
-        private static sGlobalRect: Laya.Rectangle = new Laya.Rectangle();
-        private static sHelperPoint: Laya.Point = new Laya.Point();
-        private static sDragHelperRect: Laya.Rectangle = new Laya.Rectangle();
-        private static sDraggingQuery: boolean;
-        private static sUpdateInDragging: boolean;
-
-        private _touchDownPoint: Laya.Point;
 
         private initDrag(): void {
             if (this._draggable)
@@ -1118,27 +1090,33 @@ namespace fgui {
                 this.off(Laya.Event.MOUSE_DOWN, this, this.__begin);
         }
 
-        private dragBegin(): void {
-            if (GObject.draggingObject != null)
-                GObject.draggingObject.stopDrag();
+        private dragBegin(touchID?: number): void {
+            if (GObject.draggingObject) {
+                let tmp: GObject = GObject.draggingObject;
+                tmp.stopDrag();
+                GObject.draggingObject = null;
 
-            GObject.sGlobalDragStart.x = Laya.stage.mouseX;
-            GObject.sGlobalDragStart.y = Laya.stage.mouseY;
+                Events.dispatch(Events.DRAG_END, tmp._displayObject, { touchId: touchID });
+            }
 
-            this.localToGlobalRect(0, 0, this.width, this.height, GObject.sGlobalRect);
+            sGlobalDragStart.x = Laya.stage.mouseX;
+            sGlobalDragStart.y = Laya.stage.mouseY;
+
+            this.localToGlobalRect(0, 0, this.width, this.height, sGlobalRect);
+            this._dragTesting = true;
             GObject.draggingObject = this;
 
-            Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__moving2);
-            Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__end2);
+            Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__moving);
+            Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__end);
         }
 
         private dragEnd(): void {
             if (GObject.draggingObject == this) {
-                Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.__moving2);
-                Laya.stage.off(Laya.Event.MOUSE_UP, this, this.__end2);
+                this.reset();
+                this._dragTesting = false;
                 GObject.draggingObject = null;
             }
-            GObject.sDraggingQuery = false;
+            sDraggingQuery = false;
         }
 
         private reset(): void {
@@ -1147,69 +1125,70 @@ namespace fgui {
         }
 
         private __begin(): void {
-            if (this._touchDownPoint == null)
-                this._touchDownPoint = new Laya.Point();
-            this._touchDownPoint.x = Laya.stage.mouseX;
-            this._touchDownPoint.y = Laya.stage.mouseY;
+            if (!this._dragStartPos)
+                this._dragStartPos = new Laya.Point();
+            this._dragStartPos.x = Laya.stage.mouseX;
+            this._dragStartPos.y = Laya.stage.mouseY;
+            this._dragTesting = true;
 
             Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.__moving);
             Laya.stage.on(Laya.Event.MOUSE_UP, this, this.__end);
         }
 
-        private __end(): void {
-            this.reset();
-        }
-
         private __moving(evt: Laya.Event): void {
-            var sensitivity: number = UIConfig.touchDragSensitivity;
-            if (this._touchDownPoint != null
-                && Math.abs(this._touchDownPoint.x - Laya.stage.mouseX) < sensitivity
-                && Math.abs(this._touchDownPoint.y - Laya.stage.mouseY) < sensitivity)
-                return;
+            if (GObject.draggingObject != this && this._draggable && this._dragTesting) {
+                var sensitivity: number = UIConfig.touchDragSensitivity;
+                if (this._dragStartPos
+                    && Math.abs(this._dragStartPos.x - Laya.stage.mouseX) < sensitivity
+                    && Math.abs(this._dragStartPos.y - Laya.stage.mouseY) < sensitivity)
+                    return;
 
-            this.reset();
-            GObject.sDraggingQuery = true;
-            Events.dispatch(Events.DRAG_START, this._displayObject, evt);
+                this._dragTesting = false;
 
-            if (GObject.sDraggingQuery)
-                this.dragBegin();
-        }
-
-        private __moving2(evt: Laya.Event): void {
-            var xx: number = Laya.stage.mouseX - GObject.sGlobalDragStart.x + GObject.sGlobalRect.x;
-            var yy: number = Laya.stage.mouseY - GObject.sGlobalDragStart.y + GObject.sGlobalRect.y;
-
-            if (this._dragBounds != null) {
-                var rect: Laya.Rectangle = GRoot.inst.localToGlobalRect(this._dragBounds.x, this._dragBounds.y,
-                    this._dragBounds.width, this._dragBounds.height, GObject.sDragHelperRect);
-                if (xx < rect.x)
-                    xx = rect.x;
-                else if (xx + GObject.sGlobalRect.width > rect.right) {
-                    xx = rect.right - GObject.sGlobalRect.width;
-                    if (xx < rect.x)
-                        xx = rect.x;
-                }
-
-                if (yy < rect.y)
-                    yy = rect.y;
-                else if (yy + GObject.sGlobalRect.height > rect.bottom) {
-                    yy = rect.bottom - GObject.sGlobalRect.height;
-                    if (yy < rect.y)
-                        yy = rect.y;
-                }
+                sDraggingQuery = true;
+                Events.dispatch(Events.DRAG_START, this._displayObject, evt);
+                if (sDraggingQuery)
+                    this.dragBegin();
             }
 
-            GObject.sUpdateInDragging = true;
-            var pt: Laya.Point = this.parent.globalToLocal(xx, yy, GObject.sHelperPoint);
-            this.setXY(Math.round(pt.x), Math.round(pt.y));
-            GObject.sUpdateInDragging = false;
+            if (GObject.draggingObject == this) {
+                var xx: number = Laya.stage.mouseX - sGlobalDragStart.x + sGlobalRect.x;
+                var yy: number = Laya.stage.mouseY - sGlobalDragStart.y + sGlobalRect.y;
 
-            Events.dispatch(Events.DRAG_MOVE, this._displayObject, evt);
+                if (this._dragBounds) {
+                    var rect: Laya.Rectangle = GRoot.inst.localToGlobalRect(this._dragBounds.x, this._dragBounds.y,
+                        this._dragBounds.width, this._dragBounds.height, sDragHelperRect);
+                    if (xx < rect.x)
+                        xx = rect.x;
+                    else if (xx + sGlobalRect.width > rect.right) {
+                        xx = rect.right - sGlobalRect.width;
+                        if (xx < rect.x)
+                            xx = rect.x;
+                    }
+
+                    if (yy < rect.y)
+                        yy = rect.y;
+                    else if (yy + sGlobalRect.height > rect.bottom) {
+                        yy = rect.bottom - sGlobalRect.height;
+                        if (yy < rect.y)
+                            yy = rect.y;
+                    }
+                }
+
+                sUpdateInDragging = true;
+                var pt: Laya.Point = this.parent.globalToLocal(xx, yy, sHelperPoint);
+                this.setXY(Math.round(pt.x), Math.round(pt.y));
+                sUpdateInDragging = false;
+
+                Events.dispatch(Events.DRAG_MOVE, this._displayObject, evt);
+            }
         }
 
-        private __end2(evt: Laya.Event): void {
+        private __end(evt: Laya.Event): void {
             if (GObject.draggingObject == this) {
-                this.stopDrag();
+                GObject.draggingObject = null;
+                this.reset();
+
                 Events.dispatch(Events.DRAG_END, this._displayObject, evt);
             }
         }
@@ -1219,4 +1198,18 @@ namespace fgui {
             return <GObject>(sprite["$owner"]);
         }
     }
+
+    export const BlendMode = {
+        2: Laya.BlendMode.LIGHTER,
+        3: Laya.BlendMode.MULTIPLY,
+        4: Laya.BlendMode.SCREEN
+    }
+
+    var _gInstanceCounter: number = 0;
+    var sGlobalDragStart: Laya.Point = new Laya.Point();
+    var sGlobalRect: Laya.Rectangle = new Laya.Rectangle();
+    var sHelperPoint: Laya.Point = new Laya.Point();
+    var sDragHelperRect: Laya.Rectangle = new Laya.Rectangle();
+    var sUpdateInDragging: boolean;
+    var sDraggingQuery: boolean;
 }
