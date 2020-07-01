@@ -1,8 +1,8 @@
 
 namespace fgui {
     interface Value {
-        color?: number;
-        strokeColor?: number;
+        color?: string;
+        strokeColor?: string;
     }
 
     export class GearColor extends GearBase {
@@ -27,8 +27,8 @@ namespace fgui {
                 gv = this._default;
             else
                 this._storage[pageId] = gv = {};
-            gv.color = buffer.readColor();
-            gv.strokeColor = buffer.readColor();
+            gv.color = buffer.readColorS();
+            gv.strokeColor = buffer.readColorS();
         }
 
         public apply(): void {
