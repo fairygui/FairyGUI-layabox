@@ -17,7 +17,7 @@ namespace fgui {
             value(): HTMLImageElement {
                 this._tex = null;
                 this._frame = 0;
-                this._reversed = false;
+                this._reverse = false;
                 this._pi = null;
                 return this;
             }
@@ -32,6 +32,12 @@ namespace fgui {
             value(graphic: Laya.Graphics, gX: number, gY: number): void {
                 let tex = this._tex;
                 if (!tex || !tex.getIsReady()) return;
+                if (!this.parent || this.parent._children.length === 0) {
+                    // TODO I think there have a bug in laya, So I wrote this code
+                    // Detail: https://github.com/porky-prince/LayaAir/commit/dd565d30b8d43f453bb784d0c63d978fca8375de
+                    this._stop();
+                    return;
+                }
                 const width: number = this.width || tex.width;
                 const height: number = this.height || tex.height;
                 const pi: PackageItem = this._pi;
@@ -39,33 +45,20 @@ namespace fgui {
                     const frames = pi.load() as Frame[];
                     const curFrame: Frame = frames[this._frame];
                     let delay: number = pi.interval + curFrame.addDelay;
-                    if (pi.swing) {
-                        if (!this._reversed) {
-                            if (this._frame === frames.length - 1) {
-                                this._reversed = true;
-                                this._frame--;
-                                delay += pi.repeatDelay;
-                            } else {
-                                this._frame++;
-                            }
+                    const border: number = !this._reverse ? frames.length - 1 : 0;
+                    const i: number = !this._reverse ? 1 : -1;
+                    if (this._frame === border) {
+                        if (pi.swing) {
+                            this._reverse = !this._reverse;
+                            this._frame -= i;
                         } else {
-                            if (this._frame === 0) {
-                                this._reversed = false;
-                                this._frame++;
-                                delay += pi.repeatDelay;
-                            } else {
-                                this._frame--;
-                            }
-                        }
-                    } else {
-                        if (this._frame === frames.length - 1) {
-                            // this._reversed = true;
                             this._frame = 0;
-                            delay += pi.repeatDelay;
-                        } else {
-                            this._frame++;
                         }
+                        delay += pi.repeatDelay;
+                    } else {
+                        this._frame += i;
                     }
+
                     this._tex = frames[this._frame].texture;// Next frame
                     Laya.timer.once(delay, this, this._drawImage, [graphic, gX, gY]);
                 }
