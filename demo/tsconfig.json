@@ -3,7 +3,7 @@
     "module": "es6",
     "target": "es6",
     "noEmitHelpers": true,
-    "sourceMap": false
+    "sourceMap": true
   },
   "exclude": [
     "node_modules"

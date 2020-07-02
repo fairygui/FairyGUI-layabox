@@ -15,9 +15,6 @@
         load(url, complete, progress, type, priority, cache) {
             this._asset.load(url, complete, progress, type, priority, cache);
         }
-        setAsset(asset) {
-            this._asset = asset;
-        }
     }
     fgui.AssetProxy = AssetProxy;
 })(fgui);
@@ -14920,6 +14917,125 @@
         }
         return points;
     }
+})(fgui);
+
+(function (fgui) {
+    var Texture = Laya.Texture;
+    var HTMLImageElement = Laya.HTMLImageElement;
+    const proto = HTMLImageElement.prototype;
+    const reset = proto.reset;
+    const src = Object.getOwnPropertyDescriptor(proto, 'src').set;
+    Object.defineProperties(proto, {
+        // @Overwrite
+        reset: {
+            // Call in constructor and destroy
+            value() {
+                return reset.call(this._stop()._resetAni());
+            }
+        },
+        _resetAni: {
+            value() {
+                this._tex = null;
+                this._frame = 0;
+                this._reversed = false;
+                this._pi = null;
+                return this;
+            }
+        },
+        _stop: {
+            value() {
+                Laya.timer.clear(this, this._drawImage);
+                return this;
+            }
+        },
+        _drawImage: {
+            value(graphic, gX, gY) {
+                let tex = this._tex;
+                if (!tex || !tex.getIsReady())
+                    return;
+                const width = this.width || tex.width;
+                const height = this.height || tex.height;
+                const pi = this._pi;
+                if (pi) {
+                    const frames = pi.load();
+                    const curFrame = frames[this._frame];
+                    let delay = pi.interval + curFrame.addDelay;
+                    if (pi.swing) {
+                        if (!this._reversed) {
+                            if (this._frame === frames.length - 1) {
+                                this._reversed = true;
+                                this._frame--;
+                                delay += pi.repeatDelay;
+                            }
+                            else {
+                                this._frame++;
+                            }
+                        }
+                        else {
+                            if (this._frame === 0) {
+                                this._reversed = false;
+                                this._frame++;
+                                delay += pi.repeatDelay;
+                            }
+                            else {
+                                this._frame--;
+                            }
+                        }
+                    }
+                    else {
+                        if (this._frame === frames.length - 1) {
+                            // this._reversed = true;
+                            this._frame = 0;
+                            delay += pi.repeatDelay;
+                        }
+                        else {
+                            this._frame++;
+                        }
+                    }
+                    this._tex = frames[this._frame].texture; // Next frame
+                    Laya.timer.once(delay, this, this._drawImage, [graphic, gX, gY]);
+                }
+                graphic.drawImage(tex, gX, gY, width, height);
+            }
+        },
+        // @Overwrite
+        renderSelfToGraphic: {
+            value(graphic, gX, gY) {
+                this._stop()._drawImage(graphic, gX, gY);
+            }
+        },
+        // @Overwrite
+        src: {
+            set(url) {
+                if (fgui.ToolSet.startsWith(url, "ui://")) {
+                    if (this._url === url)
+                        return;
+                    this._stop()._resetAni();
+                    const pi = fgui.UIPackage.getItemByURL(url);
+                    let tex = null;
+                    // Asset must be preloaded
+                    if (pi) {
+                        const asset = pi.load();
+                        if (asset instanceof Texture) {
+                            tex = asset;
+                        }
+                        else if (pi.type === fgui.PackageItemType.MovieClip && Array.isArray(asset) && asset.length > 0) {
+                            // Assuming that each texture is the same size, just layout once
+                            tex = asset[0].texture;
+                            if (asset.length > 1)
+                                this._pi = pi;
+                        }
+                        this._tex = tex;
+                        tex && this.onloaded();
+                    }
+                }
+                else {
+                    // Dynamic loading asset
+                    src.call(this, url);
+                }
+            }
+        }
+    });
 })(fgui);
 
 (function (fgui) {

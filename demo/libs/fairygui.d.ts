@@ -6,7 +6,6 @@ declare namespace fgui {
         static readonly inst: AssetProxy;
         getRes(url: string): any;
         load(url: any, complete?: Laya.Handler, progress?: Laya.Handler, type?: string, priority?: number, cache?: boolean): void;
-        setAsset(asset: any): void;
     }
 }
 declare namespace fgui {
@@ -1963,6 +1962,8 @@ declare namespace fgui {
 }
 declare namespace fgui {
     function fillImage(w: number, h: number, method: number, origin: number, clockwise: boolean, amount: number): number[];
+}
+declare namespace fgui {
 }
 declare namespace fgui {
     class Image extends Laya.Sprite {

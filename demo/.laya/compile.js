@@ -64,7 +64,7 @@ gulp.task("compile", prevTasks, function () {
 			file: workSpaceDir + '/bin/js/bundle.js',
 			format: 'iife',
 			name: 'laya',
-			sourcemap: false
+			sourcemap: true
 		});
 	}).catch(err=>{
 			console.log(err);
