@@ -15,6 +15,9 @@
         load(url, complete, progress, type, priority, cache) {
             this._asset.load(url, complete, progress, type, priority, cache);
         }
+        setAsset(asset) {
+            this._asset = asset;
+        }
     }
     fgui.AssetProxy = AssetProxy;
 })(fgui);

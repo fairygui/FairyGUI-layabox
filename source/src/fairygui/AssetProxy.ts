@@ -22,5 +22,9 @@ namespace fgui {
         public load(url: any, complete?: Laya.Handler, progress?: Laya.Handler, type?: string, priority?: number, cache?: boolean): void {
             this._asset.load(url, complete, progress, type, priority, cache);
         }
+
+        public setAsset(asset: any): void {
+            this._asset = asset;
+        }
     }
 }

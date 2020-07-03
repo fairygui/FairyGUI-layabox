@@ -6,6 +6,7 @@ declare namespace fgui {
         static readonly inst: AssetProxy;
         getRes(url: string): any;
         load(url: any, complete?: Laya.Handler, progress?: Laya.Handler, type?: string, priority?: number, cache?: boolean): void;
+        setAsset(asset: any): void;
     }
 }
 declare namespace fgui {
