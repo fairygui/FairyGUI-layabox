@@ -30,7 +30,10 @@ namespace fgui {
         }
 
         public set font(value: string) {
-            this._input.font = value;
+            if (value)
+                this._input.font = value;
+            else
+                this._input.font = fgui.UIConfig.defaultFont;
         }
 
         public get fontSize(): number {

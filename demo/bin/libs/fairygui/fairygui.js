@@ -9248,7 +9248,10 @@
             return this._input.font;
         }
         set font(value) {
-            this._input.font = value;
+            if (value)
+                this._input.font = value;
+            else
+                this._input.font = fgui.UIConfig.defaultFont;
         }
         get fontSize() {
             return this._input.fontSize;
