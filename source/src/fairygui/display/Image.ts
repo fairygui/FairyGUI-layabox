@@ -215,14 +215,14 @@ namespace fgui {
                 return;
 
             var points: any[] = FillUtils.fill(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
-            if (points == null) {
-                //不知道为什么，不这样操作一下空白的遮罩不能生效
+            if (points) {
+                g.drawPoly(0, 0, points, "#FFFFFF");
+            }
+            if (this._fillAmount < 0.01) {
+                //不知道为什么，不这样操作一下空白的遮罩不能生效  //只要小于0.01的间隔就会产生这个问题-_-我也不知道为什么
                 this.mask = null;
                 this.mask = this._mask;
-                return;
             }
-
-            g.drawPoly(0, 0, points, "#FFFFFF");
         }
     }
 
