@@ -1191,6 +1191,10 @@ namespace fgui {
 
                 Events.dispatch(Events.DRAG_END, this._displayObject, evt);
             }
+            else if (this._dragTesting) {
+                this._dragTesting = false;
+                this.reset();
+            }
         }
         //-------------------------------------------------------------------
 
