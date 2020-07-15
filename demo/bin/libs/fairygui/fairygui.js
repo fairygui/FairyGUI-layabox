@@ -15862,7 +15862,7 @@
         updateState() {
             var gv = this._storage[this._controller.selectedPageId];
             if (!gv)
-                this._storage[this._controller.selectedPageId] = {};
+                this._storage[this._controller.selectedPageId] = gv = {};
             gv.width = this._owner.width;
             gv.height = this._owner.height;
             gv.scaleX = this._owner.scaleX;
