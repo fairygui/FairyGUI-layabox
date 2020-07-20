@@ -652,4 +652,4 @@
 	exports.Video = Video;
 	exports.WebGLVideo = WebGLVideo;
 
-}(window.Laya = window.Laya|| {}, Laya));
+}(window.Laya = window.Laya || {}, Laya));

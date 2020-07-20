@@ -10,7 +10,7 @@ namespace fgui {
         private static _inst: AssetProxy;
 
         public static get inst(): AssetProxy {
-            if (AssetProxy._inst == null)
+            if (!AssetProxy._inst)
                 AssetProxy._inst = new AssetProxy();
             return AssetProxy._inst;
         }
@@ -19,13 +19,12 @@ namespace fgui {
             return this._asset.getRes(url);
         }
 
-        public load(url: any, complete: Laya.Handler = null, progress: Laya.Handler = null, type: string = null, priority: number = 1, cache: boolean = true): void {
+        public load(url: any, complete?: Laya.Handler, progress?: Laya.Handler, type?: string, priority?: number, cache?: boolean): void {
             this._asset.load(url, complete, progress, type, priority, cache);
         }
 
         public setAsset(asset: any): void {
             this._asset = asset;
         }
-
     }
 }

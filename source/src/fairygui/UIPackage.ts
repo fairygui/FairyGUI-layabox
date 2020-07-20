@@ -1,32 +1,33 @@
 namespace fgui {
+    type PackageDependency = { id: string, name: string };
 
     export class UIPackage {
         private _id: string;
         private _name: string;
         private _items: PackageItem[];
-        private _itemsById: Object;
-        private _itemsByName: Object;
+        private _itemsById: { [index: string]: PackageItem };
+        private _itemsByName: { [index: string]: PackageItem };
         private _resKey: string;
         private _customId: string;
         private _sprites: Object;
-        private _dependencies: Array<any>;
+        private _dependencies: Array<PackageDependency>;
         private _branches: Array<string>;
         public _branchIndex: number;
 
         public static _constructing: number = 0;
 
-        private static _instById: Object = {};
-        private static _instByName: Object = {};
+        private static _instById: { [index: string]: UIPackage } = {};
+        private static _instByName: { [index: string]: UIPackage } = {};
         private static _branch: string = "";
-        private static _vars: any = {};
+        private static _vars: { [index: string]: string } = {};
 
         constructor() {
             this._items = [];
             this._itemsById = {};
             this._itemsByName = {};
             this._sprites = {};
-            this._dependencies = Array<any>();
-            this._branches = Array<string>();
+            this._dependencies = [];
+            this._branches = [];
             this._branchIndex = -1;
         }
 
@@ -44,11 +45,11 @@ namespace fgui {
             }
         }
 
-        public static getVar(key: string): any {
+        public static getVar(key: string): string {
             return UIPackage._vars[key];
         }
 
-        public static setVar(key: string, value: any) {
+        public static setVar(key: string, value: string) {
             UIPackage._vars[key] = value;
         }
 
@@ -77,49 +78,88 @@ namespace fgui {
             UIPackage._instById[resKey] = pkg;
             return pkg;
         }
-
-        public static loadPackage(resKey: string, completeHandler: Laya.Handler): void {
-            let pkg: UIPackage = UIPackage._instById[resKey];
-            if (pkg) {
-                completeHandler.runWith(pkg);
-                return;
+        /**
+         * @param resKey resKey 或 [resKey1,resKey2,resKey3....]
+         */
+        public static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler, progressHandler?: Laya.Handler): void {
+            let loadKeyArr = [];
+            let keys: Array<string> = [];
+            let i: number;
+            if (Array.isArray(resKey)) {
+                for (i = 0; i < resKey.length; i++) {
+                    loadKeyArr.push({ url: resKey[i] + "." + UIConfig.packageFileExtension, type: Laya.Loader.BUFFER });
+                    keys.push(resKey[i]);
+                }
+            }
+            else {
+                loadKeyArr = [{ url: resKey + "." + UIConfig.packageFileExtension, type: Laya.Loader.BUFFER }];
+                keys = [resKey];
             }
 
-            let url: string = resKey + "." + UIConfig.packageFileExtension;
-
-            var descCompleteHandler: Laya.Handler = Laya.Handler.create(this, function (asset) {
-                let pkg: UIPackage = new UIPackage();
-                pkg._resKey = resKey;
-                pkg.loadPackage(new ByteBuffer(asset));
-                let cnt: number = pkg._items.length;
-                let urls = [];
-                for (var i: number = 0; i < cnt; i++) {
-                    var pi: PackageItem = pkg._items[i];
-                    if (pi.type == PackageItemType.Atlas)
-                        urls.push({ url: pi.file, type: Laya.Loader.IMAGE });
-                    else if (pi.type == PackageItemType.Sound)
-                        urls.push({ url: pi.file, type: Laya.Loader.SOUND });
+            let pkgArr: Array<UIPackage> = [];
+            let pkg: UIPackage;
+            for (i = 0; i < loadKeyArr.length; i++) {
+                pkg = UIPackage._instById[keys[i]];
+                if (pkg) {
+                    pkgArr.push(pkg);
+                    loadKeyArr.splice(i, 1);
+                    keys.splice(i, 1);
+                    i--;
                 }
-
+            }
+            if (loadKeyArr.length == 0) {
+                completeHandler.runWith([pkgArr]);
+                return;
+            }
+            var descCompleteHandler: Laya.Handler = Laya.Handler.create(this, function () {
+                let pkg: UIPackage;
+                let urls = [];
+                for (i = 0; i < loadKeyArr.length; i++) {
+                    let asset = AssetProxy.inst.getRes(loadKeyArr[i].url);
+                    if (asset) {
+                        pkg = new UIPackage();
+                        pkgArr.push(pkg);
+                        pkg._resKey = keys[i];
+                        pkg.loadPackage(new ByteBuffer(asset));
+                        let cnt: number = pkg._items.length;
+                        for (let j: number = 0; j < cnt; j++) {
+                            let pi: PackageItem = pkg._items[j];
+                            if (pi.type == PackageItemType.Atlas) {
+                                urls.push({ url: pi.file, type: Laya.Loader.IMAGE });
+                            }
+                            else if (pi.type == PackageItemType.Sound) {
+                                urls.push({ url: pi.file, type: Laya.Loader.SOUND });
+                            }
+                        }
+                    }
+                }
                 if (urls.length > 0) {
                     AssetProxy.inst.load(urls, Laya.Handler.create(this, function (): void {
-                        UIPackage._instById[pkg.id] = pkg;
-                        UIPackage._instByName[pkg.name] = pkg;
-                        UIPackage._instByName[pkg._resKey] = pkg;
-
-                        completeHandler.runWith(pkg);
-                    }, null, true));
+                        for (i = 0; i < pkgArr.length; i++) {
+                            pkg = pkgArr[i];
+                            if (!UIPackage._instById[pkg.id]) {
+                                UIPackage._instById[pkg.id] = pkg;
+                                UIPackage._instByName[pkg.name] = pkg;
+                                UIPackage._instByName[pkg._resKey] = pkg;
+                            }
+                        }
+                        completeHandler.runWith([pkgArr]);
+                    }, null, true), progressHandler);
                 }
                 else {
-                    UIPackage._instById[pkg.id] = pkg;
-                    UIPackage._instByName[pkg.name] = pkg;
-                    UIPackage._instByName[pkg._resKey] = pkg;
-
-                    completeHandler.runWith(pkg);
+                    for (i = 0; i < pkgArr.length; i++) {
+                        pkg = pkgArr[i];
+                        if (!UIPackage._instById[pkg.id]) {
+                            UIPackage._instById[pkg.id] = pkg;
+                            UIPackage._instByName[pkg.name] = pkg;
+                            UIPackage._instByName[pkg._resKey] = pkg;
+                        }
+                    }
+                    completeHandler.runWith([pkgArr]);
                 }
             }, null, true);
 
-            AssetProxy.inst.load(url, descCompleteHandler, null, Laya.Loader.BUFFER);
+            AssetProxy.inst.load(loadKeyArr, descCompleteHandler, null, Laya.Loader.BUFFER);
         }
 
         public static removePackage(packageIdOrName: string): void {
@@ -133,11 +173,11 @@ namespace fgui {
             delete UIPackage._instById[pkg.id];
             delete UIPackage._instByName[pkg.name];
             delete UIPackage._instById[pkg._resKey];
-            if (pkg._customId != null)
+            if (pkg._customId)
                 delete UIPackage._instById[pkg._customId];
         }
 
-        public static createObject(pkgName: string, resName: string, userClass?: any): GObject {
+        public static createObject(pkgName: string, resName: string, userClass?: new () => GObject): GObject {
             var pkg: UIPackage = UIPackage.getByName(pkgName);
             if (pkg)
                 return pkg.createObject(resName, userClass);
@@ -145,7 +185,7 @@ namespace fgui {
                 return null;
         }
 
-        public static createObjectFromURL(url: string, userClass?: any): GObject {
+        public static createObjectFromURL(url: string, userClass?: new () => GObject): GObject {
             var pi: PackageItem = UIPackage.getItemByURL(url);
             if (pi)
                 return pi.owner.internalCreateObject(pi, userClass);
@@ -175,7 +215,7 @@ namespace fgui {
                 if (url.length > 13) {
                     var pkgId: string = url.substr(5, 8);
                     var pkg: UIPackage = UIPackage.getById(pkgId);
-                    if (pkg != null) {
+                    if (pkg) {
                         var srcId: string = url.substr(13);
                         return pkg.getItemById(srcId);
                     }
@@ -184,7 +224,7 @@ namespace fgui {
             else {
                 var pkgName: string = url.substr(pos1 + 2, pos2 - pos1 - 2);
                 pkg = UIPackage.getByName(pkgName);
-                if (pkg != null) {
+                if (pkg) {
                     var srcName: string = url.substr(pos2 + 1);
                     return pkg.getItemByName(srcName);
                 }
@@ -278,7 +318,10 @@ namespace fgui {
             buffer.seek(indexTablePos, 1);
 
             var pi: PackageItem;
-            var fileNamePrefix: string = this._resKey + "_";
+            var path: string = this._resKey;
+            let pos = path.lastIndexOf('/');
+            let shortPath = pos == -1 ? "" : path.substr(0, pos + 1);
+            path = path + "_";
 
             cnt = buffer.getUint16();
             for (i = 0; i < cnt; i++) {
@@ -350,7 +393,17 @@ namespace fgui {
                     case PackageItemType.Sound:
                     case PackageItemType.Misc:
                         {
-                            pi.file = fileNamePrefix + pi.file;
+                            pi.file = path + pi.file;
+                            break;
+                        }
+
+                    case PackageItemType.Spine:
+                    case PackageItemType.DragonBones:
+                        {
+                            pi.file = shortPath + pi.file;
+                            pi.skeletonAnchor = new Laya.Point();
+                            pi.skeletonAnchor.x = buffer.getFloat32();
+                            pi.skeletonAnchor.y = buffer.getFloat32();
                             break;
                         }
                 }
@@ -391,7 +444,7 @@ namespace fgui {
                 var itemId: string = buffer.readS();
                 pi = this._itemsById[buffer.readS()];
 
-                var sprite: AtlasSprite = new AtlasSprite();
+                let sprite: AtlasSprite = { atlas: pi, rect: new Laya.Rectangle(), offset: new Laya.Point(), originalSize: new Laya.Point() };
                 sprite.atlas = pi;
                 sprite.rect.x = buffer.getInt32();
                 sprite.rect.y = buffer.getInt32();
@@ -443,7 +496,7 @@ namespace fgui {
             for (var i: number = 0; i < cnt; i++) {
                 var pi: PackageItem = this._items[i];
                 if (pi.type == PackageItemType.Atlas) {
-                    if (pi.texture != null)
+                    if (pi.texture)
                         Laya.loader.clearTextureRes(pi.texture.url);
                 }
             }
@@ -454,7 +507,7 @@ namespace fgui {
             for (var i: number = 0; i < cnt; i++) {
                 var pi: PackageItem = this._items[i];
                 if (pi.type == PackageItemType.Atlas) {
-                    if (pi.texture != null) {
+                    if (pi.texture) {
                         pi.texture.destroy();
                         pi.texture = null;
                     }
@@ -462,6 +515,8 @@ namespace fgui {
                 else if (pi.type == PackageItemType.Sound) {
                     Laya.SoundManager.destroySound(pi.file);
                 }
+                else if (pi.templet)
+                    pi.templet.destroy();
             }
         }
 
@@ -478,14 +533,14 @@ namespace fgui {
         }
 
         public set customId(value: string) {
-            if (this._customId != null)
+            if (this._customId)
                 delete UIPackage._instById[this._customId];
             this._customId = value;
-            if (this._customId != null)
+            if (this._customId)
                 UIPackage._instById[this._customId] = this;
         }
 
-        public createObject(resName: string, userClass?: any): GObject {
+        public createObject(resName: string, userClass?: new () => GObject): GObject {
             var pi: PackageItem = this._itemsByName[resName];
             if (pi)
                 return this.internalCreateObject(pi, userClass);
@@ -493,7 +548,7 @@ namespace fgui {
                 return null;
         }
 
-        public internalCreateObject(item: PackageItem, userClass?: any): GObject {
+        public internalCreateObject(item: PackageItem, userClass?: new () => GObject): GObject {
             var g: GObject = UIObjectFactory.newObject(item, userClass);
 
             if (g == null)
@@ -528,7 +583,7 @@ namespace fgui {
                     if (!item.decoded) {
                         item.decoded = true;
                         var sprite: AtlasSprite = this._sprites[item.id];
-                        if (sprite != null) {
+                        if (sprite) {
                             var atlasTexture: Laya.Texture = <Laya.Texture>(this.getItemAsset(sprite.atlas));
                             item.texture = Laya.Texture.create(atlasTexture,
                                 sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height,
@@ -577,6 +632,45 @@ namespace fgui {
             }
         }
 
+        public getItemAssetAsync(item: PackageItem, onComplete?: (err: any, item: PackageItem) => void): void {
+            if (item.decoded) {
+                onComplete(null, item);
+                return;
+            }
+
+            if (item.loading) {
+                item.loading.push(onComplete);
+                return;
+            }
+
+            switch (item.type) {
+                case PackageItemType.Spine:
+                case PackageItemType.DragonBones:
+                    item.loading = [onComplete];
+                    item.templet = new Laya.Templet();
+                    item.templet.on(Laya.Event.COMPLETE, this, () => {
+                        let arr = item.loading;
+                        delete item.loading;
+                        arr.forEach(e => e(null, item));
+                    });
+                    item.templet.on(Laya.Event.ERROR, this, () => {
+                        let arr = item.loading;
+                        delete item.loading;
+                        delete item.templet;
+                        arr.forEach(e => e('parse error', item));
+                    });
+                    let pos = item.file.lastIndexOf('.');
+                    let str = item.file.substring(0, pos + 1).replace("_ske", "") + "sk";
+                    item.templet.loadAni(str);
+                    break;
+
+                default:
+                    this.getItemAsset(item);
+                    onComplete(null, item);
+                    break;
+            }
+        }
+
         private loadMovieClip(item: PackageItem): void {
             var buffer: ByteBuffer = item.rawData;
 
@@ -592,7 +686,6 @@ namespace fgui {
             item.frames = [];
 
             var spriteId: string;
-            var frame: Frame;
             var sprite: AtlasSprite;
             var fx: number;
             var fy: number;
@@ -601,12 +694,11 @@ namespace fgui {
                 var nextPos: number = buffer.getInt16();
                 nextPos += buffer.pos;
 
-                frame = new Frame();
                 fx = buffer.getInt32();
                 fy = buffer.getInt32();
                 buffer.getInt32(); //width
                 buffer.getInt32(); //height
-                frame.addDelay = buffer.getInt32();
+                let frame: Frame = { addDelay: buffer.getInt32() };
                 spriteId = buffer.readS();
 
                 if (spriteId != null && (sprite = this._sprites[spriteId]) != null) {
@@ -636,12 +728,10 @@ namespace fgui {
             font.size = buffer.getInt32();
             var xadvance: number = buffer.getInt32();
             var lineHeight: number = buffer.getInt32();
-            var bgWidth: number;
-            var bgHeight: number;
 
             var mainTexture: Laya.Texture = null;
             var mainSprite: AtlasSprite = this._sprites[item.id];
-            if (mainSprite != null)
+            if (mainSprite)
                 mainTexture = <Laya.Texture>(this.getItemAsset(mainSprite.atlas));
 
             buffer.seek(0, 1);
@@ -652,7 +742,7 @@ namespace fgui {
                 var nextPos: number = buffer.getInt16();
                 nextPos += buffer.pos;
 
-                bg = new BMGlyph();
+                bg = {};
                 var ch: string = buffer.readChar();
                 font.glyphs[ch] = bg;
 
@@ -706,18 +796,11 @@ namespace fgui {
         }
     }
 
-
-    class AtlasSprite {
-        public atlas: PackageItem;
-        public rect: Laya.Rectangle;
-        public offset: Laya.Point;
-        public originalSize: Laya.Point;
-        public rotated: boolean;
-
-        constructor() {
-            this.rect = new Laya.Rectangle();
-            this.offset = new Laya.Point();
-            this.originalSize = new Laya.Point();
-        }
+    interface AtlasSprite {
+        atlas: PackageItem;
+        rect: Laya.Rectangle;
+        offset: Laya.Point;
+        originalSize: Laya.Point;
+        rotated?: boolean;
     }
 }

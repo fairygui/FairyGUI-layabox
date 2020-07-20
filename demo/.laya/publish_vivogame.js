@@ -1,17 +1,6 @@
-// v1.0.1
-// publish 2.x 也是用这个文件，需要做兼容
-let isPublish2 = process.argv[2].includes("publish_vivogame.js") && process.argv[3].includes("--evn=publish2");
-// 获取Node插件和工作路径
-let ideModuleDir, workSpaceDir;
-if (isPublish2) {
-	//是否使用IDE自带的node环境和插件，设置false后，则使用自己环境(使用命令行方式执行)
-	const useIDENode = process.argv[0].indexOf("LayaAir") > -1 ? true : false;
-	ideModuleDir = useIDENode ? process.argv[1].replace("gulp\\bin\\gulp.js", "").replace("gulp/bin/gulp.js", "") : "";
-	workSpaceDir = useIDENode ? process.argv[2].replace("--gulpfile=", "").replace("\\.laya\\publish_vivogame.js", "").replace("/.laya/publish_vivogame.js", "") + "/" : "./../";
-} else {
-	ideModuleDir = global.ideModuleDir;
-	workSpaceDir = global.workSpaceDir;
-}
+// v1.7.0
+const ideModuleDir = global.ideModuleDir;
+const workSpaceDir = global.workSpaceDir;
 
 //引用插件模块
 const gulp = require(ideModuleDir + "gulp");
@@ -21,111 +10,106 @@ const childProcess = require("child_process");
 const del = require(ideModuleDir + "del");
 const iconv =  require(ideModuleDir + "iconv-lite");
 const revCollector = require(ideModuleDir + 'gulp-rev-collector');
-let commandSuffix = ".cmd";
-let isGlobalQG = true;
 
-let prevTasks = ["packfile"];
-if (isPublish2) {
-	prevTasks = "";
-}
+let fullRemoteEngineList = ["laya.core.js", "laya.webgl.js", "laya.filter.js", "laya.ani.js", "laya.d3.js", "laya.html.js", "laya.particle.js", "laya.ui.js", "laya.d3Plugin.js", "bytebuffer.js", "laya.device.js", "laya.physics.js", "laya.physics3D.js", "laya.tiledmap.js", "worker.js", "workerloader.js"];
+
+let copyLibsTask = ["copyPlatformLibsJsFile"];
+let packfiletask = ["packfile"];
 
 let 
     config,
-	platform,
 	releaseDir,
     tempReleaseDir, // vivo临时拷贝目录
 	projDir, // vivo快游戏工程目录
-	isDealNoCompile,
+	isDealNoCompile = true,
 	physicsLibsPathList = [],
 	isExistEngineFolder = false; // bin目录下是否存在engine文件夹
 let projSrc;
 let versionCon; // 版本管理version.json
+let commandSuffix,
+	layarepublicPath;
+
 // 创建vivo项目前，拷贝vivo引擎库、修改index.js
-// 应该在publish中的，但是为了方便发布2.0及IDE 1.x，放在这里修改
-gulp.task("preCreate_VIVO", prevTasks, function() {
-	if (isPublish2) {
-		let pubsetPath = path.join(workSpaceDir, ".laya", "pubset.json");
-		let content = fs.readFileSync(pubsetPath, "utf8");
-		let pubsetJson = JSON.parse(content);
-		platform = "vivogame";
-		releaseDir = path.join(workSpaceDir, "release", platform).replace(/\\/g, "/");
-		releaseDir = tempReleaseDir = path.join(releaseDir, "temprelease");
-		config = pubsetJson[6]; // 只用到了 config.vivoInfo|config.vivoSign
-	} else {
-		platform = global.platform;
-		releaseDir = global.releaseDir;
-		tempReleaseDir = global.tempReleaseDir;
-		config = global.config;
+gulp.task("preCreate_VIVO", copyLibsTask, function() {
+	releaseDir = global.releaseDir;
+	config = global.config;
+	commandSuffix = global.commandSuffix;
+	layarepublicPath = global.layarepublicPath;
+	tempReleaseDir = global.tempReleaseDir;
+
+	if (config.useMinJsLibs) {
+		fullRemoteEngineList = fullRemoteEngineList.map((item, index) => {
+			return item.replace(".js", ".min.js");
+		})
 	}
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
-	if (process.platform === "darwin") {
-		commandSuffix = "";
-	}
-	let copyLibsList = [`${workSpaceDir}/bin/libs/laya.vvmini.js`];
-	var stream = gulp.src(copyLibsList, { base: `${workSpaceDir}/bin` });
-	return stream.pipe(gulp.dest(tempReleaseDir));
 });
 
 gulp.task("copyPlatformFile_VIVO", ["preCreate_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
-	let vivoAdapterPath = path.join(ideModuleDir, "../", "out", "layarepublic", "LayaAirProjectPack", "lib", "data", "vivofiles");
-	let copyLibsList = [`${vivoAdapterPath}/**/*.*`];
-	var stream = gulp.src(copyLibsList);
-	return stream.pipe(gulp.dest(tempReleaseDir));
+	return;
 });
 
 // 检查是否全局安装了qgame
-gulp.task("createGlobalQGame_VIVO", ["copyPlatformFile_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
-	// qgame -V
-	// npm install -g qgame-toolkit
-	return new Promise((resolve, reject) => {
-		let cmd = `qgame${commandSuffix}`;
-		let args = ["-V"];
-		let cp = childProcess.spawn(cmd, args, {
-			shell: true
-		});
-		// let cp = childProcess.spawn('npx.cmd', ['-v']);
-		cp.stdout.on('data', (data) => {
-			console.log(`stdout: ${data}`);
-			if (data.includes("qgame")) {
-				isGlobalQG = false;
-			}
-		});
-
-		cp.stderr.on('data', (data) => {
-			console.log(`stderr: ${data}`);
-			console.log(`stderr(iconv): ${iconv.decode(data, 'gbk')}`);
-			if (data.includes("qgame") && !data.includes("qgame-toolkit")) {
-				isGlobalQG = false;
-			}
-			// reject();
-		});
-
-		cp.on('close', (code) => {
-			console.log(`1 end) qgame -V：${code}`);
-			resolve();
-		});
-	}).then(() => {
-		return new Promise((resolve, reject) => {
-			if (isGlobalQG) {
+gulp.task("createGlobalQGame_VIVO", packfiletask, function() {
+	releaseDir = path.dirname(releaseDir);
+	projDir = path.join(releaseDir, config.vivoInfo.projName);
+	projSrc = path.join(projDir, "src");
+	// npm view @vivo-minigame/cli version
+	// npm install -g @vivo-minigame/cli
+	let remoteVersion, localVersion;
+	let isGetRemote, isGetLocal;
+	let isUpdateGlobalQGame = true;
+	return new Promise((resolve, reject) => { // 远程版本号
+		childProcess.exec("npm view  @vivo-minigame/cli version", function(error, stdout, stderr) {
+			if (!stdout) { // 获取 @vivo-minigame/cli 远程版本号失败
+				console.log("Failed to get the remote version number");
 				resolve();
 				return;
 			}
-			console.log("全局安装qgame-toolkit");
-			// npm install -g qgame-toolkit
+			remoteVersion = stdout;
+			isGetRemote = true;
+			if (isGetRemote && isGetLocal) {
+				isUpdateGlobalQGame = remoteVersion != localVersion;
+				console.log(`remoteVersion: ${remoteVersion}, localVersion: ${localVersion}`);
+				resolve();
+			}
+		});
+		childProcess.exec("mg -v", function(error, stdout, stderr) {
+			if (!stdout) { // 获取  @vivo-minigame/cli 本地版本号失败
+				console.log("Failed to get the local version number");
+				resolve();
+				return;
+			}
+			localVersion = stdout;
+			isGetLocal = true;
+			if (isGetRemote && isGetLocal) {
+				isUpdateGlobalQGame = remoteVersion != localVersion;
+				console.log(`remoteVersion: ${remoteVersion}, localVersion: ${localVersion}`);
+				resolve();
+			}
+		});
+		setTimeout(() => {
+			// 如果获取到了本地版本号，但未获取到远程版本号，默认通过
+			if (isGetLocal && !isGetRemote) {
+				isUpdateGlobalQGame = false;
+				console.log("Gets the version number timeout, does not get the remote version number, but the local version number exists, passes by default");
+				resolve();
+				return;
+			}
+		}, 10000);
+	}).then(() => {
+		return new Promise((resolve, reject) => {
+			if (!isUpdateGlobalQGame) {
+				resolve();
+				return;
+			}
+			console.log("全局安装@vivo-minigame/cli");
+			// npm install -g @vivo-minigame/cli
 			let cmd = `npm${commandSuffix}`;
-			let args = ["install", "qgame-toolkit", "-g"];
-			let cp = childProcess.spawn(cmd, args);
+			let args = ["install", "@vivo-minigame/cli", "-g"];
+			let opts = {
+				shell: true
+			};
+			let cp = childProcess.spawn(cmd, args, opts);
 			
 			cp.stdout.on('data', (data) => {
 				console.log(`stdout: ${data}`);
@@ -137,7 +121,7 @@ gulp.task("createGlobalQGame_VIVO", ["copyPlatformFile_VIVO"], function() {
 			});
 	
 			cp.on('close', (code) => {
-				console.log(`2 end) npm install -g qgame-toolkit：${code}`);
+				console.log(`2 end) npm install -g @vivo-minigame/cli：${code}`);
 				resolve();
 			});
 		});
@@ -147,100 +131,145 @@ gulp.task("createGlobalQGame_VIVO", ["copyPlatformFile_VIVO"], function() {
 });
 
 gulp.task("createProj_VIVO", ["createGlobalQGame_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
-	releaseDir = path.dirname(releaseDir);
-	projDir = path.join(releaseDir, config.vivoInfo.projName);
-	projSrc = path.join(projDir, "src");
 	// 如果有即存项目，不再新建
 	let isProjExist = fs.existsSync(projDir + "/node_modules") && 
 					  fs.existsSync(projDir + "/sign");
 	if (isProjExist) {
-		return;
+		// 检测是否需要升级
+		let packageCon = fs.readFileSync(`${projDir}/package.json`, "utf8");
+		let minigamePath = path.join(projDir, "minigame.config.js");
+		if (packageCon.includes("@vivo-minigame/cli-service") && fs.existsSync(minigamePath)) {
+			return;
+		}
 	}
-	// 在项目中创建vivo项目
+	// 如果有即存项目，但是是旧的项目，删掉后重新创建
 	return new Promise((resolve, reject) => {
-		console.log("(proj)开始创建vivo快游戏项目");
-		let cmd = `qgame${commandSuffix}`;
-		let args = ["init", config.vivoInfo.projName];
-        let opts = {
-			cwd: releaseDir,
-			shell: true
-		};
-
-        let cp = childProcess.spawn(cmd, args, opts);
-        
-		cp.stdout.on('data', (data) => {
-			console.log(`stdout: ${data}`);
-			if (data.includes("Init your Project")) {
-				cp.stdin.write(`\n`);
-			}
-			// TODO 这里还是要找原因，不要这样
-			if (data.includes("manifest.json created")) {
-				setTimeout(function() {
-					cp && cp.kill();
-				}, 500);
-			}
-		});
-		
-		cp.stderr.on('data', (data) => {
-			console.log(`stderr: ${data}`);
-			// reject();
-		});
-		
-		cp.on('close', (code) => {
-			cp = null;
-			console.log(`子进程退出码：${code}`);
+		if (!fs.existsSync(projDir)) {
+			return resolve();
+		}
+		let delList = [projDir];
+		del(delList, { force: true }).then(paths => {
 			resolve();
+		});
+	}).then(function() {
+		// 在项目中创建vivo项目
+		return new Promise((resolve, reject) => {
+			console.log("(proj)开始创建vivo快游戏项目");
+			// mg init <project-name>
+			let cmd = `mg${commandSuffix}`;
+			let args = ["init", config.vivoInfo.projName];
+			let opts = {
+				cwd: releaseDir,
+				shell: true
+			};
+
+			let cp = childProcess.spawn(cmd, args, opts);
+			
+			cp.stdout.on('data', (data) => {
+				console.log(`stdout: ${data}`);
+			});
+			
+			cp.stderr.on('data', (data) => {
+				console.log(`stderr: ${data}`);
+				// reject();
+			});
+			
+			cp.on('close', (code) => {
+				cp = null;
+				console.log(`子进程退出码：${code}`);
+				resolve();
+			});
 		});
 	});
 });
 
-gulp.task("installProj_VIVO", ["createProj_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
-	// 如果有即存项目，不再新建
-	let isProjExist = fs.existsSync(projDir + "/node_modules") && 
-					  fs.existsSync(projDir + "/sign");
-	if (isProjExist) {
-		return;
-	}
-
-	return new Promise((resolve, reject) => {
-		console.log("(proj)下载类库 -> (npm install )");
-		let cmd = `npm${commandSuffix}`;
-		let args = ["install"];
-        let opts = {
-			cwd: projDir
-		};
-
-        let cp = childProcess.spawn(cmd, args, opts);
-        
-		cp.stdout.on('data', (data) => {
-			console.log(`stdout: ${data}`);
+// 检查是否安装了adapter
+gulp.task("createAdapter_VIVO", ["createProj_VIVO"], function() {
+	// npm view @qgame/adapter version
+	// npm i -S @qgame/adapter@latest
+	let remoteVersion, localVersion;
+	let isGetRemote, isGetLocal;
+	let isUpdateAdapter = true;
+	return new Promise((resolve, reject) => { // 远程版本号
+		childProcess.exec("npm view @qgame/adapter version", function(error, stdout, stderr) {
+			if (!stdout) { // 获取 @vivo-minigame/cli 远程版本号失败
+				console.log("Failed to get the remote adapter version number");
+				resolve();
+				return;
+			}
+			remoteVersion = stdout.replace(/[\r\n]/g, "").trim();
+			isGetRemote = true;
+			if (isGetRemote && isGetLocal) {
+				isUpdateAdapter = remoteVersion != localVersion;
+				console.log(`remoteVersion: ${remoteVersion}, localVersion: ${localVersion}`);
+				resolve();
+			}
 		});
-		
-		cp.stderr.on('data', (data) => {
-			console.log(`stderr: ${data}`);
-			// reject();
+		childProcess.exec("npm ls @qgame/adapter version", { cwd: projDir }, function(error, stdout, stderr) {
+			if (!stdout) { // 获取  @vivo-minigame/cli 本地版本号失败
+				console.log("Failed to get the local adapter version number");
+				resolve();
+				return;
+			}
+			let info = stdout.split("@qgame/adapter@"); //@qgame/adapter@1.0.3
+			info = Array.isArray(info) && info[1] && info[1].replace(/[\r\n]/g, "").trim();
+			localVersion = info;
+			isGetLocal = true;
+			if (isGetRemote && isGetLocal) {
+				isUpdateAdapter = remoteVersion != localVersion;
+				console.log(`remoteVersion: ${remoteVersion}, localVersion: ${localVersion}`);
+				resolve();
+			}
 		});
-		
-		cp.on('close', (code) => {
-			console.log(`子进程退出码：${code}`);
-			resolve();
+		setTimeout(() => {
+			// 如果获取到了本地版本号，但未获取到远程版本号，默认通过
+			if (!isGetLocal || !isGetRemote) {
+				console.log("Failed to get the local or remote version number");
+				resolve();
+				return;
+			}
+		}, 10000);
+	}).then(() => {
+		return new Promise((resolve, reject) => {
+			if (!isUpdateAdapter) {
+				resolve();
+				return;
+			}
+			console.log("安装@qgame/adapter");
+			// npm i -S @qgame/adapter@latest
+			let cmd = `npm${commandSuffix}`;
+			let args = ["install", "-S", "@qgame/adapter@latest"];
+			let opts = {
+				shell: true,
+				cwd: projDir
+			};
+			let cp = childProcess.spawn(cmd, args, opts);
+			
+			cp.stdout.on('data', (data) => {
+				console.log(`stdout: ${data}`);
+			});
+	
+			cp.stderr.on('data', (data) => {
+				console.log(`stderr: ${data}`);
+				// reject();
+			});
+	
+			cp.on('close', (code) => {
+				console.log(`2 end) npm i -S @qgame/adapter@latest：${code}`);
+				resolve();
+			});
 		});
+	}).catch((e) => {
+		console.log("catch e", e);
 	});
 });
 
 // 拷贝文件到vivo快游戏
-gulp.task("copyFileToProj_VIVO", ["installProj_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
+gulp.task("copyFileToProj_VIVO", ["createAdapter_VIVO"], function() {
+	// 如果有js/main.js，将其删除
+	let vivoMainPath = path.join(projDir, "src", "js", "main.js");
+	if (fs.existsSync(vivoMainPath)) {
+		fs.unlinkSync(vivoMainPath);
 	}
 	// 将临时文件夹中的文件，拷贝到项目中去
 	let originalDir = `${tempReleaseDir}/**/*.*`;
@@ -250,10 +279,6 @@ gulp.task("copyFileToProj_VIVO", ["installProj_VIVO"], function() {
 
 // 拷贝icon到vivo快游戏
 gulp.task("copyIconToProj_VIVO", ["copyFileToProj_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
 	let originalDir = config.vivoInfo.icon;
 	let stream = gulp.src(originalDir);
 	return stream.pipe(gulp.dest(projSrc));
@@ -261,20 +286,12 @@ gulp.task("copyIconToProj_VIVO", ["copyFileToProj_VIVO"], function() {
 
 // 清除vivo快游戏临时目录
 gulp.task("clearTempDir_VIVO", ["copyIconToProj_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
 	// 删掉临时目录
 	return del([tempReleaseDir], { force: true });
 });
 
 // 生成release签名(私钥文件 private.pem 和证书文件 certificate.pem )
 gulp.task("generateSign_VIVO", ["clearTempDir_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-    }
     if (!config.vivoSign.generateSign) {
         return;
     }
@@ -330,10 +347,6 @@ gulp.task("generateSign_VIVO", ["clearTempDir_VIVO"], function() {
 
 // 拷贝sign文件到指定位置
 gulp.task("copySignFile_VIVO", ["generateSign_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-    }
     if (config.vivoSign.generateSign) { // 新生成的签名
         // 移动签名文件到项目中（Laya & vivo快游戏项目中）
         let 
@@ -366,10 +379,6 @@ gulp.task("copySignFile_VIVO", ["generateSign_VIVO"], function() {
 });
 
 gulp.task("deleteSignFile_VIVO", ["copySignFile_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
 	if (config.vivoSign.generateSign) { // 新生成的签名
 		let 
             privatePem = path.join(projDir, "private.pem"),
@@ -379,10 +388,6 @@ gulp.task("deleteSignFile_VIVO", ["copySignFile_VIVO"], function() {
 });
 
 gulp.task("modifyFile_VIVO", ["deleteSignFile_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
 	// 修改manifest.json文件
 	let manifestPath = path.join(projSrc, "manifest.json");
 	if (!fs.existsSync(manifestPath)) {
@@ -393,13 +398,26 @@ gulp.task("modifyFile_VIVO", ["deleteSignFile_VIVO"], function() {
 	manifestJson.package = config.vivoInfo.package;
 	manifestJson.name = config.vivoInfo.name;
 	manifestJson.orientation = config.vivoInfo.orientation;
+	manifestJson.config.logLevel = config.vivoInfo.logLevel || "off";
 	manifestJson.deviceOrientation = config.vivoInfo.orientation;
 	manifestJson.versionName = config.vivoInfo.versionName;
 	manifestJson.versionCode = config.vivoInfo.versionCode;
 	manifestJson.minPlatformVersion = config.vivoInfo.minPlatformVersion;
 	manifestJson.icon = `/${path.basename(config.vivoInfo.icon)}`;
+	if (config.vivoInfo.subpack) { // 分包
+		manifestJson.subpackages = config.vivoSubpack;
+	} else {
+		delete manifestJson.subpackages;
+	}
+	// 增加thirdEngine字段
+	let EngineVersion = getEngineVersion();
+	if (EngineVersion) {
+		manifestJson.thirdEngine = {
+			"laya": EngineVersion
+		};
+	}
 	fs.writeFileSync(manifestPath, JSON.stringify(manifestJson, null, 4), "utf8");
-
+	
 	if (config.version) {
 		let versionPath = projSrc + "/version.json";
 		versionCon = fs.readFileSync(versionPath, "utf8");
@@ -407,7 +425,8 @@ gulp.task("modifyFile_VIVO", ["deleteSignFile_VIVO"], function() {
 	}
 	let indexJsStr = (versionCon && versionCon["index.js"]) ? versionCon["index.js"] :  "index.js";
 	// 修改game.js文件
-	let content = `require("./qgame-adapter.js");\nif(!window.navigator)\n\twindow.navigator = {};\nwindow.navigator.userAgent = 'Mozilla/5.0 (Linux; Android 5.1.1; Nexus 6 Build/LYZ28E) AppleWebKit/603.1.30 (KHTML, like Gecko) Mobile/14E8301 VVGame NetType/WIFI Language/zh_CN';\nrequire("./libs/laya.vvmini.js");\nrequire("./index.js");`;
+	let content = `require("@qgame/adapter");\nif(!window.navigator)\n\twindow.navigator = {};\nwindow.navigator.userAgent = 'Mozilla/5.0 (Linux; Android 5.1.1; Nexus 6 Build/LYZ28E) AppleWebKit/603.1.30 (KHTML, like Gecko) Mobile/14E8301 VVGame NetType/WIFI Language/zh_CN';
+require("./libs/laya.vvmini.js");\nrequire("./index.js");`;
 	let gameJsPath = path.join(projSrc, "game.js");
 	fs.writeFileSync(gameJsPath, content, "utf8");
 
@@ -421,11 +440,58 @@ gulp.task("modifyFile_VIVO", ["deleteSignFile_VIVO"], function() {
 	fs.writeFileSync(filePath, fileContent, "utf8");
 })
 
-gulp.task("version_VIVO", ["modifyFile_VIVO"], function () {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
+function getEngineVersion() {
+	let coreLibPath = path.join(workSpaceDir, "bin", "libs", "laya.core.js");
+	let isHasCoreLib = fs.existsSync(coreLibPath);
+	let isOldAsProj = fs.existsSync(`${workSpaceDir}/asconfig.json`) && !isHasCoreLib;
+	let isNewTsProj = fs.existsSync(`${workSpaceDir}/src/tsconfig.json`) && !isHasCoreLib;
+	let EngineVersion;
+	if (isHasCoreLib) {
+		let con = fs.readFileSync(coreLibPath, "utf8");
+		let matchList = con.match(/Laya\.version\s*=\s*['"]([0-9\.]+(beta)?.*)['"]/);
+		if (!Array.isArray(matchList)) {
+			return null;
+		}
+		EngineVersion = matchList[1];
+	} else { // newts项目和旧版本as项目
+		if (isOldAsProj) {
+			let coreLibFilePath = path.join(workSpaceDir, "libs", "laya", "src", "Laya.as");
+			if (!fs.existsSync(coreLibFilePath)) {
+				return null;
+			}
+			let con = fs.readFileSync(coreLibFilePath, "utf8");
+			let matchList = con.match(/version:String\s*=\s*['"]([0-9\.]+(beta)?.*)['"]/);
+			if (!Array.isArray(matchList)) {
+				return null;
+			}
+			EngineVersion = matchList[1];
+		} else if (isNewTsProj) {
+			let coreLibFilePath = path.join(workSpaceDir, "libs", "Laya.ts");
+			if (!fs.existsSync(coreLibFilePath)) {
+				return null;
+			}
+			let con = fs.readFileSync(coreLibFilePath, "utf8");
+			let matchList = con.match(/static\s*version:\s*string\s*=\s*['"]([0-9\.]+(beta)?.*)['"]/);
+			if (!Array.isArray(matchList)) {
+				return null;
+			}
+			EngineVersion = matchList[1];
+		}
+	}
+	return EngineVersion;
+}
+
+gulp.task("modifyMinJs_VIVO", ["modifyFile_VIVO"], function() {
+	if (!config.useMinJsLibs) {
 		return;
 	}
+	let fileJsPath = path.join(projSrc, "game.js");
+	let content = fs.readFileSync(fileJsPath, "utf-8");
+	content = content.replace("laya.vvmini.js", "min/laya.vvmini.min.js");
+	fs.writeFileSync(fileJsPath, content, 'utf-8');
+});
+
+gulp.task("version_VIVO", ["modifyMinJs_VIVO"], function () {
 	if (config.version) {
 		let versionPath = projSrc + "/version.json";
 		let mainJSPath = projSrc + "/game.js";
@@ -436,53 +502,31 @@ gulp.task("version_VIVO", ["modifyFile_VIVO"], function () {
 	}
 });
 
-// 处理engine文件夹
+// 处理engine文件夹，允许开发者自己在bin下定义engine文件夹，以获得针对性的优化
 gulp.task("dealEngineFolder1_VIVO", ["version_VIVO"], function() {
-	// 如果项目中游engine文件夹，我们默认该开发者是熟悉VIVO发布流程的，已经处理好所有的逻辑
+	// 如果项目中有engine文件夹，我们默认该开发者是熟悉VIVO发布流程的，已经处理好所有的逻辑
 	// 值得注意的:
 	// 1) 如果有engine文件夹而未处理2D物理库(box2d.js/physics.js)，项目将无法运行
 	// 2) 如果未处理3D物理库(physics3D.js)，打包时间将会很长
 
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
 	let engineFolder = path.join(projDir, "src", "engine");
 	isExistEngineFolder = fs.existsSync(engineFolder);
 	if (!isExistEngineFolder) {
 		return;
 	}
 
-	let adapterOriginalPath = path.join(projDir, "src", "qgame-adapter.js");
-
-	let vivoConfigPath = path.join(ideModuleDir, "../", "out", "layarepublic", "LayaAirProjectPack", "lib", "data", "addi", "vivo");
-
 	// 不想写一堆task任务，500ms默认拷贝完成吧
 	// 未来有了更好的解决方案再修改
 	return new Promise(function(resolve, reject) {
-		// 拷贝webpack.config.js
+		// 将engine文件夹拷贝到projRoot下
 		setTimeout(resolve, 500);
-		var stream = gulp.src([`${vivoConfigPath}/**/*.*`]);
+		var stream = gulp.src([`${engineFolder}/**/*.*`], {base: `${projDir}/src`});
 		return stream.pipe(gulp.dest(projDir));
-	}).then(function() {
-		return new Promise(function(resolve, reject) {
-			// 将engine文件夹拷贝到projRoot下
-			setTimeout(resolve, 500);
-			var stream = gulp.src([`${engineFolder}/**/*.*`], {base: `${projDir}/src`});
-			return stream.pipe(gulp.dest(projDir));
-		});
-	}).then(function() {
-		return new Promise(function(resolve, reject) {
-			// 将adapter.js拷贝到engine文件夹中
-			setTimeout(resolve, 500);
-			var stream = gulp.src([adapterOriginalPath]);
-			return stream.pipe(gulp.dest(`${projDir}/engine`));
-		});
 	}).then(function() {
 		return new Promise(function(resolve, reject) {
 			// 删掉src下的engine和adapter
 			setTimeout(resolve, 500);
-			return del([engineFolder, adapterOriginalPath], { force: true });
+			return del([engineFolder], { force: true });
 		});
 	}).catch(function(err) {
 		console.log(err);
@@ -490,107 +534,27 @@ gulp.task("dealEngineFolder1_VIVO", ["version_VIVO"], function() {
 });
 
 gulp.task("dealEngineFolder2_VIVO", ["dealEngineFolder1_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
 	if (!isExistEngineFolder) {
 		return;
 	}
 	
 	let engineFolder = path.join(projDir, "engine");
 	let engineFileList = fs.readdirSync(engineFolder);
-	// 修改webpack.config.js
-	let vvConfigPath = path.join(projDir, "config", "webpack.config.js");
-	let content = fs.readFileSync(vvConfigPath, "utf8");
-	let externalsStr = '{\n';
-	let libName;
-	for (let i = 0, len = engineFileList.length; i < len; i++) {
-		libName = engineFileList[i];
-		if (i !== 0) {
-			externalsStr += ',\n';
-		}
-		externalsStr += `'./${libName}':'commonjs ./${libName}'`;
-	}
-	externalsStr += '\n}';
-	content = content.replace("EXTERNALS_PLACE_HOLDER", externalsStr);
-	fs.writeFileSync(vvConfigPath, content, "utf8");
+	// 修改配置文件
+	configVivoConfigFile(engineFileList);
 });
 
 // 如果项目中用到了 box2d.js|laya.physics.js/laya.physics3D.js ，需要特殊处理
+// 之前处理的是有项目中已经存在engine文件夹的情况，现在开始处理没有文件夹的情况
 gulp.task("dealNoCompile1_VIVO", ["dealEngineFolder2_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
-	if (isExistEngineFolder) {
-		return;
-	}
-	// 如果没有使用物理，则忽略这一步
-	let indexJsStr = (versionCon && versionCon["index.js"]) ? versionCon["index.js"] :  "index.js";
-	let filePath = path.join(projSrc, indexJsStr);
-	if (!fs.existsSync(filePath)) {
-		return;
-	}
-	isDealNoCompile = true;
-
-	// 拷贝webpack.config.js
-	let vivoConfigPath = path.join(ideModuleDir, "../", "out", "layarepublic", "LayaAirProjectPack", "lib", "data", "addi", "vivo");
-	let copyConfigList = [`${vivoConfigPath}/**/*.*`];
-	var stream = gulp.src(copyConfigList);
-	return stream.pipe(gulp.dest(projDir));
-});
-
-gulp.task("dealNoCompile2_VIVO", ["dealNoCompile1_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
 	if (!isDealNoCompile) {
 		return;
 	}
 
-	// let indexJsStr = (versionCon && versionCon["index.js"]) ? versionCon["index.js"] :  "index.js";
-	// let bundleJsStr = (versionCon && versionCon["js/bundle.js"]) ? versionCon["js/bundle.js"] :  "js/bundle.js";
-	// let box2dJsStr = (versionCon && versionCon["libs/box2d.js"]) ? versionCon["libs/box2d.js"] :  "libs/box2d.js";
-	// let physicsJsStr = (versionCon && versionCon["libs/laya.physics.js"]) ? versionCon["libs/laya.physics.js"] :  "libs/laya.physics.js";
-	// let physics3DJsStr = (versionCon && versionCon["libs/laya.physics3D.js"]) ? versionCon["libs/laya.physics3D.js"] :  "libs/laya.physics3D.js";
-
-	// // 修改index.js，去掉物理库前面的libs
-	// let filePath = path.join(projSrc, indexJsStr);
-	// let fileContent = fs.readFileSync(filePath, "utf8");
-	// let physicsNameList = [];
-
-	// if (fileContent.includes(bundleJsStr)) {
-	// 	let adapterJsPath = path.join(projSrc, bundleJsStr);
-	// 	physicsNameList.push(bundleJsStr);
-	// 	physicsLibsPathList.push(adapterJsPath);
-	// }
-	// if (fileContent.includes(box2dJsStr)) {
-	// 	let libPath = path.join(projSrc, box2dJsStr);
-	// 	physicsNameList.push(box2dJsStr);
-	// 	physicsLibsPathList.push(libPath);
-	// }
-	// if (fileContent.includes(physicsJsStr)) {
-	// 	let libPath = path.join(projSrc, physicsJsStr);
-	// 	physicsNameList.push(physicsJsStr);
-	// 	physicsLibsPathList.push(libPath);
-	// }
-	// if (fileContent.includes(physics3DJsStr)) {
-	// 	let libPath = path.join(projSrc, physics3DJsStr);
-	// 	physicsNameList.push(physics3DJsStr);
-	// 	physicsLibsPathList.push(libPath);
-	// }
-	// if (physicsLibsPathList.length > 0) {
-	// 	let adapterJsPath = path.join(projSrc, "qgame-adapter.js");
-	// 	physicsNameList.push("qgame-adapter.js");
-	// 	physicsLibsPathList.push(adapterJsPath);
-	// }
-
-
-	// 将js/bundle.js | libs/*.* qgame-adapter.js 全放到engine文件夹中
+	// 将js/bundle.js | libs/*.* 全放到engine文件夹中
 	let indexJsStr = (versionCon && versionCon["index.js"]) ? versionCon["index.js"] :  "index.js";
 	let bundleJsStr = (versionCon && versionCon["js/bundle.js"]) ? versionCon["js/bundle.js"] :  "js/bundle.js";
+	let layaJsStr = (versionCon && versionCon["laya.js"]) ? versionCon["laya.js"] :  "laya.js";
 
 	// 修改index.js，去掉物理库前面的libs
 	let filePath = path.join(projSrc, indexJsStr);
@@ -602,6 +566,11 @@ gulp.task("dealNoCompile2_VIVO", ["dealNoCompile1_VIVO"], function() {
 		physicsNameList.push(bundleJsStr);
 		physicsLibsPathList.push(adapterJsPath);
 	}
+	if (fileContent.includes(layaJsStr)) {
+		let layaJsPath = path.join(projSrc, layaJsStr);
+		physicsNameList.push(layaJsStr);
+		physicsLibsPathList.push(layaJsPath);
+	}
 	let libsList = fs.readdirSync(path.join(projSrc, "libs"));
 	let libsFileName, libsFilePath;
 	for (let i = 0, len = libsList.length; i < len; i++) {
@@ -610,50 +579,218 @@ gulp.task("dealNoCompile2_VIVO", ["dealNoCompile1_VIVO"], function() {
 		physicsNameList.push(`libs/${libsFileName}`);
 		physicsLibsPathList.push(libsFilePath);
 	}
-	if (physicsLibsPathList.length > 0) {
-		let adapterJsPath = path.join(projSrc, "qgame-adapter.js");
-		physicsNameList.push("qgame-adapter.js");
-		physicsLibsPathList.push(adapterJsPath);
-	}
-
-	// 修改webpack.config.js
-	let vvConfigPath = path.join(projDir, "config", "webpack.config.js");
-	let content = fs.readFileSync(vvConfigPath, "utf8");
-	let externalsStr = '{\n';
-	let libName;
-	for (let i = 0, len = physicsNameList.length; i < len; i++) {
-		libName = physicsNameList[i];
-		if (i !== 0) {
-			externalsStr += ',\n';
+	let minPath = path.join(projSrc, "libs", "min");
+	if (fs.existsSync(minPath)) {
+		let minLibsList = fs.readdirSync(minPath);
+		let minLibsFileName, minLibsFilePath;
+		for (let i = 0, len = minLibsList.length; i < len; i++) {
+			minLibsFileName = minLibsList[i];
+			minLibsFilePath = path.join(minPath, minLibsFileName);
+			physicsNameList.push(`libs/min/${minLibsFileName}`);
+			physicsLibsPathList.push(minLibsFilePath);
 		}
-		externalsStr += `'./${libName}':'commonjs ./${libName}'`;
 	}
-	externalsStr += '\n}';
-	content = content.replace("EXTERNALS_PLACE_HOLDER", externalsStr);
-	fs.writeFileSync(vvConfigPath, content, "utf8");
 
-	// 将物理库、qgame-adapter.js拷贝到engine中
+	// 修改配置文件
+	configVivoConfigFile(physicsNameList);
+
+	// 将物理库拷贝到engine中
 	var stream = gulp.src(physicsLibsPathList, {base: projSrc});
 	return stream.pipe(gulp.dest(path.join(projDir, "engine")));
 });
 
-gulp.task("dealNoCompile3_VIVO", ["dealNoCompile2_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
+function configVivoConfigFile(engineFileList) {
+	let vvConfigPath = path.join(projDir, "minigame.config.js");
+	let content = fs.readFileSync(vvConfigPath, "utf8");
+	let externalsStr = 'const externals = [\n';
+	let libName;
+	// let engineStr = '';
+	let inLayaLibs = false, dirName, newLibPath;
+	for (let i = 0, len = engineFileList.length; i < len; i++) {
+		libName = engineFileList[i];
+		if (i !== 0) {
+			externalsStr += ',\n';
+		}
+		newLibPath = libName.replace("libs/min/", "").replace("libs/", "");
+		inLayaLibs = config.uesEnginePlugin && fullRemoteEngineList.includes(newLibPath);
+		dirName = inLayaLibs ? "laya-library" : "engine";
+		if (inLayaLibs) {
+			// engineStr += `{\n\t\tmodule_name:'${dirName}/${newLibPath}',\n\t\tmodule_path:'${dirName}/${newLibPath}',\n\t\tmodule_from:'${dirName}/${newLibPath}'\n\t},`;
+			externalsStr += `\t{\n\t\tmodule_name:'${dirName}/${newLibPath}',\n\t\tmodule_path:'${dirName}/${newLibPath}',\n\t\tmodule_from:'${dirName}/${newLibPath}'\n\t}`;
+		} else {
+			externalsStr += `\t{\n\t\tmodule_name:'./${libName}',\n\t\tmodule_path:'./${libName}',\n\t\tmodule_from:'${dirName}/${libName}'\n\t}`;
+		}
 	}
+	externalsStr += '\t]';
+	content = content.replace(/const externals = \[([^*].|\n|\r)*\]/gm, externalsStr);
+	fs.writeFileSync(vvConfigPath, content, "utf8");
+}
+
+gulp.task("dealNoCompile2_VIVO", ["dealNoCompile1_VIVO"], function() {
 	if (!isDealNoCompile || physicsLibsPathList.length === 0) {
 		return;
 	}
 	return del(physicsLibsPathList, { force: true });
 });
 
-// 打包rpk
-gulp.task("buildRPK_VIVO", ["dealNoCompile3_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
+// 处理引擎插件
+// 我们会将所有的libs下的文件放到engine里，但不能认定libs下全是我们的引擎，所以还是要加判断
+gulp.task("pluginEngin_VIVO", ["dealNoCompile2_VIVO"], function(cb) {
+	
+	let manifestJsonPath = path.join(projSrc, "manifest.json");
+	let manifestJsonContent = fs.readFileSync(manifestJsonPath, "utf8");
+	let conJson = JSON.parse(manifestJsonContent);
+	let copyBinPath;
+
+	if (!config.uesEnginePlugin) { // 没有使用引擎插件，还是像以前一样发布
+		delete conJson.plugins;
+		manifestJsonContent = JSON.stringify(conJson, null, 4);
+		fs.writeFileSync(manifestJsonPath, manifestJsonContent, "utf8");
+		return cb();
 	}
+	// 引擎源码项目
+	// TODO
+	// 将所有的min拷贝进来
+	if (config.useMinJsLibs) {
+		copyBinPath = path.join(workSpaceDir, "bin", "libs", "min");
+	} else { // 如果不是min
+		copyBinPath = path.join(workSpaceDir, "bin", "libs");
+	}
+	// TODO 针对min引擎文件，很多配置文件也需要该，同时改
+	if (config.version) {
+		let versionPath = projSrc + "/version.json";
+		versionCon = fs.readFileSync(versionPath, "utf8");
+		versionCon = JSON.parse(versionCon);
+	}
+	let indexJsStr = (versionCon && versionCon["index.js"]) ? versionCon["index.js"] :  "index.js";
+	
+	// 获取version等信息
+	let coreLibPath = path.join(workSpaceDir, "bin", "libs", "laya.core.js");
+	let isHasCoreLib = fs.existsSync(coreLibPath);
+	let isOldAsProj = fs.existsSync(`${workSpaceDir}/asconfig.json`) && !isHasCoreLib;
+	let isNewTsProj = fs.existsSync(`${workSpaceDir}/src/tsconfig.json`) && !isHasCoreLib;
+	let EngineVersion = getEngineVersion();
+	if (isOldAsProj || isNewTsProj) {
+		console.log("ts源码项目及as源码项目，无法使用引擎插件功能!");
+		return cb();
+	}
+	// 使用引擎插件
+	let localUseEngineList = [];
+	let copyEnginePathList;
+	new Promise(function(resolve, reject) {
+		console.log(`修改game.js和game.json`);
+		// 1) 修改game.js和game.json
+		// 修改game.js
+		let gameJsPath = path.join(projSrc, "game.js");
+		let gameJscontent = fs.readFileSync(gameJsPath, "utf8");
+		gameJscontent = gameJscontent.replace(`require("./${indexJsStr}");`, `requirePlugin('layaPlugin');\nrequire("./${indexJsStr}");`);
+		fs.writeFileSync(gameJsPath, gameJscontent, "utf8");
+		
+		// 修改manifest.json，使其支持引擎插件
+		conJson.plugins = {
+			"laya-library": {
+				"version": EngineVersion,
+				"provider": "",
+				"path": "laya-library"
+			}
+		}
+		manifestJsonContent = JSON.stringify(conJson, null, 4);
+		fs.writeFileSync(manifestJsonPath, manifestJsonContent, "utf8");
+		resolve();
+	}).then(function() {
+		return new Promise(function(resolve, reject) {
+			console.log(`确定用到的插件引擎`);
+			// 2) 确定用到了那些插件引擎，并将插件引擎从index.js的引用中去掉
+			let indexJsPath = path.join(projSrc, indexJsStr);
+			let indexJsCon = fs.readFileSync(indexJsPath, "utf8");
+			let item, fullRequireItem;
+			for (let i = 0, len = fullRemoteEngineList.length; i < len; i++) {
+				item = fullRemoteEngineList[i];
+				fullRequireItem = config.useMinJsLibs ? `require("./libs/min/${item}")` : `require("./libs/${item}")`;
+				if (indexJsCon.includes(fullRequireItem)) {
+					localUseEngineList.push(item);
+					indexJsCon = indexJsCon.replace(fullRequireItem + ";", "").replace(fullRequireItem + ",", "").replace(fullRequireItem, "");
+				}
+			}
+			fs.writeFileSync(indexJsPath, indexJsCon, "utf8");
+			// 再次修改game.js，仅引用使用到的类库
+			let pluginCon = "", normalCon = "";
+			localUseEngineList.forEach(function(item) {
+				pluginCon += `\trequirePlugin("laya-library/${item}");\n`;
+				normalCon += `\trequire("laya-library/${item}");\n`;
+			});
+			let finalyPluginCon = `if (window.requirePlugin) {\n${pluginCon}\n} else {\n${normalCon}\n}`;
+			let gameJsPath = path.join(projSrc, "game.js");
+			let gameJsCon = fs.readFileSync(gameJsPath, "utf8");
+			gameJsCon = gameJsCon.replace(`requirePlugin('layaPlugin');`, finalyPluginCon);
+			fs.writeFileSync(gameJsPath, gameJsCon, "utf8");
+			resolve();
+		});
+	}).then(function() {
+		return new Promise(function(resolve, reject) {
+			console.log(`将本地的引擎插件移动到laya-libs中`);
+			// 3) 将本地的引擎插件移动到laya-libs中
+			copyEnginePathList = [`${copyBinPath}/{${fullRemoteEngineList.join(",")}}`];
+			gulp.src(copyEnginePathList).pipe(gulp.dest(`${projDir}/laya-library`));
+			setTimeout(resolve, 500);
+		});
+	}).then(function() {
+		return new Promise(function(resolve, reject) {
+			console.log(`将libs中的本地引擎插件删掉`);
+			// 4) 将libs中的本地引擎插件删掉
+			let deleteList = [`${projDir}/engine/libs/{${localUseEngineList.join(",")}}`, `${projDir}/engine/libs/min/{${localUseEngineList.join(",")}}`];
+			del(deleteList, { force: true }).then(resolve);
+		});
+	}).then(function() {
+		return new Promise(async function(resolve, reject) {
+			console.log(`完善引擎插件目录`);
+			// 5) 引擎插件目录laya-libs中还需要新建几个文件，使该目录能够使用
+			let 
+				layalibsPath = path.join(projDir, "laya-library"),
+				engineIndex = path.join(layalibsPath, "index.js"),
+				engineplugin = path.join(layalibsPath, "plugin.json");
+				// enginesignature = path.join(layalibsPath, "signature.json");
+			// index.js
+			if (!fs.existsSync(layalibsPath)) {
+				throw new Error("引擎插件目录创建失败，请与服务提供商联系!");
+			}
+			let layaLibraryList = fs.readdirSync(layalibsPath);
+			let indexCon = "";
+			layaLibraryList.forEach(function(item) {
+				indexCon += `require("./${item}");\n`;
+			});
+			fs.writeFileSync(engineIndex, indexCon, "utf8");
+			// plugin.json
+			let pluginCon = {"main": "index.js"};
+			fs.writeFileSync(engineplugin, JSON.stringify(pluginCon, null, 4), "utf8");
+			// signature.json
+			// let signatureCon = {
+			// 	"provider": provider,
+			// 	"signature": []
+			// };
+			// localUseEngineList.unshift("index.js");
+			// let fileName, md5Str;
+			// for (let i = 0, len = localUseEngineList.length; i < len; i++) {
+			// 	fileName = localUseEngineList[i];
+			// 	let md5Str = await getFileMd5(path.join(projDir, "laya-library", fileName));
+			// 	signatureCon.signature.push({
+			// 		"path": fileName,
+			// 		"md5": md5Str
+			// 	});
+			// }
+			// fs.writeFileSync(enginesignature, JSON.stringify(signatureCon, null, 4), "utf8");
+			resolve();
+		});
+	})
+	.then(function() {
+		cb();
+	}).catch(function(e) {
+		throw e;
+	})
+});
+
+// 打包rpk
+gulp.task("buildRPK_VIVO", ["pluginEngin_VIVO"], function() {
 	// 在vivo轻游戏项目目录中执行:
     // npm run build || npm run release
     let cmdStr = "build";
@@ -664,7 +801,8 @@ gulp.task("buildRPK_VIVO", ["dealNoCompile3_VIVO"], function() {
 		let cmd = `npm${commandSuffix}`;
 		let args = ["run", cmdStr];
 		let opts = {
-			cwd: projDir
+			cwd: projDir,
+			shell: true
 		};
 		let cp = childProcess.spawn(cmd, args, opts);
 		// let cp = childProcess.spawn(`npx${commandSuffix}`, ['-v']);
@@ -687,17 +825,14 @@ gulp.task("buildRPK_VIVO", ["dealNoCompile3_VIVO"], function() {
 });
 
 gulp.task("showQRCode_VIVO", ["buildRPK_VIVO"], function() {
-	// 如果不是vivo快游戏
-	if (platform !== "vivogame") {
-		return;
-	}
 	// 在vivo轻游戏项目目录中执行:
 	// npm run server
 	return new Promise((resolve, reject) => {
 		let cmd = `npm${commandSuffix}`;
 		let args = ["run", "server"];
 		let opts = {
-			cwd: projDir
+			cwd: projDir,
+			shell: true
 		};
 		let cp = childProcess.spawn(cmd, args, opts);
 		// let cp = childProcess.spawn(`npx${commandSuffix}`, ['-v']);

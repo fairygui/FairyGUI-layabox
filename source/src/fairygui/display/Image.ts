@@ -1,17 +1,17 @@
 namespace fgui {
     export class Image extends Laya.Sprite {
         protected _source: Laya.Texture;
-        protected _scaleByTile: boolean = false;
-        protected _scale9Grid: Laya.Rectangle = null;
+        protected _scaleByTile?: boolean;
+        protected _scale9Grid?: Laya.Rectangle;
 
         private _tileGridIndice: number = 0;
-        private _sizeGrid: any[];
+        private _sizeGrid: number[];
         private _needRebuild: number = 0;
         private _fillMethod: number = 0;
         private _fillOrigin: number = 0;
         private _fillAmount: number = 0;
-        private _fillClockwise: boolean = false;
-        private _mask: Laya.Sprite = null;
+        private _fillClockwise?: boolean;
+        private _mask?: Laya.Sprite;
         private _color: string;
 
         constructor() {
@@ -187,7 +187,7 @@ namespace fgui {
             if (this._scaleByTile) {
                 g.fillTexture(tex, 0, 0, w, h);
             }
-            else if (this._scale9Grid != null) {
+            else if (this._scale9Grid) {
                 if (!this._sizeGrid) {
                     var tw: number = tex.width;
                     var th: number = tex.height;
@@ -195,7 +195,7 @@ namespace fgui {
                     var right: number = Math.max(tw - this._scale9Grid.right, 0);
                     var top: number = this._scale9Grid.y;
                     var bottom: number = Math.max(th - this._scale9Grid.bottom, 0);
-                    this._sizeGrid = [top, right, bottom, left];
+                    this._sizeGrid = [top, right, bottom, left, this._tileGridIndice];
                 }
 
                 g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid);
@@ -214,16 +214,12 @@ namespace fgui {
             if (w == 0 || h == 0)
                 return;
 
-            var points: any[] = FillUtils.fill(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
-            if (points) {
-                g.drawPoly(0, 0, points, "#FFFFFF");
-            }
-            if (this._fillAmount < 0.01) {
-                //不知道为什么，不这样操作一下空白的遮罩不能生效  //只要小于0.01的间隔就会产生这个问题-_-我也不知道为什么
+            var points: any[] = fillImage(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
+            if (points == null || this._fillAmount < 0.01) {//太小的laya也不会渲染
+                //不知道为什么，不这样操作一下空白的遮罩不能生效
                 this.mask = null;
                 this.mask = this._mask;
             }
         }
     }
-
 }

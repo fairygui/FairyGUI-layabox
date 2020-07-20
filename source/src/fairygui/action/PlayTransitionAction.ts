@@ -1,11 +1,11 @@
 namespace fgui {
     export class PlayTransitionAction extends ControllerAction {
         public transitionName: string;
-        public playTimes: number = 1;
-        public delay: number = 0;
-        public stopOnExit: boolean = false;
+        public playTimes: number;
+        public delay: number;
+        public stopOnExit: boolean;
 
-        private _currentTransition: Transition;
+        private _currentTransition?: Transition;
 
         constructor() {
             super();

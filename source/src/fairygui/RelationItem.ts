@@ -59,12 +59,6 @@ namespace fgui {
             info.type = relationType;
             info.axis = (relationType <= RelationType.Right_Right || relationType == RelationType.Width || relationType >= RelationType.LeftExt_Left && relationType <= RelationType.RightExt_Right) ? 0 : 1;
             this._defs.push(info);
-
-            //当使用中线关联时，因为需要除以2，很容易因为奇数宽度/高度造成小数点坐标；当使用百分比时，也会造成小数坐标；
-            //所以设置了这类关联的对象，自动启用pixelSnapping
-            if (usePercent || relationType == RelationType.Left_Center || relationType == RelationType.Center_Center || relationType == RelationType.Right_Center
-                || relationType == RelationType.Top_Middle || relationType == RelationType.Middle_Middle || relationType == RelationType.Bottom_Middle)
-                this._owner.pixelSnapping = true;
         }
 
         public remove(relationType: number): void {
@@ -97,7 +91,7 @@ namespace fgui {
         }
 
         public dispose(): void {
-            if (this._target != null) {
+            if (this._target) {
                 this.releaseRefTarget();
                 this._target = null;
             }
@@ -146,7 +140,7 @@ namespace fgui {
 
                 this._owner.updateGearFromRelations(1, ox, oy);
 
-                if (this._owner.parent != null && this._owner.parent._transitions.length > 0) {
+                if (this._owner.parent && this._owner.parent._transitions.length > 0) {
                     cnt = this._owner.parent._transitions.length;
                     for (var j: number = 0; j < cnt; j++) {
                         var trans: Transition = this._owner.parent._transitions[j];
@@ -552,7 +546,7 @@ namespace fgui {
 
                 this._owner.updateGearFromRelations(1, ox, oy);
 
-                if (this._owner.parent != null && this._owner.parent._transitions.length > 0) {
+                if (this._owner.parent && this._owner.parent._transitions.length > 0) {
                     cnt = this._owner.parent._transitions.length;
                     for (var j: number = 0; j < cnt; j++) {
                         var trans: Transition = this._owner.parent._transitions[j];
@@ -593,7 +587,7 @@ namespace fgui {
 
                 this._owner.updateGearFromRelations(1, ox, oy);
 
-                if (this._owner.parent != null && this._owner.parent._transitions.length > 0) {
+                if (this._owner.parent && this._owner.parent._transitions.length > 0) {
                     cnt = this._owner.parent._transitions.length;
                     for (var j: number = 0; j < cnt; j++) {
                         var trans: Transition = this._owner.parent._transitions[j];
@@ -632,5 +626,4 @@ namespace fgui {
             this.axis = source.axis;
         }
     }
-
 }

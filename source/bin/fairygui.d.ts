@@ -29,44 +29,42 @@ declare namespace fgui {
     }
 }
 declare namespace fgui {
-    const BlendMode: {
-        2: string;
-        3: string;
-        4: string;
-    };
-}
-declare namespace fgui {
     class Controller extends Laya.EventDispatcher {
         private _selectedIndex;
         private _previousIndex;
         private _pageIds;
         private _pageNames;
-        private _actions;
+        private _actions?;
         name: string;
         parent: GComponent;
-        autoRadioGroupDepth: boolean;
+        autoRadioGroupDepth?: boolean;
         changing: boolean;
-        private static _nextPageId;
         constructor();
         dispose(): void;
         selectedIndex: number;
-        setSelectedIndex(value?: number): void;
+        /**
+         * 功能和设置selectedIndex一样，但不会触发事件
+         */
+        setSelectedIndex(value: number): void;
         readonly previsousIndex: number;
         selectedPage: string;
+        /**
+         * 功能和设置selectedPage一样，但不会触发事件
+         */
         setSelectedPage(value: string): void;
         readonly previousPage: string;
         readonly pageCount: number;
-        getPageName(index?: number): string;
-        addPage(name?: string): void;
-        addPageAt(name: string, index?: number): void;
+        getPageName(index: number): string;
+        addPage(name: string): void;
+        addPageAt(name: string, index: number): void;
         removePage(name: string): void;
-        removePageAt(index?: number): void;
+        removePageAt(index: number): void;
         clearPages(): void;
         hasPage(aName: string): boolean;
         getPageIndexById(aId: string): number;
         getPageIdByName(aName: string): string;
         getPageNameById(aId: string): string;
-        getPageId(index?: number): string;
+        getPageId(index: number): string;
         selectedPageId: string;
         oppositePageId: string;
         readonly previousPageId: string;
@@ -83,7 +81,7 @@ declare namespace fgui {
         constructor();
         readonly dragAgent: GObject;
         readonly dragging: boolean;
-        startDrag(source: GObject, icon: string, sourceData: any, touchPointID?: number): void;
+        startDrag(source: GObject, icon: string, sourceData?: any, touchID?: number): void;
         cancel(): void;
         private __dragEnd;
     }
@@ -98,7 +96,6 @@ declare namespace fgui {
         static SCROLL: string;
         static SCROLL_END: string;
         static DROP: string;
-        static FOCUS_CHANGED: string;
         static DRAG_START: string;
         static DRAG_MOVE: string;
         static DRAG_END: string;
@@ -106,8 +103,14 @@ declare namespace fgui {
         static PULL_UP_RELEASE: string;
         static GEAR_STOP: string;
         static $event: Laya.Event;
-        static createEvent(type: string, target: Laya.Sprite, source?: Laya.Event): Laya.Event;
-        static dispatch(type: string, target: Laya.Sprite, source?: Laya.Event): void;
+        static createEvent(type: string, target: Laya.Sprite, source?: {
+            target?: Laya.Sprite;
+            touchId?: number;
+        }): Laya.Event;
+        static dispatch(type: string, target: Laya.Sprite, source?: {
+            target?: Laya.Sprite;
+            touchId?: number;
+        }): void;
     }
 }
 declare namespace fgui {
@@ -166,7 +169,9 @@ declare namespace fgui {
         Font = 5,
         Swf = 6,
         Misc = 7,
-        Unknown = 8
+        Unknown = 8,
+        Spine = 9,
+        DragonBones = 10
     }
     enum ObjectType {
         Image = 0,
@@ -186,7 +191,8 @@ declare namespace fgui {
         ProgressBar = 14,
         Slider = 15,
         ScrollBar = 16,
-        Tree = 17
+        Tree = 17,
+        Loader3D = 18
     }
     enum ProgressTitleType {
         Percent = 0,
@@ -302,7 +308,7 @@ declare namespace fgui {
         private _visible;
         private _touchable;
         private _grayed;
-        private _draggable;
+        private _draggable?;
         private _scaleX;
         private _scaleY;
         private _skewX;
@@ -314,14 +320,15 @@ declare namespace fgui {
         private _pivotOffsetY;
         private _sortingOrder;
         private _internalVisible;
-        private _handlingController;
-        private _focusable;
-        private _tooltips;
-        private _pixelSnapping;
+        private _handlingController?;
+        private _tooltips?;
+        private _pixelSnapping?;
         private _relations;
-        private _group;
+        private _group?;
         private _gears;
-        private _dragBounds;
+        private _dragBounds?;
+        private _dragTesting?;
+        private _dragStartPos?;
         protected _displayObject: Laya.Sprite;
         protected _yOffset: number;
         minWidth: number;
@@ -340,10 +347,9 @@ declare namespace fgui {
         _id: string;
         _name: string;
         _underConstruct: boolean;
-        _gearLocked: boolean;
+        _gearLocked?: boolean;
         _sizePercentInGroup: number;
-        _treeNode: GTreeNode;
-        static _gInstanceCounter: number;
+        _treeNode?: GTreeNode;
         constructor();
         readonly id: string;
         name: string;
@@ -385,7 +391,6 @@ declare namespace fgui {
         readonly internalVisible2: boolean;
         readonly internalVisible3: boolean;
         sortingOrder: number;
-        focusable: boolean;
         readonly focused: boolean;
         requestFocus(): void;
         tooltips: string;
@@ -440,13 +445,13 @@ declare namespace fgui {
         off(type: string, thisObject: any, listener: Function): void;
         draggable: boolean;
         dragBounds: Laya.Rectangle;
-        startDrag(touchPointID?: number): void;
+        startDrag(touchID?: number): void;
         stopDrag(): void;
         readonly dragging: boolean;
-        localToGlobal(ax?: number, ay?: number, resultPoint?: Laya.Point): Laya.Point;
-        globalToLocal(ax?: number, ay?: number, resultPoint?: Laya.Point): Laya.Point;
-        localToGlobalRect(ax?: number, ay?: number, aWidth?: number, aHeight?: number, resultRect?: Laya.Rectangle): Laya.Rectangle;
-        globalToLocalRect(ax?: number, ay?: number, aWidth?: number, aHeight?: number, resultRect?: Laya.Rectangle): Laya.Rectangle;
+        localToGlobal(ax?: number, ay?: number, result?: Laya.Point): Laya.Point;
+        globalToLocal(ax?: number, ay?: number, result?: Laya.Point): Laya.Point;
+        localToGlobalRect(ax?: number, ay?: number, aw?: number, ah?: number, result?: Laya.Rectangle): Laya.Rectangle;
+        globalToLocalRect(ax?: number, ay?: number, aw?: number, ah?: number, result?: Laya.Rectangle): Laya.Rectangle;
         handleControllerChanged(c: Controller): void;
         protected createDisplayObject(): void;
         protected handleXYChanged(): void;
@@ -460,28 +465,26 @@ declare namespace fgui {
         constructFromResource(): void;
         setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
         setup_afterAdd(buffer: ByteBuffer, beginPos: number): void;
-        private static sGlobalDragStart;
-        private static sGlobalRect;
-        private static sHelperPoint;
-        private static sDragHelperRect;
-        private static sDraggingQuery;
-        private static sUpdateInDragging;
-        private _touchDownPoint;
         private initDrag;
         private dragBegin;
         private dragEnd;
         private reset;
         private __begin;
-        private __end;
         private __moving;
-        private __moving2;
-        private __end2;
+        private __end;
         static cast(sprite: Laya.Sprite): GObject;
     }
+    const BlendMode: {
+        2: string;
+        3: string;
+        4: string;
+    };
 }
 declare namespace fgui {
     class GTextField extends GObject {
-        protected _templateVars: Object;
+        protected _templateVars: {
+            [index: string]: string;
+        };
         protected _text: string;
         protected _autoSize: number;
         protected _widthAutoSize: boolean;
@@ -507,7 +510,9 @@ declare namespace fgui {
         protected updateAutoSize(): void;
         readonly textWidth: number;
         protected parseTemplate(template: string): string;
-        templateVars: Object;
+        templateVars: {
+            [index: string]: string;
+        };
         setVar(name: string, value: string): GTextField;
         flushVars(): void;
         getProp(index: number): any;
@@ -525,10 +530,8 @@ declare namespace fgui {
         private _letterSpacing;
         private _textWidth;
         private _textHeight;
-        private _bitmapFont;
-        private _lines;
-        private static GUTTER_X;
-        private static GUTTER_Y;
+        private _bitmapFont?;
+        private _lines?;
         constructor();
         protected createDisplayObject(): void;
         readonly nativeText: Laya.Text;
@@ -557,6 +560,13 @@ declare namespace fgui {
         private doAlign;
         flushVars(): void;
     }
+    interface LineInfo {
+        width: number;
+        height: number;
+        textHeight: number;
+        text: string;
+        y: number;
+    }
 }
 declare namespace fgui {
     class Margin {
@@ -571,8 +581,8 @@ declare namespace fgui {
     class GComponent extends GObject {
         private _sortingChildCount;
         private _opaque;
-        private _applyingController;
-        private _mask;
+        private _applyingController?;
+        private _mask?;
         protected _margin: Margin;
         protected _trackBounds: boolean;
         protected _boundsChanged: boolean;
@@ -583,14 +593,14 @@ declare namespace fgui {
         _controllers: Controller[];
         _transitions: Transition[];
         _container: Laya.Sprite;
-        _scrollPane: ScrollPane;
+        _scrollPane?: ScrollPane;
         _alignOffset: Laya.Point;
         constructor();
         protected createDisplayObject(): void;
         dispose(): void;
         readonly displayListContainer: Laya.Sprite;
         addChild(child: GObject): GObject;
-        addChildAt(child: GObject, index?: number): GObject;
+        addChildAt(child: GObject, index: number): GObject;
         private getInsertPosForSortingChild;
         removeChild(child: GObject, dispose?: boolean): GObject;
         removeChildAt(index: number, dispose?: boolean): GObject;
@@ -626,12 +636,6 @@ declare namespace fgui {
         readonly scrollPane: ScrollPane;
         opaque: boolean;
         margin: Margin;
-        /**
-         * @see ChildrenRenderOrder
-         */
-        /**
-        * @see ChildrenRenderOrder
-        */
         childrenRenderOrder: number;
         apexIndex: number;
         mask: Laya.Sprite;
@@ -651,12 +655,12 @@ declare namespace fgui {
         setBounds(ax: number, ay: number, aw: number, ah: number): void;
         viewWidth: number;
         viewHeight: number;
-        getSnappingPosition(xValue: number, yValue: number, resultPoint?: Laya.Point): Laya.Point;
+        getSnappingPosition(xValue: number, yValue: number, result?: Laya.Point): Laya.Point;
         /**
          * dir正数表示右移或者下移，负数表示左移或者上移
          */
-        getSnappingPositionWithDir(xValue: number, yValue: number, xDir: number, yDir: number, resultPoint?: Laya.Point): Laya.Point;
-        childSortingOrderChanged(child: GObject, oldValue: number, newValue?: number): void;
+        getSnappingPositionWithDir(xValue: number, yValue: number, xDir: number, yDir: number, result?: Laya.Point): Laya.Point;
+        childSortingOrderChanged(child: GObject, oldValue: number, newValue: number): void;
         constructFromResource(): void;
         constructFromResource2(objectPool: GObject[], poolIndex: number): void;
         protected constructExtension(buffer: ByteBuffer): void;
@@ -683,10 +687,10 @@ declare namespace fgui {
         private _relatedController;
         private _relatedPageId;
         private _changeStateOnClick;
-        private _linkedPopup;
+        private _linkedPopup?;
         private _downEffect;
         private _downEffectValue;
-        private _downScaled;
+        private _downScaled?;
         private _down;
         private _over;
         static UP: string;
@@ -706,12 +710,6 @@ declare namespace fgui {
         sound: string;
         soundVolumeScale: number;
         selected: boolean;
-        /**
-         * @see ButtonMode
-         */
-        /**
-        * @see ButtonMode
-        */
         mode: number;
         relatedController: Controller;
         relatedPageId: string;
@@ -739,15 +737,15 @@ declare namespace fgui {
         protected _titleObject: GObject;
         protected _iconObject: GObject;
         protected _list: GList;
-        protected _items: any[];
-        protected _icons: any[];
-        protected _values: any[];
-        protected _popupDirection: number;
+        protected _items: string[];
+        protected _icons?: string[];
+        protected _values: string[];
+        protected _popupDirection: PopupDirection;
         private _visibleItemCount;
         private _itemsUpdated;
         private _selectedIndex;
         private _buttonController;
-        private _selectionController;
+        private _selectionController?;
         private _down;
         private _over;
         constructor();
@@ -756,16 +754,10 @@ declare namespace fgui {
         titleFontSize: number;
         icon: string;
         visibleItemCount: number;
-        /**
-         * @see PopupDirection
-         */
-        /**
-        * @see PopupDirection
-        */
         popupDirection: number;
-        items: any[];
-        icons: any[];
-        values: any[];
+        items: string[];
+        icons: string[];
+        values: string[];
         selectedIndex: number;
         value: string;
         getTextField(): GTextField;
@@ -794,17 +786,17 @@ declare namespace fgui {
         private _lineSize;
         private _lineColor;
         private _fillColor;
-        private _cornerRadius;
-        private _hitArea;
-        private _sides;
-        private _startAngle;
-        private _polygonPoints;
-        private _distances;
+        private _cornerRadius?;
+        private _hitArea?;
+        private _sides?;
+        private _startAngle?;
+        private _polygonPoints?;
+        private _distances?;
         constructor();
-        drawRect(lineSize: number, lineColor: string, fillColor: string, cornerRadius?: any[]): void;
+        drawRect(lineSize: number, lineColor: string, fillColor: string, cornerRadius?: number[]): void;
         drawEllipse(lineSize: number, lineColor: string, fillColor: string): void;
         drawRegularPolygon(lineSize: number, lineColor: string, fillColor: string, sides: number, startAngle?: number, distances?: number[]): void;
-        drawPolygon(lineSize: number, lineColor: string, fillColor: string, points: any[]): void;
+        drawPolygon(lineSize: number, lineColor: string, fillColor: string, points: number[]): void;
         distances: number[];
         color: string;
         private updateGraph;
@@ -836,12 +828,6 @@ declare namespace fgui {
         _updating: number;
         constructor();
         dispose(): void;
-        /**
-         * @see GroupLayout
-         */
-        /**
-        * @see GroupLayout
-        */
         layout: number;
         lineGap: number;
         columnGap: number;
@@ -924,29 +910,23 @@ declare namespace fgui {
         private _selectionMode;
         private _align;
         private _verticalAlign;
-        private _selectionController;
+        private _selectionController?;
         private _lastSelectedIndex;
         private _pool;
-        private _virtual;
-        private _loop;
+        private _virtual?;
+        private _loop?;
         private _numItems;
         private _realNumItems;
         private _firstIndex;
         private _curLineItemCount;
         private _curLineItemCount2;
-        private _itemSize;
+        private _itemSize?;
         private _virtualListChanged;
-        private _virtualItems;
-        private _eventLocked;
+        private _virtualItems?;
+        private _eventLocked?;
         private itemInfoVer;
         constructor();
         dispose(): void;
-        /**
-         * @see ListLayoutType
-         */
-        /**
-        * @see ListLayoutType
-        */
         layout: number;
         lineCount: number;
         columnCount: number;
@@ -957,12 +937,6 @@ declare namespace fgui {
         virtualItemSize: Laya.Point;
         defaultItem: string;
         autoResizeItem: boolean;
-        /**
-         * @see ListSelectionMode
-         */
-        /**
-        * @see ListSelectionMode
-        */
         selectionMode: number;
         selectionController: Controller;
         readonly itemPool: GObjectPool;
@@ -994,7 +968,7 @@ declare namespace fgui {
         handleControllerChanged(c: Controller): void;
         private updateSelectionController;
         private shouldSnapToNext;
-        getSnappingPositionWithDir(xValue: number, yValue: number, xDir: number, yDir: number, resultPoint?: Laya.Point): Laya.Point;
+        getSnappingPositionWithDir(xValue: number, yValue: number, xDir: number, yDir: number, result?: Laya.Point): Laya.Point;
         scrollToView(index: number, ani?: boolean, setFirst?: boolean): void;
         getFirstChildInView(): number;
         childIndexToItemIndex(index: number): number;
@@ -1020,7 +994,6 @@ declare namespace fgui {
         private getIndexOnPos2;
         private getIndexOnPos3;
         private handleScroll;
-        private static pos_param;
         private handleScroll1;
         private handleScroll2;
         private handleScroll3;
@@ -1055,13 +1028,9 @@ declare namespace fgui {
         private _shrinkOnly;
         private _showErrorSign;
         private _contentItem;
-        private _contentSourceWidth;
-        private _contentSourceHeight;
-        private _contentWidth;
-        private _contentHeight;
         private _content;
-        private _errorSign;
-        private _content2;
+        private _errorSign?;
+        private _content2?;
         private _updatingLayout;
         private static _errorSignPool;
         constructor();
@@ -1077,6 +1046,10 @@ declare namespace fgui {
         playing: boolean;
         frame: number;
         color: string;
+        fillMethod: number;
+        fillOrigin: number;
+        fillClockwise: boolean;
+        fillAmount: number;
         showErrorSign: boolean;
         readonly content: MovieClip;
         readonly component: GComponent;
@@ -1092,6 +1065,56 @@ declare namespace fgui {
         private updateLayout;
         private clearContent;
         protected handleSizeChanged(): void;
+        getProp(index: number): any;
+        setProp(index: number, value: any): void;
+        setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
+    }
+}
+declare namespace fgui {
+    class GLoader3D extends GObject {
+        private _url;
+        private _align;
+        private _verticalAlign;
+        private _autoSize;
+        private _fill;
+        private _shrinkOnly;
+        private _playing;
+        private _frame;
+        private _loop;
+        private _animationName;
+        private _skinName;
+        private _color;
+        private _contentItem;
+        private _container;
+        private _content;
+        private _updatingLayout;
+        constructor();
+        protected createDisplayObject(): void;
+        dispose(): void;
+        url: string;
+        icon: string;
+        align: AlignType;
+        verticalAlign: VertAlignType;
+        fill: LoaderFillType;
+        shrinkOnly: boolean;
+        autoSize: boolean;
+        playing: boolean;
+        frame: number;
+        animationName: string;
+        skinName: string;
+        loop: boolean;
+        color: string;
+        readonly content: Laya.Sprite;
+        protected loadContent(): void;
+        protected loadFromPackage(itemURL: string): void;
+        private onLoaded;
+        setSkeleton(skeleton: Laya.Skeleton, anchor?: Laya.Point): void;
+        private onChange;
+        protected loadExternal(): void;
+        private updateLayout;
+        private clearContent;
+        protected handleSizeChanged(): void;
+        protected handleGrayedChanged(): void;
         getProp(index: number): any;
         setProp(index: number, value: any): void;
         setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
@@ -1140,6 +1163,7 @@ declare namespace fgui {
         value: number;
         tweenValue(value: number, duration: number): GTweener;
         update(newValue: number): void;
+        private setFillAmount;
         protected constructExtension(buffer: ByteBuffer): void;
         protected handleSizeChanged(): void;
         setup_afterAdd(buffer: ByteBuffer, beginPos: number): void;
@@ -1176,7 +1200,6 @@ declare namespace fgui {
         private _popupStack;
         private _justClosedPopups;
         private _modalWaitPane;
-        private _focusedObject;
         private _tooltipWin;
         private _defaultTooltipWin;
         private _checkPopups;
@@ -1195,8 +1218,8 @@ declare namespace fgui {
         readonly modalLayer: GGraph;
         readonly hasModalWindow: boolean;
         readonly modalWaiting: boolean;
-        showPopup(popup: GObject, target?: GObject, downward?: any): void;
-        togglePopup(popup: GObject, target?: GObject, downward?: any): void;
+        showPopup(popup: GObject, target?: GObject, dir?: PopupDirection | boolean): void;
+        togglePopup(popup: GObject, target?: GObject, dir?: PopupDirection | boolean): void;
         hidePopup(popup?: GObject): void;
         readonly hasAnyPopup: boolean;
         private closePopup;
@@ -1236,7 +1259,6 @@ declare namespace fgui {
         readonly gripDragging: boolean;
         protected constructExtension(buffer: ByteBuffer): void;
         private __gripMouseDown;
-        private static sScrollbarHelperPoint;
         private __gripMouseMove;
         private __gripMouseUp;
         private __arrowButton1Click;
@@ -1279,7 +1301,6 @@ declare namespace fgui {
         protected handleSizeChanged(): void;
         setup_afterAdd(buffer: ByteBuffer, beginPos: number): void;
         private __gripMouseDown;
-        private static sSilderHelperPoint;
         private __gripMouseMove;
         private __gripMouseUp;
         private __barMouseDown;
@@ -1318,13 +1339,18 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class GTree extends GList {
+        /**
+         * (node: GTreeNode, obj: GComponent) => void
+         */
         treeNodeRender: Laya.Handler;
+        /**
+         * (node: GTreeNode, expanded: boolean) => void;
+         */
         treeNodeWillExpand: Laya.Handler;
         private _indent;
         private _clickToExpand;
         private _rootNode;
         private _expandedStatusInEvt;
-        private static helperIntList;
         constructor();
         readonly rootNode: GTreeNode;
         indent: number;
@@ -1362,7 +1388,7 @@ declare namespace fgui {
         private _level;
         private _tree;
         _cell: GComponent;
-        _resURL: string;
+        _resURL?: string;
         constructor(hasChild: boolean, resURL?: string);
         expanded: boolean;
         readonly isFolder: boolean;
@@ -1401,28 +1427,31 @@ declare namespace fgui {
     class PackageItem {
         owner: UIPackage;
         type: number;
-        objectType: number;
+        objectType?: number;
         id: string;
         name: string;
         width: number;
         height: number;
         file: string;
-        decoded: boolean;
-        rawData: ByteBuffer;
-        highResolution: Array<string>;
-        branches: Array<string>;
-        scale9Grid: Laya.Rectangle;
-        scaleByTile: boolean;
-        tileGridIndice: number;
-        smoothing: boolean;
-        texture: Laya.Texture;
-        pixelHitTestData: PixelHitTestData;
-        interval: number;
-        repeatDelay: number;
-        swing: boolean;
-        frames: Frame[];
-        extensionType: any;
-        bitmapFont: BitmapFont;
+        decoded?: boolean;
+        loading?: Array<Function>;
+        rawData?: ByteBuffer;
+        highResolution?: Array<string>;
+        branches?: Array<string>;
+        scale9Grid?: Laya.Rectangle;
+        scaleByTile?: boolean;
+        tileGridIndice?: number;
+        smoothing?: boolean;
+        texture?: Laya.Texture;
+        pixelHitTestData?: PixelHitTestData;
+        interval?: number;
+        repeatDelay?: number;
+        swing?: boolean;
+        frames?: Frame[];
+        extensionType?: any;
+        bitmapFont?: BitmapFont;
+        templet?: Laya.Templet;
+        skeletonAnchor?: Laya.Point;
         constructor();
         load(): Object;
         getBranch(): PackageItem;
@@ -1451,7 +1480,7 @@ declare namespace fgui {
         readonly itemCount: number;
         readonly contentPane: GComponent;
         readonly list: GList;
-        show(target?: GObject, downward?: any): void;
+        show(target?: GObject, dir?: PopupDirection | boolean): void;
         private __clickItem;
         private __clickItem2;
         private __addedToStage;
@@ -1490,7 +1519,7 @@ declare namespace fgui {
         private _owner;
         private _items;
         handling: GObject;
-        sizeDirty: boolean;
+        sizeDirty?: boolean;
         constructor(owner: GObject);
         add(target: GObject, relationType: number, usePercent?: boolean): void;
         remove(target: GObject, relationType?: number): void;
@@ -1510,7 +1539,7 @@ declare namespace fgui {
         private _owner;
         private _container;
         private _maskContainer;
-        private _alignContainer;
+        private _alignContainer?;
         private _scrollType;
         private _scrollStep;
         private _mouseWheelStep;
@@ -1518,18 +1547,19 @@ declare namespace fgui {
         private _scrollBarMargin;
         private _bouncebackEffect;
         private _touchEffect;
-        private _scrollBarDisplayAuto;
+        private _scrollBarDisplayAuto?;
         private _vScrollNone;
         private _hScrollNone;
         private _needRefresh;
         private _refreshBarAxis;
-        private _displayOnLeft;
-        private _snapToItem;
-        _displayInDemand: boolean;
-        private _mouseWheelEnabled;
-        private _pageMode;
-        private _inertiaDisabled;
-        private _floating;
+        private _displayOnLeft?;
+        private _snapToItem?;
+        _displayInDemand?: boolean;
+        private _mouseWheelEnabled?;
+        private _pageMode?;
+        private _inertiaDisabled?;
+        private _floating?;
+        private _dontClipMargin?;
         private _xPos;
         private _yPos;
         private _viewSize;
@@ -1555,20 +1585,12 @@ declare namespace fgui {
         private _tweenDuration;
         private _tweenStart;
         private _tweenChange;
-        private _pageController;
-        private _hzScrollBar;
-        private _vtScrollBar;
-        private _header;
-        private _footer;
+        private _pageController?;
+        private _hzScrollBar?;
+        private _vtScrollBar?;
+        private _header?;
+        private _footer?;
         static draggingPane: ScrollPane;
-        static _gestureFlag: number;
-        private static sHelperPoint;
-        private static sHelperRect;
-        private static sEndPos;
-        private static sOldChange;
-        static TWEEN_TIME_GO: number;
-        static TWEEN_TIME_DEFAULT: number;
-        static PULL_RATIO: number;
         constructor(owner: GComponent);
         setup(buffer: ByteBuffer): void;
         dispose(): void;
@@ -1611,7 +1633,7 @@ declare namespace fgui {
         scrollDown(ratio?: number, ani?: boolean): void;
         scrollLeft(ratio?: number, ani?: boolean): void;
         scrollRight(ratio?: number, ani?: boolean): void;
-        scrollToView(target: Object, ani?: boolean, setFirst?: boolean): void;
+        scrollToView(target: Laya.Rectangle | GObject, ani?: boolean, setFirst?: boolean): void;
         isChildInView(obj: GObject): boolean;
         cancelDragging(): void;
         lockHeader(size: number): void;
@@ -1651,7 +1673,6 @@ declare namespace fgui {
         private checkRefreshBar;
         private tweenUpdate;
         private runTween;
-        private static easeFunc;
     }
 }
 declare namespace fgui {
@@ -1675,9 +1696,6 @@ declare namespace fgui {
         private _timeScale;
         private _startTime;
         private _endTime;
-        private static OPTION_IGNORE_DISPLAY_CONTROLLER;
-        private static OPTION_AUTO_STOP_DISABLED;
-        private static OPTION_AUTO_STOP_AT_END;
         constructor(owner: GComponent);
         play(onComplete?: Laya.Handler, times?: number, delay?: number, startTime?: number, endTime?: number): void;
         playReverse(onComplete?: Laya.Handler, times?: number, delay?: number, startTime?: number, endTime?: number): void;
@@ -1717,11 +1735,14 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class TranslationHelper {
-        static strings: Object;
+        static strings: {
+            [index: string]: {
+                [index: string]: string;
+            };
+        };
         constructor();
         static loadFromXML(source: string): void;
         static translateComponent(item: PackageItem): void;
-        private static findChildNode;
     }
 }
 declare namespace fgui {
@@ -1762,19 +1783,18 @@ declare namespace fgui {
         static packageFileExtension: string;
     }
 }
-declare namespace fgui {
+declare module fgui {
     class UIObjectFactory {
-        static packageItemExtensions: any;
-        private static loaderType;
-        static setExtension(url: string, type: any): void;
-        static setPackageItemExtension(url: string, type: any): void;
-        static setLoaderExtension(type: any): void;
+        static extensions: {
+            [index: string]: new () => GComponent;
+        };
+        static loaderType: new () => GLoader;
+        constructor();
+        static setExtension(url: string, type: new () => GComponent): void;
+        static setPackageItemExtension(url: string, type: new () => GComponent): void;
+        static setLoaderExtension(type: new () => GLoader): void;
         static resolvePackageItemExtension(pi: PackageItem): void;
-        static newObject(pi: PackageItem, userClass?: any): GObject;
-        /**
-         * @see ObjectType
-         */
-        static newObject2(type: number): GObject;
+        static newObject(type: number | PackageItem, userClass?: new () => GObject): GObject;
     }
 }
 declare namespace fgui {
@@ -1797,15 +1817,18 @@ declare namespace fgui {
         private static _vars;
         constructor();
         static branch: string;
-        static getVar(key: string): any;
-        static setVar(key: string, value: any): void;
+        static getVar(key: string): string;
+        static setVar(key: string, value: string): void;
         static getById(id: string): UIPackage;
         static getByName(name: string): UIPackage;
         static addPackage(resKey: string, descData?: ArrayBuffer): UIPackage;
-        static loadPackage(resKey: string, completeHandler: Laya.Handler): void;
+        /**
+         * @param resKey resKey 或 [resKey1,resKey2,resKey3....]
+         */
+        static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler, progressHandler?: Laya.Handler): void;
         static removePackage(packageIdOrName: string): void;
-        static createObject(pkgName: string, resName: string, userClass?: any): GObject;
-        static createObjectFromURL(url: string, userClass?: any): GObject;
+        static createObject(pkgName: string, resName: string, userClass?: new () => GObject): GObject;
+        static createObjectFromURL(url: string, userClass?: new () => GObject): GObject;
         static getItemURL(pkgName: string, resName: string): string;
         static getItemByURL(url: string): PackageItem;
         static getItemAssetByURL(url: string): Object;
@@ -1818,12 +1841,13 @@ declare namespace fgui {
         readonly id: string;
         readonly name: string;
         customId: string;
-        createObject(resName: string, userClass?: any): GObject;
-        internalCreateObject(item: PackageItem, userClass?: any): GObject;
+        createObject(resName: string, userClass?: new () => GObject): GObject;
+        internalCreateObject(item: PackageItem, userClass?: new () => GObject): GObject;
         getItemById(itemId: string): PackageItem;
         getItemByName(resName: string): PackageItem;
         getItemAssetByName(resName: string): Object;
         getItemAsset(item: PackageItem): Object;
+        getItemAssetAsync(item: PackageItem, onComplete?: (err: any, item: PackageItem) => void): void;
         private loadMovieClip;
         private loadFont;
     }
@@ -1837,9 +1861,9 @@ declare namespace fgui {
         private _contentArea;
         private _frame;
         private _modal;
-        private _uiSources;
-        private _inited;
-        private _loading;
+        private _uiSources?;
+        private _inited?;
+        private _loading?;
         protected _requestingCmd: number;
         bringToFontOnClick: boolean;
         constructor();
@@ -1881,8 +1905,8 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class ControllerAction {
-        fromPage: any[];
-        toPage: any[];
+        fromPage: string[];
+        toPage: string[];
         static createAction(type: number): ControllerAction;
         constructor();
         run(controller: Controller, prevPage: string, curPage: string): void;
@@ -1907,7 +1931,7 @@ declare namespace fgui {
         playTimes: number;
         delay: number;
         stopOnExit: boolean;
-        private _currentTransition;
+        private _currentTransition?;
         constructor();
         protected enter(controller: Controller): void;
         protected leave(controller: Controller): void;
@@ -1918,47 +1942,41 @@ declare namespace fgui {
     class BitmapFont {
         id: string;
         size: number;
-        ttf: boolean;
-        glyphs: Object;
-        resizable: boolean;
-        tint: boolean;
+        ttf?: boolean;
+        glyphs: {
+            [index: string]: BMGlyph;
+        };
+        resizable?: boolean;
+        tint?: boolean;
         constructor();
     }
-    class BMGlyph {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        advance: number;
-        lineHeight: number;
-        channel: number;
-        texture: Laya.Texture;
+    interface BMGlyph {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+        advance?: number;
+        lineHeight?: number;
+        channel?: number;
+        texture?: Laya.Texture;
     }
 }
 declare namespace fgui {
-    class FillUtils {
-        static fill(w: number, h: number, method: number, origin: number, clockwise: boolean, amount: number): any[];
-        static fillHorizontal(w: number, h: number, origin: number, amount: number): any[];
-        static fillVertical(w: number, h: number, origin: number, amount: number): any[];
-        static fillRadial90(w: number, h: number, origin: number, clockwise: boolean, amount: number): any[];
-        private static movePoints;
-        static fillRadial180(w: number, h: number, origin: number, clockwise: boolean, amount: number): any[];
-        static fillRadial360(w: number, h: number, origin: number, clockwise: boolean, amount: number): any[];
-    }
+    function fillImage(w: number, h: number, method: number, origin: number, clockwise: boolean, amount: number): number[];
 }
 declare namespace fgui {
     class Image extends Laya.Sprite {
         protected _source: Laya.Texture;
-        protected _scaleByTile: boolean;
-        protected _scale9Grid: Laya.Rectangle;
+        protected _scaleByTile?: boolean;
+        protected _scale9Grid?: Laya.Rectangle;
         private _tileGridIndice;
         private _sizeGrid;
         private _needRebuild;
         private _fillMethod;
         private _fillOrigin;
         private _fillAmount;
-        private _fillClockwise;
-        private _mask;
+        private _fillClockwise?;
+        private _mask?;
         private _color;
         constructor();
         width: number;
@@ -1979,6 +1997,10 @@ declare namespace fgui {
     }
 }
 declare namespace fgui {
+    interface Frame {
+        addDelay: number;
+        texture?: Laya.Texture;
+    }
     class MovieClip extends Image {
         interval: number;
         swing: boolean;
@@ -1993,7 +2015,7 @@ declare namespace fgui {
         private _times;
         private _endAt;
         private _status;
-        private _endHandler;
+        private _endHandler?;
         private _frameElapsed;
         private _reversed;
         private _repeatedCount;
@@ -2012,19 +2034,13 @@ declare namespace fgui {
         private __addToStage;
         private __removeFromStage;
     }
-    class Frame {
-        addDelay: number;
-        texture: Laya.Texture;
-        constructor();
-    }
 }
 declare namespace fgui {
     class GearBase {
         static disableAllTweenEffect: boolean;
         protected _owner: GObject;
         protected _controller: Controller;
-        protected _tweenConfig: GearTweenConfig;
-        private static Classes;
+        protected _tweenConfig?: GearTweenConfig;
         static create(owner: GObject, index: number): GearBase;
         constructor(owner: GObject);
         dispose(): void;
@@ -2076,10 +2092,10 @@ declare namespace fgui {
         private _displayLockToken;
         constructor(owner: GObject);
         protected init(): void;
+        apply(): void;
         addLock(): number;
         releaseLock(token: number): void;
         readonly connected: boolean;
-        apply(): void;
     }
 }
 declare namespace fgui {
@@ -2170,11 +2186,7 @@ declare namespace fgui {
     }
 }
 declare namespace fgui {
-    class EaseManager {
-        private static _PiOver2;
-        private static _TwoPi;
-        static evaluate(easeType: number, time: number, duration: number, overshootOrAmplitude: number, period: number): number;
-    }
+    function evaluateEase(easeType: number, time: number, duration: number, overshootOrAmplitude: number, period: number): number;
 }
 declare namespace fgui {
     class EaseType {
@@ -2217,11 +2229,9 @@ declare namespace fgui {
         private _segments;
         private _points;
         private _fullLength;
-        private static helperPoints;
         constructor();
         readonly length: number;
-        create2(pt1: GPathPoint, pt2: GPathPoint, pt3?: GPathPoint, pt4?: GPathPoint): void;
-        create(points: Array<GPathPoint>): void;
+        create(pt1: Array<GPathPoint> | GPathPoint, pt2?: GPathPoint, pt3?: GPathPoint, pt4?: GPathPoint): void;
         private createSplineSegment;
         clear(): void;
         getPointAt(t: number, result?: Laya.Point): Laya.Point;
@@ -2303,7 +2313,6 @@ declare namespace fgui {
         private _ended;
         private _elapsedTime;
         private _normalizedTime;
-        private static helperPoint;
         constructor();
         setDelay(value: number): GTweener;
         readonly delay: number;
@@ -2355,10 +2364,6 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class TweenManager {
-        private static _activeTweens;
-        private static _tweenerPool;
-        private static _totalActiveTweens;
-        private static _inited;
         static createTween(): GTweener;
         static isTweening(target: any, propType: any): boolean;
         static killTweens(target: any, completed: boolean, propType: any): boolean;
@@ -2381,10 +2386,9 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class ByteBuffer extends Laya.Byte {
-        private _byte;
         stringTable: string[];
         version: number;
-        constructor(data?: any, offset?: number, length?: number);
+        constructor(data: any, offset?: number, length?: number);
         skip(count: number): void;
         readBool(): boolean;
         readS(): string;
@@ -2405,18 +2409,10 @@ declare namespace fgui {
         contains(x: number, y: number): boolean;
     }
 }
-declare module fgui {
+declare namespace fgui {
     class ColorMatrix {
-        matrix: Array<number>;
-        private static IDENTITY_MATRIX;
-        private static LENGTH;
-        private static LUMA_R;
-        private static LUMA_G;
-        private static LUMA_B;
-        private static helper;
-        static create(p_brightness: number, p_contrast: number, p_saturation: number, p_hue: number): ColorMatrix;
-        static getMatrix(p_brightness: number, p_contrast: number, p_saturation: number, p_hue: number, result?: number[]): number[];
-        constructor();
+        readonly matrix: Array<number>;
+        constructor(p_brightness?: number, p_contrast?: number, p_saturation?: number, p_hue?: number);
         reset(): void;
         invert(): void;
         adjustColor(p_brightness: number, p_contrast: number, p_saturation: number, p_hue: number): void;
@@ -2438,7 +2434,7 @@ declare namespace fgui {
         offsetY: number;
         scaleX: number;
         scaleY: number;
-        constructor(data: PixelHitTestData, offsetX?: number, offsetY?: number);
+        constructor(data: PixelHitTestData, offsetX: number, offsetY: number);
         contains(x: number, y: number): boolean;
     }
     class PixelHitTestData {
@@ -2453,7 +2449,9 @@ declare namespace fgui {
     class UBBParser {
         private _text;
         private _readPos;
-        protected _handlers: Object;
+        protected _handlers: {
+            [index: string]: (tagName: string, end: boolean, attr: string) => string;
+        };
         defaultImgWidth: number;
         defaultImgHeight: number;
         lastColor: string;
@@ -2475,19 +2473,13 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class ToolSet {
-        static getFileName(source: string): string;
         static startsWith(source: string, str: string, ignoreCase?: boolean): boolean;
         static endsWith(source: string, str: string, ignoreCase?: boolean): boolean;
-        static trim(targetString: string): string;
-        static trimLeft(targetString: string): string;
         static trimRight(targetString: string): string;
         static convertToHtmlColor(argb: number, hasAlpha?: boolean): string;
         static convertFromHtmlColor(str: string, hasAlpha?: boolean): number;
         static displayObjectToGObject(obj: Laya.Node): GObject;
         static encodeHTML(str: string): string;
-        static defaultUBBParser: UBBParser;
-        static parseUBB(text: string): string;
-        static removeUBB(text: string): string;
         static clamp(value: number, min: number, max: number): number;
         static clamp01(value: number): number;
         static lerp(start: number, end: number, percent: number): number;

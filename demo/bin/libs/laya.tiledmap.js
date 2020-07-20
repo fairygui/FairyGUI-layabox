@@ -1601,4 +1601,4 @@
     exports.TileTexSet = TileTexSet;
     exports.TiledMap = TiledMap;
 
-}(window.Laya = window.Laya|| {}, Laya));
+}(window.Laya = window.Laya || {}, Laya));

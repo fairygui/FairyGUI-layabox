@@ -3,7 +3,7 @@ namespace fgui {
         private _owner: GComponent;
         private _container: Laya.Sprite;
         private _maskContainer: Laya.Sprite;
-        private _alignContainer: Laya.Sprite;
+        private _alignContainer?: Laya.Sprite;
 
         private _scrollType: number;
         private _scrollStep: number;
@@ -12,19 +12,20 @@ namespace fgui {
         private _scrollBarMargin: Margin;
         private _bouncebackEffect: boolean;
         private _touchEffect: boolean;
-        private _scrollBarDisplayAuto: boolean;
+        private _scrollBarDisplayAuto?: boolean;
         private _vScrollNone: boolean;
         private _hScrollNone: boolean;
         private _needRefresh: boolean;
         private _refreshBarAxis: string;
 
-        private _displayOnLeft: boolean;
-        private _snapToItem: boolean;
-        public _displayInDemand: boolean;
-        private _mouseWheelEnabled: boolean;
-        private _pageMode: boolean;
-        private _inertiaDisabled: boolean;
-        private _floating: boolean;
+        private _displayOnLeft?: boolean;
+        private _snapToItem?: boolean;
+        public _displayInDemand?: boolean;
+        private _mouseWheelEnabled?: boolean;
+        private _pageMode?: boolean;
+        private _inertiaDisabled?: boolean;
+        private _floating?: boolean;
+        private _dontClipMargin?: boolean;
 
         private _xPos: number;
         private _yPos: number;
@@ -54,24 +55,14 @@ namespace fgui {
         private _tweenStart: Laya.Point;
         private _tweenChange: Laya.Point;
 
-        private _pageController: Controller;
+        private _pageController?: Controller;
 
-        private _hzScrollBar: GScrollBar;
-        private _vtScrollBar: GScrollBar;
-        private _header: GComponent;
-        private _footer: GComponent;
+        private _hzScrollBar?: GScrollBar;
+        private _vtScrollBar?: GScrollBar;
+        private _header?: GComponent;
+        private _footer?: GComponent;
 
         public static draggingPane: ScrollPane;
-        public static _gestureFlag: number = 0;
-
-        private static sHelperPoint: Laya.Point = new Laya.Point();
-        private static sHelperRect: Laya.Rectangle = new Laya.Rectangle();
-        private static sEndPos: Laya.Point = new Laya.Point();
-        private static sOldChange: Laya.Point = new Laya.Point();
-
-        public static TWEEN_TIME_GO: number = 0.5; //调用SetPos(ani)时使用的缓动时间
-        public static TWEEN_TIME_DEFAULT: number = 0.3; //惯性滚动的最小缓动时间
-        public static PULL_RATIO: number = 0.5; //下拉过顶或者上拉过底时允许超过的距离占显示区域的比例
 
         constructor(owner: GComponent) {
             this._owner = owner;
@@ -130,10 +121,10 @@ namespace fgui {
             var headerRes: string = buffer.readS();
             var footerRes: string = buffer.readS();
 
-            this._displayOnLeft = (flags & 1) != 0;
-            this._snapToItem = (flags & 2) != 0;
-            this._displayInDemand = (flags & 4) != 0;
-            this._pageMode = (flags & 8) != 0;
+            if ((flags & 1) != 0) this._displayOnLeft = true;
+            if ((flags & 2) != 0) this._snapToItem = true;
+            if ((flags & 4) != 0) this._displayInDemand = true;
+            if ((flags & 8) != 0) this._pageMode = true;
             if (flags & 16)
                 this._touchEffect = true;
             else if (flags & 32)
@@ -146,10 +137,10 @@ namespace fgui {
                 this._bouncebackEffect = false;
             else
                 this._bouncebackEffect = UIConfig.defaultScrollBounceEffect;
-            this._inertiaDisabled = (flags & 256) != 0;
-            if ((flags & 512) == 0)
-                this._maskContainer.scrollRect = new Laya.Rectangle();
-            this._floating = (flags & 1024) != 0;
+            if ((flags & 256) != 0) this._inertiaDisabled = true;
+            if ((flags & 512) == 0) this._maskContainer.scrollRect = new Laya.Rectangle();
+            if ((flags & 1024) != 0) this._floating = true;
+            if ((flags & 2048) != 0) this._dontClipMargin = true;
 
             if (scrollBarDisplay == ScrollBarDisplayType.Default)
                 scrollBarDisplay = UIConfig.defaultScrollBarDisplay;
@@ -176,7 +167,8 @@ namespace fgui {
                     }
                 }
 
-                this._scrollBarDisplayAuto = scrollBarDisplay == ScrollBarDisplayType.Auto;
+                if (scrollBarDisplay == ScrollBarDisplayType.Auto)
+                    this._scrollBarDisplayAuto = true;
                 if (this._scrollBarDisplayAuto) {
                     if (this._vtScrollBar)
                         this._vtScrollBar.displayObject.visible = false;
@@ -188,36 +180,39 @@ namespace fgui {
                 this._mouseWheelEnabled = false;
 
             if (headerRes) {
-                this._header = UIPackage.createObjectFromURL(headerRes) as GComponent;
-                if (this._header == null)
+                this._header = <GComponent>UIPackage.createObjectFromURL(headerRes);
+                if (!this._header)
                     throw new Error("FairyGUI: cannot create scrollPane this.header from " + headerRes);
             }
 
             if (footerRes) {
-                this._footer = UIPackage.createObjectFromURL(footerRes) as GComponent;
-                if (this._footer == null)
+                this._footer = <GComponent>UIPackage.createObjectFromURL(footerRes);
+                if (!this._footer)
                     throw new Error("FairyGUI: cannot create scrollPane this.footer from " + footerRes);
             }
 
-            if (this._header != null || this._footer != null)
+            if (this._header || this._footer)
                 this._refreshBarAxis = (this._scrollType == ScrollType.Both || this._scrollType == ScrollType.Vertical) ? "y" : "x";
 
             this.setSize(this.owner.width, this.owner.height);
         }
 
         public dispose(): void {
+            if (ScrollPane.draggingPane == this) {
+                ScrollPane.draggingPane = null;
+            }
             if (this._tweening != 0)
                 Laya.timer.clear(this, this.tweenUpdate);
 
             this._pageController = null;
 
-            if (this._hzScrollBar != null)
+            if (this._hzScrollBar)
                 this._hzScrollBar.dispose();
-            if (this._vtScrollBar != null)
+            if (this._vtScrollBar)
                 this._vtScrollBar.dispose();
-            if (this._header != null)
+            if (this._header)
                 this._header.dispose();
-            if (this._footer != null)
+            if (this._footer)
                 this._footer.dispose();
         }
 
@@ -378,7 +373,7 @@ namespace fgui {
 
         public set viewWidth(value: number) {
             value = value + this._owner.margin.left + this._owner.margin.right;
-            if (this._vtScrollBar != null && !this._floating)
+            if (this._vtScrollBar && !this._floating)
                 value += this._vtScrollBar.width;
             this._owner.width = value;
         }
@@ -389,7 +384,7 @@ namespace fgui {
 
         public set viewHeight(value: number) {
             value = value + this._owner.margin.top + this._owner.margin.bottom;
-            if (this._hzScrollBar != null && !this._floating)
+            if (this._hzScrollBar && !this._floating)
                 value += this._hzScrollBar.height;
             this._owner.height = value;
         }
@@ -476,35 +471,39 @@ namespace fgui {
             this.setPercY(1, ani);
         }
 
-        public scrollUp(ratio: number = 1, ani?: boolean): void {
+        public scrollUp(ratio?: number, ani?: boolean): void {
+            ratio = ratio || 1;
             if (this._pageMode)
                 this.setPosY(this._yPos - this._pageSize.y * ratio, ani);
             else
                 this.setPosY(this._yPos - this._scrollStep * ratio, ani);;
         }
 
-        public scrollDown(ratio: number = 1, ani?: boolean): void {
+        public scrollDown(ratio?: number, ani?: boolean): void {
+            ratio = ratio || 1;
             if (this._pageMode)
                 this.setPosY(this._yPos + this._pageSize.y * ratio, ani);
             else
                 this.setPosY(this._yPos + this._scrollStep * ratio, ani);
         }
 
-        public scrollLeft(ratio: number = 1, ani?: boolean): void {
+        public scrollLeft(ratio?: number, ani?: boolean): void {
+            ratio = ratio || 1;
             if (this._pageMode)
                 this.setPosX(this._xPos - this._pageSize.x * ratio, ani);
             else
                 this.setPosX(this._xPos - this._scrollStep * ratio, ani);
         }
 
-        public scrollRight(ratio: number = 1, ani?: boolean): void {
+        public scrollRight(ratio?: number, ani?: boolean): void {
+            ratio = ratio || 1;
             if (this._pageMode)
                 this.setPosX(this._xPos + this._pageSize.x * ratio, ani);
             else
                 this.setPosX(this._xPos + this._scrollStep * ratio, ani);
         }
 
-        public scrollToView(target: Object, ani?: boolean, setFirst?: boolean): void {
+        public scrollToView(target: Laya.Rectangle | GObject, ani?: boolean, setFirst?: boolean): void {
             this._owner.ensureBoundsCorrect();
             if (this._needRefresh)
                 this.refresh();
@@ -512,18 +511,16 @@ namespace fgui {
             var rect: Laya.Rectangle;
             if (target instanceof GObject) {
                 if (target.parent != this._owner) {
-                    target.parent.localToGlobalRect(target.x, target.y,
-                        target.width, target.height, ScrollPane.sHelperRect);
-                    rect = this._owner.globalToLocalRect(ScrollPane.sHelperRect.x, ScrollPane.sHelperRect.y,
-                        ScrollPane.sHelperRect.width, ScrollPane.sHelperRect.height, ScrollPane.sHelperRect);
+                    target.parent.localToGlobalRect(target.x, target.y, target.width, target.height, s_rect);
+                    rect = this._owner.globalToLocalRect(s_rect.x, s_rect.y, s_rect.width, s_rect.height, s_rect);
                 }
                 else {
-                    rect = ScrollPane.sHelperRect;
+                    rect = s_rect;
                     rect.setTo(target.x, target.y, target.width, target.height);
                 }
             }
             else
-                rect = <Laya.Rectangle>(target);
+                rect = target;
 
             if (this._overlapSize.y > 0) {
                 var bottom: number = this._yPos + this._viewSize.y;
@@ -588,7 +585,7 @@ namespace fgui {
             if (ScrollPane.draggingPane == this)
                 ScrollPane.draggingPane = null;
 
-            ScrollPane._gestureFlag = 0;
+            _gestureFlag = 0;
             this._dragged = false;
             this._maskContainer.mouseEnabled = true;
         }
@@ -603,7 +600,7 @@ namespace fgui {
                 this._tweenStart.setTo(this._container.x, this._container.y);
                 this._tweenChange.setTo(0, 0);
                 this._tweenChange[this._refreshBarAxis] = this._headerLockedSize - this._tweenStart[this._refreshBarAxis];
-                this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
+                this._tweenDuration.setTo(TWEEN_TIME_DEFAULT, TWEEN_TIME_DEFAULT);
                 this.startTween(2);
             }
         }
@@ -623,7 +620,7 @@ namespace fgui {
                 else
                     max += this._footerLockedSize;
                 this._tweenChange[this._refreshBarAxis] = -max - this._tweenStart[this._refreshBarAxis];
-                this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
+                this._tweenDuration.setTo(TWEEN_TIME_DEFAULT, TWEEN_TIME_DEFAULT);
                 this.startTween(2);
             }
         }
@@ -659,26 +656,38 @@ namespace fgui {
         }
 
         public adjustMaskContainer(): void {
-            var mx: number, my: number;
-            if (this._displayOnLeft && this._vtScrollBar != null && !this._floating)
-                mx = Math.floor(this._owner.margin.left + this._vtScrollBar.width);
-            else
-                mx = Math.floor(this._owner.margin.left);
-            my = Math.floor(this._owner.margin.top);
+            var mx: number = 0, my: number = 0;
+            if (this._dontClipMargin) {
+                if (this._displayOnLeft && this._vtScrollBar && !this._floating)
+                    mx = this._vtScrollBar.width;
+            }
+            else {
+                if (this._displayOnLeft && this._vtScrollBar && !this._floating)
+                    mx = this._owner.margin.left + this._vtScrollBar.width;
+                else
+                    mx = this._owner.margin.left;
+                my = this._owner.margin.top;
+            }
 
             this._maskContainer.pos(mx, my);
 
-            if (this._owner._alignOffset.x != 0 || this._owner._alignOffset.y != 0) {
-                if (this._alignContainer == null) {
+            mx = this._owner._alignOffset.x;
+            my = this._owner._alignOffset.y;
+
+            if (mx != 0 || my != 0 || this._dontClipMargin) {
+                if (!this._alignContainer) {
                     this._alignContainer = new Laya.Sprite();
                     this._maskContainer.addChild(this._alignContainer);
                     this._alignContainer.addChild(this._container);
                 }
-
-                this._alignContainer.pos(this._owner._alignOffset.x, this._owner._alignOffset.y);
             }
-            else if (this._alignContainer) {
-                this._alignContainer.pos(0, 0);
+
+            if (this._alignContainer) {
+                if (this._dontClipMargin) {
+                    mx += this._owner.margin.left;
+                    my += this._owner.margin.top;
+                }
+                this._alignContainer.pos(mx, my);
             }
         }
 
@@ -827,6 +836,10 @@ namespace fgui {
                     rect.width += this._vtScrollBar.width;
                 if (this._hScrollNone && this._hzScrollBar)
                     rect.height += this._hzScrollBar.height;
+                if (this._dontClipMargin) {
+                    rect.width += (this._owner.margin.left + this._owner.margin.right);
+                    rect.height += (this._owner.margin.top + this._owner.margin.bottom);
+                }
                 this._maskContainer.scrollRect = rect;
             }
 
@@ -858,14 +871,14 @@ namespace fgui {
                         ToolSet.clamp(this._container.y, -max, this._headerLockedSize));
                 }
 
-                if (this._header != null) {
+                if (this._header) {
                     if (this._refreshBarAxis == "x")
                         this._header.height = this._viewSize.y;
                     else
                         this._header.width = this._viewSize.x;
                 }
 
-                if (this._footer != null) {
+                if (this._footer) {
                     if (this._refreshBarAxis == "y")
                         this._footer.height = this._viewSize.y;
                     else
@@ -893,17 +906,17 @@ namespace fgui {
         }
 
         private refresh(): void {
-            if(this._owner.displayObject == null){
+            if (!this._owner.displayObject) {
                 return;
             }
             this._needRefresh = false;
             Laya.timer.clear(this, this.refresh);
 
             if (this._pageMode || this._snapToItem) {
-                ScrollPane.sEndPos.setTo(-this._xPos, -this._yPos);
-                this.alignPosition(ScrollPane.sEndPos, false);
-                this._xPos = -ScrollPane.sEndPos.x;
-                this._yPos = -ScrollPane.sEndPos.y;
+                sEndPos.setTo(-this._xPos, -this._yPos);
+                this.alignPosition(sEndPos, false);
+                this._xPos = -sEndPos.x;
+                this._yPos = -sEndPos.y;
             }
 
             this.refresh2();
@@ -942,7 +955,7 @@ namespace fgui {
                 }
 
                 if (posX != this._container.x || posY != this._container.y) {
-                    this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_GO, ScrollPane.TWEEN_TIME_GO);
+                    this._tweenDuration.setTo(TWEEN_TIME_GO, TWEEN_TIME_GO);
                     this._tweenStart.setTo(this._container.x, this._container.y);
                     this._tweenChange.setTo(posX - this._tweenStart.x, posY - this._tweenStart.y);
                     this.startTween(1);
@@ -974,7 +987,7 @@ namespace fgui {
             else
                 this._dragged = false;
 
-            var pt: Laya.Point = this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, ScrollPane.sHelperPoint);
+            var pt: Laya.Point = this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, s_vec2);
 
             this._containerPos.setTo(this._container.x, this._container.y);
             this._beginTouchPos.setTo(pt.x, pt.y);
@@ -994,12 +1007,12 @@ namespace fgui {
             if (!this._touchEffect || this.owner.isDisposed)
                 return;
 
-            if (ScrollPane.draggingPane != null && ScrollPane.draggingPane != this || GObject.draggingObject != null) //已经有其他拖动
+            if (ScrollPane.draggingPane && ScrollPane.draggingPane != this || GObject.draggingObject) //已经有其他拖动
                 return;
 
             var sensitivity: number = UIConfig.touchScrollSensitivity;
 
-            var pt: Laya.Point = this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, ScrollPane.sHelperPoint);
+            var pt: Laya.Point = this._owner.globalToLocal(Laya.stage.mouseX, Laya.stage.mouseY, s_vec2);
 
             var diff: number, diff2: number;
             var sv: boolean, sh: boolean, st: boolean;
@@ -1007,13 +1020,13 @@ namespace fgui {
             if (this._scrollType == ScrollType.Vertical) {
                 if (!this._isHoldAreaDone) {
                     //表示正在监测垂直方向的手势
-                    ScrollPane._gestureFlag |= 1;
+                    _gestureFlag |= 1;
 
                     diff = Math.abs(this._beginTouchPos.y - pt.y);
                     if (diff < sensitivity)
                         return;
 
-                    if ((ScrollPane._gestureFlag & 2) != 0) //已经有水平方向的手势在监测，那么我们用严格的方式检查是不是按垂直方向移动，避免冲突
+                    if ((_gestureFlag & 2) != 0) //已经有水平方向的手势在监测，那么我们用严格的方式检查是不是按垂直方向移动，避免冲突
                     {
                         diff2 = Math.abs(this._beginTouchPos.x - pt.x);
                         if (diff < diff2) //不通过则不允许滚动了
@@ -1025,13 +1038,13 @@ namespace fgui {
             }
             else if (this._scrollType == ScrollType.Horizontal) {
                 if (!this._isHoldAreaDone) {
-                    ScrollPane._gestureFlag |= 2;
+                    _gestureFlag |= 2;
 
                     diff = Math.abs(this._beginTouchPos.x - pt.x);
                     if (diff < sensitivity)
                         return;
 
-                    if ((ScrollPane._gestureFlag & 1) != 0) {
+                    if ((_gestureFlag & 1) != 0) {
                         diff2 = Math.abs(this._beginTouchPos.y - pt.y);
                         if (diff < diff2)
                             return;
@@ -1041,7 +1054,7 @@ namespace fgui {
                 sh = true;
             }
             else {
-                ScrollPane._gestureFlag = 3;
+                _gestureFlag = 3;
 
                 if (!this._isHoldAreaDone) {
                     diff = Math.abs(this._beginTouchPos.y - pt.y);
@@ -1062,18 +1075,18 @@ namespace fgui {
                 if (newPosY > 0) {
                     if (!this._bouncebackEffect)
                         this._container.y = 0;
-                    else if (this._header != null && this._header.maxHeight != 0)
+                    else if (this._header && this._header.maxHeight != 0)
                         this._container.y = Math.floor(Math.min(newPosY * 0.5, this._header.maxHeight));
                     else
-                        this._container.y = Math.floor(Math.min(newPosY * 0.5, this._viewSize.y * ScrollPane.PULL_RATIO));
+                        this._container.y = Math.floor(Math.min(newPosY * 0.5, this._viewSize.y * PULL_RATIO));
                 }
                 else if (newPosY < -this._overlapSize.y) {
                     if (!this._bouncebackEffect)
                         this._container.y = -this._overlapSize.y;
-                    else if (this._footer != null && this._footer.maxHeight > 0)
+                    else if (this._footer && this._footer.maxHeight > 0)
                         this._container.y = Math.floor(Math.max((newPosY + this._overlapSize.y) * 0.5, -this._footer.maxHeight) - this._overlapSize.y);
                     else
-                        this._container.y = Math.floor(Math.max((newPosY + this._overlapSize.y) * 0.5, -this._viewSize.y * ScrollPane.PULL_RATIO) - this._overlapSize.y);
+                        this._container.y = Math.floor(Math.max((newPosY + this._overlapSize.y) * 0.5, -this._viewSize.y * PULL_RATIO) - this._overlapSize.y);
                 }
                 else
                     this._container.y = newPosY;
@@ -1083,18 +1096,18 @@ namespace fgui {
                 if (newPosX > 0) {
                     if (!this._bouncebackEffect)
                         this._container.x = 0;
-                    else if (this._header != null && this._header.maxWidth != 0)
+                    else if (this._header && this._header.maxWidth != 0)
                         this._container.x = Math.floor(Math.min(newPosX * 0.5, this._header.maxWidth));
                     else
-                        this._container.x = Math.floor(Math.min(newPosX * 0.5, this._viewSize.x * ScrollPane.PULL_RATIO));
+                        this._container.x = Math.floor(Math.min(newPosX * 0.5, this._viewSize.x * PULL_RATIO));
                 }
                 else if (newPosX < 0 - this._overlapSize.x) {
                     if (!this._bouncebackEffect)
                         this._container.x = -this._overlapSize.x;
-                    else if (this._footer != null && this._footer.maxWidth > 0)
+                    else if (this._footer && this._footer.maxWidth > 0)
                         this._container.x = Math.floor(Math.max((newPosX + this._overlapSize.x) * 0.5, -this._footer.maxWidth) - this._overlapSize.x);
                     else
-                        this._container.x = Math.floor(Math.max((newPosX + this._overlapSize.x) * 0.5, -this._viewSize.x * ScrollPane.PULL_RATIO) - this._overlapSize.x);
+                        this._container.x = Math.floor(Math.max((newPosX + this._overlapSize.x) * 0.5, -this._viewSize.x * PULL_RATIO) - this._overlapSize.x);
                 }
                 else
                     this._container.x = newPosX;
@@ -1166,6 +1179,9 @@ namespace fgui {
         }
 
         private __mouseUp(): void {
+            if (this._owner.isDisposed)
+                return;
+
             this._owner.displayObject.stage.off(Laya.Event.MOUSE_MOVE, this, this.__mouseMove);
             this._owner.displayObject.stage.off(Laya.Event.MOUSE_UP, this, this.__mouseUp);
             this._owner.displayObject.stage.off(Laya.Event.CLICK, this, this.__click);
@@ -1173,7 +1189,7 @@ namespace fgui {
             if (ScrollPane.draggingPane == this)
                 ScrollPane.draggingPane = null;
 
-            ScrollPane._gestureFlag = 0;
+            _gestureFlag = 0;
 
             if (!this._dragged || !this._touchEffect) {
                 this._dragged = false;
@@ -1186,26 +1202,26 @@ namespace fgui {
 
             this._tweenStart.setTo(this._container.x, this._container.y);
 
-            ScrollPane.sEndPos.setTo(this._tweenStart.x, this._tweenStart.y);
+            sEndPos.setTo(this._tweenStart.x, this._tweenStart.y);
             var flag: boolean = false;
             if (this._container.x > 0) {
-                ScrollPane.sEndPos.x = 0;
+                sEndPos.x = 0;
                 flag = true;
             }
             else if (this._container.x < -this._overlapSize.x) {
-                ScrollPane.sEndPos.x = -this._overlapSize.x;
+                sEndPos.x = -this._overlapSize.x;
                 flag = true;
             }
             if (this._container.y > 0) {
-                ScrollPane.sEndPos.y = 0;
+                sEndPos.y = 0;
                 flag = true;
             }
             else if (this._container.y < -this._overlapSize.y) {
-                ScrollPane.sEndPos.y = -this._overlapSize.y;
+                sEndPos.y = -this._overlapSize.y;
                 flag = true;
             }
             if (flag) {
-                this._tweenChange.setTo(ScrollPane.sEndPos.x - this._tweenStart.x, ScrollPane.sEndPos.y - this._tweenStart.y);
+                this._tweenChange.setTo(sEndPos.x - this._tweenStart.x, sEndPos.y - this._tweenStart.y);
                 if (this._tweenChange.x < -UIConfig.touchDragSensitivity || this._tweenChange.y < -UIConfig.touchDragSensitivity) {
                     this._refreshEventDispatching = true;
                     Events.dispatch(Events.PULL_DOWN_RELEASE, this._owner.displayObject);
@@ -1217,23 +1233,23 @@ namespace fgui {
                     this._refreshEventDispatching = false;
                 }
 
-                if (this._headerLockedSize > 0 && ScrollPane.sEndPos[this._refreshBarAxis] == 0) {
-                    ScrollPane.sEndPos[this._refreshBarAxis] = this._headerLockedSize;
-                    this._tweenChange.x = ScrollPane.sEndPos.x - this._tweenStart.x;
-                    this._tweenChange.y = ScrollPane.sEndPos.y - this._tweenStart.y;
+                if (this._headerLockedSize > 0 && sEndPos[this._refreshBarAxis] == 0) {
+                    sEndPos[this._refreshBarAxis] = this._headerLockedSize;
+                    this._tweenChange.x = sEndPos.x - this._tweenStart.x;
+                    this._tweenChange.y = sEndPos.y - this._tweenStart.y;
                 }
-                else if (this._footerLockedSize > 0 && ScrollPane.sEndPos[this._refreshBarAxis] == -this._overlapSize[this._refreshBarAxis]) {
+                else if (this._footerLockedSize > 0 && sEndPos[this._refreshBarAxis] == -this._overlapSize[this._refreshBarAxis]) {
                     var max: number = this._overlapSize[this._refreshBarAxis];
                     if (max == 0)
                         max = Math.max(this._contentSize[this._refreshBarAxis] + this._footerLockedSize - this._viewSize[this._refreshBarAxis], 0);
                     else
                         max += this._footerLockedSize;
-                    ScrollPane.sEndPos[this._refreshBarAxis] = -max;
-                    this._tweenChange.x = ScrollPane.sEndPos.x - this._tweenStart.x;
-                    this._tweenChange.y = ScrollPane.sEndPos.y - this._tweenStart.y;
+                    sEndPos[this._refreshBarAxis] = -max;
+                    this._tweenChange.x = sEndPos.x - this._tweenStart.x;
+                    this._tweenChange.y = sEndPos.y - this._tweenStart.y;
                 }
 
-                this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
+                this._tweenDuration.setTo(TWEEN_TIME_DEFAULT, TWEEN_TIME_DEFAULT);
             }
             else {
                 //更新速度
@@ -1246,19 +1262,19 @@ namespace fgui {
                         this._velocity.y = this._velocity.y * factor;
                     }
                     //根据速度计算目标位置和需要时间
-                    this.updateTargetAndDuration(this._tweenStart, ScrollPane.sEndPos);
+                    this.updateTargetAndDuration(this._tweenStart, sEndPos);
                 }
                 else
-                    this._tweenDuration.setTo(ScrollPane.TWEEN_TIME_DEFAULT, ScrollPane.TWEEN_TIME_DEFAULT);
-                ScrollPane.sOldChange.setTo(ScrollPane.sEndPos.x - this._tweenStart.x, ScrollPane.sEndPos.y - this._tweenStart.y);
+                    this._tweenDuration.setTo(TWEEN_TIME_DEFAULT, TWEEN_TIME_DEFAULT);
+                sOldChange.setTo(sEndPos.x - this._tweenStart.x, sEndPos.y - this._tweenStart.y);
 
                 //调整目标位置
-                this.loopCheckingTarget(ScrollPane.sEndPos);
+                this.loopCheckingTarget(sEndPos);
                 if (this._pageMode || this._snapToItem)
-                    this.alignPosition(ScrollPane.sEndPos, true);
+                    this.alignPosition(sEndPos, true);
 
-                this._tweenChange.x = ScrollPane.sEndPos.x - this._tweenStart.x;
-                this._tweenChange.y = ScrollPane.sEndPos.y - this._tweenStart.y;
+                this._tweenChange.x = sEndPos.x - this._tweenStart.x;
+                this._tweenChange.y = sEndPos.y - this._tweenStart.y;
                 if (this._tweenChange.x == 0 && this._tweenChange.y == 0) {
                     this.updateScrollBarVisible();
                     return;
@@ -1266,8 +1282,8 @@ namespace fgui {
 
                 //如果目标位置已调整，随之调整需要时间
                 if (this._pageMode || this._snapToItem) {
-                    this.fixDuration("x", ScrollPane.sOldChange.x);
-                    this.fixDuration("y", ScrollPane.sOldChange.y);
+                    this.fixDuration("x", sOldChange.x);
+                    this.fixDuration("y", sOldChange.y);
                 }
             }
 
@@ -1299,10 +1315,10 @@ namespace fgui {
         }
 
         private updateScrollBarPos(): void {
-            if (this._vtScrollBar != null)
+            if (this._vtScrollBar)
                 this._vtScrollBar.setScrollPerc(this._overlapSize.y == 0 ? 0 : ToolSet.clamp(-this._container.y, 0, this._overlapSize.y) / this._overlapSize.y);
 
-            if (this._hzScrollBar != null)
+            if (this._hzScrollBar)
                 this._hzScrollBar.setScrollPerc(this._overlapSize.x == 0 ? 0 : ToolSet.clamp(-this._container.x, 0, this._overlapSize.x) / this._overlapSize.x);
 
             this.checkRefreshBar();
@@ -1455,7 +1471,7 @@ namespace fgui {
                     yDir = pos.y - this._containerPos.y;
                 }
 
-                var pt: Laya.Point = this._owner.getSnappingPositionWithDir(-pos.x, -pos.y, xDir, yDir, ScrollPane.sHelperPoint);
+                var pt: Laya.Point = this._owner.getSnappingPositionWithDir(-pos.x, -pos.y, xDir, yDir, s_vec2);
                 if (pos.x < 0 && pos.x > -this._overlapSize.x)
                     pos.x = -pt.x;
                 if (pos.y < 0 && pos.y > -this._overlapSize.y)
@@ -1564,8 +1580,8 @@ namespace fgui {
                 }
             }
 
-            if (duration < ScrollPane.TWEEN_TIME_DEFAULT)
-                duration = ScrollPane.TWEEN_TIME_DEFAULT;
+            if (duration < TWEEN_TIME_DEFAULT)
+                duration = TWEEN_TIME_DEFAULT;
             this._tweenDuration[axis] = duration;
 
             return pos;
@@ -1576,8 +1592,8 @@ namespace fgui {
                 return;
 
             var newDuration: number = Math.abs(this._tweenChange[axis] / oldChange) * this._tweenDuration[axis];
-            if (newDuration < ScrollPane.TWEEN_TIME_DEFAULT)
-                newDuration = ScrollPane.TWEEN_TIME_DEFAULT;
+            if (newDuration < TWEEN_TIME_DEFAULT)
+                newDuration = TWEEN_TIME_DEFAULT;
 
             this._tweenDuration[axis] = newDuration;
         }
@@ -1606,32 +1622,32 @@ namespace fgui {
         }
 
         private checkRefreshBar(): void {
-            if (this._header == null && this._footer == null)
+            if (!this._header && !this._footer)
                 return;
 
             var pos: number = this._container[this._refreshBarAxis];
-            if (this._header != null) {
+            if (this._header) {
                 if (pos > 0) {
-                    if (this._header.displayObject.parent == null)
+                    if (!this._header.displayObject.parent)
                         this._maskContainer.addChildAt(this._header.displayObject, 0);
-                    var pt: Laya.Point = ScrollPane.sHelperPoint;
+                    var pt: Laya.Point = s_vec2;
                     pt.setTo(this._header.width, this._header.height);
                     pt[this._refreshBarAxis] = pos;
                     this._header.setSize(pt.x, pt.y);
                 }
                 else {
-                    if (this._header.displayObject.parent != null)
+                    if (this._header.displayObject.parent)
                         this._maskContainer.removeChild(this._header.displayObject);
                 }
             }
 
-            if (this._footer != null) {
+            if (this._footer) {
                 var max: number = this._overlapSize[this._refreshBarAxis];
                 if (pos < -max || max == 0 && this._footerLockedSize > 0) {
-                    if (this._footer.displayObject.parent == null)
+                    if (!this._footer.displayObject.parent)
                         this._maskContainer.addChildAt(this._footer.displayObject, 0);
 
-                    pt = ScrollPane.sHelperPoint;
+                    pt = s_vec2;
                     pt.setTo(this._footer.x, this._footer.y);
                     if (max > 0)
                         pt[this._refreshBarAxis] = pos + this._contentSize[this._refreshBarAxis];
@@ -1648,7 +1664,7 @@ namespace fgui {
                     this._footer.setSize(pt.x, pt.y);
                 }
                 else {
-                    if (this._footer.displayObject.parent != null)
+                    if (this._footer.displayObject.parent)
                         this._maskContainer.removeChild(this._footer.displayObject);
                 }
             }
@@ -1697,7 +1713,7 @@ namespace fgui {
                     this._tweenChange[axis] = 0;
                 }
                 else {
-                    var ratio: number = ScrollPane.easeFunc(this._tweenTime[axis], this._tweenDuration[axis]);
+                    var ratio: number = easeFunc(this._tweenTime[axis], this._tweenDuration[axis]);
                     newValue = this._tweenStart[axis] + Math.floor(this._tweenChange[axis] * ratio);
                 }
 
@@ -1719,7 +1735,7 @@ namespace fgui {
                         || newValue > threshold1 && this._tweenChange[axis] == 0)//开始回弹
                     {
                         this._tweenTime[axis] = 0;
-                        this._tweenDuration[axis] = ScrollPane.TWEEN_TIME_DEFAULT;
+                        this._tweenDuration[axis] = TWEEN_TIME_DEFAULT;
                         this._tweenChange[axis] = -newValue + threshold1;
                         this._tweenStart[axis] = newValue;
                     }
@@ -1727,7 +1743,7 @@ namespace fgui {
                         || newValue < threshold2 && this._tweenChange[axis] == 0)//开始回弹
                     {
                         this._tweenTime[axis] = 0;
-                        this._tweenDuration[axis] = ScrollPane.TWEEN_TIME_DEFAULT;
+                        this._tweenDuration[axis] = TWEEN_TIME_DEFAULT;
                         this._tweenChange[axis] = threshold2 - newValue;
                         this._tweenStart[axis] = newValue;
                     }
@@ -1748,9 +1764,20 @@ namespace fgui {
 
             return newValue;
         }
+    }
 
-        private static easeFunc(t: number, d: number): number {
-            return (t = t / d - 1) * t * t + 1;//cubicOut
-        }
+    var _gestureFlag: number = 0;
+
+    const TWEEN_TIME_GO: number = 0.5; //调用SetPos(ani)时使用的缓动时间
+    const TWEEN_TIME_DEFAULT: number = 0.3; //惯性滚动的最小缓动时间
+    const PULL_RATIO: number = 0.5; //下拉过顶或者上拉过底时允许超过的距离占显示区域的比例
+
+    var s_vec2: Laya.Point = new Laya.Point();
+    var s_rect: Laya.Rectangle = new Laya.Rectangle();
+    var sEndPos: Laya.Point = new Laya.Point();
+    var sOldChange: Laya.Point = new Laya.Point();
+
+    function easeFunc(t: number, d: number): number {
+        return (t = t / d - 1) * t * t + 1;//cubicOut
     }
 }
