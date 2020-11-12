@@ -434,7 +434,7 @@ namespace fgui {
             if (buffer.version >= 2) {
                 this._excludeInvisibles = buffer.readBool();
                 this._autoSizeDisabled = buffer.readBool();
-                this._mainChildIndex = buffer.getInt16();
+                this._mainGridIndex = buffer.getInt16();
             }
         }
 
