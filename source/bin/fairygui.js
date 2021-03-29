@@ -1942,7 +1942,7 @@
                 if (this._templateVars)
                     text2 = this.parseTemplate(text2);
                 if (this._ubbEnabled) //laya还不支持同一个文本不同样式
-                    this._textField.text = fgui.UBBParser.inst.parse(fgui.ToolSet.encodeHTML(text2), true);
+                    this._textField.text = fgui.UBBParser.inst.parse(text2, true);
                 else
                     this._textField.text = text2;
             }
@@ -13760,7 +13760,7 @@
                             if (!UIPackage._instById[pkg.id]) {
                                 UIPackage._instById[pkg.id] = pkg;
                                 UIPackage._instByName[pkg.name] = pkg;
-                                UIPackage._instByName[pkg._resKey] = pkg;
+                                UIPackage._instById[pkg._resKey] = pkg;
                             }
                         }
                         completeHandler.runWith([pkgArr]);
@@ -13772,7 +13772,7 @@
                         if (!UIPackage._instById[pkg.id]) {
                             UIPackage._instById[pkg.id] = pkg;
                             UIPackage._instByName[pkg.name] = pkg;
-                            UIPackage._instByName[pkg._resKey] = pkg;
+                            UIPackage._instById[pkg._resKey] = pkg;
                         }
                     }
                     completeHandler.runWith([pkgArr]);
@@ -14135,7 +14135,12 @@
                         var sprite = this._sprites[item.id];
                         if (sprite) {
                             var atlasTexture = (this.getItemAsset(sprite.atlas));
-                            item.texture = Laya.Texture.create(atlasTexture, sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height, sprite.offset.x, sprite.offset.y, sprite.originalSize.x, sprite.originalSize.y);
+                            if (atlasTexture) {
+                                item.texture = Laya.Texture.create(atlasTexture, sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height, sprite.offset.x, sprite.offset.y, sprite.originalSize.x, sprite.originalSize.y);
+                            }
+                            else {
+                                item.texture = null;
+                            }
                         }
                         else
                             item.texture = null;

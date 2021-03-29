@@ -48,7 +48,7 @@ namespace fgui {
                 if (this._templateVars)
                     text2 = this.parseTemplate(text2);
                 if (this._ubbEnabled) //laya还不支持同一个文本不同样式
-                    this._textField.text = UBBParser.inst.parse(ToolSet.encodeHTML(text2), true);
+                    this._textField.text = UBBParser.inst.parse(text2, true);
                 else
                     this._textField.text = text2;
             }
