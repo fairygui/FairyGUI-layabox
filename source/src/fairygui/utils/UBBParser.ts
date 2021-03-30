@@ -175,7 +175,7 @@ namespace fgui {
 
             this._text = null;
 
-            return result;
+            return result.replace(/\n/g, '<br>');
         }
     }
 }

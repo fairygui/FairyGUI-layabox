@@ -1,7 +1,7 @@
 namespace fgui {
     export class AssetProxy {
 
-        private _asset: any;
+        private _asset: Laya.LoaderManager;
 
         constructor() {
             this._asset = Laya.loader;
