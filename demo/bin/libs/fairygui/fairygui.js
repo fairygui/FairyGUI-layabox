@@ -5345,7 +5345,7 @@
             return this._defaultItem;
         }
         set defaultItem(val) {
-            this._defaultItem = val;
+            this._defaultItem = fgui.UIPackage.normalizeURL(val);
         }
         get autoResizeItem() {
             return this._autoResizeItem;
@@ -6425,7 +6425,7 @@
             var needRender;
             var deltaSize = 0;
             var firstItemDeltaSize = 0;
-            var url = this.defaultItem;
+            var url = this._defaultItem;
             var ii, ii2;
             var i, j;
             var partSize = (this._scrollPane.viewWidth - this._columnGap * (this._curLineItemCount - 1)) / this._curLineItemCount;
@@ -6560,7 +6560,7 @@
             var needRender;
             var deltaSize = 0;
             var firstItemDeltaSize = 0;
-            var url = this.defaultItem;
+            var url = this._defaultItem;
             var ii, ii2;
             var i, j;
             var partSize = (this._scrollPane.viewHeight - this._lineGap * (this._curLineItemCount - 1)) / this._curLineItemCount;
@@ -7218,7 +7218,7 @@
                 nextPos += buffer.pos;
                 str = buffer.readS();
                 if (str == null) {
-                    str = this.defaultItem;
+                    str = this._defaultItem;
                     if (!str) {
                         buffer.pos = nextPos;
                         continue;
