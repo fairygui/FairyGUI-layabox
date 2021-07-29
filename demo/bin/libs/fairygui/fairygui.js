@@ -16976,7 +16976,8 @@
                 this._value.y = pt.y;
             }
             else {
-                for (var i = 0; i < this._valueSize; i++) {
+                let cnt = Math.min(this._valueSize, 4);
+                for (var i = 0; i < cnt; i++) {
                     var n1 = this._startValue.getField(i);
                     var n2 = this._endValue.getField(i);
                     var f = n1 + (n2 - n1) * this._normalizedTime;
