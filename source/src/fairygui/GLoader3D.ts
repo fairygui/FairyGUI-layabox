@@ -189,7 +189,7 @@ namespace fgui {
         }
 
         public get content(): Laya.Sprite {
-            return
+            return this._content;
         }
 
         protected loadContent(): void {

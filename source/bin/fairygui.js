@@ -7894,7 +7894,7 @@
             }
         }
         get content() {
-            return;
+            return this._content;
         }
         loadContent() {
             this.clearContent();
