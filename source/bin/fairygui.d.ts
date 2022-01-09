@@ -5,6 +5,7 @@ declare namespace fgui {
         private static _inst;
         static readonly inst: AssetProxy;
         getRes(url: string): any;
+        getItemRes(item: PackageItem): any;
         load(url: any, complete?: Laya.Handler, progress?: Laya.Handler, type?: string, priority?: number, cache?: boolean): void;
         setAsset(asset: any): void;
     }
@@ -1843,6 +1844,7 @@ declare namespace fgui {
         customId: string;
         createObject(resName: string, userClass?: new () => GObject): GObject;
         internalCreateObject(item: PackageItem, userClass?: new () => GObject): GObject;
+        getItems(): PackageItem[];
         getItemById(itemId: string): PackageItem;
         getItemByName(resName: string): PackageItem;
         getItemAssetByName(resName: string): Object;

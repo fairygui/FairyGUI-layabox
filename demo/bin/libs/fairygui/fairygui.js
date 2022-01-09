@@ -12,6 +12,9 @@
         getRes(url) {
             return this._asset.getRes(url);
         }
+        getItemRes(item) {
+            return this.getRes(item.file);
+        }
         load(url, complete, progress, type, priority, cache) {
             this._asset.load(url, complete, progress, type, priority, cache);
         }
@@ -14114,6 +14117,9 @@
             UIPackage._constructing--;
             return g;
         }
+        getItems() {
+            return this._items;
+        }
         getItemById(itemId) {
             return this._itemsById[itemId];
         }
@@ -14149,7 +14155,7 @@
                 case fgui.PackageItemType.Atlas:
                     if (!item.decoded) {
                         item.decoded = true;
-                        item.texture = fgui.AssetProxy.inst.getRes(item.file);
+                        item.texture = fgui.AssetProxy.inst.getItemRes(item);
                         //if(!fgui.UIConfig.textureLinearSampling)
                         //item.texture.isLinearSampling = false;
                     }
@@ -14170,7 +14176,7 @@
                     return item.rawData;
                 case fgui.PackageItemType.Misc:
                     if (item.file)
-                        return fgui.AssetProxy.inst.getRes(item.file);
+                        return fgui.AssetProxy.inst.getItemRes(item);
                     else
                         return null;
                 default:

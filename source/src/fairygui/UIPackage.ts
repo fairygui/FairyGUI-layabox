@@ -1,12 +1,12 @@
 namespace fgui {
-    type PackageDependency = { id: string, name: string };
+    type PackageDependency = { id: string, name: string; };
 
     export class UIPackage {
         private _id: string;
         private _name: string;
         private _items: PackageItem[];
-        private _itemsById: { [index: string]: PackageItem };
-        private _itemsByName: { [index: string]: PackageItem };
+        private _itemsById: { [index: string]: PackageItem; };
+        private _itemsByName: { [index: string]: PackageItem; };
         private _resKey: string;
         private _customId: string;
         private _sprites: Object;
@@ -16,10 +16,10 @@ namespace fgui {
 
         public static _constructing: number = 0;
 
-        private static _instById: { [index: string]: UIPackage } = {};
-        private static _instByName: { [index: string]: UIPackage } = {};
+        private static _instById: { [index: string]: UIPackage; } = {};
+        private static _instByName: { [index: string]: UIPackage; } = {};
         private static _branch: string = "";
-        private static _vars: { [index: string]: string } = {};
+        private static _vars: { [index: string]: string; } = {};
 
         constructor() {
             this._items = [];
@@ -560,6 +560,10 @@ namespace fgui {
             return g;
         }
 
+        public getItems(): PackageItem[] {
+            return this._items;
+        }
+
         public getItemById(itemId: string): PackageItem {
             return this._itemsById[itemId];
         }
@@ -602,7 +606,7 @@ namespace fgui {
                 case PackageItemType.Atlas:
                     if (!item.decoded) {
                         item.decoded = true;
-                        item.texture = AssetProxy.inst.getRes(item.file);
+                        item.texture = AssetProxy.inst.getItemRes(item);
                         //if(!fgui.UIConfig.textureLinearSampling)
                         //item.texture.isLinearSampling = false;
                     }
@@ -627,7 +631,7 @@ namespace fgui {
 
                 case PackageItemType.Misc:
                     if (item.file)
-                        return AssetProxy.inst.getRes(item.file);
+                        return AssetProxy.inst.getItemRes(item);
                     else
                         return null;
 
