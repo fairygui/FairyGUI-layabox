@@ -19,6 +19,10 @@ namespace fgui {
             return this._asset.getRes(url);
         }
 
+        public getItemRes(item: PackageItem): any {
+            return this.getRes(item.file);
+        }
+
         public load(url: any, complete?: Laya.Handler, progress?: Laya.Handler, type?: string, priority?: number, cache?: boolean): void {
             this._asset.load(url, complete, progress, type, priority, cache);
         }
