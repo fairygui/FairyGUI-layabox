@@ -1967,6 +1967,8 @@ declare namespace fgui {
     function fillImage(w: number, h: number, method: number, origin: number, clockwise: boolean, amount: number): number[];
 }
 declare namespace fgui {
+}
+declare namespace fgui {
     class Image extends Laya.Sprite {
         protected _source: Laya.Texture;
         protected _scaleByTile?: boolean;

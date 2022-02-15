@@ -14949,6 +14949,114 @@
 })(fgui);
 
 (function (fgui) {
+    var Texture = Laya.Texture;
+    var HTMLImageElement = Laya.HTMLImageElement;
+    const proto = HTMLImageElement.prototype;
+    const reset = proto.reset;
+    const src = Object.getOwnPropertyDescriptor(proto, 'src').set;
+    Object.defineProperties(proto, {
+        // @Overwrite
+        reset: {
+            // Call in constructor and destroy
+            value() {
+                return reset.call(this._stop()._resetAni());
+            }
+        },
+        _resetAni: {
+            value() {
+                this._tex = null;
+                this._frame = 0;
+                this._reverse = false;
+                this._pi = null;
+                return this;
+            }
+        },
+        _stop: {
+            value() {
+                Laya.timer.clear(this, this._drawImage);
+                return this;
+            }
+        },
+        _drawImage: {
+            value(graphic, gX, gY) {
+                let tex = this._tex;
+                if (!tex || !tex.getIsReady())
+                    return;
+                if (!this.parent || this.parent._children.length === 0) {
+                    // TODO I think there have a bug in laya, So I wrote this code
+                    // Detail: https://github.com/porky-prince/LayaAir/commit/dd565d30b8d43f453bb784d0c63d978fca8375de
+                    this._stop();
+                    return;
+                }
+                const width = this.width || tex.width;
+                const height = this.height || tex.height;
+                const pi = this._pi;
+                if (pi) {
+                    const frames = pi.load();
+                    const curFrame = frames[this._frame];
+                    let delay = pi.interval + curFrame.addDelay;
+                    const border = !this._reverse ? frames.length - 1 : 0;
+                    const i = !this._reverse ? 1 : -1;
+                    if (this._frame === border) {
+                        if (pi.swing) {
+                            this._reverse = !this._reverse;
+                            this._frame -= i;
+                        }
+                        else {
+                            this._frame = 0;
+                        }
+                        delay += pi.repeatDelay;
+                    }
+                    else {
+                        this._frame += i;
+                    }
+                    this._tex = frames[this._frame].texture; // Next frame
+                    Laya.timer.once(delay, this, this._drawImage, [graphic, gX, gY]);
+                }
+                graphic.drawImage(tex, gX, gY, width, height);
+            }
+        },
+        // @Overwrite
+        renderSelfToGraphic: {
+            value(graphic, gX, gY) {
+                this._stop()._drawImage(graphic, gX, gY);
+            }
+        },
+        // @Overwrite
+        src: {
+            set(url) {
+                if (fgui.ToolSet.startsWith(url, "ui://")) {
+                    if (this._url === url)
+                        return;
+                    this._stop()._resetAni();
+                    const pi = fgui.UIPackage.getItemByURL(url);
+                    let tex = null;
+                    // Asset must be preloaded
+                    if (pi) {
+                        const asset = pi.load();
+                        if (asset instanceof Texture) {
+                            tex = asset;
+                        }
+                        else if (pi.type === fgui.PackageItemType.MovieClip && Array.isArray(asset) && asset.length > 0) {
+                            // Assuming that each texture is the same size, just layout once
+                            tex = asset[0].texture;
+                            if (asset.length > 1)
+                                this._pi = pi;
+                        }
+                        this._tex = tex;
+                        tex && this.onloaded();
+                    }
+                }
+                else {
+                    // Dynamic loading asset
+                    src.call(this, url);
+                }
+            }
+        }
+    });
+})(fgui);
+
+(function (fgui) {
     class Image extends Laya.Sprite {
         constructor() {
             super();
@@ -17675,7 +17783,7 @@
             if (pos1 < this._text.length)
                 result += this._text.substr(pos1);
             this._text = null;
-            return result;
+            return result.replace(/\n/g, '<br>');
         }
     }
     UBBParser.inst = new UBBParser();
