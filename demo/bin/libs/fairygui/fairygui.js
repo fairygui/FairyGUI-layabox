@@ -14249,9 +14249,9 @@
             }
         }
         loadFont(item) {
-            item = item.getBranch();
             var font = new fgui.BitmapFont();
             item.bitmapFont = font;
+            item = item.getBranch();
             var buffer = item.rawData;
             buffer.seek(0, 0);
             font.ttf = buffer.readBool();
@@ -15124,13 +15124,11 @@
             if (w == 0 || h == 0)
                 return;
             var points = fgui.fillImage(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
-            if (points == null) {
+            if (points == null || this._fillAmount < 0.01) { //太小的laya也不会渲染
                 //不知道为什么，不这样操作一下空白的遮罩不能生效
                 this.mask = null;
                 this.mask = this._mask;
-                return;
             }
-            g.drawPoly(0, 0, points, "#FFFFFF");
         }
     }
     fgui.Image = Image;
