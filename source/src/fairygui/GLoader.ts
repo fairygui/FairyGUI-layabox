@@ -216,7 +216,7 @@ namespace fgui {
         }
 
         protected loadFromPackage(itemURL: string): void {
-            this._contentItem = UIPackage.getItemByURL(itemURL);
+            this.packageItem = this._contentItem = UIPackage.getItemByURL(itemURL);
             if (this._contentItem) {
                 this._contentItem = this._contentItem.getBranch();
                 this.sourceWidth = this._contentItem.width;
@@ -432,6 +432,7 @@ namespace fgui {
             }
 
             this._contentItem = null;
+            this.packageItem = null;
         }
 
         protected handleSizeChanged(): void {
