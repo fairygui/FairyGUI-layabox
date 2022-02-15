@@ -711,9 +711,13 @@ namespace fgui {
 
                 if (spriteId != null && (sprite = this._sprites[spriteId]) != null) {
                     var atlasTexture: Laya.Texture = <Laya.Texture>(this.getItemAsset(sprite.atlas));
-                    frame.texture = Laya.Texture.create(atlasTexture,
-                        sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height,
-                        fx, fy, item.width, item.height);
+                    if(atlasTexture){
+                        frame.texture = Laya.Texture.create(atlasTexture,
+                            sprite.rect.x, sprite.rect.y, sprite.rect.width, sprite.rect.height,
+                            fx, fy, item.width, item.height);
+                    }else{
+                        frame.texture = null;
+                    }
                 }
                 item.frames[i] = frame;
 
