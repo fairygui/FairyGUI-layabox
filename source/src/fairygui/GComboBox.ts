@@ -354,10 +354,10 @@ namespace fgui {
             str = buffer.readS();
             if (str != null) {
                 this.text = str;
-                this._selectedIndex = this._items.indexOf(str);
+                this.selectedIndex = this._items.indexOf(str);
             }
             else if (this._items.length > 0) {
-                this._selectedIndex = 0;
+                this.selectedIndex = 0;
                 this.text = this._items[0];
             }
             else
@@ -393,7 +393,7 @@ namespace fgui {
                 }
                 this._list.resizeToFit(this._visibleItemCount);
             }
-            this._list.selectedIndex = -1;
+            this._list.selectedIndex = this.selectedIndex;
             this.dropdown.width = this.width;
             this._list.ensureBoundsCorrect();
 
