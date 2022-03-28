@@ -114,7 +114,7 @@ namespace fgui {
                 if (this._selectedIndex >= this._items.length)
                     this._selectedIndex = this._items.length - 1;
                 else if (this._selectedIndex == -1)
-                    this._selectedIndex = 0;
+                    this.selectedIndex = 0;
 
                 this.text = this._items[this._selectedIndex];
                 if (this._icons && this._selectedIndex < this._icons.length)
