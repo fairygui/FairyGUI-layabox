@@ -16,6 +16,7 @@ namespace fgui {
         private _container: Laya.Sprite;
         private _content: Laya.Skeleton;
         private _updatingLayout: boolean;
+        private _aniLoaded:Laya.Handler;
 
         public constructor() {
             super();
@@ -188,8 +189,12 @@ namespace fgui {
             }
         }
 
-        public get content(): Laya.Sprite {
+        public get content(): Laya.Skeleton {
             return this._content;
+        }
+
+        public set onLoader(handler: Laya.Handler) {
+            this._aniLoaded = handler;
         }
 
         protected loadContent(): void {
@@ -238,6 +243,7 @@ namespace fgui {
 
             this._content = skeleton;
             this._container.addChild(this._content);
+            this._aniLoaded && this._aniLoaded.runWith(this._content);
             this._content.pos(anchor.x, anchor.y);
             ToolSet.setColorFilter(this._content, this._color);
 
