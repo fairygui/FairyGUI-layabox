@@ -1100,7 +1100,7 @@ namespace fgui {
             else if (this._virtualListChanged == 0)
                 this._virtualListChanged = 1;
 
-            Laya.timer.callLater(this, this._refreshVirtualList);
+            Laya.timer.frameOnce(1, this, this._refreshVirtualList);
         }
 
         private _refreshVirtualList(): void {
