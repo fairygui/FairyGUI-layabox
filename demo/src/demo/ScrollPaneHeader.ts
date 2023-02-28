@@ -1,5 +1,5 @@
 
-export default class ScrollPaneHeader extends fgui.GComponent {
+export class ScrollPaneHeader extends fgui.GComponent {
 
     private _c1: fgui.Controller;
 

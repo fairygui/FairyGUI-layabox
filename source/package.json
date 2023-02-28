@@ -6,15 +6,13 @@
   "repository": "https://github.com/fairygui/FairyGUI-layabox",
   "bugs": "https://github.com/fairygui/FairyGUI-layabox/issues",
   "files": [
-    "bin",
-    "postinstall.js"
+    "bin"
   ],
   "scripts": {
     "start": "gulp start",
     "build": "gulp build",
     "compile": "gulp compile",
-    "copy": "gulp copy",
-    "postinstall": "node postinstall.js"
+    "copy": "gulp copy"
   },
   "author": "guzhu",
   "license": "MIT",
@@ -23,7 +21,7 @@
     "gulp-inject-string": "^1.1.2",
     "gulp-typescript": "^6.0.0-alpha.1",
     "merge2": "^1.4.1",
-    "typescript": "^2.9.2"
+    "typescript": "^4.9.5"
   },
   "keywords": [
     "laya",

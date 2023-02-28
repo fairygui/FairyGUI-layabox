@@ -1,6 +1,6 @@
 import { WindowA, WindowB } from "./TestWin";
 
-export default class BasicDemo {
+export class BasicDemo {
     private _view: fgui.GComponent;
     private _backBtn: fgui.GObject;
     private _demoContainer: fgui.GComponent;
@@ -14,7 +14,7 @@ export default class BasicDemo {
         fgui.UIConfig.popupMenu = "ui://Basics/PopupMenu";
         fgui.UIConfig.buttonSound = "ui://Basics/click";
 
-        fgui.UIPackage.loadPackage("res/UI/Basics", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/Basics", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {
@@ -209,13 +209,13 @@ export default class BasicDemo {
         btnD.dragBounds = rect;
     }
 
-    private __onDragStart(evt:laya.events.Event):void {
+    private __onDragStart(evt: Laya.Event): void {
         var btn: fgui.GButton = <fgui.GButton>fgui.GObject.cast(evt.currentTarget);
         btn.stopDrag();//取消对原目标的拖动，换成一个替代品
-        fgui.DragDropManager.inst.startDrag(btn,btn.icon,btn.icon);
+        fgui.DragDropManager.inst.startDrag(btn, btn.icon, btn.icon);
     }
-    
-    private __onDrop(data:any, evt:laya.events.Event):void {
+
+    private __onDrop(data: any, evt: Laya.Event): void {
         var btn: fgui.GButton = <fgui.GButton>fgui.GObject.cast(evt.currentTarget);
         btn.icon = data;
     }
@@ -306,8 +306,7 @@ export default class BasicDemo {
         obj.on(Laya.Event.UNDISPLAY, this, this.__removeTimer);
     }
 
-    private __removeTimer():void
-    {
+    private __removeTimer(): void {
         Laya.timer.clear(this, this.__playProgress);
     }
 

@@ -1,9 +1,9 @@
-export default class LoopListDemo {
+export class LoopListDemo {
     private _view: fgui.GComponent;
     private _list: fgui.GList;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/LoopList", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/LoopList", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {

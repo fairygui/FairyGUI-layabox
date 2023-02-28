@@ -1,11 +1,11 @@
-import MailItem from "./MailItem"
+import { MailItem } from "./MailItem"
 
-export default class ListEffectDemo {
+export class ListEffectDemo {
     private _view: fgui.GComponent;
     private _list: fgui.GList;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/ListEffect", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/ListEffect", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {

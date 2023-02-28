@@ -1,4 +1,4 @@
-export default class TransitionDemo {
+export class TransitionDemo {
     private _view: fgui.GComponent;
 
     private _btnGroup: fgui.GGroup;
@@ -13,7 +13,7 @@ export default class TransitionDemo {
     private _endValue: number;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/Transition", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/Transition", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {
@@ -33,12 +33,12 @@ export default class TransitionDemo {
         //play_num_now是在编辑器里设定的名称，这里表示播放到'play_num_now'这个位置时才开始播放数字变化效果
         this._g5.getTransition("t0").setHook("play_num_now", Laya.Handler.create(this, this.__playNum, null, false));
 
-        this._view.getChild("btn0").onClick(this, function (): void { this.__play(this._g1); });
-        this._view.getChild("btn1").onClick(this, function (): void { this.__play(this._g2); });
-        this._view.getChild("btn2").onClick(this, function (): void { this.__play(this._g3); });
+        this._view.getChild("btn0").onClick(this, () => { this.__play(this._g1); });
+        this._view.getChild("btn1").onClick(this, () => { this.__play(this._g2); });
+        this._view.getChild("btn2").onClick(this, () => { this.__play(this._g3); });
         this._view.getChild("btn3").onClick(this, this.__play4);
         this._view.getChild("btn4").onClick(this, this.__play5);
-        this._view.getChild("btn5").onClick(this, function (): void { this.__play(this._g6); });
+        this._view.getChild("btn5").onClick(this, () => { this.__play(this._g6); });
     }
 
     private __play(target: fgui.GComponent): void {
@@ -85,7 +85,7 @@ export default class TransitionDemo {
         //这里演示了一个数字变化的过程
         fgui.GTween.to(this._startValue, this._endValue, 0.3)
             .setEase(fgui.EaseType.Linear)
-            .onUpdate(function (tweener): void {
+            .onUpdate((tweener: fgui.GTweener) => {
                 this._g5.getChild("value").text = "" + Math.floor(tweener.value.x);
             }, this);
     }

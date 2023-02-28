@@ -24,9 +24,9 @@ gulp.task('start', () => {
 gulp.task('copy', () => {
     return merge([
         gulp.src('bin/*.js')
-            .pipe(gulp.dest('../demo/bin/libs/fairygui/')),
+            .pipe(gulp.dest('../demo/assets/fairygui/')),
         gulp.src('bin/*.ts')
-            .pipe(gulp.dest('../demo/libs/'))
+            .pipe(gulp.dest('../demo/assets/fairygui/'))
     ]);
 });
 

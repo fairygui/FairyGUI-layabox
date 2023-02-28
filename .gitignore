@@ -1,8 +1,6 @@
 node_modules
 .DS_Store
-.rpt2_cache
 .objs
 .laya
 .idea
 yarn.lock
-release

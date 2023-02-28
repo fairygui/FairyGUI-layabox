@@ -1,12 +1,12 @@
-import JoystickModule from "./JoystickModule"
+import { JoystickModule } from "./JoystickModule"
 
-export default class JoystickDemo {
+export class JoystickDemo {
     private _view: fgui.GComponent;
     private _joystick: JoystickModule;
     private _text: fgui.GTextField;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/Joystick", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/Joystick", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {

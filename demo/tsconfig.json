@@ -2,10 +2,17 @@
   "compilerOptions": {
     "module": "es6",
     "target": "es6",
+    "strict": true,
+    "strictNullChecks": false,
     "noEmitHelpers": true,
-    "sourceMap": false
+    "sourceMap": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true
   },
-  "exclude": [
-    "node_modules"
+  "include": [
+    "./assets",
+    "./src",
+    "./engine"
   ]
 }

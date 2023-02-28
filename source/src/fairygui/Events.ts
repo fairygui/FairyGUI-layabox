@@ -20,7 +20,7 @@ namespace fgui {
         public static createEvent(type: string, target: Laya.Sprite, source?: { target?: Laya.Sprite, touchId?: number }): Laya.Event {
             this.$event.setTo(type, target, source ? (source.target || target) : target);
             this.$event.touchId = source ? (source.touchId || 0) : 0;
-            this.$event.nativeEvent = source;
+            this.$event.nativeEvent = <any>source;
             this.$event["_stoped"] = false;
             return this.$event;
         }

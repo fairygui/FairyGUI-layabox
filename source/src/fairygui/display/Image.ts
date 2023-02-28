@@ -21,18 +21,14 @@ namespace fgui {
             this._color = "#FFFFFF";
         }
 
-        public set width(value: number) {
-            if (this["_width"] !== value) {
-                super.set_width(value);
-                this.markChanged(1);
-            }
+        set_width(value: number) {
+            super.set_width(value);
+            this.markChanged(1);
         }
 
-        public set height(value: number) {
-            if (this["_height"] !== value) {
-                super.set_height(value);
-                this.markChanged(1);
-            }
+        set_height(value: number): void {
+            super.set_height(value);
+            this.markChanged(1);
         }
 
         public get texture(): Laya.Texture {

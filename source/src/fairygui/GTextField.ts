@@ -2,7 +2,7 @@
 
 namespace fgui {
     export class GTextField extends GObject {
-        protected _templateVars: { [index: string]: string };
+        protected _templateVars: Record<string, string>;
         protected _text: string;
         protected _autoSize: number;
         protected _widthAutoSize: boolean;
@@ -178,16 +178,16 @@ namespace fgui {
             }
 
             if (pos1 < template.length)
-                result += template.substr(pos1);
+                result += template.substring(pos1);
 
             return result;
         }
 
-        public get templateVars(): { [index: string]: string } {
+        public get templateVars(): Record<string, string> {
             return this._templateVars;
         }
 
-        public set templateVars(value: { [index: string]: string }) {
+        public set templateVars(value: Record<string, string>) {
             if (!this._templateVars && !value)
                 return;
 

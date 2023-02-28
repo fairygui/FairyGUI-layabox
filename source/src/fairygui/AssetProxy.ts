@@ -1,11 +1,7 @@
 namespace fgui {
     export class AssetProxy {
 
-        private _asset: any;
-
-        constructor() {
-            this._asset = Laya.loader;
-        }
+        loader = Laya.loader;
 
         private static _inst: AssetProxy;
 
@@ -15,20 +11,12 @@ namespace fgui {
             return AssetProxy._inst;
         }
 
-        public getRes(url: string): any {
-            return this._asset.getRes(url);
+        public getRes(url: string, type?: string): any {
+            return this.loader.getRes(url, type);
         }
 
-        public getItemRes(item: PackageItem): any {
-            return this.getRes(item.file);
-        }
-
-        public load(url: any, complete?: Laya.Handler, progress?: Laya.Handler, type?: string, priority?: number, cache?: boolean): void {
-            this._asset.load(url, complete, progress, type, priority, cache);
-        }
-
-        public setAsset(asset: any): void {
-            this._asset = asset;
+        public load(url: string | Laya.ILoadURL | (string | Readonly<Laya.ILoadURL>)[], type?: string, onProgress?: Laya.ProgressCallback): Promise<any> {
+            return this.loader.load(url, type, onProgress);
         }
     }
 }

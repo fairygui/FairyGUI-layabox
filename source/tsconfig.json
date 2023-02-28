@@ -5,11 +5,11 @@
     "declaration": true,
     "sourceMap": false,
     "removeComments": false,
-    "outFile": "./fairygui.js"
+    "outFile": "./fairygui.js",
+    "skipLibCheck": true
   },
   "exclude": [
     "node_modules", 
-    "bin/**/*.d.ts",
-    "test"
+    "bin/**/*.d.ts"
   ]
 }

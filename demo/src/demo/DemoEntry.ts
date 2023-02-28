@@ -1,6 +1,6 @@
-import MainMenu from "./MainMenu";
+import { MainMenu } from "./MainMenu";
 
-export default class DemoEntry {
+export class DemoEntry {
 
     private _closeButton: fgui.GObject;
     private _currentDemo: any;
@@ -10,7 +10,7 @@ export default class DemoEntry {
         this._currentDemo = new MainMenu();
     }
 
-    onDemoStart(demo) {
+    onDemoStart(demo : any) {
         this._currentDemo = demo;
         this._closeButton = fgui.UIPackage.createObject("MainMenu", "CloseButton");
         this._closeButton.setXY(fgui.GRoot.inst.width - this._closeButton.width - 10, fgui.GRoot.inst.height - this._closeButton.height - 10);
@@ -22,7 +22,7 @@ export default class DemoEntry {
     }
 
     onDemoClosed() {
-        if(this._currentDemo.destroy)
+        if (this._currentDemo.destroy)
             this._currentDemo.destroy();
         fgui.GRoot.inst.removeChildren(0, -1, true);
 

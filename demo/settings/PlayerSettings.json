@@ -1,0 +1,26 @@
+{
+  "3D": {
+    "lightClusterCount": {
+      "x": 12,
+      "y": 12,
+      "z": 12
+    }
+  },
+  "modules": {
+    "laya.d3": true,
+    "laya.ui": true,
+    "laya.ani": false,
+    "laya.device": false,
+    "laya.html": true,
+    "laya.tiledmap": false,
+    "laya.particle": false,
+    "laya.gltf": false,
+    "laya.physics": false,
+    "laya.physics3D": false,
+    "laya.physics3D.wasm": false,
+    "laya.spine": false
+  },
+  "splash": {
+    "fit": "center"
+  }
+}

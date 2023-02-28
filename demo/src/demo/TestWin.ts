@@ -13,7 +13,7 @@ export class TestWin extends fgui.Window {
     private onClickStart(): void {
         //这里模拟一个要锁住当前窗口的过程，在锁定过程中，窗口仍然是可以移动和关闭的
         this.showModalWait();
-        fgui.GTween.delayedCall(3).onComplete(function (): void { this.closeModalWait(); }, this);
+        fgui.GTween.delayedCall(3).onComplete(() => { this.closeModalWait(); }, this);
     }
 }
 

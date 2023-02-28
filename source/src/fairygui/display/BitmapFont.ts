@@ -3,7 +3,7 @@ namespace fgui {
         public id: string;
         public size: number = 0;
         public ttf?: boolean;
-        public glyphs: { [index: string]: BMGlyph };
+        public glyphs: Record<string, BMGlyph>;
         public resizable?: boolean;
         public tint?: boolean;
 

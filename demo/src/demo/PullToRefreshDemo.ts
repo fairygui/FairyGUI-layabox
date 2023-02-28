@@ -1,14 +1,14 @@
-import ScrollPaneHeader from "./ScrollPaneHeader"
+import { ScrollPaneHeader } from "./ScrollPaneHeader"
 
-export default class PullToRefreshDemo {
+export class PullToRefreshDemo {
     private _view: fgui.GComponent;
     private _list1: fgui.GList;
     private _list2: fgui.GList;
 
     constructor() {
         fgui.UIObjectFactory.setExtension("ui://PullToRefresh/Header", ScrollPaneHeader);
-        
-        fgui.UIPackage.loadPackage("res/UI/PullToRefresh", Laya.Handler.create(this, this.onUILoaded));
+
+        fgui.UIPackage.loadPackage("resources/ui/PullToRefresh", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {
@@ -37,15 +37,15 @@ export default class PullToRefreshDemo {
         item.text = "Item " + index;
     }
 
-    private onPullDownToRefresh(evt: laya.events.Event): void {
+    private onPullDownToRefresh(evt: Laya.Event): void {
         var header: ScrollPaneHeader = <ScrollPaneHeader>(this._list1.scrollPane.header);
         if (header.readyToRefresh) {
             header.setRefreshStatus(2);
             this._list1.scrollPane.lockHeader(header.sourceHeight);
 
             //Simulate a async resquest
-            Laya.timer.once(2000, this, function (): void {
-                if(this._view.isDisposed)
+            Laya.timer.once(2000, this, () => {
+                if (this._view.isDisposed)
                     return;
                 this._list1.numItems += 5;
 
@@ -53,7 +53,7 @@ export default class PullToRefreshDemo {
                 header.setRefreshStatus(3);
                 this._list1.scrollPane.lockHeader(35);
 
-                Laya.timer.once(2000, this, function (): void {
+                Laya.timer.once(2000, this, () => {
                     header.setRefreshStatus(0);
                     this._list1.scrollPane.lockHeader(0);
                 });
@@ -61,15 +61,15 @@ export default class PullToRefreshDemo {
         }
     }
 
-    private onPullUpToRefresh(evt: laya.events.Event): void {
+    private onPullUpToRefresh(evt: Laya.Event): void {
         var footer: fgui.GComponent = this._list2.scrollPane.footer.asCom;
 
         footer.getController("c1").selectedIndex = 1;
         this._list2.scrollPane.lockFooter(footer.sourceHeight);
 
         //Simulate a async resquest
-        Laya.timer.once(2000, this, function (): void {
-            if(this._view.isDisposed)
+        Laya.timer.once(2000, this, () => {
+            if (this._view.isDisposed)
                 return;
             this._list2.numItems += 5;
 

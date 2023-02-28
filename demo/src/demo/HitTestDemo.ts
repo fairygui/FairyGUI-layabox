@@ -1,8 +1,8 @@
-export default class HitTestDemo {
+export class HitTestDemo {
     private _view: fgui.GComponent;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/HitTest", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/HitTest", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {

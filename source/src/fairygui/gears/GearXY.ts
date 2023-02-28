@@ -9,7 +9,7 @@ namespace fgui {
     export class GearXY extends GearBase {
         public positionsInPercent: boolean;
 
-        private _storage: { [index: string]: Value };
+        private _storage: Record<string, Value>;
         private _default: Value;
 
         constructor(owner: GObject) {

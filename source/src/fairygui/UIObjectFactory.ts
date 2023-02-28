@@ -2,7 +2,7 @@
 module fgui {
 
     export class UIObjectFactory {
-        public static extensions: { [index: string]: new () => GComponent } = {};
+        public static extensions: Record<string, new () => GComponent> = {};
         public static loaderType: new () => GLoader;
 
         public constructor() {

@@ -1,9 +1,9 @@
-export default class GuideDemo {
+export class GuideDemo {
     private _view: fgui.GComponent;
     private _guideLayer: fgui.GComponent;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/Guide", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/Guide", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {

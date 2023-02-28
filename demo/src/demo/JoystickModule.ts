@@ -1,5 +1,5 @@
 
-export default class JoystickModule extends Laya.EventDispatcher {
+export class JoystickModule extends Laya.EventDispatcher {
     private _InitX: number;
     private _InitY: number;
     private _startStageX: number;

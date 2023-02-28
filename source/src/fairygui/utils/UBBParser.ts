@@ -3,7 +3,7 @@ namespace fgui {
         private _text: string;
         private _readPos: number = 0;
 
-        protected _handlers: { [index: string]: (tagName: string, end: boolean, attr: string) => string };
+        protected _handlers: Record<string, (tagName: string, end: boolean, attr: string) => string>;
 
         public defaultImgWidth: number = 0;
         public defaultImgHeight: number = 0;

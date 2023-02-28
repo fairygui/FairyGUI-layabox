@@ -7,7 +7,7 @@ namespace fgui {
     }
 
     export class GearAnimation extends GearBase {
-        private _storage: { [index: string]: Value };
+        private _storage: Record<string, Value>;
         private _default: Value;
 
         constructor(owner: GObject) {

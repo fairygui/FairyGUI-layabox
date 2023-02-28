@@ -272,7 +272,9 @@ namespace fgui {
         }
 
         protected loadExternal(): void {
-            AssetProxy.inst.load(this._url, Laya.Handler.create(this, this.__getResCompleted), null, Laya.Loader.IMAGE);
+            AssetProxy.inst.load(this._url, Laya.Loader.IMAGE).then((tex: Laya.Texture) => {
+                this.__getResCompleted(tex);
+            });
         }
 
         protected freeExternal(texture: Laya.Texture): void {

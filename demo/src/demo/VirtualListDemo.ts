@@ -1,23 +1,23 @@
-import MailItem from "./MailItem"
+import { MailItem } from "./MailItem"
 
-export default class VirtualListDemo {
+export class VirtualListDemo {
     private _view: fgui.GComponent;
     private _list: fgui.GList;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/VirtualList", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/VirtualList", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {
         fgui.UIObjectFactory.setExtension("ui://VirtualList/mailItem", MailItem);
-        
+
         this._view = fgui.UIPackage.createObject("VirtualList", "Main").asCom;
         this._view.makeFullScreen();
         fgui.GRoot.inst.addChild(this._view);
 
-        this._view.getChild("n6").onClick(this, function (): void { this._list.addSelection(500, true); });
-        this._view.getChild("n7").onClick(this, function (): void { this._list.scrollPane.scrollTop(); });
-        this._view.getChild("n8").onClick(this, function (): void { this._list.scrollPane.scrollBottom(); });
+        this._view.getChild("n6").onClick(this, () => { this._list.addSelection(500, true); });
+        this._view.getChild("n7").onClick(this, () => { this._list.scrollPane.scrollTop(); });
+        this._view.getChild("n8").onClick(this, () => { this._list.scrollPane.scrollBottom(); });
 
         this._list = this._view.getChild("mailList").asList;
         this._list.setVirtual();

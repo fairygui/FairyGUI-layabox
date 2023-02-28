@@ -1,6 +1,6 @@
 namespace fgui {
     export class TranslationHelper {
-        public static strings: { [index: string]: { [index: string]: string } };
+        public static strings: Record<string, Record<string, string>>;
 
         constructor() {
         }
@@ -38,7 +38,7 @@ namespace fgui {
             if (TranslationHelper.strings == null)
                 return;
 
-            var compStrings: { [index: string]: string } = TranslationHelper.strings[item.owner.id + item.id];
+            var compStrings = TranslationHelper.strings[item.owner.id + item.id];
             if (compStrings == null)
                 return;
 

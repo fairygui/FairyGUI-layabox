@@ -1,9 +1,9 @@
-export default class ScrollPaneDemo {
+export class ScrollPaneDemo {
     private _view: fgui.GComponent;
     private _list: fgui.GList;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/ScrollPane", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/ScrollPane", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {

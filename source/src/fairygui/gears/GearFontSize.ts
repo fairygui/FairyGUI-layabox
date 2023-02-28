@@ -1,6 +1,6 @@
 namespace fgui {
     export class GearFontSize extends GearBase {
-        private _storage: { [index: string]: number };
+        private _storage: Record<string, number>;
         private _default: number = 0;
 
         constructor(owner: GObject) {

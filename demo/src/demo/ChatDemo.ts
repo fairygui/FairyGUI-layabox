@@ -1,5 +1,5 @@
-import HitTestDemo from "./HitTestDemo";
-import EmojiParser from "./EmojiParser";
+import { HitTestDemo } from "./HitTestDemo";
+import { EmojiParser } from "./EmojiParser";
 
 class Message {
     public sender: string;
@@ -8,7 +8,7 @@ class Message {
     public fromMe: boolean;
 }
 
-export default class ChatDemo {
+export class ChatDemo {
     private _view: fgui.GComponent;
     private _list: fgui.GList;
     private _input: fgui.GTextInput;
@@ -17,7 +17,7 @@ export default class ChatDemo {
     private _messages: Array<Message>;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/Chat", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/Chat", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {
@@ -87,10 +87,10 @@ export default class ChatDemo {
             item.getChild("name").text = msg.sender;
         item.icon = fgui.UIPackage.getItemURL("Chat", msg.senderIcon);
 
-        var txtObj:fgui.GRichTextField = item.getChild("msg").asRichTextField;
+        var txtObj: fgui.GRichTextField = item.getChild("msg").asRichTextField;
         txtObj.width = txtObj.initWidth;
         txtObj.text = this._emojiParser.parse(msg.msg);
-        if(txtObj.textWidth<txtObj.width)
+        if (txtObj.textWidth < txtObj.width)
             txtObj.width = txtObj.textWidth;
     }
 

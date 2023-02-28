@@ -1,0 +1,36 @@
+{
+  "_$ver": 1,
+  "_$id": "hnwls5ca",
+  "_$type": "Dialog",
+  "name": "View",
+  "width": 400,
+  "height": 400,
+  "anchorX": 0,
+  "anchorY": 0,
+  "mouseEnabled": true,
+  "_$child": [
+    {
+      "_$id": "ffsycbdo",
+      "_$type": "Box",
+      "name": "Box",
+      "x": 123,
+      "y": 106,
+      "width": 193,
+      "height": 200,
+      "anchorX": 1,
+      "anchorY": 0
+    },
+    {
+      "_$id": "qj7zqvm0",
+      "_$type": "Image",
+      "name": "Image",
+      "x": 219,
+      "y": 129,
+      "width": 389,
+      "height": 313,
+      "anchorX": 0.3383290488431876,
+      "anchorY": 0.28753993610223644,
+      "skin": "res://c13c1b8e-c516-4a0f-98ad-e356f45f0365"
+    }
+  ]
+}

@@ -1,12 +1,12 @@
 namespace fgui {
-    type PackageDependency = { id: string, name: string; };
+    type PackageDependency = { id: string, name: string };
 
     export class UIPackage {
         private _id: string;
         private _name: string;
         private _items: PackageItem[];
-        private _itemsById: { [index: string]: PackageItem; };
-        private _itemsByName: { [index: string]: PackageItem; };
+        private _itemsById: Record<string, PackageItem>;
+        private _itemsByName: Record<string, PackageItem>;
         private _resKey: string;
         private _customId: string;
         private _sprites: Object;
@@ -16,10 +16,10 @@ namespace fgui {
 
         public static _constructing: number = 0;
 
-        private static _instById: { [index: string]: UIPackage; } = {};
-        private static _instByName: { [index: string]: UIPackage; } = {};
+        private static _instById: Record<string, UIPackage> = {};
+        private static _instByName: Record<string, UIPackage> = {};
         private static _branch: string = "";
-        private static _vars: { [index: string]: string; } = {};
+        private static _vars: Record<string, string> = {};
 
         constructor() {
             this._items = [];
@@ -111,16 +111,17 @@ namespace fgui {
                 completeHandler.runWith([pkgArr]);
                 return;
             }
-            var descCompleteHandler: Laya.Handler = Laya.Handler.create(this, function () {
+
+            AssetProxy.inst.load(loadKeyArr, Laya.Loader.BUFFER).then((resArr: Array<Laya.TextResource>) => {
                 let pkg: UIPackage;
                 let urls = [];
                 for (i = 0; i < loadKeyArr.length; i++) {
-                    let asset = AssetProxy.inst.getRes(loadKeyArr[i].url);
+                    let asset = resArr[i];
                     if (asset) {
                         pkg = new UIPackage();
                         pkgArr.push(pkg);
                         pkg._resKey = keys[i];
-                        pkg.loadPackage(new ByteBuffer(asset));
+                        pkg.loadPackage(new ByteBuffer(asset.data));
                         let cnt: number = pkg._items.length;
                         for (let j: number = 0; j < cnt; j++) {
                             let pi: PackageItem = pkg._items[j];
@@ -134,7 +135,7 @@ namespace fgui {
                     }
                 }
                 if (urls.length > 0) {
-                    AssetProxy.inst.load(urls, Laya.Handler.create(this, function (): void {
+                    AssetProxy.inst.load(urls).then(() => {
                         for (i = 0; i < pkgArr.length; i++) {
                             pkg = pkgArr[i];
                             if (!UIPackage._instById[pkg.id]) {
@@ -144,7 +145,9 @@ namespace fgui {
                             }
                         }
                         completeHandler.runWith([pkgArr]);
-                    }, null, true), progressHandler);
+                    }, (progress: number) => {
+                        progressHandler.runWith(progress);
+                    });
                 }
                 else {
                     for (i = 0; i < pkgArr.length; i++) {
@@ -157,9 +160,7 @@ namespace fgui {
                     }
                     completeHandler.runWith([pkgArr]);
                 }
-            }, null, true);
-
-            AssetProxy.inst.load(loadKeyArr, descCompleteHandler, null, Laya.Loader.BUFFER);
+            });
         }
 
         public static removePackage(packageIdOrName: string): void {
@@ -560,7 +561,7 @@ namespace fgui {
             return g;
         }
 
-        public getItems(): PackageItem[] {
+        public getItems(): ReadonlyArray<PackageItem> {
             return this._items;
         }
 
@@ -606,7 +607,7 @@ namespace fgui {
                 case PackageItemType.Atlas:
                     if (!item.decoded) {
                         item.decoded = true;
-                        item.texture = AssetProxy.inst.getItemRes(item);
+                        item.texture = AssetProxy.inst.getRes(item.file);
                         //if(!fgui.UIConfig.textureLinearSampling)
                         //item.texture.isLinearSampling = false;
                     }
@@ -631,7 +632,7 @@ namespace fgui {
 
                 case PackageItemType.Misc:
                     if (item.file)
-                        return AssetProxy.inst.getItemRes(item);
+                        return AssetProxy.inst.getRes(item.file);
                     else
                         return null;
 
@@ -669,7 +670,7 @@ namespace fgui {
                     });
                     let pos = item.file.lastIndexOf('.');
                     let str = item.file.substring(0, pos + 1).replace("_ske", "") + "sk";
-                    item.templet.loadAni(str);
+                    Laya.loader.load(str).then(() => onComplete(null, item));
                     break;
 
                 default:

@@ -1,11 +1,11 @@
-export default class TreeViewDemo {
+export class TreeViewDemo {
     private _view: fgui.GComponent;
     private _tree1: fgui.GTree;
     private _tree2: fgui.GTree;
     private _fileURL: string;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/TreeView", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/TreeView", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {

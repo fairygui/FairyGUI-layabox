@@ -8,7 +8,7 @@ namespace fgui {
     }
 
     export class GearSize extends GearBase {
-        private _storage: { [index: string]: Value };
+        private _storage: Record<string, Value>;
         private _default: Value;
 
         public constructor(owner: GObject) {

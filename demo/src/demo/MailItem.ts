@@ -1,5 +1,5 @@
 
-export default class MailItem extends fgui.GButton {
+export class MailItem extends fgui.GButton {
 
     private _timeText: fgui.GTextField;
     private _readController: fgui.Controller;

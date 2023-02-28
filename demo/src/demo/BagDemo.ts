@@ -1,9 +1,9 @@
-export default class BagDemo {
+export class BagDemo {
     private _view: fgui.GComponent;
     private _bagWindow: fgui.Window;
 
     constructor() {
-        fgui.UIPackage.loadPackage("res/UI/Bag", Laya.Handler.create(this, this.onUILoaded));
+        fgui.UIPackage.loadPackage("resources/ui/Bag", Laya.Handler.create(this, this.onUILoaded));
     }
 
     onUILoaded() {
@@ -39,7 +39,7 @@ class BagWindow extends fgui.Window {
     }
 
     private renderListItem(index: number, obj: fgui.GObject): void {
-        obj.icon = "res/icons/i" + Math.floor(Math.random() * 10) + ".png";
+        obj.icon = "resources/icons/i" + Math.floor(Math.random() * 10) + ".png";
         obj.text = "" + Math.floor(Math.random() * 100);
     }
 

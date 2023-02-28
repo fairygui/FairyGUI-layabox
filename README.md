@@ -6,23 +6,19 @@ A flexible UI framework for LayaAir Engine, working with the FREE professional G
 Official website: [www.fairygui.com](http://www.fairygui.com)
 
 # 关于版本
-目前有三个主要的分支:
-* master 是用于LayaAir2.2或更新的版本
+目前有以下主要的分支:
+* master 是用于LayaAir3.0或更新的版本
+* layair2.2-2.13 是用于LayaAir2.2-2.13版本
 * layair2.0-2.1 是用于LayaAir2.0,2.1这两个版本
 * layair1.x 用于LayaAir1.x版本
 
 # 目录结构
 * source fairygui的源码
-* demo 例子工程,可用Laya IDE直接打开
+* demo 例子工程,可用LayaAirIDE直接打开
   * UIProject UI 工程,可以FairyGUI编辑器打开
 
-# 获取fairygui库
-如果你只是想添加或者更新fairygui库到你的项目,那么下载以下文件即可:
-* source/bin/fairygui.js
-* source/bin/fairygui.d.ts
-
 # 编译源码
-在source目录下执行gulp build命令
+在source目录下执行gulp build命令。然后将bin目录下的fairygui.js和fairygui.d.ts拷贝到你的项目assets目录下，并将fairygui.js设定为插件。
 
 # License
 MIT
