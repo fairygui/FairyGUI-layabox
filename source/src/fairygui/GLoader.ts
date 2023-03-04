@@ -324,7 +324,7 @@ namespace fgui {
             }
         }
 
-        private updateLayout(): void {
+        updateLayout(): void {
             if (!this._content2 && !this._content.texture && !this._content.frames) {
                 if (this._autoSize) {
                     this._updatingLayout = true;
