@@ -249,6 +249,10 @@ namespace fgui {
             return this._playing;
         }
 
+        public get totalDuration(): number {
+            return this._totalDuration;
+        }
+
         public setValue(label: string, ...args): void {
             var cnt: number = this._items.length;
             var found: boolean = false;
