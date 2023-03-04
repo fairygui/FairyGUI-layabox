@@ -1,13 +1,7 @@
 namespace fgui {
     export class GList extends GComponent {
-        /**
-         * this.itemRenderer(number index, GObject item);
-         */
-        public itemRenderer: Laya.Handler;
-        /**
-         * this.itemProvider(index:number):string;
-         */
-        public itemProvider: Laya.Handler;
+        public itemRenderer: Laya.Handler | ((index: number, item: GObject) => void);
+        public itemProvider: Laya.Handler | ((index: number) => string);
 
         public scrollItemToViewOnClick: boolean;
         public foldInvisibleItems: boolean;
@@ -1066,10 +1060,14 @@ namespace fgui {
                 var cnt: number = this._children.length;
                 if (value > cnt) {
                     for (i = cnt; i < value; i++) {
-                        if (this.itemProvider == null)
+                        if (this.itemProvider == null) {
                             this.addItemFromPool();
-                        else
-                            this.addItemFromPool(this.itemProvider.runWith(i));
+                        } else {
+                            if (typeof this.itemProvider === 'function')
+                                this.addItemFromPool(this.itemProvider(i));
+                            else 
+                                this.addItemFromPool(this.itemProvider.runWith(i));
+                        }
                     }
                 }
                 else {
@@ -1077,8 +1075,12 @@ namespace fgui {
                 }
 
                 if (this.itemRenderer != null) {
-                    for (i = 0; i < value; i++)
-                        this.itemRenderer.runWith([i, this.getChildAt(i)]);
+                    for (i = 0; i < value; i++) {
+                        if (typeof this.itemRenderer === 'function')
+                            this.itemRenderer(i, this.getChildAt(i));
+                        else
+                            this.itemRenderer.runWith([i, this.getChildAt(i)]);
+                    }
                 }
             }
         }
@@ -1409,7 +1411,7 @@ namespace fgui {
 
                 if (ii.obj == null || forceUpdate) {
                     if (this.itemProvider != null) {
-                        url = this.itemProvider.runWith(curIndex % this._numItems);
+                        url = typeof this.itemProvider === 'function' ? this.itemProvider(curIndex % this._numItems) : this.itemProvider.runWith(curIndex % this._numItems);
                         if (url == null)
                             url = this._defaultItem;
                         url = UIPackage.normalizeURL(url);
@@ -1476,7 +1478,7 @@ namespace fgui {
                     if (this._autoResizeItem && (this._layout == ListLayoutType.SingleColumn || this._columnCount > 0))
                         ii.obj.setSize(partSize, ii.obj.height, true);
 
-                    this.itemRenderer.runWith([curIndex % this._numItems, ii.obj]);
+                    typeof this.itemRenderer === 'function' ? this.itemRenderer(curIndex % this._numItems, ii.obj) : this.itemRenderer.runWith([curIndex % this._numItems, ii.obj]);
                     if (curIndex % this._curLineItemCount == 0) {
                         deltaSize += Math.ceil(ii.obj.height) - ii.height;
                         if (curIndex == newFirstIndex && oldFirstIndex > newFirstIndex) {
@@ -1563,7 +1565,7 @@ namespace fgui {
 
                 if (ii.obj == null || forceUpdate) {
                     if (this.itemProvider != null) {
-                        url = this.itemProvider.runWith(curIndex % this._numItems);
+                        url = typeof this.itemProvider === 'function' ? this.itemProvider(curIndex % this._numItems) : this.itemProvider.runWith(curIndex % this._numItems);
                         if (url == null)
                             url = this._defaultItem;
                         url = UIPackage.normalizeURL(url);
@@ -1629,7 +1631,7 @@ namespace fgui {
                     if (this._autoResizeItem && (this._layout == ListLayoutType.SingleRow || this._lineCount > 0))
                         ii.obj.setSize(ii.obj.width, partSize, true);
 
-                    this.itemRenderer.runWith([curIndex % this._numItems, ii.obj]);
+                    typeof this.itemRenderer === 'function' ? this.itemRenderer(curIndex % this._numItems, ii.obj) : this.itemRenderer.runWith([curIndex % this._numItems, ii.obj]);
                     if (curIndex % this._curLineItemCount == 0) {
                         deltaSize += Math.ceil(ii.obj.width) - ii.width;
                         if (curIndex == newFirstIndex && oldFirstIndex > newFirstIndex) {
@@ -1762,7 +1764,7 @@ namespace fgui {
 
                     if (ii.obj == null) {
                         if (this.itemProvider != null) {
-                            url = this.itemProvider.runWith(i % this._numItems);
+                            url = typeof this.itemProvider === 'function' ? this.itemProvider(i % this._numItems) : this.itemProvider.runWith(i % this._numItems);
                             if (url == null)
                                 url = this._defaultItem;
                             url = UIPackage.normalizeURL(url);
@@ -1797,7 +1799,7 @@ namespace fgui {
                             ii.obj.setSize(ii.obj.width, partHeight, true);
                     }
 
-                    this.itemRenderer.runWith([i % this._numItems, ii.obj]);
+                    typeof this.itemRenderer === 'function' ? this.itemRenderer(i % this._numItems, ii.obj) : this.itemRenderer.runWith([i % this._numItems, ii.obj]);
                     ii.width = Math.ceil(ii.obj.width);
                     ii.height = Math.ceil(ii.obj.height);
                 }

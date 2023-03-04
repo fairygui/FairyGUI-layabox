@@ -24,7 +24,7 @@ namespace fgui {
             this._contentPane.dispose();
         }
 
-        public addItem(caption: string, handler?: Laya.Handler): GButton {
+        public addItem(caption: string, handler?: SimpleHandler): GButton {
             var item: GButton = this._list.addItemFromPool().asButton;
             item.title = caption;
             item.data = handler;
@@ -35,7 +35,7 @@ namespace fgui {
             return item;
         }
 
-        public addItemAt(caption: string, index: number, handler?: Laya.Handler): GButton {
+        public addItemAt(caption: string, index: number, handler?: SimpleHandler): GButton {
             var item: GButton = this._list.getFromPool().asButton;
             this._list.addChildAt(item, index);
             item.title = caption;
@@ -157,9 +157,10 @@ namespace fgui {
             }
             var r: GRoot = <GRoot>(this._contentPane.parent);
             r.hidePopup(this.contentPane);
-            if (itemObject.data != null) {
+            if (typeof itemObject.data === 'function')
+                (<()=>void>itemObject.data)();
+            else if (itemObject.data instanceof Laya.Handler)
                 (<Laya.Handler>itemObject.data).run();
-            }
         }
 
         private __addedToStage(): void {

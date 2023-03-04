@@ -10,7 +10,7 @@ namespace fgui {
         private _totalTasks: number;
         private _playing: boolean;
         private _paused: boolean;
-        private _onComplete: Laya.Handler;
+        private _onComplete: SimpleHandler;
         private _options: number;
         private _reversed: boolean;
         private _totalDuration: number;
@@ -32,11 +32,11 @@ namespace fgui {
             this._endTime = 0;
         }
 
-        public play(onComplete?: Laya.Handler, times?: number, delay?: number, startTime?: number, endTime?: number): void {
+        public play(onComplete?: SimpleHandler, times?: number, delay?: number, startTime?: number, endTime?: number): void {
             this._play(onComplete, times, delay, startTime, endTime, false);
         }
 
-        public playReverse(onComplete?: Laya.Handler, times?: number, delay?: number, startTime?: number, endTime?: number): void {
+        public playReverse(onComplete?: SimpleHandler, times?: number, delay?: number, startTime?: number, endTime?: number): void {
             this._play(onComplete, 1, delay, startTime, endTime, true);
         }
 
@@ -63,7 +63,7 @@ namespace fgui {
             }
         }
 
-        private _play(onComplete: Laya.Handler, times: number, delay: number, startTime: number, endTime: number, reversed: boolean): void {
+        private _play(onComplete: SimpleHandler, times: number, delay: number, startTime: number, endTime: number, reversed: boolean): void {
             if (times == undefined) times = 1;
             if (delay == undefined) delay = 0;
             if (startTime == undefined) startTime = 0;
@@ -134,7 +134,7 @@ namespace fgui {
             this._playing = false;
             this._totalTasks = 0;
             this._totalTimes = 0;
-            var handler: Laya.Handler = this._onComplete;
+            var handler = this._onComplete;
             this._onComplete = null;
 
             GTween.kill(this);//delay start
@@ -160,7 +160,7 @@ namespace fgui {
             }
 
             if (processCallback && handler) {
-                handler.run();
+                typeof handler === 'function' ? handler() : handler.run();
             }
         }
 
@@ -343,7 +343,7 @@ namespace fgui {
                 throw new Error("this.label not exists");
         }
 
-        public setHook(label: string, callback: Laya.Handler): void {
+        public setHook(label: string, callback: SimpleHandler): void {
             var cnt: number = this._items.length;
             var found: boolean = false;
             for (var i: number = 0; i < cnt; i++) {
@@ -504,9 +504,9 @@ namespace fgui {
                 }
             }
             else if (this._onComplete) {
-                var handler: Laya.Handler = this._onComplete;
+                var handler = this._onComplete;
                 this._onComplete = null;
-                handler.run();
+                typeof handler === 'function' ? handler() : handler.run();
             }
         }
 
@@ -860,11 +860,12 @@ namespace fgui {
         private callHook(item: Item, tweenEnd: boolean): void {
             if (tweenEnd) {
                 if (item.tweenConfig && item.tweenConfig.endHook)
-                    item.tweenConfig.endHook.run();
+                    typeof item.hook == "function" ? item.hook() : item.hook.run();
             }
             else {
-                if (item.time >= this._startTime && item.hook)
-                    item.hook.run();
+                if (item.time >= this._startTime && item.hook) {
+                    typeof item.hook == "function" ? item.hook() : item.hook.run();
+                }
             }
         }
 
@@ -895,9 +896,9 @@ namespace fgui {
                         }
 
                         if (this._onComplete) {
-                            var handler: Laya.Handler = this._onComplete;
+                            var handler = this._onComplete;
                             this._onComplete = null;
-                            handler.run();
+                            typeof handler === 'function' ? handler() : handler.run();
                         }
                     }
                 }
@@ -992,7 +993,7 @@ namespace fgui {
                             if (value.stopTime >= 0 && (endTime < 0 || endTime > value.stopTime))
                                 endTime = value.stopTime;
                             trans.timeScale = this._timeScale;
-                            trans._play(Laya.Handler.create(this, this.onPlayTransCompleted, [item]), value.playTimes, 0, startTime, endTime, this._reversed);
+                            trans._play(() => this.onPlayTransCompleted(item), value.playTimes, 0, startTime, endTime, this._reversed);
                         }
                     }
                     break;
@@ -1218,7 +1219,7 @@ namespace fgui {
         public tweenConfig?: TweenConfig;
         public label?: string;
         public value: TValue;
-        public hook?: Laya.Handler;
+        public hook?: SimpleHandler;
 
         public tweener?: GTweener;
         public target: GObject;
@@ -1239,7 +1240,7 @@ namespace fgui {
         public startValue: TValue;
         public endValue: TValue;
         public endLabel: string;
-        public endHook?: Laya.Handler;
+        public endHook?: SimpleHandler;
         public path?: GPath;
 
         constructor() {
