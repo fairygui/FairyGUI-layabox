@@ -1,10 +1,7 @@
 namespace fgui {
 
     export class AsyncOperation {
-        /**
-         * this.callback(obj:GObject)
-         */
-        public callback: Laya.Handler;
+        public callback: Laya.Handler | ((obj: GObject) => void);
 
         private _itemList: Array<DisplayListItem>;
         private _objectPool: GObject[];
@@ -197,7 +194,9 @@ namespace fgui {
             this._itemList.length = 0;
             this._objectPool.length = 0;
 
-            if (this.callback != null)
+            if (typeof this.callback === 'function')
+                this.callback(result);
+            else if (this.callback)
                 this.callback.runWith(result);
         }
     }

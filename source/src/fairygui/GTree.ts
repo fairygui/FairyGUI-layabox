@@ -1,14 +1,7 @@
 namespace fgui {
     export class GTree extends GList {
-
-        /**
-         * (node: GTreeNode, obj: GComponent) => void
-         */
-        public treeNodeRender: Laya.Handler;
-        /**
-         * (node: GTreeNode, expanded: boolean) => void;
-         */
-        public treeNodeWillExpand: Laya.Handler;
+        public treeNodeRender: Laya.Handler | ((node: GTreeNode, obj: GComponent) => void);
+        public treeNodeWillExpand: Laya.Handler | ((node: GTreeNode, expanded: boolean) => void);
 
         private _indent: number;
         private _clickToExpand: number;
@@ -141,7 +134,9 @@ namespace fgui {
             if (node.isFolder)
                 child.on(Laya.Event.MOUSE_DOWN, this, this.__cellMouseDown);
 
-            if (this.treeNodeRender)
+            if (typeof this.treeNodeRender === 'function')
+                this.treeNodeRender(node, child);
+            else if (this.treeNodeRender)
                 this.treeNodeRender.runWith([node, child]);
         }
 
@@ -151,7 +146,9 @@ namespace fgui {
 
             var index: number = this.getInsertIndexForNode(node);
             this.addChildAt(node._cell, index);
-            if (this.treeNodeRender)
+            if (typeof this.treeNodeRender === 'function')
+                this.treeNodeRender(node, node._cell);
+            else if (this.treeNodeRender)
                 this.treeNodeRender.runWith([node, node._cell]);
 
             if (node.isFolder && node.expanded)
@@ -186,13 +183,17 @@ namespace fgui {
                 return;
             }
 
-            if (this.treeNodeWillExpand != null)
+            if (typeof this.treeNodeWillExpand === 'function')
+                this.treeNodeWillExpand(node, true);
+            else if (this.treeNodeWillExpand)
                 this.treeNodeWillExpand.runWith([node, true]);
 
             if (!node._cell)
                 return;
 
-            if (this.treeNodeRender)
+            if (typeof this.treeNodeRender === 'function')
+                this.treeNodeRender(node, node._cell);
+            else if (this.treeNodeRender)
                 this.treeNodeRender.runWith([node, node._cell]);
 
             var cc: Controller = node._cell.getController("expanded");
@@ -209,13 +210,17 @@ namespace fgui {
                 return;
             }
 
-            if (this.treeNodeWillExpand)
+            if (typeof this.treeNodeWillExpand === 'function')
+                this.treeNodeWillExpand(node, false);
+            else if (this.treeNodeWillExpand)
                 this.treeNodeWillExpand.runWith([node, false]);
 
             if (!node._cell)
                 return;
 
-            if (this.treeNodeRender)
+            if (typeof this.treeNodeRender === 'function')
+                this.treeNodeRender(node, node._cell);
+            else if (this.treeNodeRender)
                 this.treeNodeRender.runWith([node, node._cell]);
 
             var cc: Controller = node._cell.getController("expanded");

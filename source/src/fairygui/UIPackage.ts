@@ -81,7 +81,7 @@ namespace fgui {
         /**
          * @param resKey resKey 或 [resKey1,resKey2,resKey3....]
          */
-        public static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler, progressHandler?: Laya.Handler): void {
+        public static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler | ((pkgs: UIPackage[]) =>  void), progressHandler?: Laya.Handler | ((progress: number) => void)): void {
             let loadKeyArr = [];
             let keys: Array<string> = [];
             let i: number;
@@ -107,8 +107,8 @@ namespace fgui {
                     i--;
                 }
             }
-            if (loadKeyArr.length == 0) {
-                completeHandler.runWith([pkgArr]);
+            if (loadKeyArr.length == 0 && completeHandler) {
+                typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([ pkgArr ]);
                 return;
             }
 
@@ -144,9 +144,10 @@ namespace fgui {
                                 UIPackage._instById[pkg._resKey] = pkg;
                             }
                         }
-                        completeHandler.runWith([pkgArr]);
+                        typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([pkgArr]);
                     }, (progress: number) => {
-                        progressHandler.runWith(progress);
+                        if (progressHandler)
+                            typeof progressHandler === 'function' ? progressHandler(progress) : progressHandler.runWith(progress);
                     });
                 }
                 else {
@@ -158,7 +159,7 @@ namespace fgui {
                             UIPackage._instById[pkg._resKey] = pkg;
                         }
                     }
-                    completeHandler.runWith([pkgArr]);
+                    typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([pkgArr]);
                 }
             });
         }

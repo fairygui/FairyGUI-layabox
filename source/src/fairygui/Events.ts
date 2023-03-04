@@ -29,4 +29,7 @@ namespace fgui {
             target.event(type, this.createEvent(type, target, source));
         }
     }
+
+    /** 通用无参数回调 */
+    export type SimpleHandler = Laya.Handler | (() => void);
 }
