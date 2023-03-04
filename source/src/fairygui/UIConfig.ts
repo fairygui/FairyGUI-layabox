@@ -5,6 +5,8 @@ namespace fgui {
 
     //Default font name
     public static defaultFont: string = "SimSun";
+    // 字体名称映射表
+    public static fontRemaps: Record<string, string> = {};
 
     //Resource using in Window.ShowModalWait for locking the window.
     public static windowModalWaiting: string;

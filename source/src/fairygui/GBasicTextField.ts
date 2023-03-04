@@ -81,9 +81,9 @@ namespace fgui {
             }
             else {
                 if (this._font)
-                    this._textField.font = this._font;
+                    this._textField.font = UIConfig.fontRemaps[this._font] || this._font;
                 else
-                    this._textField.font = fgui.UIConfig.defaultFont;
+                    this._textField.font = UIConfig.fontRemaps[fgui.UIConfig.defaultFont] || fgui.UIConfig.defaultFont;
             }
         }
 
