@@ -7,7 +7,9 @@ namespace fgui {
     export enum AutoSizeType {
         None,
         Both,
-        Height
+        Height,
+        Shrink,
+        Ellipsis
     }
     export enum AlignType {
         Left,

@@ -21,6 +21,7 @@ namespace fgui {
             this._color = "#000000";
             this._textField.align = "left";
             this._textField.font = fgui.UIConfig.defaultFont;
+            this._textField.overflow = Laya.Text.VISIBLE;
             this._autoSize = AutoSizeType.Both;
             this._widthAutoSize = this._heightAutoSize = true;
             this._textField["_sizeDirty"] = false;
@@ -226,6 +227,46 @@ namespace fgui {
                 this.renderWithBitmapFont();
             else if (this._widthAutoSize || this._heightAutoSize)
                 this.updateSize();
+            // Hack Note: 使用了 Laya 并未对外暴露的成员
+            //  _charSize 该属性内记录了单个文字的宽高信息
+            //  _getTextWidth 该方法内记录了计算文本宽度的逻辑
+            if (this._autoSize === AutoSizeType.Shrink) {
+                const area = this._textField.textWidth * this._textField.textHeight;
+                const avaliableArea = this._textField['_getTextWidth'](this._textField.text) * (this._textField['_charSize'].height + this._textField.leading);
+                if (avaliableArea < area) {
+                    this._textField.fontSize = this.fontSize * (avaliableArea / area);
+                }
+            } else if (this._autoSize === fgui.AutoSizeType.Ellipsis) {
+                const maxWidth = this.width - this._textField.padding[1] - this._textField.padding[3];
+                let y = this._textField.padding[0];
+                let lineHeight = this._textField.leading + this._textField['_charSize'].height;
+                let endAtLine = -1;
+                if (this._textField.lines.length == 1 && this._textField.textWidth > maxWidth) {
+                    endAtLine = 0;
+                } else {
+                    for (let i = 0; i < this._textField.lines.length; i++) {
+                        let bottom = y + lineHeight * (i + 1);
+                        if (bottom + this._textField.padding[2] > this.height) {
+                            endAtLine = i - 1;
+                            if (i == 0 && this._textField.lines.length == 1 && this._textField.textWidth > this.width) {
+                                endAtLine = i;
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (endAtLine >= 0) {
+                    const line: string = this._textField.lines[endAtLine];
+                    for (let i = 0; i < line.length; i++) {
+                        const newLine = line.substring(0, line.length - i) + '⋯';
+                        if (this._textField['_getTextWidth'](newLine) <= maxWidth) {
+                            let text = this._textField.lines.slice(0, endAtLine).join('') + newLine;
+                            this._textField.text = text;
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         private updateSize(): void {
