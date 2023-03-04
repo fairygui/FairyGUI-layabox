@@ -1,4 +1,12 @@
 namespace fgui {
+    export enum GGGraphType {
+        Empty = 0,
+        Rect = 1,
+        Ellipse = 2,
+        Polygon = 3,
+        RegularPolygon = 4,
+    }
+
     export class GGraph extends GObject {
         private _type: number;
         private _lineSize: number;
@@ -14,14 +22,36 @@ namespace fgui {
         constructor() {
             super();
 
-            this._type = 0;
+            this._type = GGGraphType.Empty;
             this._lineSize = 1;
             this._lineColor = "#000000"
             this._fillColor = "#FFFFFF";
         }
 
+        get type(): GGGraphType { return this._type; }
+        get polygonPoints(): number[] { return this._polygonPoints; }
+
+
+        public get fillColor(): string { return this._fillColor; }
+        public set fillColor(v: string) {
+            if (v === this._fillColor) return;
+            this._fillColor = v;
+            this.updateGraph();
+        }
+
+
+        public get lineColor(): string {
+            return this._lineColor;
+        }
+        
+        public set lineColor(v: string) {
+            if (v === this._fillColor) return;
+            this._lineColor = v;
+            this.updateGraph();
+        }
+
         public drawRect(lineSize: number, lineColor: string, fillColor: string, cornerRadius?: number[]): void {
-            this._type = 1;
+            this._type = GGGraphType.Rect;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
@@ -30,7 +60,7 @@ namespace fgui {
         }
 
         public drawEllipse(lineSize: number, lineColor: string, fillColor: string): void {
-            this._type = 2;
+            this._type = GGGraphType.Ellipse;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
@@ -38,7 +68,7 @@ namespace fgui {
         }
 
         public drawRegularPolygon(lineSize: number, lineColor: string, fillColor: string, sides: number, startAngle?: number, distances?: number[]): void {
-            this._type = 4;
+            this._type = GGGraphType.RegularPolygon;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
@@ -49,7 +79,7 @@ namespace fgui {
         }
 
         public drawPolygon(lineSize: number, lineColor: string, fillColor: string, points: number[]): void {
-            this._type = 3;
+            this._type = GGGraphType.Polygon;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;

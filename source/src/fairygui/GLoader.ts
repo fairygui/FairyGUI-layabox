@@ -324,7 +324,7 @@ namespace fgui {
             }
         }
 
-        private updateLayout(): void {
+        updateLayout(): void {
             if (!this._content2 && !this._content.texture && !this._content.frames) {
                 if (this._autoSize) {
                     this._updatingLayout = true;
@@ -394,10 +394,15 @@ namespace fgui {
                 }
             }
 
-            if (this._content2)
-                this._content2.setScale(sx, sy);
-            else
+            if (this._content2) {
+                if (this._fill == LoaderFillType.Resize) {
+                    this._content2.setSize(cw, ch);
+                } else {
+                    this._content2.setScale(sx, sy);
+                }
+            } else {
                 this._content.size(cw, ch);
+            }
 
             var nx: number, ny: number;
             if (this._align == "center")

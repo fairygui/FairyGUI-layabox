@@ -7,7 +7,9 @@ namespace fgui {
     export enum AutoSizeType {
         None,
         Both,
-        Height
+        Height,
+        Shrink,
+        Ellipsis
     }
     export enum AlignType {
         Left,
@@ -25,7 +27,12 @@ namespace fgui {
         ScaleMatchHeight,
         ScaleMatchWidth,
         ScaleFree,
-        ScaleNoBorder
+        ScaleNoBorder,
+        /**
+         * 组件根据 GLoader 的大小自动调整尺寸的适配模式
+         * @note 2023/03/03 编辑器中还没有这种适配模式，暂时用 ScaleFree 代替
+         */
+        Resize = ScaleFree,
     }
     export enum ListLayoutType {
         SingleColumn,

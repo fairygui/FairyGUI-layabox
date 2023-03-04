@@ -529,6 +529,10 @@ namespace fgui {
             return this._name;
         }
 
+        public get items(): PackageItem[] {
+            return this._items;
+        }
+
         public get customId(): string {
             return this._customId;
         }
@@ -607,7 +611,7 @@ namespace fgui {
                 case PackageItemType.Atlas:
                     if (!item.decoded) {
                         item.decoded = true;
-                        item.texture = AssetProxy.inst.getRes(item.file);
+                        item.texture = AssetProxy.inst.getItemRes(item);
                         //if(!fgui.UIConfig.textureLinearSampling)
                         //item.texture.isLinearSampling = false;
                     }
@@ -632,7 +636,7 @@ namespace fgui {
 
                 case PackageItemType.Misc:
                     if (item.file)
-                        return AssetProxy.inst.getRes(item.file);
+                        return AssetProxy.inst.getItemRes(item);
                     else
                         return null;
 
