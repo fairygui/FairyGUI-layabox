@@ -146,7 +146,7 @@ namespace fgui {
         public set color(value: string) {
             if (this._color != value) {
                 this._color = value;
-                ToolSet.setColorFilter(this, value);
+                this.markChanged(1);
             }
         }
 
@@ -194,10 +194,10 @@ namespace fgui {
                     this._sizeGrid = [top, right, bottom, left, this._tileGridIndice];
                 }
 
-                g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid);
+                g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid, this._color);
             }
             else {
-                g.drawImage(tex, 0, 0, w, h);
+                g.drawImage(tex, 0, 0, w, h, Laya.ColorUtils.create(this._color).numColor);
             }
         }
 

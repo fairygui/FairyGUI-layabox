@@ -340,7 +340,7 @@ declare module Laya {
     /**
      * 注册一个类型，注册后才能被序列化系统自动保存和载入。
      */
-    function regClass(): any;
+    function regClass(assetId?: string): any;
     /**
      * 设置类型的额外信息。
      * @param info 类型的额外信息
@@ -352,9 +352,9 @@ declare module Laya {
     function runInEditor(constructor: Function): void;
     /**
      * 使用这个装饰器，可以使属性显示在编辑器属性设置面板上，并且能序列化保存。
-     * @param info 如果是字符串，是属性的标题；如果是数组，例如[Number]，可以定义属性为数组类型；也可以是PropertyDescriptor，定义详细的属性信息。
+     * @param info 属性的类型，如: Number,"number",[Number],["Record", Number]等。或传递对象描述详细信息，例如{ type: "string", multiline: true }。
      */
-    function property(info?: string | Array<any> | Partial<PropertyDescriptor>): any;
+    function property(info: string | Array<any> | Function | Object | Partial<PropertyDescriptor>): any;
     /**开始播放时调度。
      * @eventType Event.PLAYED
      * */
@@ -9973,40 +9973,35 @@ declare module Laya {
         set sprite(value: Sprite);
         get sprite(): Sprite;
         /**
-         * UI3DmeshSize
+         * 3D渲染的UI预制体
          */
-        set UI3DSize(value: Vector2);
-        get UI3DSize(): Vector2;
+        set prefab(value: Prefab);
+        get prefab(): Prefab;
+        /**
+         * UI3DmeshScale
+         */
+        set scale(value: Vector2);
+        get scale(): Vector2;
         /**
          * UI渲染模式
          */
         set renderMode(value: MaterialRenderMode);
         get renderMode(): number;
         /**
-         * UI3D偏移
-         */
-        set UI3DOffset(value: Vector2);
-        get UI3DUI3DOffset(): Vector2;
-        /**
          * 分辨率比例
          */
         get resolutionRate(): number;
         set resolutionRate(value: number);
         /**
-         * 面向相机 模式
+         * 面向相机模式
          */
-        get view(): boolean;
-        set view(value: boolean);
+        get billboard(): boolean;
+        set billboard(value: boolean);
         /**
          * 检测鼠标事件(关闭优化性能)，开启可以触发鼠标事件
          */
         get enableHit(): boolean;
         set enableHit(value: boolean);
-        /**
-         * 遮挡,碰到2D射线会停止
-         */
-        get occlusion(): boolean;
-        set occlusion(value: boolean);
         /**
          * 实例化一个UI3D
          */
@@ -10038,7 +10033,7 @@ declare module Laya {
         destroy(): void;
     }
     class UI3DManager {
-        private _UI3Dlist;
+        _UI3Dlist: SingletonList<UI3D>;
         constructor();
         add(value: UI3D): void;
         remove(value: UI3D): void;
@@ -10046,7 +10041,7 @@ declare module Laya {
         /**
          * 判断是否碰撞
          */
-        rayCast(ray: Ray): void;
+        rayCast(ray: Ray): import("../../../display/Sprite").Sprite;
         /**
          * Destroy
          */
@@ -14875,6 +14870,8 @@ declare module Laya {
         static framesMap: any;
         /**@private */
         protected _frames: any[];
+        private _images;
+        private _autoPlay;
         /**
          * 创建一个新的 <code>Animation</code> 实例。
          */
@@ -14919,6 +14916,8 @@ declare module Laya {
          * @param value	数据源。比如：图集："xx/a1.atlas"；图片集合："a1.png,a2.png,a3.png"；LayaAir IDE动画"xx/a1.ani"。
          */
         set source(value: string);
+        set images(arr: string[]);
+        get images(): string[];
         /**
          * 设置自动播放的动画名称，在LayaAir IDE中可以创建的多个动画组成的动画集合，选择其中一个动画名称进行播放。
          */
@@ -14927,6 +14926,7 @@ declare module Laya {
          * 是否自动播放，默认为false。如果设置为true，则动画被创建并添加到舞台后自动播放。
          */
         set autoPlay(value: boolean);
+        get autoPlay(): boolean;
         /**
          * 停止动画播放，并清理对象属性。之后可存入对象池，方便对象复用。
          * @override
@@ -15329,8 +15329,10 @@ declare module Laya {
          * （可选）高度。
          */
         height: number;
+        /** （可选）绘图颜色 */
+        color: number;
         /**@private */
-        static create(texture: Texture, x: number, y: number, width: number, height: number): DrawImageCmd;
+        static create(texture: Texture, x: number, y: number, width: number, height: number, color: number): DrawImageCmd;
         /**
          * 回收到对象池
          */
@@ -15668,7 +15670,7 @@ declare module Laya {
         /**
          * （可选）颜色滤镜。
          */
-        color: string | null;
+        color: number;
         colorFlt: ColorFilter | null;
         /**
          * （可选）混合模式。
@@ -15698,9 +15700,11 @@ declare module Laya {
         /**
          * 绘制次数和坐标。
          */
-        pos: any[];
+        pos: ArrayLike<number>;
+        /** 附加顶点色 */
+        colors: number[];
         /**@private */
-        static create(texture: Texture, pos: any[]): DrawTexturesCmd;
+        static create(texture: Texture, pos: any[], colors: number[]): DrawTexturesCmd;
         /**
          * 回收到对象池
          */
@@ -15855,17 +15859,19 @@ declare module Laya {
         /**
          * （可选）填充类型 repeat|repeat-x|repeat-y|no-repeat
          */
-        type: string;
+        type?: string;
         /**
          * （可选）贴图纹理偏移
          */
-        offset: Point;
+        offset?: Point;
         /**
          * 位置和大小是否是百分比
          */
         percent: boolean;
+        /** （可选）绘图颜色 */
+        color: number;
         /**@private */
-        static create(texture: Texture, x: number, y: number, width: number, height: number, type: string, offset: Point): FillTextureCmd;
+        static create(texture: Texture, x: number, y: number, width: number, height: number, type: string, offset: Point, color: number): FillTextureCmd;
         /**
          * 回收到对象池
          */
@@ -16376,8 +16382,9 @@ declare module Laya {
          * @param y 		（可选）Y轴偏移量。
          * @param width		（可选）宽度。
          * @param height	（可选）高度。
+         * @param color	 	 （可选）颜色
          */
-        drawImage(texture: Texture, x?: number, y?: number, width?: number, height?: number): DrawImageCmd | null;
+        drawImage(texture: Texture, x?: number, y?: number, width?: number, height?: number, color?: number): DrawImageCmd | null;
         /**
          * 绘制纹理，相比drawImage功能更强大，性能会差一些
          * @param texture		纹理。
@@ -16395,8 +16402,9 @@ declare module Laya {
          * 批量绘制同样纹理。
          * @param texture 纹理。
          * @param pos 绘制次数和坐标。
+         * @param colors 图片颜色数组。
          */
-        drawTextures(texture: Texture, pos: any[]): DrawTexturesCmd | null;
+        drawTextures(texture: Texture, pos: any[], colors?: number[]): DrawTexturesCmd | null;
         /**
          * 绘制一组三角形
          * @param texture	纹理。
@@ -16412,7 +16420,7 @@ declare module Laya {
          */
         drawTriangles(texture: Texture, x: number, y: number, vertices: Float32Array, uvs: Float32Array, indices: Uint16Array, matrix?: Matrix | null, alpha?: number, color?: string | null, blendMode?: string | null, colorNum?: number): DrawTrianglesCmd;
         /**
-         * 用texture填充。
+         * 用 texture 填充。
          * @param texture		纹理。
          * @param x			X轴偏移量。
          * @param y			Y轴偏移量。
@@ -16420,9 +16428,10 @@ declare module Laya {
          * @param height	（可选）高度。
          * @param type		（可选）填充类型 repeat|repeat-x|repeat-y|no-repeat
          * @param offset	（可选）贴图纹理偏移
+         * @param color	 	 （可选）颜色
          *
          */
-        fillTexture(texture: Texture, x: number, y: number, width?: number, height?: number, type?: string, offset?: Point | null): FillTextureCmd | null;
+        fillTexture(texture: Texture, x: number, y: number, width?: number, height?: number, type?: string, offset?: Point | null, color?: number): FillTextureCmd | null;
         /**
          * 设置剪裁区域，超出剪裁区域的坐标不显示。
          * @param x X 轴偏移量。
@@ -16626,8 +16635,9 @@ declare module Laya {
          * @param	width
          * @param	height
          * @param	sizeGrid
+         * @param	color
          */
-        draw9Grid(texture: Texture, x: number, y: number, width: number, height: number, sizeGrid: any[]): void;
+        draw9Grid(texture: Texture, x: number, y: number, width: number, height: number, sizeGrid: any[], color?: string): void;
     }
     /**
      * @private
@@ -28820,14 +28830,14 @@ declare module Laya {
         filltext11(data: string | WordText, x: number, y: number, fontStr: string, color: string, strokeColor: string, lineWidth: number, textAlign: string): void;
         private _fillRect;
         fillRect(x: number, y: number, width: number, height: number, fillStyle: any): void;
-        fillTexture(texture: Texture, x: number, y: number, width: number, height: number, type: string, offset: Point): void;
+        fillTexture(texture: Texture, x: number, y: number, width: number, height: number, type: string, offset: Point, color: number): void;
         /**
          * 反正只支持一种filter，就不要叫setFilter了，直接叫setColorFilter
          * @param	value
          */
         setColorFilter(filter: ColorFilter): void;
-        drawTexture(tex: Texture, x: number, y: number, width: number, height: number): void;
-        drawTextures(tex: Texture, pos: any[], tx: number, ty: number): void;
+        drawTexture(tex: Texture, x: number, y: number, width: number, height: number, color?: number): void;
+        drawTextures(tex: Texture, pos: ArrayLike<number>, tx: number, ty: number, colors: number[]): void;
         /**
          * 为drawTexture添加一个新的submit。类型是 SubmitTexture
          * @param	vbSize
@@ -28886,7 +28896,7 @@ declare module Laya {
          * @param	ty
          * @param	alpha
          */
-        drawTextureWithTransform(tex: Texture, x: number, y: number, width: number, height: number, transform: Matrix | null, tx: number, ty: number, alpha: number, blendMode: string | null, colorfilter?: ColorFilter | null, uv?: number[]): void;
+        drawTextureWithTransform(tex: Texture, x: number, y: number, width: number, height: number, transform: Matrix | null, tx: number, ty: number, alpha: number, blendMode: string | null, colorfilter?: ColorFilter | null, uv?: number[], color?: number): void;
         /**
          * * 把ctx中的submits提交。结果渲染到target上
          * @param	ctx
@@ -28894,7 +28904,7 @@ declare module Laya {
          */
         private _flushToTarget;
         drawCanvas(canvas: HTMLCanvas, x: number, y: number, width: number, height: number): void;
-        drawTarget(rt: RenderTexture2D, x: number, y: number, width: number, height: number, m: Matrix, shaderValue: Value2D, uv?: ArrayLike<number> | null, blend?: number): boolean;
+        drawTarget(rt: RenderTexture2D, x: number, y: number, width: number, height: number, m: Matrix, shaderValue: Value2D, uv?: ArrayLike<number> | null, blend?: number, color?: number): boolean;
         drawTriangles(tex: Texture, x: number, y: number, vertices: Float32Array, uvs: Float32Array, indices: Uint16Array, matrix: Matrix, alpha: number, color: ColorFilter, blendMode: string, colorNum?: number): void;
         transform(a: number, b: number, c: number, d: number, tx: number, ty: number): void;
         setTransformByMatrix(value: Matrix): void;
@@ -28974,7 +28984,7 @@ declare module Laya {
         private _fillTexture_v;
         private static tmpUV;
         private static tmpUVRect;
-        drawTextureWithSizeGrid(tex: Texture, tx: number, ty: number, width: number, height: number, sizeGrid: any[], gx: number, gy: number): void;
+        drawTextureWithSizeGrid(tex: Texture, tx: number, ty: number, width: number, height: number, sizeGrid: any[], gx: number, gy: number, color: number): void;
         addRenderObject3D(scene3D: ISubmit): void;
     }
     class Prefab extends Resource {
@@ -30005,6 +30015,7 @@ declare module Laya {
         /**@private */
         protected _isChanged: boolean;
         uv: number[];
+        _color: string;
         /**@private */
         private _drawGridCmd;
         /**@inheritDoc
@@ -30029,6 +30040,8 @@ declare module Laya {
          */
         get source(): Texture;
         set source(value: Texture);
+        get color(): string;
+        set color(value: string);
         /** @private */
         protected _setChanged(): void;
         /**
@@ -32160,6 +32173,8 @@ declare module Laya {
          */
         get source(): Texture;
         set source(value: Texture);
+        get color(): string;
+        set color(value: string);
         /**
          * 资源分组。
          */
@@ -39183,13 +39198,12 @@ declare module Laya {
         destroy(): void;
         /**
          *
-         * @param	pos
-         * @param	uv
-         * @param	color
-         * @param	clip   ox,oy,xx,xy,yx,yy
-         * @param 	useTex 是否使用贴图。false的话是给fillRect用的
+         * @param pos 顶点坐标
+         * @param uv 纹理坐标
+         * @param color 顶点颜色
+         * @param useTex 是否使用贴图。false的话是给fillRect用的
          */
-        addQuad(pos: any[], uv: ArrayLike<number>, color: number, useTex: boolean): void;
+        addQuad(pos: ArrayLike<number>, uv: ArrayLike<number>, color: number, useTex: boolean): void;
     }
     /**
      * 与MeshQuadTexture基本相同。不过index不是固定的

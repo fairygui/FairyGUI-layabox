@@ -1,41 +1,18 @@
-
-function __decorate(decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function")
-        r = Reflect.decorate(decorators, target, key, desc);
-    else
-        for (let i = decorators.length - 1; i >= 0; i--)
-            if (d = decorators[i])
-                r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-}
-
-function __metadata(k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") {
-        return Reflect.metadata(k, v);
-    }
-}
-
-var _regClass = window._regClass;
-var _dummyRegClass = Laya.regClass();
-function __$decorate(assetId, codePath) {
-    return function(...args) {
-        let i = args[0].indexOf(_dummyRegClass);
-        if (i != -1) {
-            if (_regClass)
-                args[0][i] = _regClass(assetId, codePath);
-            else
-                args[0][i] = function(constructor) { Laya.ClassUtils.regClass(assetId, constructor); };
-        }
-        return __decorate(...args);
-    }
-}
-
 (() => {
   var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
   var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+  var __decorateClass = (decorators, target, key, kind) => {
+    var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc(target, key) : target;
+    for (var i = decorators.length - 1, decorator; i >= 0; i--)
+      if (decorator = decorators[i])
+        result = (kind ? decorator(target, key, result) : decorator(result)) || result;
+    if (kind && result)
+      __defProp(target, key, result);
+    return result;
+  };
 
-  // ../FairyGUI-layabox3/demo/src/demo/TestWin.ts
+  // src/demo/TestWin.ts
   var TestWin = class extends fgui.Window {
     constructor() {
       super();
@@ -97,7 +74,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(WindowB, "WindowB");
 
-  // ../FairyGUI-layabox3/demo/src/demo/BasicsDemo.ts
+  // src/demo/BasicsDemo.ts
   var BasicDemo = class {
     constructor() {
       //------------------------------
@@ -355,7 +332,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(BasicDemo, "BasicDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/TransitionDemo.ts
+  // src/demo/TransitionDemo.ts
   var TransitionDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/Transition", Laya.Handler.create(this, this.onUILoaded));
@@ -431,7 +408,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(TransitionDemo, "TransitionDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/MailItem.ts
+  // src/demo/MailItem.ts
   var MailItem = class extends fgui.GButton {
     constructor() {
       super();
@@ -458,7 +435,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(MailItem, "MailItem");
 
-  // ../FairyGUI-layabox3/demo/src/demo/VirtualListDemo.ts
+  // src/demo/VirtualListDemo.ts
   var VirtualListDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/VirtualList", Laya.Handler.create(this, this.onUILoaded));
@@ -492,7 +469,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(VirtualListDemo, "VirtualListDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/LoopListDemo.ts
+  // src/demo/LoopListDemo.ts
   var LoopListDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/LoopList", Laya.Handler.create(this, this.onUILoaded));
@@ -531,7 +508,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(LoopListDemo, "LoopListDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/ScrollPaneHeader.ts
+  // src/demo/ScrollPaneHeader.ts
   var ScrollPaneHeader = class extends fgui.GComponent {
     constructor() {
       super();
@@ -557,7 +534,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(ScrollPaneHeader, "ScrollPaneHeader");
 
-  // ../FairyGUI-layabox3/demo/src/demo/PullToRefreshDemo.ts
+  // src/demo/PullToRefreshDemo.ts
   var PullToRefreshDemo = class {
     constructor() {
       fgui.UIObjectFactory.setExtension("ui://PullToRefresh/Header", ScrollPaneHeader);
@@ -617,7 +594,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(PullToRefreshDemo, "PullToRefreshDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/ModalWaitingDemo.ts
+  // src/demo/ModalWaitingDemo.ts
   var ModalWaitingDemo = class {
     constructor() {
       fgui.UIConfig.globalModalWaiting = "ui://ModalWaiting/GlobalModalWaiting";
@@ -640,7 +617,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(ModalWaitingDemo, "ModalWaitingDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/JoystickModule.ts
+  // src/demo/JoystickModule.ts
   var _JoystickModule = class extends Laya.EventDispatcher {
     constructor(mainView) {
       super();
@@ -752,7 +729,7 @@ function __$decorate(assetId, codePath) {
   JoystickModule.JoystickMoving = "JoystickMoving";
   JoystickModule.JoystickUp = "JoystickUp";
 
-  // ../FairyGUI-layabox3/demo/src/demo/JoystickDemo.ts
+  // src/demo/JoystickDemo.ts
   var JoystickDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/Joystick", Laya.Handler.create(this, this.onUILoaded));
@@ -775,7 +752,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(JoystickDemo, "JoystickDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/BagDemo.ts
+  // src/demo/BagDemo.ts
   var BagDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/Bag", Laya.Handler.create(this, this.onUILoaded));
@@ -820,7 +797,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(BagWindow, "BagWindow");
 
-  // ../FairyGUI-layabox3/demo/src/demo/ListEffectDemo.ts
+  // src/demo/ListEffectDemo.ts
   var ListEffectDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/ListEffect", Laya.Handler.create(this, this.onUILoaded));
@@ -852,7 +829,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(ListEffectDemo, "ListEffectDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/GuideDemo.ts
+  // src/demo/GuideDemo.ts
   var GuideDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/Guide", Laya.Handler.create(this, this.onUILoaded));
@@ -880,7 +857,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(GuideDemo, "GuideDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/CooldownDemo.ts
+  // src/demo/CooldownDemo.ts
   var CooldownDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/Cooldown", Laya.Handler.create(this, this.onUILoaded));
@@ -899,7 +876,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(CooldownDemo, "CooldownDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/HitTestDemo.ts
+  // src/demo/HitTestDemo.ts
   var HitTestDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/HitTest", Laya.Handler.create(this, this.onUILoaded));
@@ -914,7 +891,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(HitTestDemo, "HitTestDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/EmojiParser.ts
+  // src/demo/EmojiParser.ts
   var _EmojiParser = class extends fgui.UBBParser {
     constructor() {
       super();
@@ -930,7 +907,7 @@ function __$decorate(assetId, codePath) {
   __name(EmojiParser, "EmojiParser");
   EmojiParser.TAGS = ["88", "am", "bs", "bz", "ch", "cool", "dhq", "dn", "fd", "gz", "han", "hx", "hxiao", "hxiu"];
 
-  // ../FairyGUI-layabox3/demo/src/demo/ChatDemo.ts
+  // src/demo/ChatDemo.ts
   var Message = class {
   };
   __name(Message, "Message");
@@ -1016,7 +993,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(ChatDemo, "ChatDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/ScrollPaneDemo.ts
+  // src/demo/ScrollPaneDemo.ts
   var ScrollPaneDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/ScrollPane", Laya.Handler.create(this, this.onUILoaded));
@@ -1062,7 +1039,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(ScrollPaneDemo, "ScrollPaneDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/TreeViewDemo.ts
+  // src/demo/TreeViewDemo.ts
   var TreeViewDemo = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/TreeView", Laya.Handler.create(this, this.onUILoaded));
@@ -1120,7 +1097,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(TreeViewDemo, "TreeViewDemo");
 
-  // ../FairyGUI-layabox3/demo/src/demo/MainMenu.ts
+  // src/demo/MainMenu.ts
   var MainMenu = class {
     constructor() {
       fgui.UIPackage.loadPackage("resources/ui/MainMenu", Laya.Handler.create(this, this.onUILoaded));
@@ -1186,7 +1163,7 @@ function __$decorate(assetId, codePath) {
   };
   __name(MainMenu, "MainMenu");
 
-  // ../FairyGUI-layabox3/demo/src/demo/DemoEntry.ts
+  // src/demo/DemoEntry.ts
   var DemoEntry = class {
     constructor() {
       Laya.stage.on("start_demo", this, this.onDemoStart);
@@ -1211,17 +1188,17 @@ function __$decorate(assetId, codePath) {
   };
   __name(DemoEntry, "DemoEntry");
 
-  // ../FairyGUI-layabox3/demo/src/Main.ts
-  var __decorate = __$decorate("7bad1742-6eed-4d8d-81c0-501dc5bf03d6", "../src/Main.ts");
+  // src/Main.ts
   var { regClass, property } = Laya;
-  var Main = /* @__PURE__ */ __name(class Main2 extends Laya.Script {
+  var Main = class extends Laya.Script {
     onStart() {
       Laya.stage.addChild(fgui.GRoot.inst.displayObject);
       new DemoEntry();
     }
-  }, "Main");
-  Main = __decorate([
-    regClass()
+  };
+  __name(Main, "Main");
+  Main = __decorateClass([
+    regClass("7bad1742-6eed-4d8d-81c0-501dc5bf03d6", "../src/Main.ts")
   ], Main);
 })();
 //# sourceMappingURL=bundle.js.map

@@ -12,6 +12,9 @@
         getRes(url, type) {
             return this.loader.getRes(url, type);
         }
+        getItemRes(item) {
+            return this.getRes(item.file);
+        }
         load(url, type, onProgress) {
             return this.loader.load(url, type, onProgress);
         }
@@ -173,7 +176,9 @@
             var result = this._objectPool[0];
             this._itemList.length = 0;
             this._objectPool.length = 0;
-            if (this.callback != null)
+            if (typeof this.callback === 'function')
+                this.callback(result);
+            else if (this.callback)
                 this.callback.runWith(result);
         }
     }
@@ -513,6 +518,8 @@
         AutoSizeType[AutoSizeType["None"] = 0] = "None";
         AutoSizeType[AutoSizeType["Both"] = 1] = "Both";
         AutoSizeType[AutoSizeType["Height"] = 2] = "Height";
+        AutoSizeType[AutoSizeType["Shrink"] = 3] = "Shrink";
+        AutoSizeType[AutoSizeType["Ellipsis"] = 4] = "Ellipsis";
     })(AutoSizeType = fgui.AutoSizeType || (fgui.AutoSizeType = {}));
     let AlignType;
     (function (AlignType) {
@@ -534,6 +541,11 @@
         LoaderFillType[LoaderFillType["ScaleMatchWidth"] = 3] = "ScaleMatchWidth";
         LoaderFillType[LoaderFillType["ScaleFree"] = 4] = "ScaleFree";
         LoaderFillType[LoaderFillType["ScaleNoBorder"] = 5] = "ScaleNoBorder";
+        /**
+         * 组件根据 GLoader 的大小自动调整尺寸的适配模式
+         * @note 2023/03/03 编辑器中还没有这种适配模式，暂时用 ScaleFree 代替
+         */
+        LoaderFillType[LoaderFillType["Resize"] = 4] = "Resize";
     })(LoaderFillType = fgui.LoaderFillType || (fgui.LoaderFillType = {}));
     let ListLayoutType;
     (function (ListLayoutType) {
@@ -1916,6 +1928,7 @@
             this._color = "#000000";
             this._textField.align = "left";
             this._textField.font = fgui.UIConfig.defaultFont;
+            this._textField.overflow = Laya.Text.VISIBLE;
             this._autoSize = fgui.AutoSizeType.Both;
             this._widthAutoSize = this._heightAutoSize = true;
             this._textField["_sizeDirty"] = false;
@@ -1967,9 +1980,9 @@
             }
             else {
                 if (this._font)
-                    this._textField.font = this._font;
+                    this._textField.font = fgui.UIConfig.fontRemaps[this._font] || this._font;
                 else
-                    this._textField.font = fgui.UIConfig.defaultFont;
+                    this._textField.font = fgui.UIConfig.fontRemaps[fgui.UIConfig.defaultFont] || fgui.UIConfig.defaultFont;
             }
         }
         get fontSize() {
@@ -2083,6 +2096,48 @@
                 this.renderWithBitmapFont();
             else if (this._widthAutoSize || this._heightAutoSize)
                 this.updateSize();
+            // Hack Note: 使用了 Laya 并未对外暴露的成员
+            //  _charSize 该属性内记录了单个文字的宽高信息
+            //  _getTextWidth 该方法内记录了计算文本宽度的逻辑
+            if (this._autoSize === fgui.AutoSizeType.Shrink) {
+                const area = this._textField.textWidth * this._textField.textHeight;
+                const avaliableArea = this._textField['_getTextWidth'](this._textField.text) * (this._textField['_charSize'].height + this._textField.leading);
+                if (avaliableArea < area) {
+                    this._textField.fontSize = this.fontSize * (avaliableArea / area);
+                }
+            }
+            else if (this._autoSize === fgui.AutoSizeType.Ellipsis) {
+                const maxWidth = this.width - this._textField.padding[1] - this._textField.padding[3];
+                let y = this._textField.padding[0];
+                let lineHeight = this._textField.leading + this._textField['_charSize'].height;
+                let endAtLine = -1;
+                if (this._textField.lines.length == 1 && this._textField.textWidth > maxWidth) {
+                    endAtLine = 0;
+                }
+                else {
+                    for (let i = 0; i < this._textField.lines.length; i++) {
+                        let bottom = y + lineHeight * (i + 1);
+                        if (bottom + this._textField.padding[2] > this.height) {
+                            endAtLine = i - 1;
+                            if (i == 0 && this._textField.lines.length == 1 && this._textField.textWidth > this.width) {
+                                endAtLine = i;
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (endAtLine >= 0) {
+                    const line = this._textField.lines[endAtLine];
+                    for (let i = 0; i < line.length; i++) {
+                        const newLine = line.substring(0, line.length - i) + '⋯';
+                        if (this._textField['_getTextWidth'](newLine) <= maxWidth) {
+                            let text = this._textField.lines.slice(0, endAtLine).join('') + newLine;
+                            this._textField.text = text;
+                            break;
+                        }
+                    }
+                }
+            }
         }
         updateSize() {
             this._textWidth = Math.ceil(this._textField.textWidth);
@@ -4331,16 +4386,42 @@
 })(fgui);
 
 (function (fgui) {
+    let GGGraphType;
+    (function (GGGraphType) {
+        GGGraphType[GGGraphType["Empty"] = 0] = "Empty";
+        GGGraphType[GGGraphType["Rect"] = 1] = "Rect";
+        GGGraphType[GGGraphType["Ellipse"] = 2] = "Ellipse";
+        GGGraphType[GGGraphType["Polygon"] = 3] = "Polygon";
+        GGGraphType[GGGraphType["RegularPolygon"] = 4] = "RegularPolygon";
+    })(GGGraphType = fgui.GGGraphType || (fgui.GGGraphType = {}));
     class GGraph extends fgui.GObject {
         constructor() {
             super();
-            this._type = 0;
+            this._type = GGGraphType.Empty;
             this._lineSize = 1;
             this._lineColor = "#000000";
             this._fillColor = "#FFFFFF";
         }
+        get type() { return this._type; }
+        get polygonPoints() { return this._polygonPoints; }
+        get fillColor() { return this._fillColor; }
+        set fillColor(v) {
+            if (v === this._fillColor)
+                return;
+            this._fillColor = v;
+            this.updateGraph();
+        }
+        get lineColor() {
+            return this._lineColor;
+        }
+        set lineColor(v) {
+            if (v === this._fillColor)
+                return;
+            this._lineColor = v;
+            this.updateGraph();
+        }
         drawRect(lineSize, lineColor, fillColor, cornerRadius) {
-            this._type = 1;
+            this._type = GGGraphType.Rect;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
@@ -4348,14 +4429,14 @@
             this.updateGraph();
         }
         drawEllipse(lineSize, lineColor, fillColor) {
-            this._type = 2;
+            this._type = GGGraphType.Ellipse;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
             this.updateGraph();
         }
         drawRegularPolygon(lineSize, lineColor, fillColor, sides, startAngle, distances) {
-            this._type = 4;
+            this._type = GGGraphType.RegularPolygon;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
@@ -4365,7 +4446,7 @@
             this.updateGraph();
         }
         drawPolygon(lineSize, lineColor, fillColor, points) {
-            this._type = 3;
+            this._type = GGGraphType.Polygon;
             this._lineSize = lineSize;
             this._lineColor = lineColor;
             this._fillColor = fillColor;
@@ -6128,18 +6209,27 @@
                 var cnt = this._children.length;
                 if (value > cnt) {
                     for (i = cnt; i < value; i++) {
-                        if (this.itemProvider == null)
+                        if (this.itemProvider == null) {
                             this.addItemFromPool();
-                        else
-                            this.addItemFromPool(this.itemProvider.runWith(i));
+                        }
+                        else {
+                            if (typeof this.itemProvider === 'function')
+                                this.addItemFromPool(this.itemProvider(i));
+                            else
+                                this.addItemFromPool(this.itemProvider.runWith(i));
+                        }
                     }
                 }
                 else {
                     this.removeChildrenToPool(value, cnt);
                 }
                 if (this.itemRenderer != null) {
-                    for (i = 0; i < value; i++)
-                        this.itemRenderer.runWith([i, this.getChildAt(i)]);
+                    for (i = 0; i < value; i++) {
+                        if (typeof this.itemRenderer === 'function')
+                            this.itemRenderer(i, this.getChildAt(i));
+                        else
+                            this.itemRenderer.runWith([i, this.getChildAt(i)]);
+                    }
                 }
             }
         }
@@ -6431,7 +6521,7 @@
                 ii = this._virtualItems[curIndex];
                 if (ii.obj == null || forceUpdate) {
                     if (this.itemProvider != null) {
-                        url = this.itemProvider.runWith(curIndex % this._numItems);
+                        url = typeof this.itemProvider === 'function' ? this.itemProvider(curIndex % this._numItems) : this.itemProvider.runWith(curIndex % this._numItems);
                         if (url == null)
                             url = this._defaultItem;
                         url = fgui.UIPackage.normalizeURL(url);
@@ -6492,7 +6582,7 @@
                 if (needRender) {
                     if (this._autoResizeItem && (this._layout == fgui.ListLayoutType.SingleColumn || this._columnCount > 0))
                         ii.obj.setSize(partSize, ii.obj.height, true);
-                    this.itemRenderer.runWith([curIndex % this._numItems, ii.obj]);
+                    typeof this.itemRenderer === 'function' ? this.itemRenderer(curIndex % this._numItems, ii.obj) : this.itemRenderer.runWith([curIndex % this._numItems, ii.obj]);
                     if (curIndex % this._curLineItemCount == 0) {
                         deltaSize += Math.ceil(ii.obj.height) - ii.height;
                         if (curIndex == newFirstIndex && oldFirstIndex > newFirstIndex) {
@@ -6566,7 +6656,7 @@
                 ii = this._virtualItems[curIndex];
                 if (ii.obj == null || forceUpdate) {
                     if (this.itemProvider != null) {
-                        url = this.itemProvider.runWith(curIndex % this._numItems);
+                        url = typeof this.itemProvider === 'function' ? this.itemProvider(curIndex % this._numItems) : this.itemProvider.runWith(curIndex % this._numItems);
                         if (url == null)
                             url = this._defaultItem;
                         url = fgui.UIPackage.normalizeURL(url);
@@ -6626,7 +6716,7 @@
                 if (needRender) {
                     if (this._autoResizeItem && (this._layout == fgui.ListLayoutType.SingleRow || this._lineCount > 0))
                         ii.obj.setSize(ii.obj.width, partSize, true);
-                    this.itemRenderer.runWith([curIndex % this._numItems, ii.obj]);
+                    typeof this.itemRenderer === 'function' ? this.itemRenderer(curIndex % this._numItems, ii.obj) : this.itemRenderer.runWith([curIndex % this._numItems, ii.obj]);
                     if (curIndex % this._curLineItemCount == 0) {
                         deltaSize += Math.ceil(ii.obj.width) - ii.width;
                         if (curIndex == newFirstIndex && oldFirstIndex > newFirstIndex) {
@@ -6738,7 +6828,7 @@
                         insertIndex = this.getChildIndex(lastObj) + 1;
                     if (ii.obj == null) {
                         if (this.itemProvider != null) {
-                            url = this.itemProvider.runWith(i % this._numItems);
+                            url = typeof this.itemProvider === 'function' ? this.itemProvider(i % this._numItems) : this.itemProvider.runWith(i % this._numItems);
                             if (url == null)
                                 url = this._defaultItem;
                             url = fgui.UIPackage.normalizeURL(url);
@@ -6768,7 +6858,7 @@
                         else if (this._curLineItemCount2 == this._lineCount)
                             ii.obj.setSize(ii.obj.width, partHeight, true);
                     }
-                    this.itemRenderer.runWith([i % this._numItems, ii.obj]);
+                    typeof this.itemRenderer === 'function' ? this.itemRenderer(i % this._numItems, ii.obj) : this.itemRenderer.runWith([i % this._numItems, ii.obj]);
                     ii.width = Math.ceil(ii.obj.width);
                     ii.height = Math.ceil(ii.obj.height);
                 }
@@ -7646,10 +7736,17 @@
                     ch = this.sourceHeight * sy;
                 }
             }
-            if (this._content2)
-                this._content2.setScale(sx, sy);
-            else
+            if (this._content2) {
+                if (this._fill == fgui.LoaderFillType.Resize) {
+                    this._content2.setSize(cw, ch);
+                }
+                else {
+                    this._content2.setScale(sx, sy);
+                }
+            }
+            else {
                 this._content.size(cw, ch);
+            }
             var nx, ny;
             if (this._align == "center")
                 nx = Math.floor((this.width - cw) / 2);
@@ -9498,7 +9595,9 @@
                 cc.selectedIndex = node.isFolder ? 0 : 1;
             if (node.isFolder)
                 child.on(Laya.Event.MOUSE_DOWN, this, this.__cellMouseDown);
-            if (this.treeNodeRender)
+            if (typeof this.treeNodeRender === 'function')
+                this.treeNodeRender(node, child);
+            else if (this.treeNodeRender)
                 this.treeNodeRender.runWith([node, child]);
         }
         _afterInserted(node) {
@@ -9506,7 +9605,9 @@
                 this.createCell(node);
             var index = this.getInsertIndexForNode(node);
             this.addChildAt(node._cell, index);
-            if (this.treeNodeRender)
+            if (typeof this.treeNodeRender === 'function')
+                this.treeNodeRender(node, node._cell);
+            else if (this.treeNodeRender)
                 this.treeNodeRender.runWith([node, node._cell]);
             if (node.isFolder && node.expanded)
                 this.checkChildren(node, index);
@@ -9534,11 +9635,15 @@
                 this.checkChildren(this._rootNode, 0);
                 return;
             }
-            if (this.treeNodeWillExpand != null)
+            if (typeof this.treeNodeWillExpand === 'function')
+                this.treeNodeWillExpand(node, true);
+            else if (this.treeNodeWillExpand)
                 this.treeNodeWillExpand.runWith([node, true]);
             if (!node._cell)
                 return;
-            if (this.treeNodeRender)
+            if (typeof this.treeNodeRender === 'function')
+                this.treeNodeRender(node, node._cell);
+            else if (this.treeNodeRender)
                 this.treeNodeRender.runWith([node, node._cell]);
             var cc = node._cell.getController("expanded");
             if (cc)
@@ -9551,11 +9656,15 @@
                 this.checkChildren(this._rootNode, 0);
                 return;
             }
-            if (this.treeNodeWillExpand)
+            if (typeof this.treeNodeWillExpand === 'function')
+                this.treeNodeWillExpand(node, false);
+            else if (this.treeNodeWillExpand)
                 this.treeNodeWillExpand.runWith([node, false]);
             if (!node._cell)
                 return;
-            if (this.treeNodeRender)
+            if (typeof this.treeNodeRender === 'function')
+                this.treeNodeRender(node, node._cell);
+            else if (this.treeNodeRender)
                 this.treeNodeRender.runWith([node, node._cell]);
             var cc = node._cell.getController("expanded");
             if (cc)
@@ -9904,8 +10013,12 @@
         }
         _setTree(value) {
             this._tree = value;
-            if (this._tree && this._tree.treeNodeWillExpand && this._expanded)
-                this._tree.treeNodeWillExpand.runWith([this, true]);
+            if (this._tree && this._tree.treeNodeWillExpand && this._expanded) {
+                if (typeof (this._tree.treeNodeWillExpand) == "function")
+                    this._tree.treeNodeWillExpand(this, true);
+                else
+                    this._tree.treeNodeWillExpand.runWith([this, true]);
+            }
             if (this._children) {
                 var cnt = this._children.length;
                 for (var i = 0; i < cnt; i++) {
@@ -10087,9 +10200,10 @@
             }
             var r = (this._contentPane.parent);
             r.hidePopup(this.contentPane);
-            if (itemObject.data != null) {
+            if (typeof itemObject.data === 'function')
+                itemObject.data();
+            else if (itemObject.data instanceof Laya.Handler)
                 itemObject.data.run();
-            }
         }
         __addedToStage() {
             this._list.selectedIndex = -1;
@@ -12386,7 +12500,7 @@
                 }
             }
             if (processCallback && handler) {
-                handler.run();
+                typeof handler === 'function' ? handler() : handler.run();
             }
         }
         stopItem(item, setToComplete) {
@@ -12459,6 +12573,9 @@
         }
         get playing() {
             return this._playing;
+        }
+        get totalDuration() {
+            return this._totalDuration;
         }
         setValue(label, ...args) {
             var cnt = this._items.length;
@@ -12684,7 +12801,7 @@
             else if (this._onComplete) {
                 var handler = this._onComplete;
                 this._onComplete = null;
-                handler.run();
+                typeof handler === 'function' ? handler() : handler.run();
             }
         }
         internalPlay() {
@@ -12979,11 +13096,12 @@
         callHook(item, tweenEnd) {
             if (tweenEnd) {
                 if (item.tweenConfig && item.tweenConfig.endHook)
-                    item.tweenConfig.endHook.run();
+                    typeof item.hook == "function" ? item.hook() : item.hook.run();
             }
             else {
-                if (item.time >= this._startTime && item.hook)
-                    item.hook.run();
+                if (item.time >= this._startTime && item.hook) {
+                    typeof item.hook == "function" ? item.hook() : item.hook.run();
+                }
             }
         }
         checkAllComplete() {
@@ -13013,7 +13131,7 @@
                         if (this._onComplete) {
                             var handler = this._onComplete;
                             this._onComplete = null;
-                            handler.run();
+                            typeof handler === 'function' ? handler() : handler.run();
                         }
                     }
                 }
@@ -13096,7 +13214,7 @@
                             if (value.stopTime >= 0 && (endTime < 0 || endTime > value.stopTime))
                                 endTime = value.stopTime;
                             trans.timeScale = this._timeScale;
-                            trans._play(Laya.Handler.create(this, this.onPlayTransCompleted, [item]), value.playTimes, 0, startTime, endTime, this._reversed);
+                            trans._play(() => this.onPlayTransCompleted(item), value.playTimes, 0, startTime, endTime, this._reversed);
                         }
                     }
                     break;
@@ -13518,6 +13636,8 @@
     }
     //Default font name
     UIConfig.defaultFont = "SimSun";
+    // 字体名称映射表
+    UIConfig.fontRemaps = {};
     //When a modal window is in front, the background becomes dark.
     UIConfig.modalLayerColor = "rgba(33,33,33,0.2)";
     UIConfig.buttonSoundVolumeScale = 1;
@@ -13726,8 +13846,8 @@
                     i--;
                 }
             }
-            if (loadKeyArr.length == 0) {
-                completeHandler.runWith([pkgArr]);
+            if (loadKeyArr.length == 0 && completeHandler) {
+                typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([pkgArr]);
                 return;
             }
             fgui.AssetProxy.inst.load(loadKeyArr, Laya.Loader.BUFFER).then((resArr) => {
@@ -13762,9 +13882,10 @@
                                 UIPackage._instById[pkg._resKey] = pkg;
                             }
                         }
-                        completeHandler.runWith([pkgArr]);
+                        typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([pkgArr]);
                     }, (progress) => {
-                        progressHandler.runWith(progress);
+                        if (progressHandler)
+                            typeof progressHandler === 'function' ? progressHandler(progress) : progressHandler.runWith(progress);
                     });
                 }
                 else {
@@ -13776,7 +13897,7 @@
                             UIPackage._instById[pkg._resKey] = pkg;
                         }
                     }
-                    completeHandler.runWith([pkgArr]);
+                    typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([pkgArr]);
                 }
             });
         }
@@ -14088,6 +14209,9 @@
         get name() {
             return this._name;
         }
+        get items() {
+            return this._items;
+        }
         get customId() {
             return this._customId;
         }
@@ -14152,7 +14276,7 @@
                 case fgui.PackageItemType.Atlas:
                     if (!item.decoded) {
                         item.decoded = true;
-                        item.texture = fgui.AssetProxy.inst.getRes(item.file);
+                        item.texture = fgui.AssetProxy.inst.getItemRes(item);
                         //if(!fgui.UIConfig.textureLinearSampling)
                         //item.texture.isLinearSampling = false;
                     }
@@ -14173,7 +14297,7 @@
                     return item.rawData;
                 case fgui.PackageItemType.Misc:
                     if (item.file)
-                        return fgui.AssetProxy.inst.getRes(item.file);
+                        return fgui.AssetProxy.inst.getItemRes(item);
                     else
                         return null;
                 default:
@@ -15063,7 +15187,7 @@
         set color(value) {
             if (this._color != value) {
                 this._color = value;
-                fgui.ToolSet.setColorFilter(this, value);
+                this.markChanged(1);
             }
         }
         markChanged(flag) {
@@ -15103,10 +15227,10 @@
                     var bottom = Math.max(th - this._scale9Grid.bottom, 0);
                     this._sizeGrid = [top, right, bottom, left, this._tileGridIndice];
                 }
-                g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid);
+                g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid, this._color);
             }
             else {
-                g.drawImage(tex, 0, 0, w, h);
+                g.drawImage(tex, 0, 0, w, h, Laya.ColorUtils.create(this._color).numColor);
             }
         }
         doFill() {
@@ -15341,7 +15465,10 @@
                 if (this._endHandler) {
                     var handler = this._endHandler;
                     this._endHandler = null;
-                    handler.run();
+                    if (typeof handler === 'function')
+                        handler();
+                    else
+                        handler.run();
                 }
             }
             else {
@@ -17024,7 +17151,7 @@
                     this._onStart.call(this._onStartCaller, this);
                 }
                 catch (err) {
-                    console.log("FairyGUI: error in start callback > " + err);
+                    console.warn("FairyGUI: error in start callback", err);
                 }
             }
         }
@@ -17034,7 +17161,7 @@
                     this._onUpdate.call(this._onUpdateCaller, this);
                 }
                 catch (err) {
-                    console.log("FairyGUI: error in update callback > " + err);
+                    console.warn("FairyGUI: error in update callback", err);
                 }
             }
         }
@@ -17044,7 +17171,7 @@
                     this._onComplete.call(this._onCompleteCaller, this);
                 }
                 catch (err) {
-                    console.log("FairyGUI: error in complete callback > " + err);
+                    console.warn("FairyGUI: error in complete callback", err);
                 }
             }
         }

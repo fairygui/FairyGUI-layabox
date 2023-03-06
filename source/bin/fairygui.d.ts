@@ -4,15 +4,13 @@ declare namespace fgui {
         private static _inst;
         static get inst(): AssetProxy;
         getRes(url: string, type?: string): any;
+        getItemRes(item: PackageItem): any;
         load(url: string | Laya.ILoadURL | (string | Readonly<Laya.ILoadURL>)[], type?: string, onProgress?: Laya.ProgressCallback): Promise<any>;
     }
 }
 declare namespace fgui {
     class AsyncOperation {
-        /**
-         * this.callback(obj:GObject)
-         */
-        callback: Laya.Handler;
+        callback: Laya.Handler | ((obj: GObject) => void);
         private _itemList;
         private _objectPool;
         private _index;
@@ -113,6 +111,8 @@ declare namespace fgui {
             touchId?: number;
         }): void;
     }
+    /** 通用无参数回调 */
+    type SimpleHandler = Laya.Handler | (() => void);
 }
 declare namespace fgui {
     enum ButtonMode {
@@ -123,7 +123,9 @@ declare namespace fgui {
     enum AutoSizeType {
         None = 0,
         Both = 1,
-        Height = 2
+        Height = 2,
+        Shrink = 3,
+        Ellipsis = 4
     }
     enum AlignType {
         Left = 0,
@@ -141,7 +143,12 @@ declare namespace fgui {
         ScaleMatchHeight = 2,
         ScaleMatchWidth = 3,
         ScaleFree = 4,
-        ScaleNoBorder = 5
+        ScaleNoBorder = 5,
+        /**
+         * 组件根据 GLoader 的大小自动调整尺寸的适配模式
+         * @note 2023/03/03 编辑器中还没有这种适配模式，暂时用 ScaleFree 代替
+         */
+        Resize = 4
     }
     enum ListLayoutType {
         SingleColumn = 0,
@@ -870,6 +877,13 @@ declare namespace fgui {
     }
 }
 declare namespace fgui {
+    enum GGGraphType {
+        Empty = 0,
+        Rect = 1,
+        Ellipse = 2,
+        Polygon = 3,
+        RegularPolygon = 4
+    }
     class GGraph extends GObject {
         private _type;
         private _lineSize;
@@ -882,6 +896,12 @@ declare namespace fgui {
         private _polygonPoints?;
         private _distances?;
         constructor();
+        get type(): GGGraphType;
+        get polygonPoints(): number[];
+        get fillColor(): string;
+        set fillColor(v: string);
+        get lineColor(): string;
+        set lineColor(v: string);
         drawRect(lineSize: number, lineColor: string, fillColor: string, cornerRadius?: number[]): void;
         drawEllipse(lineSize: number, lineColor: string, fillColor: string): void;
         drawRegularPolygon(lineSize: number, lineColor: string, fillColor: string, sides: number, startAngle?: number, distances?: number[]): void;
@@ -1001,14 +1021,8 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class GList extends GComponent {
-        /**
-         * this.itemRenderer(number index, GObject item);
-         */
-        itemRenderer: Laya.Handler;
-        /**
-         * this.itemProvider(index:number):string;
-         */
-        itemProvider: Laya.Handler;
+        itemRenderer: Laya.Handler | ((index: number, item: GObject) => void);
+        itemProvider: Laya.Handler | ((index: number) => string);
         scrollItemToViewOnClick: boolean;
         foldInvisibleItems: boolean;
         private _layout;
@@ -1202,7 +1216,7 @@ declare namespace fgui {
         private __getResCompleted;
         private setErrorState;
         private clearErrorState;
-        private updateLayout;
+        updateLayout(): void;
         private clearContent;
         protected handleSizeChanged(): void;
         getProp(index: number): any;
@@ -1289,7 +1303,7 @@ declare namespace fgui {
         rewind(): void;
         syncStatus(anotherMc: GMovieClip): void;
         advance(timeInMiniseconds: number): void;
-        setPlaySettings(start?: number, end?: number, times?: number, endAt?: number, endHandler?: Laya.Handler): void;
+        setPlaySettings(start?: number, end?: number, times?: number, endAt?: number, endHandler?: SimpleHandler): void;
         getProp(index: number): any;
         setProp(index: number, value: any): void;
         constructFromResource(): void;
@@ -1537,14 +1551,8 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class GTree extends GList {
-        /**
-         * (node: GTreeNode, obj: GComponent) => void
-         */
-        treeNodeRender: Laya.Handler;
-        /**
-         * (node: GTreeNode, expanded: boolean) => void;
-         */
-        treeNodeWillExpand: Laya.Handler;
+        treeNodeRender: Laya.Handler | ((node: GTreeNode, obj: GComponent) => void);
+        treeNodeWillExpand: Laya.Handler | ((node: GTreeNode, expanded: boolean) => void);
         private _indent;
         private _clickToExpand;
         private _rootNode;
@@ -1668,8 +1676,8 @@ declare namespace fgui {
         protected _list: GList;
         constructor(resourceURL?: string);
         dispose(): void;
-        addItem(caption: string, handler?: Laya.Handler): GButton;
-        addItemAt(caption: string, index: number, handler?: Laya.Handler): GButton;
+        addItem(caption: string, handler?: SimpleHandler): GButton;
+        addItemAt(caption: string, index: number, handler?: SimpleHandler): GButton;
         addSeperator(): void;
         getItemName(index: number): string;
         setItemText(name: string, caption: string): void;
@@ -1916,8 +1924,8 @@ declare namespace fgui {
         private _startTime;
         private _endTime;
         constructor(owner: GComponent);
-        play(onComplete?: Laya.Handler, times?: number, delay?: number, startTime?: number, endTime?: number): void;
-        playReverse(onComplete?: Laya.Handler, times?: number, delay?: number, startTime?: number, endTime?: number): void;
+        play(onComplete?: SimpleHandler, times?: number, delay?: number, startTime?: number, endTime?: number): void;
+        playReverse(onComplete?: SimpleHandler, times?: number, delay?: number, startTime?: number, endTime?: number): void;
         changePlayTimes(value: number): void;
         setAutoPlay(value: boolean, times?: number, delay?: number): void;
         private _play;
@@ -1926,8 +1934,9 @@ declare namespace fgui {
         setPaused(paused: boolean): void;
         dispose(): void;
         get playing(): boolean;
+        get totalDuration(): number;
         setValue(label: string, ...args: any[]): void;
-        setHook(label: string, callback: Laya.Handler): void;
+        setHook(label: string, callback: SimpleHandler): void;
         clearHooks(): void;
         setTarget(label: string, newTarget: GObject): void;
         setDuration(label: string, value: number): void;
@@ -1965,6 +1974,7 @@ declare namespace fgui {
     class UIConfig {
         constructor();
         static defaultFont: string;
+        static fontRemaps: Record<string, string>;
         static windowModalWaiting: string;
         static globalModalWaiting: string;
         static modalLayerColor: string;
@@ -2040,7 +2050,7 @@ declare namespace fgui {
         /**
          * @param resKey resKey 或 [resKey1,resKey2,resKey3....]
          */
-        static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler, progressHandler?: Laya.Handler): void;
+        static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler | ((pkgs: UIPackage[]) => void), progressHandler?: Laya.Handler | ((progress: number) => void)): void;
         static removePackage(packageIdOrName: string): void;
         static createObject(pkgName: string, resName: string, userClass?: new () => GObject): GObject;
         static createObjectFromURL(url: string, userClass?: new () => GObject): GObject;
@@ -2055,6 +2065,7 @@ declare namespace fgui {
         dispose(): void;
         get id(): string;
         get name(): string;
+        get items(): PackageItem[];
         get customId(): string;
         set customId(value: string);
         createObject(resName: string, userClass?: new () => GObject): GObject;
@@ -2259,7 +2270,7 @@ declare namespace fgui {
         rewind(): void;
         syncStatus(anotherMc: MovieClip): void;
         advance(timeInMiniseconds: number): void;
-        setPlaySettings(start?: number, end?: number, times?: number, endAt?: number, endHandler?: Laya.Handler): void;
+        setPlaySettings(start?: number, end?: number, times?: number, endAt?: number, endHandler?: SimpleHandler): void;
         private update;
         private drawFrame;
         private checkTimer;
