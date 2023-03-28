@@ -38,7 +38,7 @@ namespace fgui {
         public set texture(value: Laya.Texture) {
             if (this._source != value) {
                 this._source = value;
-                if (this["_width"] == 0) {
+                if (!this._isWidthSet && !this._isHeightSet) {
                     if (this._source)
                         this.size(this._source.width, this._source.height);
                     else
@@ -169,8 +169,8 @@ namespace fgui {
         }
 
         private doDraw(): void {
-            var w: number = this["_width"];
-            var h: number = this["_height"];
+            var w: number = this.width;
+            var h: number = this.height;
             var g: Laya.Graphics = this.graphics;
             var tex: Laya.Texture = this._source;
 
@@ -197,13 +197,13 @@ namespace fgui {
                 g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid, this._color);
             }
             else {
-                g.drawImage(tex, 0, 0, w, h, Laya.ColorUtils.create(this._color).numColor);
+                g.drawImage(tex, 0, 0, w, h, this._color);
             }
         }
 
         private doFill(): void {
-            var w: number = this["_width"];
-            var h: number = this["_height"];
+            var w: number = this.width;
+            var h: number = this.height;
             var g: Laya.Graphics = this._mask.graphics;
             g.clear();
 
@@ -212,9 +212,8 @@ namespace fgui {
 
             var points: any[] = fillImage(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
             if (points == null) {
-                //不知道为什么，不这样操作一下空白的遮罩不能生效
-                this.mask = null;
-                this.mask = this._mask;
+                //this.mask = null;
+                //this.mask = this._mask;
                 return;
             }
 

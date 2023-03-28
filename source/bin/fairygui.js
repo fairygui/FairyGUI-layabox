@@ -13096,7 +13096,7 @@
         callHook(item, tweenEnd) {
             if (tweenEnd) {
                 if (item.tweenConfig && item.tweenConfig.endHook)
-                    typeof item.hook == "function" ? item.hook() : item.hook.run();
+                    typeof item.tweenConfig.endHook == "function" ? item.tweenConfig.endHook() : item.tweenConfig.endHook.run();
             }
             else {
                 if (item.time >= this._startTime && item.hook) {
@@ -15095,7 +15095,7 @@
         set texture(value) {
             if (this._source != value) {
                 this._source = value;
-                if (this["_width"] == 0) {
+                if (!this._isWidthSet && !this._isHeightSet) {
                     if (this._source)
                         this.size(this._source.width, this._source.height);
                     else
@@ -15206,8 +15206,8 @@
             this._needRebuild = 0;
         }
         doDraw() {
-            var w = this["_width"];
-            var h = this["_height"];
+            var w = this.width;
+            var h = this.height;
             var g = this.graphics;
             var tex = this._source;
             g.clear();
@@ -15230,12 +15230,12 @@
                 g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid, this._color);
             }
             else {
-                g.drawImage(tex, 0, 0, w, h, Laya.ColorUtils.create(this._color).numColor);
+                g.drawImage(tex, 0, 0, w, h, this._color);
             }
         }
         doFill() {
-            var w = this["_width"];
-            var h = this["_height"];
+            var w = this.width;
+            var h = this.height;
             var g = this._mask.graphics;
             g.clear();
             if (w == 0 || h == 0)
@@ -15243,7 +15243,7 @@
             var points = fgui.fillImage(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
             if (points == null) {
                 //不知道为什么，不这样操作一下空白的遮罩不能生效
-                this.mask = null;
+                //  this.mask = null;
                 this.mask = this._mask;
                 return;
             }

@@ -121,7 +121,6 @@ declare module Laya {
         static printWebglOrder: boolean;
         /**在IOS下，一些字体会找不到，引擎提供了字体映射功能，比如默认会把 "黑体" 映射为 "黑体-简"，更多映射，可以自己添加*/
         static fontFamilyMap: any;
-        static defaultFontStr(): string;
         /**tempConfig Fixed number of frames */
         static fixedFrames: boolean;
     }
@@ -2385,6 +2384,7 @@ declare module Laya {
         static DISABLE_INNER_CLIPPING: number;
         static DISABLE_OUTER_CLIPPING: number;
         static DISABLE_VISIBILITY: number;
+        static EDITING_NODE: number;
         static HIDE_BY_EDITOR: number;
         static LOCK_BY_EDITOR: number;
     }
@@ -5276,11 +5276,6 @@ declare module Laya {
         get smoothness(): number;
         set smoothness(value: number);
         /**
-         * 光滑度缩放系数,范围为0到1。
-         */
-        get smoothnessTextureScale(): number;
-        set smoothnessTextureScale(value: number);
-        /**
           * 是否支持顶点色。
           */
         get enableVertexColor(): boolean;
@@ -5340,6 +5335,12 @@ declare module Laya {
         get materialType(): PBRMaterialType;
         set materialType(value: PBRMaterialType);
         constructor();
+        /**
+         * @deprecated
+         * 光滑度缩放系数,范围为0到1。
+         */
+        get smoothnessTextureScale(): number;
+        set smoothnessTextureScale(value: number);
     }
     /**
      * PBR材质渲染质量。
@@ -10021,7 +10022,7 @@ declare module Laya {
          * @param rayOri
          * @returns
          */
-        _getCameraDistane(rayOri: Vector3): number;
+        _getCameraDistance(rayOri: Vector3): number;
         private _transByRotate;
     }
     class UI3DGeometry extends GeometryElement {
@@ -13541,6 +13542,9 @@ declare module Laya {
      * <code>SpotLight</code> 类用于创建RenderTextureCube。
      */
     class RenderTextureCube extends RenderTexture {
+        /**
+         * +x, -x, +y, -y, +z, -z
+         */
         faceIndex: number;
         /**
          * 实例化一个RendertextureCube
@@ -14679,7 +14683,7 @@ declare module Laya {
         private static accelerationIncludingGravity;
         private static rotationRate;
         constructor();
-        protected onAddListener(type: string): void;
+        protected onStartListeningToType(type: string): this;
         private onDeviceOrientationChange;
         private static transformedAcceleration;
         /**
@@ -14870,7 +14874,7 @@ declare module Laya {
         static framesMap: any;
         /**@private */
         protected _frames: any[];
-        private _images;
+        private _source;
         private _autoPlay;
         /**
          * 创建一个新的 <code>Animation</code> 实例。
@@ -14915,13 +14919,8 @@ declare module Laya {
          * 3. 图片路径集合：使用此类型创建的动画模版不会被缓存到动画模版缓存池中，如果需要缓存，请使用loadImages(...)方法。</p>
          * @param value	数据源。比如：图集："xx/a1.atlas"；图片集合："a1.png,a2.png,a3.png"；LayaAir IDE动画"xx/a1.ani"。
          */
+        get source(): string;
         set source(value: string);
-        set images(arr: string[]);
-        get images(): string[];
-        /**
-         * 设置自动播放的动画名称，在LayaAir IDE中可以创建的多个动画组成的动画集合，选择其中一个动画名称进行播放。
-         */
-        set autoAnimation(value: string);
         /**
          * 是否自动播放，默认为false。如果设置为true，则动画被创建并添加到舞台后自动播放。
          */
@@ -14961,6 +14960,7 @@ declare module Laya {
          * @param	loaded	（可选）使用指定动画资源初始化动画完毕的回调。
          * @param	atlas	（可选）动画用到的图集地址（可选）。
          * @return 	返回动画本身。
+         * @deprecated
          */
         loadAnimation(url: string, loaded?: Handler, atlas?: string): Animation;
         /**@private */
@@ -15096,11 +15096,10 @@ declare module Laya {
      * 字体制作及使用方法，请参考文章
      * @see http://ldc2.layabox.com/doc/?nav=ch-js-1-2-5
      */
-    class BitmapFont {
+    class BitmapFont extends Resource {
         private _texture;
         private _fontCharDic;
         private _fontWidthMap;
-        private _path;
         private _maxWidth;
         private _spaceWidth;
         private _padding;
@@ -15115,7 +15114,8 @@ declare module Laya {
          * @param	path		位图字体文件的路径。
          * @param	complete	加载并解析完成的回调。
          */
-        loadFont(path: string, complete: Handler): void;
+        static loadFont(path: string, complete: Handler): void;
+        constructor();
         /**
          * 解析字体文件。
          * @param	xml			字体文件XML。
@@ -15137,7 +15137,7 @@ declare module Laya {
         /**
          * 销毁位图字体，调用Text.unregisterBitmapFont 时，默认会销毁。
          */
-        destroy(): void;
+        protected _disposeResource(): void;
         /**
          * 设置空格的宽（如果字体库有空格，这里就可以不用设置了）。
          * @param	spaceWidth 宽度，单位为像素。
@@ -15332,7 +15332,7 @@ declare module Laya {
         /** （可选）绘图颜色 */
         color: number;
         /**@private */
-        static create(texture: Texture, x: number, y: number, width: number, height: number, color: number): DrawImageCmd;
+        static create(texture: Texture, x: number, y: number, width: number, height: number, color: string): DrawImageCmd;
         /**
          * 回收到对象池
          */
@@ -15780,8 +15780,6 @@ declare module Laya {
      */
     class FillTextCmd {
         static ID: string;
-        private _text;
-        _words: HTMLChar[] | null;
         /**
          * 开始绘制文本的 x 坐标位置（相对于画布）。
          */
@@ -15790,17 +15788,16 @@ declare module Laya {
          * 开始绘制文本的 y 坐标位置（相对于画布）。
          */
         y: number;
+        private _text;
+        private _wordText;
+        private _words;
         private _font;
         private _color;
         private _borderColor;
         private _lineWidth;
         private _textAlign;
-        private _fontColor;
-        private _strokeColor;
-        private static _defFontObj;
         private _fontObj;
         private _nTexAlign;
-        /**@private */
         static create(text: string | WordText | null, words: HTMLChar[] | null, x: number, y: number, font: string, color: string | null, textAlign: string, lineWidth: number, borderColor: string | null): FillTextCmd;
         /**
          * 回收到对象池
@@ -15813,8 +15810,8 @@ declare module Laya {
         /**
          * 在画布上输出的文本。
          */
-        get text(): string | WordText | null;
-        set text(value: string | WordText | null);
+        get text(): string;
+        set text(value: string);
         /**
          * 定义字号和字体，比如"20px Arial"。
          */
@@ -15871,7 +15868,7 @@ declare module Laya {
         /** （可选）绘图颜色 */
         color: number;
         /**@private */
-        static create(texture: Texture, x: number, y: number, width: number, height: number, type: string, offset: Point, color: number): FillTextureCmd;
+        static create(texture: Texture, x: number, y: number, width: number, height: number, type: string, offset: Point, color: string): FillTextureCmd;
         /**
          * 回收到对象池
          */
@@ -16137,7 +16134,7 @@ declare module Laya {
         underline: boolean;
         /**下划线颜色*/
         underlineColor: string | null;
-        /**当前使用的位置字体。*/
+        /**当前使用的位图字体。*/
         currBitmapFont: BitmapFont | null;
         /**
          * @override
@@ -16384,7 +16381,7 @@ declare module Laya {
          * @param height	（可选）高度。
          * @param color	 	 （可选）颜色
          */
-        drawImage(texture: Texture, x?: number, y?: number, width?: number, height?: number, color?: number): DrawImageCmd | null;
+        drawImage(texture: Texture, x?: number, y?: number, width?: number, height?: number, color?: string): DrawImageCmd | null;
         /**
          * 绘制纹理，相比drawImage功能更强大，性能会差一些
          * @param texture		纹理。
@@ -16431,7 +16428,7 @@ declare module Laya {
          * @param color	 	 （可选）颜色
          *
          */
-        fillTexture(texture: Texture, x: number, y: number, width?: number, height?: number, type?: string, offset?: Point | null, color?: number): FillTextureCmd | null;
+        fillTexture(texture: Texture, x: number, y: number, width?: number, height?: number, type?: string, offset?: Point | null, color?: string): FillTextureCmd | null;
         /**
          * 设置剪裁区域，超出剪裁区域的坐标不显示。
          * @param x X 轴偏移量。
@@ -16449,7 +16446,7 @@ declare module Laya {
          * @param color 定义文本颜色，比如"#ff0000"。
          * @param textAlign 文本对齐方式，可选值："left"，"center"，"right"。
          */
-        fillText(text: string, x: number, y: number, font: string, color: string, textAlign: string): FillTextCmd;
+        fillText(text: string | WordText, x: number, y: number, font: string, color: string, textAlign: string): FillTextCmd;
         /**
          * 在画布上绘制“被填充且镶边的”文本。
          * @param text			在画布上输出的文本。
@@ -16461,11 +16458,11 @@ declare module Laya {
          * @param lineWidth		镶边线条宽度。
          * @param borderColor	定义镶边文本颜色。
          */
-        fillBorderText(text: string, x: number, y: number, font: string, fillColor: string, textAlign: string, lineWidth: number, borderColor: string): FillTextCmd;
+        fillBorderText(text: string | WordText, x: number, y: number, font: string, fillColor: string, textAlign: string, lineWidth: number, borderColor: string): FillTextCmd;
         /*** @private */
-        fillWords(words: any[], x: number, y: number, font: string, color: string): FillTextCmd;
+        fillWords(words: HTMLChar[], x: number, y: number, font: string, color: string): FillTextCmd;
         /*** @private */
-        fillBorderWords(words: any[], x: number, y: number, font: string, fillColor: string, borderColor: string, lineWidth: number): FillTextCmd;
+        fillBorderWords(words: HTMLChar[], x: number, y: number, font: string, fillColor: string, borderColor: string, lineWidth: number): FillTextCmd;
         /**
          * 在画布上绘制文本（没有填色）。文本的默认颜色是黑色。
          * @param text		在画布上输出的文本。
@@ -16476,7 +16473,7 @@ declare module Laya {
          * @param lineWidth	线条宽度。
          * @param textAlign	文本对齐方式，可选值："left"，"center"，"right"。
          */
-        strokeText(text: string, x: number, y: number, font: string, color: string, lineWidth: number, textAlign: string): FillTextCmd;
+        strokeText(text: string | WordText, x: number, y: number, font: string, color: string, lineWidth: number, textAlign: string): FillTextCmd;
         /**
          * 设置透明度。
          * @param value 透明度。
@@ -16525,16 +16522,12 @@ declare module Laya {
          * @return 替换成功则值为true，否则值为flase。
          */
         replaceText(text: string): boolean;
-        /**@private */
-        private _isTextCmd;
         /**
          * @private
          * 替换文本颜色。
          * @param color 颜色。
          */
         replaceTextColor(color: string): void;
-        /**@private */
-        private _setTextCmdColor;
         /**
          * 加载并显示一个图片。
          * @param url		图片地址。
@@ -17676,6 +17669,8 @@ declare module Laya {
         set height(value: number);
         set_height(value: number): void;
         get_height(): number;
+        get _isWidthSet(): boolean;
+        get _isHeightSet(): boolean;
         protected _shouldRefreshLayout(): void;
         /**
          * <p>对象的显示宽度（以像素为单位）。</p>
@@ -18552,7 +18547,6 @@ declare module Laya {
         get textHeight(): number;
         /** 当前文本的内容字符串。*/
         get text(): string;
-        get_text(): string;
         set_text(value: string): void;
         set text(value: string);
         /**
@@ -18572,14 +18566,14 @@ declare module Laya {
         lang(text: string, arg1?: any, arg2?: any, arg3?: any, arg4?: any, arg5?: any, arg6?: any, arg7?: any, arg8?: any, arg9?: any, arg10?: any): void;
         /**
          * <p>文本的字体名称，以字符串形式表示。</p>
-         * <p>默认值为："Arial"，可以通过Text.defaultFont设置默认字体。</p>
+         * <p>默认值为："Arial"，可以通过Config.defaultFont设置默认字体。</p>
          * <p>如果运行时系统找不到设定的字体，则用系统默认的字体渲染文字，从而导致显示异常。(通常电脑上显示正常，在一些移动端因缺少设置的字体而显示异常)。</p>
          */
         get font(): string;
         set font(value: string);
         /**
          * <p>指定文本的字体大小（以像素为单位）。</p>
-         * <p>默认为20像素，可以通过 <code>Text.defaultFontSize</code> 设置默认大小。</p>
+         * <p>默认为20像素，可以通过 <code>Config.defaultFontSize</code> 设置默认大小。</p>
          */
         get fontSize(): number;
         set fontSize(value: number);
@@ -18595,7 +18589,6 @@ declare module Laya {
          */
         get color(): string;
         set color(value: string);
-        get_color(): string;
         set_color(value: string): void;
         /**
          * <p>表示使用此文本格式的文本是否为斜体。</p>
@@ -18646,7 +18639,6 @@ declare module Laya {
         get bgColor(): string;
         set bgColor(value: string);
         set_bgColor(value: string): void;
-        get_bgColor(): string;
         /**
          * 文本边框背景颜色，以字符串表示。
          */
@@ -19198,7 +19190,7 @@ declare module Laya {
         getSpriteUnderPoint(sp: Sprite, x: number, y: number): Sprite;
         private _getSpriteUnderPoint;
         getSprite3DUnderPoint(x: number, y: number): Node;
-        hitTest(sp: Sprite, x: number, y: number, editor?: boolean): boolean;
+        hitTest(sp: Sprite, x: number, y: number, editing?: boolean): boolean;
         private handleRollOver;
         protected bubbleEvent(type: string, ev: Event, initiator: Node): void;
     }
@@ -20378,7 +20370,7 @@ declare module Laya {
     }
     class HierarchyParser {
         static parse(data: any, options?: Record<string, any>, errors?: Array<any>): Array<Node>;
-        static collectResourceLinks(data: any, basePath: string): ILoadURL[];
+        static collectResourceLinks(data: any, basePath: string): (string | ILoadURL)[];
     }
     /**
      * @private 场景辅助类
@@ -20539,25 +20531,6 @@ declare module Laya {
         static getLoadTypeByEngineType(type: string): string;
         static bakeOverrideData(overrideData: any): Record<string, any[]>;
         static applyOverrideData(nodeData: any, overrideDataMap: Record<string, Array<any>>): any;
-    }
-    /**
-     * @private
-     */
-    class TTFLoader {
-        private static _testString;
-        fontName: string;
-        complete: Handler | null;
-        err: Handler | null;
-        private _fontTxt;
-        private _url;
-        private _div;
-        private _txtWidth;
-        load(fontPath: string): void;
-        private _complete;
-        private _checkComplete;
-        private _loadWithFontFace;
-        private _createDiv;
-        private _loadWithCSS;
     }
     /**
      * 地图的每层都会分块渲染处理
@@ -25870,7 +25843,7 @@ declare module Laya {
          */
         readScanLine(): ArrayBufferView;
         readcolors(scanlineArray: Uint8Array, getc: () => number, wrong: () => void): void;
-        olddreadcolors(scanlineArray: Uint8Array, getc: () => number): void;
+        olddreadcolors(scanlineArray: Uint8Array, getc: () => number, r: number, g: number, b: number, e: number): void;
         color_color(col: Vector4, clr: Vector4): void;
     }
     class IndexBuffer extends Buffer {
@@ -26067,12 +26040,15 @@ declare module Laya {
     class NativeGLTextureContext extends NativeGLObject implements ITextureContext {
         protected _native: any;
         constructor(engine: NativeWebGLEngine, native: any);
-        createTextureInternal(dimension: TextureDimension, width: number, height: number, format: TextureFormat, gengerateMipmap: boolean, sRGB: boolean): InternalTexture;
+        createTextureInternal(dimension: TextureDimension, width: number, height: number, format: TextureFormat, generateMipmap: boolean, sRGB: boolean): InternalTexture;
         setTextureImageData(texture: InternalTexture, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, premultiplyAlpha: boolean, invertY: boolean): void;
         setTexturePixelsData(texture: InternalTexture, source: ArrayBufferView, premultiplyAlpha: boolean, invertY: boolean): void;
         initVideoTextureData(texture: InternalTexture): void;
         setTextureSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, width: number, height: number, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexturebySubImageData(texture: InternalTexture, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTextureSubImageData(texture: InternalTexture, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DImageData(texture: InternalTexture, source: HTMLImageElement[] | HTMLCanvasElement[] | ImageBitmap[], depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DPixlesData(texture: InternalTexture, source: ArrayBufferView, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
         setTextureHDRData(texture: InternalTexture, hdrInfo: HDRTextureInfo): void;
         setTextureDDSData(texture: InternalTexture, ddsInfo: DDSTextureInfo): void;
         setTextureKTXData(texture: InternalTexture, ktxInfo: KTXTextureInfo): void;
@@ -26172,6 +26148,7 @@ declare module Laya {
      * 将继承修改为类似 WebGLRenderingContextBase, WebGLRenderingContextOverloads 多继承 ?
      */
     class GL2TextureContext extends GLTextureContext {
+        protected _gl: WebGL2RenderingContext;
         constructor(engine: WebGLEngine);
         protected getTarget(dimension: TextureDimension): number;
         glTextureParam(format: TextureFormat, useSRGB: boolean): {
@@ -26188,11 +26165,14 @@ declare module Laya {
             format: number;
             type: number;
         };
-        getGLtexMemory(tex: WebGLInternalTex): number;
+        getGLtexMemory(tex: WebGLInternalTex, depth?: number): number;
         supportSRGB(format: TextureFormat | RenderTargetFormat, mipmap: boolean): boolean;
         setTextureImageData(texture: WebGLInternalTex, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexturebySubImageData(texture: WebGLInternalTex, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTextureSubImageData(texture: WebGLInternalTex, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
         setTexturePixelsData(texture: WebGLInternalTex, source: ArrayBufferView, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DImageData(texture: WebGLInternalTex, sources: HTMLImageElement[] | HTMLCanvasElement[] | ImageBitmap[], depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DPixlesData(texture: WebGLInternalTex, source: ArrayBufferView, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DSubPixelsData(texture: WebGLInternalTex, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
         setTextureHDRData(texture: WebGLInternalTex, hdrInfo: HDRTextureInfo): void;
         setTextureKTXData(texture: WebGLInternalTex, ktxInfo: KTXTextureInfo): void;
         setCubeImageData(texture: WebGLInternalTex, sources: (HTMLImageElement | HTMLCanvasElement | ImageBitmap)[], premultiplyAlpha: boolean, invertY: boolean): void;
@@ -26342,6 +26322,7 @@ declare module Laya {
         private _create;
         private _legalUBObyteLength;
         getUniformMap(): ShaderVariable[];
+        _uniform_sampler2DArray(one: any, texture: BaseTexture): number;
         _uniform_sampler3D(one: any, texture: BaseTexture): number;
         destroy(): void;
     }
@@ -26387,7 +26368,7 @@ declare module Laya {
          * @param tex
          * @returns
          */
-        getGLtexMemory(tex: WebGLInternalTex): number;
+        getGLtexMemory(tex: WebGLInternalTex, depth?: number): number;
         getGLRTTexMemory(width: number, height: number, colorFormat: RenderTargetFormat, depthStencilFormat: RenderTargetFormat, generateMipmap: boolean, multiSamples: number, cube: boolean): number;
         /**
          * 根据 format 判断是否支持 SRGBload
@@ -26402,9 +26383,12 @@ declare module Laya {
          * @returns
          */
         isSRGBFormat(format: TextureFormat | RenderTargetFormat): boolean;
-        createTextureInternal(dimension: TextureDimension, width: number, height: number, format: TextureFormat, gengerateMipmap: boolean, sRGB: boolean): InternalTexture;
+        createTextureInternal(dimension: TextureDimension, width: number, height: number, format: TextureFormat, generateMipmap: boolean, sRGB: boolean): InternalTexture;
         setTextureImageData(texture: WebGLInternalTex, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexturebySubImageData(texture: WebGLInternalTex, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTextureSubImageData(texture: WebGLInternalTex, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DImageData(texture: WebGLInternalTex, sources: HTMLImageElement[] | HTMLCanvasElement[] | ImageBitmap[], depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DPixlesData(texture: InternalTexture, source: ArrayBufferView, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
         initVideoTextureData(texture: WebGLInternalTex): void;
         setTexturePixelsData(texture: WebGLInternalTex, source: ArrayBufferView, premultiplyAlpha: boolean, invertY: boolean): void;
         setTextureSubPixelsData(texture: WebGLInternalTex, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, width: number, height: number, premultiplyAlpha: boolean, invertY: boolean): void;
@@ -26747,7 +26731,8 @@ declare module Laya {
         Texture_SRGB = 16,
         MSAA = 17,
         UnifromBufferObject = 18,
-        GRAPHICS_API_GLES3 = 19
+        GRAPHICS_API_GLES3 = 19,
+        Texture3D = 20
     }
     enum RenderClearFlag {
         Nothing = 0,
@@ -26996,7 +26981,6 @@ declare module Laya {
     }
     interface IRenderEngine {
         gl: any;
-        isWebGL2: boolean;
         _isShaderDebugMode: boolean;
         _renderOBJCreateContext: IRenderOBJCreate;
         initRenderEngine(canvas: any): void;
@@ -27096,14 +27080,17 @@ declare module Laya {
          * @param width
          * @param height
          * @param format
-         * @param gengerateMipmap
+         * @param generateMipmap
          * @param sRGB
          * @returns
          */
-        createTextureInternal(dimension: TextureDimension, width: number, height: number, format: TextureFormat, gengerateMipmap: boolean, sRGB: boolean): InternalTexture;
+        createTextureInternal(dimension: TextureDimension, width: number, height: number, format: TextureFormat, generateMipmap: boolean, sRGB: boolean): InternalTexture;
         setTextureImageData(texture: InternalTexture, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexturebySubImageData(texture: InternalTexture, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTextureSubImageData(texture: InternalTexture, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
         setTexturePixelsData(texture: InternalTexture, source: ArrayBufferView, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DImageData(texture: InternalTexture, source: HTMLImageElement[] | HTMLCanvasElement[] | ImageBitmap[], depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DPixlesData(texture: InternalTexture, source: ArrayBufferView, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
         initVideoTextureData(texture: InternalTexture): void;
         setTextureSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, width: number, height: number, premultiplyAlpha: boolean, invertY: boolean): void;
         setTextureDDSData(texture: InternalTexture, ddsInfo: DDSTextureInfo): void;
@@ -27115,7 +27102,7 @@ declare module Laya {
         setCubeDDSData(texture: InternalTexture, ddsInfo: DDSTextureInfo): void;
         setCubeKTXData(texture: InternalTexture, ktxInfo: KTXTextureInfo): void;
         setTextureCompareMode(texture: InternalTexture, compareMode: TextureCompareMode): TextureCompareMode;
-        createRenderTextureInternal(dimension: TextureDimension, width: number, height: number, format: RenderTargetFormat, gengerateMipmap: boolean, sRGB: boolean): InternalTexture;
+        createRenderTextureInternal(dimension: TextureDimension, width: number, height: number, format: RenderTargetFormat, generateMipmap: boolean, sRGB: boolean): InternalTexture;
         createRenderTargetInternal(width: number, height: number, format: RenderTargetFormat, depthStencilFormat: RenderTargetFormat, generateMipmap: boolean, sRGB: boolean, multiSamples: number): InternalRenderTarget;
         createRenderTargetCubeInternal(size: number, colorFormat: RenderTargetFormat, depthStencilFormat: RenderTargetFormat, generateMipmap: boolean, sRGB: boolean, multiSamples: number): InternalRenderTarget;
         setupRendertargetTextureAttachment(renderTarget: InternalRenderTarget, texture: InternalTexture): void;
@@ -28417,20 +28404,6 @@ declare module Laya {
      */
     class RenderSprite {
         /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        /** @private */
-        static INIT: number;
-        /** @private */
         static renders: RenderSprite[];
         /** @private */
         protected static NORENDER: RenderSprite;
@@ -28545,12 +28518,12 @@ declare module Laya {
          */
         URL_to_UUID_async(url: string): Promise<string>;
         /**
-         * TODO
+         * 获取真实的Url
          * @param url
          * @param onResolve
          * @returns
          */
-        resolveURL(url: string, onResolve: (url: string) => void): void;
+        resolveURL(url: string, onResolve?: (url: string) => void): Promise<string>;
         /**
          * 查找shadername的地址
          * @param shaderName
@@ -29420,15 +29393,10 @@ declare module Laya {
         static destroyUnusedResources(): void;
         /** @private */
         private static _destroyUnusedResources;
-        /**@private */
         private _cpuMemory;
-        /**@private */
         private _gpuMemory;
-        /**@private */
         protected _id: number;
-        /**@private */
         protected _destroyed?: boolean;
-        /**@private */
         protected _referenceCount: number;
         protected _obsolute: boolean;
         /**是否加锁，如果true为不能使用自动释放机制。*/
@@ -29472,14 +29440,22 @@ declare module Laya {
          * @param managed 如果设置为true，则在destroyUnusedResources时会检测引用计数并自动释放如果计数为0。默认为true。
          */
         protected constructor(managed?: boolean);
+        _setCPUMemory(value: number): void;
+        _setGPUMemory(value: number): void;
+        _setCreateURL(url: string, uuid?: string): void;
         /**
          * 返回资源是否从指定url创建
          */
         isCreateFromURL(url: string): boolean;
+        _addReference(count?: number): void;
+        _removeReference(count?: number): void;
         /**
          * 清除引用
          */
         _clearReference(): void;
+        protected _recoverResource(): void;
+        protected _disposeResource(): void;
+        protected _activeResource(): void;
         /**
          * 销毁资源,销毁后资源不能恢复。
          */
@@ -29545,7 +29521,10 @@ declare module Laya {
         uuid: string;
         /** @private */
         scaleRate: number;
-        clipCache: Map<string, Texture>;
+        /**九宫格*/
+        _sizeGrid?: Array<number>;
+        /**状态数量*/
+        _stateNum?: number;
         /**
          *  根据指定资源和坐标、宽高、偏移量等创建 <code>Texture</code> 对象。
          * @param	source 绘图资源 Texture2D 或者 Texture对象。
@@ -29702,15 +29681,15 @@ declare module Laya {
         /**
          * 设置Image数据
          * @param source Image原始数据
-         * @param premultiplyAlpha 是否预乘法
-         * @param invertY
+         * @param premultiplyAlpha 是否预乘 alpha
+         * @param invertY 是否反转图像 Y 轴
          */
         setImageData(source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, premultiplyAlpha: boolean, invertY: boolean): void;
         /**
          * 设置像素数据
-         * @param source
-         * @param premultiplyAlpha
-         * @param invertY
+         * @param source 像素数据
+         * @param premultiplyAlpha 是否预乘 alpha
+         * @param invertY 是否反转图像 Y 轴
          */
         setPixelsData(source: ArrayBufferView, premultiplyAlpha: boolean, invertY: boolean): void;
         /**
@@ -29751,6 +29730,42 @@ declare module Laya {
          * @returns
          */
         getPixels(): Uint8Array;
+    }
+    /**
+     * 2D 纹理 数组
+     */
+    class Texture2DArray extends BaseTexture {
+        readonly depth: number;
+        constructor(width: number, height: number, depth: number, format: TextureFormat, mipmap: boolean, canRead: boolean, sRGB?: boolean);
+        /**
+         * 设置Image数据
+         * @param sources Image 数组
+         * @param premultiplyAlpha 是否预乘 alpha
+         * @param invertY 是否反转图像 Y 轴
+         */
+        setImageData(sources: HTMLImageElement[] | HTMLCanvasElement[] | ImageBitmap[], premultiplyAlpha: boolean, invertY: boolean): void;
+        /**
+         * 设置像素数据
+         * @param source 像素数据
+         * @param premultiplyAlpha 是否预乘 alpha
+         * @param invertY 是否反转图像 Y 轴
+         */
+        setPixlesData(source: ArrayBufferView, premultiplyAlpha: boolean, invertY: boolean): void;
+        /**
+         * 更新像素数据
+         * @param xOffset x 偏移
+         * @param yOffset y 偏移
+         * @param zOffset z 偏移
+         * @param width 更新数据宽度
+         * @param height 更新数据高度
+         * @param depth 更新数据深度层级
+         * @param pixels 像素数据
+         * @param mipmapLevel mipmap 等级
+         * @param generateMipmap 是否生成 mipmap
+         * @param premultiplyAlpha 是否预乘 alpha
+         * @param invertY 是否反转 Y 轴
+         */
+        setSubPixelsData(xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, pixels: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, premultiplyAlpha: boolean, invertY: boolean): void;
     }
     /**
      * WebGLRTMgr 管理WebGLRenderTarget的创建和回收
@@ -30014,6 +30029,8 @@ declare module Laya {
         private _sizeGrid;
         /**@private */
         protected _isChanged: boolean;
+        protected _stateIndex: number;
+        protected _stateNum: number;
         uv: number[];
         _color: string;
         /**@private */
@@ -30036,10 +30053,10 @@ declare module Laya {
         set height(value: number);
         /**
          * 对象的纹理资源。
-         * @see laya.resource.Texture
          */
         get source(): Texture;
         set source(value: Texture);
+        setState(index: number, numStates: number): void;
         get color(): string;
         set color(value: string);
         /** @private */
@@ -30240,7 +30257,7 @@ declare module Laya {
          * 表示按钮的选中状态。
          */
         protected _selected: boolean;
-        protected _skins: string[];
+        protected _skin: string;
         /**
          * @private
          * 指定此显示对象是否自动计算并改变大小等属性。
@@ -30251,11 +30268,6 @@ declare module Laya {
          * 按钮的状态数。
          */
         protected _stateNum: number;
-        /**
-         * @private
-         * 源数据。
-         */
-        protected _sources: Texture[];
         /**
          * @private
          * 按钮的点击事件函数。
@@ -30301,12 +30313,8 @@ declare module Laya {
          */
         get skin(): string;
         set skin(value: string);
-        /**
-         * <p>对象的皮肤资源地址。数组可以为1、2、3个元素，分别表达单态，两态和三态。</p>
-         */
-        get skins(): string[];
-        set skins(value: string[]);
-        protected _skinLoaded(): void;
+        _setSkin(url: string): Promise<void>;
+        protected _skinLoaded(tex: any): void;
         /**
          * <p>指定对象的状态值，以数字表示。</p>
          * <p>默认值为3。此值决定皮肤资源图片的切割方式。</p>
@@ -30407,7 +30415,6 @@ declare module Laya {
         set labelBold(value: boolean);
         /**
          * 表示按钮文本标签的字体名称，以字符串形式表示。
-         * @see laya.display.Text.font()
          */
         get labelFont(): string;
         set labelFont(value: string);
@@ -30433,7 +30440,6 @@ declare module Laya {
          * <p>当前实例的位图 <code>AutoImage</code> 实例的有效缩放网格数据。</p>
          * <p>数据格式："上边距,右边距,下边距,左边距,是否重复填充(值为0：不重复填充，1：重复填充)"，以逗号分隔。
          * <ul><li>例如："4,4,4,4,1"</li></ul></p>
-         * @see laya.ui.AutoBitmap.sizeGrid
          */
         get sizeGrid(): string;
         set sizeGrid(value: string);
@@ -30713,6 +30719,7 @@ declare module Laya {
          */
         get skin(): string;
         set skin(value: string);
+        _setSkin(url: string): Promise<void>;
         protected _skinLoaded(): void;
         /**X轴（横向）切片数量。*/
         get clipX(): number;
@@ -30776,7 +30783,6 @@ declare module Laya {
          * <p>当前实例的位图 <code>AutoImage</code> 实例的有效缩放网格数据。</p>
          * <p>数据格式："上边距,右边距,下边距,左边距,是否重复填充(值为0：不重复填充，1：重复填充)"，以逗号分隔。
          * <ul><li>例如："4,4,4,4,1"</li></ul></p>
-         * @see laya.ui.AutoBitmap.sizeGrid
          */
         get sizeGrid(): string;
         set sizeGrid(value: string);
@@ -31246,8 +31252,6 @@ declare module Laya {
         private onButtonMouseDown;
         get skin(): string;
         set skin(value: string);
-        get skins(): string[];
-        set skins(value: string[]);
         /**
          * @inheritDoc
          * @override
@@ -31361,7 +31365,6 @@ declare module Laya {
          * <p>当前实例的位图 <code>AutoImage</code> 实例的有效缩放网格数据。</p>
          * <p>数据格式："上边距,右边距,下边距,左边距,是否重复填充(值为0：不重复填充，1：重复填充)"，以逗号分隔。
          * <ul><li>例如："4,4,4,4,1"</li></ul></p>
-         * @see laya.ui.AutoBitmap.sizeGrid
          */
         get sizeGrid(): string;
         set sizeGrid(value: string);
@@ -32138,7 +32141,7 @@ declare module Laya {
      *         Laya.stage.addChild(image);//将此 image 对象添加到显示列表。
      *     }
      * }
-     * @see laya.ui.AutoBitmap
+     * @see AutoBitmap
      */
     class Image extends UIComponent {
         /**@private */
@@ -32168,6 +32171,7 @@ declare module Laya {
          */
         get skin(): string;
         set skin(value: string);
+        _setSkin(url: string): Promise<void>;
         /**
          * @copy laya.ui.AutoBitmap#source
          */
@@ -32182,11 +32186,6 @@ declare module Laya {
         set group(value: string);
         get useSourceSize(): boolean;
         set useSourceSize(value: boolean);
-        /**
-         * @private
-         * 设置皮肤资源。
-         */
-        protected setSource(url: string, img: any): void;
         /**
          * @inheritDoc
          * @override
@@ -33302,7 +33301,8 @@ declare module Laya {
          */
         get skin(): string;
         set skin(value: string);
-        protected _skinLoaded(url: string): void;
+        _setSkin(url: string): Promise<void>;
+        protected _skinLoaded(): void;
         /**
          * @inheritDoc
          * @override
@@ -33609,7 +33609,8 @@ declare module Laya {
          */
         get skin(): string;
         set skin(value: string);
-        protected _skinLoaded(url: string): void;
+        _setSkin(url: string): Promise<void>;
+        protected _skinLoaded(): void;
         /**
          * @private
          * 更改对象的皮肤及位置。
@@ -33666,7 +33667,6 @@ declare module Laya {
          * <p>当前实例的 <code>Slider</code> 实例的有效缩放网格数据。</p>
          * <p>数据格式："上边距,右边距,下边距,左边距,是否重复填充(值为0：不重复填充，1：重复填充)"，以逗号分隔。
          * <ul><li>例如："4,4,4,4,1"</li></ul></p>
-         * @see laya.ui.AutoBitmap.sizeGrid
          */
         get sizeGrid(): string;
         set sizeGrid(value: string);
@@ -33848,7 +33848,8 @@ declare module Laya {
          */
         get skin(): string;
         set skin(value: string);
-        protected _skinLoaded(url: string): void;
+        _setSkin(url: string): Promise<void>;
+        protected _skinLoaded(): void;
         /**
          * @private
          * 设置滑块的位置信息。
@@ -34348,12 +34349,12 @@ declare module Laya {
          */
         get skin(): string;
         set skin(value: string);
+        _setSkin(url: string): Promise<void>;
         protected _skinLoaded(source: any): void;
         /**
          * <p>当前实例的背景图（ <code>AutoBitmap</code> ）实例的有效缩放网格数据。</p>
          * <p>数据格式："上边距,右边距,下边距,左边距,是否重复填充(值为0：不重复填充，1：重复填充)"，以逗号分隔。
          * <ul><li>例如："4,4,4,4,1"</li></ul></p>
-         * @see laya.ui.AutoBitmap.sizeGrid
          */
         get sizeGrid(): string;
         set sizeGrid(value: string);
@@ -35165,6 +35166,7 @@ declare module Laya {
          */
         get skin(): string;
         set skin(value: string);
+        _setSkin(url: string): Promise<void>;
         protected _skinLoaded(): void;
         /**
          * 标签集合字符串。以逗号做分割，如"item0,item1,item2,item3,item4,item5"。
@@ -36795,7 +36797,7 @@ declare module Laya {
          * 解析字体模型
          * @param font
          */
-        static Parse(font: string): FontInfo;
+        static parse(font: string): FontInfo;
         constructor(font: string | null);
         /**
          * 设置字体格式
@@ -37905,7 +37907,7 @@ declare module Laya {
         /**
          * 更改文件名的扩展名。
          */
-        static replaceFileExtension(path: string, newExt: string): string;
+        static replaceFileExtension(path: string, newExt: string, excludeDot?: boolean): string;
     }
     /**
      * @private
@@ -39357,7 +39359,6 @@ declare module Laya {
      * @private
      */
     class WebGL {
-        static _isWebGL2: boolean;
         static isNativeRender_enable: boolean;
         static _nativeRender_enable(): void;
         static enable(): boolean;
