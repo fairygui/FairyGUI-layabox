@@ -860,7 +860,7 @@ namespace fgui {
         private callHook(item: Item, tweenEnd: boolean): void {
             if (tweenEnd) {
                 if (item.tweenConfig && item.tweenConfig.endHook)
-                    typeof item.hook == "function" ? item.hook() : item.hook.run();
+                    typeof item.tweenConfig.endHook == "function" ? item.tweenConfig.endHook() : item.tweenConfig.endHook.run();
             }
             else {
                 if (item.time >= this._startTime && item.hook) {
