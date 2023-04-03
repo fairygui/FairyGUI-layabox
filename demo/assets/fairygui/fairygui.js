@@ -13873,7 +13873,10 @@
                     }
                 }
                 if (urls.length > 0) {
-                    fgui.AssetProxy.inst.load(urls).then(() => {
+                    fgui.AssetProxy.inst.load(urls, null, (progress) => {
+                        if (progressHandler)
+                            typeof progressHandler === 'function' ? progressHandler(progress) : progressHandler.runWith(progress);
+                    }).then(() => {
                         for (i = 0; i < pkgArr.length; i++) {
                             pkg = pkgArr[i];
                             if (!UIPackage._instById[pkg.id]) {
@@ -13883,9 +13886,6 @@
                             }
                         }
                         typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([pkgArr]);
-                    }, (progress) => {
-                        if (progressHandler)
-                            typeof progressHandler === 'function' ? progressHandler(progress) : progressHandler.runWith(progress);
                     });
                 }
                 else {
@@ -15242,9 +15242,8 @@
                 return;
             var points = fgui.fillImage(w, h, this._fillMethod, this._fillOrigin, this._fillClockwise, this._fillAmount);
             if (points == null) {
-                //不知道为什么，不这样操作一下空白的遮罩不能生效
-                //  this.mask = null;
-                this.mask = this._mask;
+                //this.mask = null;
+                //this.mask = this._mask;
                 return;
             }
             g.drawPoly(0, 0, points, "#FFFFFF");

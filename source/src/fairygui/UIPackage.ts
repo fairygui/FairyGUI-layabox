@@ -81,7 +81,7 @@ namespace fgui {
         /**
          * @param resKey resKey 或 [resKey1,resKey2,resKey3....]
          */
-        public static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler | ((pkgs: UIPackage[]) =>  void), progressHandler?: Laya.Handler | ((progress: number) => void)): void {
+        public static loadPackage(resKey: string | Array<string>, completeHandler: Laya.Handler | ((pkgs: UIPackage[]) => void), progressHandler?: Laya.Handler | ((progress: number) => void)): void {
             let loadKeyArr = [];
             let keys: Array<string> = [];
             let i: number;
@@ -108,7 +108,7 @@ namespace fgui {
                 }
             }
             if (loadKeyArr.length == 0 && completeHandler) {
-                typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([ pkgArr ]);
+                typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([pkgArr]);
                 return;
             }
 
@@ -135,7 +135,10 @@ namespace fgui {
                     }
                 }
                 if (urls.length > 0) {
-                    AssetProxy.inst.load(urls).then(() => {
+                    AssetProxy.inst.load(urls, null, (progress: number) => {
+                        if (progressHandler)
+                            typeof progressHandler === 'function' ? progressHandler(progress) : progressHandler.runWith(progress);
+                    }).then(() => {
                         for (i = 0; i < pkgArr.length; i++) {
                             pkg = pkgArr[i];
                             if (!UIPackage._instById[pkg.id]) {
@@ -145,9 +148,6 @@ namespace fgui {
                             }
                         }
                         typeof completeHandler === 'function' ? completeHandler(pkgArr) : completeHandler.runWith([pkgArr]);
-                    }, (progress: number) => {
-                        if (progressHandler)
-                            typeof progressHandler === 'function' ? progressHandler(progress) : progressHandler.runWith(progress);
                     });
                 }
                 else {
