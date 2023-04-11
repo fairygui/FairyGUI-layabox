@@ -74,5 +74,7 @@ namespace fgui {
     public static textureLinearSampling: boolean = true;
 
     public static packageFileExtension: string = "fui";
+
+    public static useLayaSkeleton : boolean = false;
   }
 }

@@ -8019,9 +8019,16 @@
                 return;
             if (err)
                 console.warn(err);
-            if (!this._contentItem.templet)
+            let templet = this._contentItem.templet;
+            if (!templet)
                 return;
-            this.setSkeleton(this._contentItem.templet.buildArmature(1), this._contentItem.skeletonAnchor);
+            if (templet instanceof Laya.Templet)
+                this.setSkeleton(templet.buildArmature(1), this._contentItem.skeletonAnchor);
+            else {
+                let obj = new Laya.SpineSkeleton();
+                obj.templet = templet;
+                this.setSkeleton(obj, this._contentItem.skeletonAnchor);
+            }
         }
         setSkeleton(skeleton, anchor) {
             this.url = null;
@@ -13672,6 +13679,7 @@
     UIConfig.frameTimeForAsyncUIConstruction = 2;
     UIConfig.textureLinearSampling = true;
     UIConfig.packageFileExtension = "fui";
+    UIConfig.useLayaSkeleton = false;
     fgui.UIConfig = UIConfig;
 })(fgui);
 
@@ -14317,21 +14325,19 @@
                 case fgui.PackageItemType.Spine:
                 case fgui.PackageItemType.DragonBones:
                     item.loading = [onComplete];
-                    item.templet = new Laya.Templet();
-                    item.templet.on(Laya.Event.COMPLETE, this, () => {
+                    let url;
+                    if (fgui.UIConfig.useLayaSkeleton) {
+                        let pos = item.file.lastIndexOf('.');
+                        url = item.file.substring(0, pos + 1).replace("_ske", "") + "sk";
+                    }
+                    else
+                        url = { url: item.file, type: Laya.Loader.SPINE };
+                    Laya.loader.load(url).then(templet => {
                         let arr = item.loading;
                         delete item.loading;
-                        arr.forEach(e => e(null, item));
+                        item.templet = templet;
+                        arr.forEach(e => e(item ? null : "load error", item));
                     });
-                    item.templet.on(Laya.Event.ERROR, this, () => {
-                        let arr = item.loading;
-                        delete item.loading;
-                        delete item.templet;
-                        arr.forEach(e => e('parse error', item));
-                    });
-                    let pos = item.file.lastIndexOf('.');
-                    let str = item.file.substring(0, pos + 1).replace("_ske", "") + "sk";
-                    Laya.loader.load(str).then(() => onComplete(null, item));
                     break;
                 default:
                     this.getItemAsset(item);

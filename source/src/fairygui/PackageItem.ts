@@ -38,7 +38,7 @@ namespace fgui {
         public bitmapFont?: BitmapFont;
 
         //skeleton
-        public templet?: Laya.Templet;
+        public templet?: Laya.Templet | Laya.SpineTemplet;
         public skeletonAnchor?: Laya.Point;
 
         constructor() {

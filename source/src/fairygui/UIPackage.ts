@@ -661,21 +661,19 @@ namespace fgui {
                 case PackageItemType.Spine:
                 case PackageItemType.DragonBones:
                     item.loading = [onComplete];
-                    item.templet = new Laya.Templet();
-                    item.templet.on(Laya.Event.COMPLETE, this, () => {
+                    let url: Laya.ILoadURL | string;
+                    if (UIConfig.useLayaSkeleton) {
+                        let pos = item.file.lastIndexOf('.');
+                        url = item.file.substring(0, pos + 1).replace("_ske", "") + "sk";
+                    }
+                    else
+                        url = { url: item.file, type: Laya.Loader.SPINE };
+                    Laya.loader.load(url).then(templet => {
                         let arr = item.loading;
                         delete item.loading;
-                        arr.forEach(e => e(null, item));
+                        item.templet = templet;
+                        arr.forEach(e => e(item ? null : "load error", item));
                     });
-                    item.templet.on(Laya.Event.ERROR, this, () => {
-                        let arr = item.loading;
-                        delete item.loading;
-                        delete item.templet;
-                        arr.forEach(e => e('parse error', item));
-                    });
-                    let pos = item.file.lastIndexOf('.');
-                    let str = item.file.substring(0, pos + 1).replace("_ske", "") + "sk";
-                    Laya.loader.load(str).then(() => onComplete(null, item));
                     break;
 
                 default:

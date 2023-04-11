@@ -1275,7 +1275,7 @@ declare namespace fgui {
         protected loadContent(): void;
         protected loadFromPackage(itemURL: string): void;
         private onLoaded;
-        setSkeleton(skeleton: Laya.Skeleton, anchor?: Laya.Point): void;
+        setSkeleton(skeleton: Laya.Skeleton | Laya.SpineSkeleton, anchor?: Laya.Point): void;
         private onChange;
         protected loadExternal(): void;
         private updateLayout;
@@ -1661,7 +1661,7 @@ declare namespace fgui {
         frames?: Frame[];
         extensionType?: any;
         bitmapFont?: BitmapFont;
-        templet?: Laya.Templet;
+        templet?: Laya.Templet | Laya.SpineTemplet;
         skeletonAnchor?: Laya.Point;
         constructor();
         load(): Object;
@@ -2007,6 +2007,7 @@ declare namespace fgui {
         static frameTimeForAsyncUIConstruction: number;
         static textureLinearSampling: boolean;
         static packageFileExtension: string;
+        static useLayaSkeleton: boolean;
     }
 }
 declare module fgui {
