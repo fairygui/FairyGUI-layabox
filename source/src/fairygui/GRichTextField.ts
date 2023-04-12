@@ -64,7 +64,7 @@ namespace fgui {
 
         public set font(value: string) {
             if (value)
-                this._div.style.font = value;
+                this._div.style.font = `${this.fontSize}px ${value}`;
             else
                 this._div.style.font = fgui.UIConfig.defaultFont;
         }
