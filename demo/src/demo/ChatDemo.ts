@@ -87,11 +87,10 @@ export class ChatDemo {
             item.getChild("name").text = msg.sender;
         item.icon = fgui.UIPackage.getItemURL("Chat", msg.senderIcon);
 
-        var txtObj: fgui.GRichTextField = item.getChild("msg").asRichTextField;
-        txtObj.width = txtObj.initWidth;
+        var txtObj: fgui.GRichTextField = item.getChild("msg");
+        txtObj.displayObject.maxWidth = txtObj.maxWidth;
         txtObj.text = this._emojiParser.parse(msg.msg);
-        if (txtObj.textWidth < txtObj.width)
-            txtObj.width = txtObj.textWidth;
+        txtObj.ensureSizeCorrect();
     }
 
     private onClickSendBtn() {

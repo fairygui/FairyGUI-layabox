@@ -9,22 +9,22 @@ namespace fgui {
             let strings = {};
             TranslationHelper.strings = strings;
 
-            var xml: any = Laya.Utils.parseXMLFromString(source);
-            var resNode: any = findChildNode(xml, "resources");
-            var nodes: any[] = resNode.childNodes;
-            var length1: number = nodes.length;
-            for (var i1: number = 0; i1 < length1; i1++) {
-                var cxml: any = nodes[i1];
-                if (cxml.nodeName == "string") {
-                    var key: string = cxml.getAttribute("name");
-                    var text: string = cxml.textContent;
-                    var i: number = key.indexOf("-");
+            let xml = new Laya.XML(source);
+            let resNode = xml.getNode("resources");
+            let nodes = resNode.elements();
+            let length1: number = nodes.length;
+            for (let i1 = 0; i1 < length1; i1++) {
+                let cxml = nodes[i1];
+                if (cxml.name == "string") {
+                    let key = cxml.getAttrString("name");
+                    let text = cxml.text;
+                    let i = key.indexOf("-");
                     if (i == -1)
                         continue;
 
-                    var key2: string = key.substr(0, i);
-                    var key3: string = key.substr(i + 1);
-                    var col: Object = strings[key2];
+                    let key2 = key.substring(0, i);
+                    let key3 = key.substring(i + 1);
+                    let col = strings[key2];
                     if (!col) {
                         col = {};
                         strings[key2] = col;
@@ -38,31 +38,30 @@ namespace fgui {
             if (TranslationHelper.strings == null)
                 return;
 
-            var compStrings = TranslationHelper.strings[item.owner.id + item.id];
+            let compStrings = TranslationHelper.strings[item.owner.id + item.id];
             if (compStrings == null)
                 return;
 
-            var elementId: string, value: string;
-            var buffer: ByteBuffer = item.rawData;
-            var nextPos: number;
-            var itemCount: number;
-            var i: number, j: number, k: number;
-            var dataLen: number;
-            var curPos: number;
-            var valueCnt: number;
-            var page: string;
+            let elementId: string, value: string;
+            let buffer: ByteBuffer = item.rawData;
+            let nextPos: number;
+            let itemCount: number;
+            let dataLen: number;
+            let curPos: number;
+            let valueCnt: number;
+            let page: string;
 
             buffer.seek(0, 2);
 
-            var childCount: number = buffer.getInt16();
-            for (i = 0; i < childCount; i++) {
+            let childCount: number = buffer.getInt16();
+            for (let i = 0; i < childCount; i++) {
                 dataLen = buffer.getInt16();
                 curPos = buffer.pos;
 
                 buffer.seek(curPos, 0);
 
-                var baseType: number = buffer.readByte();
-                var type: number = baseType;
+                let baseType: number = buffer.readByte();
+                let type: number = baseType;
                 buffer.skip(4);
                 elementId = buffer.readS();
 
@@ -78,8 +77,8 @@ namespace fgui {
 
                 buffer.seek(curPos, 2);
 
-                var gearCnt: number = buffer.getInt16();
-                for (j = 0; j < gearCnt; j++) {
+                let gearCnt: number = buffer.getInt16();
+                for (let j = 0; j < gearCnt; j++) {
                     nextPos = buffer.getInt16();
                     nextPos += buffer.pos;
 
@@ -87,7 +86,7 @@ namespace fgui {
                     {
                         buffer.skip(2);//controller
                         valueCnt = buffer.getInt16();
-                        for (k = 0; k < valueCnt; k++) {
+                        for (let k = 0; k < valueCnt; k++) {
                             page = buffer.readS();
                             if (page != null) {
                                 if ((value = compStrings[elementId + "-texts_" + k]) != null)
@@ -111,10 +110,10 @@ namespace fgui {
 
                     buffer.skip(4 * buffer.getUint16());
 
-                    var cpCount: number = buffer.getUint16();
-                    for (var k: number = 0; k < cpCount; k++) {
-                        var target: string = buffer.readS();
-                        var propertyId: number = buffer.getUint16();
+                    let cpCount: number = buffer.getUint16();
+                    for (let k: number = 0; k < cpCount; k++) {
+                        let target: string = buffer.readS();
+                        let propertyId: number = buffer.getUint16();
                         if (propertyId == 0 && (value = compStrings[elementId + "-cp-" + target]) != null)
                             buffer.writeS(value);
                         else
@@ -144,7 +143,7 @@ namespace fgui {
                             buffer.seek(curPos, 8);
                             buffer.skip(2);
                             itemCount = buffer.getUint16();
-                            for (j = 0; j < itemCount; j++) {
+                            for (let j = 0; j < itemCount; j++) {
                                 nextPos = buffer.getUint16();
                                 nextPos += buffer.pos;
 
@@ -168,10 +167,10 @@ namespace fgui {
                                     buffer.skip(6);
                                     buffer.skip(buffer.getUint16() * 4);//controllers
 
-                                    var cpCount: number = buffer.getUint16();
-                                    for (var k: number = 0; k < cpCount; k++) {
-                                        var target: string = buffer.readS();
-                                        var propertyId: number = buffer.getUint16();
+                                    let cpCount: number = buffer.getUint16();
+                                    for (let k: number = 0; k < cpCount; k++) {
+                                        let target: string = buffer.readS();
+                                        let propertyId: number = buffer.getUint16();
                                         if (propertyId == 0 && (value = compStrings[elementId + "-" + j + "-" + target]) != null)
                                             buffer.writeS(value);
                                         else
@@ -219,7 +218,7 @@ namespace fgui {
                         {
                             if (buffer.seek(curPos, 6) && buffer.readByte() == type) {
                                 itemCount = buffer.getInt16();
-                                for (j = 0; j < itemCount; j++) {
+                                for (let j = 0; j < itemCount; j++) {
                                     nextPos = buffer.getInt16();
                                     nextPos += buffer.pos;
 
@@ -240,20 +239,5 @@ namespace fgui {
                 buffer.pos = curPos + dataLen;
             }
         }
-    }
-
-    function findChildNode(xml: any, name: string): Object {
-        var col: any[] = xml.childNodes;
-        var length1: number = col.length;
-        if (length1 > 0) {
-            for (var i1: number = 0; i1 < length1; i1++) {
-                var cxml: any = col[i1];
-                if (cxml.nodeName == name) {
-                    return cxml;
-                }
-            }
-        }
-
-        return null;
     }
 }

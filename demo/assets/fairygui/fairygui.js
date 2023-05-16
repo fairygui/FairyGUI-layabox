@@ -1692,811 +1692,6 @@
     var sUpdateInDragging;
     var sDraggingQuery;
 })(fgui);
-///<reference path="GObject.ts"/>
-
-///<reference path="GObject.ts"/>
-(function (fgui) {
-    class GTextField extends fgui.GObject {
-        constructor() {
-            super();
-        }
-        get font() {
-            return null;
-        }
-        set font(value) {
-        }
-        get fontSize() {
-            return 0;
-        }
-        set fontSize(value) {
-        }
-        get color() {
-            return null;
-        }
-        set color(value) {
-        }
-        get align() {
-            return null;
-        }
-        set align(value) {
-        }
-        get valign() {
-            return null;
-        }
-        set valign(value) {
-        }
-        get leading() {
-            return 0;
-        }
-        set leading(value) {
-        }
-        get letterSpacing() {
-            return 0;
-        }
-        set letterSpacing(value) {
-        }
-        get bold() {
-            return false;
-        }
-        set bold(value) {
-        }
-        get italic() {
-            return false;
-        }
-        set italic(value) {
-        }
-        get underline() {
-            return false;
-        }
-        set underline(value) {
-        }
-        get singleLine() {
-            return false;
-        }
-        set singleLine(value) {
-        }
-        get stroke() {
-            return 0;
-        }
-        set stroke(value) {
-        }
-        get strokeColor() {
-            return null;
-        }
-        set strokeColor(value) {
-        }
-        set ubbEnabled(value) {
-            this._ubbEnabled = value;
-        }
-        get ubbEnabled() {
-            return this._ubbEnabled;
-        }
-        get autoSize() {
-            return this._autoSize;
-        }
-        set autoSize(value) {
-            if (this._autoSize != value) {
-                this._autoSize = value;
-                this._widthAutoSize = this._autoSize == fgui.AutoSizeType.Both;
-                this._heightAutoSize = this._autoSize == fgui.AutoSizeType.Both || this._autoSize == fgui.AutoSizeType.Height;
-                this.updateAutoSize();
-            }
-        }
-        updateAutoSize() {
-        }
-        get textWidth() {
-            return 0;
-        }
-        parseTemplate(template) {
-            var pos1 = 0, pos2, pos3;
-            var tag;
-            var value;
-            var result = "";
-            while ((pos2 = template.indexOf("{", pos1)) != -1) {
-                if (pos2 > 0 && template.charCodeAt(pos2 - 1) == 92) //\
-                 {
-                    result += template.substring(pos1, pos2 - 1);
-                    result += "{";
-                    pos1 = pos2 + 1;
-                    continue;
-                }
-                result += template.substring(pos1, pos2);
-                pos1 = pos2;
-                pos2 = template.indexOf("}", pos1);
-                if (pos2 == -1)
-                    break;
-                if (pos2 == pos1 + 1) {
-                    result += template.substr(pos1, 2);
-                    pos1 = pos2 + 1;
-                    continue;
-                }
-                tag = template.substring(pos1 + 1, pos2);
-                pos3 = tag.indexOf("=");
-                if (pos3 != -1) {
-                    value = this._templateVars[tag.substring(0, pos3)];
-                    if (value == null)
-                        result += tag.substring(pos3 + 1);
-                    else
-                        result += value;
-                }
-                else {
-                    value = this._templateVars[tag];
-                    if (value != null)
-                        result += value;
-                }
-                pos1 = pos2 + 1;
-            }
-            if (pos1 < template.length)
-                result += template.substring(pos1);
-            return result;
-        }
-        get templateVars() {
-            return this._templateVars;
-        }
-        set templateVars(value) {
-            if (!this._templateVars && !value)
-                return;
-            this._templateVars = value;
-            this.flushVars();
-        }
-        setVar(name, value) {
-            if (!this._templateVars)
-                this._templateVars = {};
-            this._templateVars[name] = value;
-            return this;
-        }
-        flushVars() {
-            this.text = this._text;
-        }
-        getProp(index) {
-            switch (index) {
-                case fgui.ObjectPropID.Color:
-                    return this.color;
-                case fgui.ObjectPropID.OutlineColor:
-                    return this.strokeColor;
-                case fgui.ObjectPropID.FontSize:
-                    return this.fontSize;
-                default:
-                    return super.getProp(index);
-            }
-        }
-        setProp(index, value) {
-            switch (index) {
-                case fgui.ObjectPropID.Color:
-                    this.color = value;
-                    break;
-                case fgui.ObjectPropID.OutlineColor:
-                    this.strokeColor = value;
-                    break;
-                case fgui.ObjectPropID.FontSize:
-                    this.fontSize = value;
-                    break;
-                default:
-                    super.setProp(index, value);
-                    break;
-            }
-        }
-        setup_beforeAdd(buffer, beginPos) {
-            super.setup_beforeAdd(buffer, beginPos);
-            buffer.seek(beginPos, 5);
-            var iv;
-            this.font = buffer.readS();
-            this.fontSize = buffer.getInt16();
-            this.color = buffer.readColorS();
-            iv = buffer.readByte();
-            this.align = iv == 0 ? "left" : (iv == 1 ? "center" : "right");
-            iv = buffer.readByte();
-            this.valign = iv == 0 ? "top" : (iv == 1 ? "middle" : "bottom");
-            this.leading = buffer.getInt16();
-            this.letterSpacing = buffer.getInt16();
-            this.ubbEnabled = buffer.readBool();
-            this.autoSize = buffer.readByte();
-            this.underline = buffer.readBool();
-            this.italic = buffer.readBool();
-            this.bold = buffer.readBool();
-            this.singleLine = buffer.readBool();
-            if (buffer.readBool()) {
-                this.strokeColor = buffer.readColorS();
-                this.stroke = buffer.getFloat32() + 1;
-            }
-            if (buffer.readBool()) //shadow
-                buffer.skip(12);
-            if (buffer.readBool())
-                this._templateVars = {};
-        }
-        setup_afterAdd(buffer, beginPos) {
-            super.setup_afterAdd(buffer, beginPos);
-            buffer.seek(beginPos, 6);
-            var str = buffer.readS();
-            if (str != null)
-                this.text = str;
-        }
-    }
-    fgui.GTextField = GTextField;
-})(fgui);
-///<reference path="GTextField.ts"/>
-
-///<reference path="GTextField.ts"/>
-(function (fgui) {
-    class GBasicTextField extends fgui.GTextField {
-        constructor() {
-            super();
-            this._letterSpacing = 0;
-            this._textWidth = 0;
-            this._textHeight = 0;
-            this._text = "";
-            this._color = "#000000";
-            this._textField.align = "left";
-            this._textField.font = fgui.UIConfig.defaultFont;
-            this._textField.overflow = Laya.Text.VISIBLE;
-            this._autoSize = fgui.AutoSizeType.Both;
-            this._widthAutoSize = this._heightAutoSize = true;
-            this._textField["_sizeDirty"] = false;
-        }
-        createDisplayObject() {
-            this._displayObject = this._textField = new TextExt(this);
-            this._displayObject["$owner"] = this;
-            this._displayObject.mouseEnabled = false;
-        }
-        get nativeText() {
-            return this._textField;
-        }
-        set text(value) {
-            this._text = value;
-            if (this._text == null)
-                this._text = "";
-            if (this._bitmapFont == null) {
-                if (this._widthAutoSize)
-                    this._textField.width = 10000;
-                var text2 = this._text;
-                if (this._templateVars)
-                    text2 = this.parseTemplate(text2);
-                if (this._ubbEnabled) //laya还不支持同一个文本不同样式
-                    this._textField.text = fgui.UBBParser.inst.parse(text2, true);
-                else
-                    this._textField.text = text2;
-            }
-            else {
-                this._textField.text = "";
-                this._textField["setChanged"]();
-            }
-            if (this.parent && this.parent._underConstruct)
-                this._textField.typeset();
-        }
-        get text() {
-            return this._text;
-        }
-        get font() {
-            return this._textField.font;
-        }
-        set font(value) {
-            this._font = value;
-            if (fgui.ToolSet.startsWith(this._font, "ui://"))
-                this._bitmapFont = fgui.UIPackage.getItemAssetByURL(this._font);
-            else
-                delete this._bitmapFont;
-            if (this._bitmapFont) {
-                this._textField["setChanged"]();
-            }
-            else {
-                if (this._font)
-                    this._textField.font = fgui.UIConfig.fontRemaps[this._font] || this._font;
-                else
-                    this._textField.font = fgui.UIConfig.fontRemaps[fgui.UIConfig.defaultFont] || fgui.UIConfig.defaultFont;
-            }
-        }
-        get fontSize() {
-            return this._textField.fontSize;
-        }
-        set fontSize(value) {
-            this._textField.fontSize = value;
-        }
-        get color() {
-            return this._color;
-        }
-        set color(value) {
-            if (this._color != value) {
-                this._color = value;
-                this.updateGear(4);
-                if (this.grayed)
-                    this._textField.color = "#AAAAAA";
-                else
-                    this._textField.color = this._color;
-            }
-        }
-        get align() {
-            return this._textField.align;
-        }
-        set align(value) {
-            this._textField.align = value;
-        }
-        get valign() {
-            return this._textField.valign;
-        }
-        set valign(value) {
-            this._textField.valign = value;
-        }
-        get leading() {
-            return this._textField.leading;
-        }
-        set leading(value) {
-            this._textField.leading = value;
-        }
-        get letterSpacing() {
-            return this._letterSpacing;
-        }
-        set letterSpacing(value) {
-            this._letterSpacing = value;
-        }
-        get bold() {
-            return this._textField.bold;
-        }
-        set bold(value) {
-            this._textField.bold = value;
-        }
-        get italic() {
-            return this._textField.italic;
-        }
-        set italic(value) {
-            this._textField.italic = value;
-        }
-        get underline() {
-            return this._textField.underline;
-        }
-        set underline(value) {
-            this._textField.underline = value;
-        }
-        get singleLine() {
-            return this._singleLine;
-        }
-        set singleLine(value) {
-            this._singleLine = value;
-            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
-        }
-        get stroke() {
-            return this._textField.stroke;
-        }
-        set stroke(value) {
-            this._textField.stroke = value;
-        }
-        get strokeColor() {
-            return this._textField.strokeColor;
-        }
-        set strokeColor(value) {
-            if (this._textField.strokeColor != value) {
-                this._textField.strokeColor = value;
-                this.updateGear(4);
-            }
-        }
-        updateAutoSize() {
-            /*一般没有剪裁文字的需要，感觉HIDDEN有消耗，所以不用了
-            if(this._heightAutoSize)
-            this._textField.overflow = Text.VISIBLE;
-            else
-            this._textField.overflow = Text.HIDDEN;*/
-            this._textField.wordWrap = !this._widthAutoSize && !this._singleLine;
-            if (!this._underConstruct) {
-                if (!this._heightAutoSize)
-                    this._textField.size(this.width, this.height);
-                else if (!this._widthAutoSize)
-                    this._textField.width = this.width;
-            }
-        }
-        get textWidth() {
-            if (this._textField["_isChanged"])
-                this._textField.typeset();
-            return this._textWidth;
-        }
-        ensureSizeCorrect() {
-            if (!this._underConstruct && this._textField["_isChanged"])
-                this._textField.typeset();
-        }
-        typeset() {
-            if (this._bitmapFont)
-                this.renderWithBitmapFont();
-            else if (this._widthAutoSize || this._heightAutoSize)
-                this.updateSize();
-            // Hack Note: 使用了 Laya 并未对外暴露的成员
-            //  _charSize 该属性内记录了单个文字的宽高信息
-            //  _getTextWidth 该方法内记录了计算文本宽度的逻辑
-            if (this._autoSize === fgui.AutoSizeType.Shrink) {
-                const area = this._textField.textWidth * this._textField.textHeight;
-                const avaliableArea = this._textField['_getTextWidth'](this._textField.text) * (this._textField['_charSize'].height + this._textField.leading);
-                if (avaliableArea < area) {
-                    this._textField.fontSize = this.fontSize * (avaliableArea / area);
-                }
-            }
-            else if (this._autoSize === fgui.AutoSizeType.Ellipsis) {
-                const maxWidth = this.width - this._textField.padding[1] - this._textField.padding[3];
-                let y = this._textField.padding[0];
-                let lineHeight = this._textField.leading + this._textField['_charSize'].height;
-                let endAtLine = -1;
-                if (this._textField.lines.length == 1 && this._textField.textWidth > maxWidth) {
-                    endAtLine = 0;
-                }
-                else {
-                    for (let i = 0; i < this._textField.lines.length; i++) {
-                        let bottom = y + lineHeight * (i + 1);
-                        if (bottom + this._textField.padding[2] > this.height) {
-                            endAtLine = i - 1;
-                            if (i == 0 && this._textField.lines.length == 1 && this._textField.textWidth > this.width) {
-                                endAtLine = i;
-                            }
-                            break;
-                        }
-                    }
-                }
-                if (endAtLine >= 0) {
-                    const line = this._textField.lines[endAtLine];
-                    for (let i = 0; i < line.length; i++) {
-                        const newLine = line.substring(0, line.length - i) + '⋯';
-                        if (this._textField['_getTextWidth'](newLine) <= maxWidth) {
-                            let text = this._textField.lines.slice(0, endAtLine).join('') + newLine;
-                            this._textField.text = text;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        updateSize() {
-            this._textWidth = Math.ceil(this._textField.textWidth);
-            this._textHeight = Math.ceil(this._textField.textHeight);
-            var w, h = 0;
-            if (this._widthAutoSize) {
-                w = this._textWidth;
-                if (this._textField.width != w) {
-                    this._textField.width = w;
-                    if (this._textField.align != "left")
-                        this._textField["baseTypeset"]();
-                }
-            }
-            else
-                w = this.width;
-            if (this._heightAutoSize) {
-                h = this._textHeight;
-                if (!this._widthAutoSize) {
-                    if (this._textField.height != this._textHeight)
-                        this._textField.height = this._textHeight;
-                }
-            }
-            else {
-                h = this.height;
-                if (this._textHeight > h)
-                    this._textHeight = h;
-                if (this._textField.height != this._textHeight)
-                    this._textField.height = this._textHeight;
-            }
-            this._updatingSize = true;
-            this.setSize(w, h);
-            this._updatingSize = false;
-        }
-        renderWithBitmapFont() {
-            var gr = this._displayObject.graphics;
-            gr.clear();
-            if (!this._lines)
-                this._lines = new Array();
-            else
-                returnList(this._lines);
-            var lineSpacing = this.leading - 1;
-            var rectWidth = this.width - GUTTER_X * 2;
-            var lineWidth = 0, lineHeight = 0, lineTextHeight = 0;
-            var glyphWidth = 0, glyphHeight = 0;
-            var wordChars = 0, wordStart = 0, wordEnd = 0;
-            var lastLineHeight = 0;
-            var lineBuffer = "";
-            var lineY = GUTTER_Y;
-            var line;
-            var wordWrap = !this._widthAutoSize && !this._singleLine;
-            var fontSize = this.fontSize;
-            var fontScale = this._bitmapFont.resizable ? fontSize / this._bitmapFont.size : 1;
-            this._textWidth = 0;
-            this._textHeight = 0;
-            var text2 = this._text;
-            if (this._templateVars)
-                text2 = this.parseTemplate(text2);
-            var textLength = text2.length;
-            for (var offset = 0; offset < textLength; ++offset) {
-                var ch = text2.charAt(offset);
-                var cc = ch.charCodeAt(0);
-                if (cc == 10) {
-                    lineBuffer += ch;
-                    line = borrow();
-                    line.width = lineWidth;
-                    if (lineTextHeight == 0) {
-                        if (lastLineHeight == 0)
-                            lastLineHeight = fontSize;
-                        if (lineHeight == 0)
-                            lineHeight = lastLineHeight;
-                        lineTextHeight = lineHeight;
-                    }
-                    line.height = lineHeight;
-                    lastLineHeight = lineHeight;
-                    line.textHeight = lineTextHeight;
-                    line.text = lineBuffer;
-                    line.y = lineY;
-                    lineY += (line.height + lineSpacing);
-                    if (line.width > this._textWidth)
-                        this._textWidth = line.width;
-                    this._lines.push(line);
-                    lineBuffer = "";
-                    lineWidth = 0;
-                    lineHeight = 0;
-                    lineTextHeight = 0;
-                    wordChars = 0;
-                    wordStart = 0;
-                    wordEnd = 0;
-                    continue;
-                }
-                if (cc >= 65 && cc <= 90 || cc >= 97 && cc <= 122) //a-z,A-Z
-                 {
-                    if (wordChars == 0)
-                        wordStart = lineWidth;
-                    wordChars++;
-                }
-                else {
-                    if (wordChars > 0)
-                        wordEnd = lineWidth;
-                    wordChars = 0;
-                }
-                if (cc == 32) {
-                    glyphWidth = Math.ceil(fontSize / 2);
-                    glyphHeight = fontSize;
-                }
-                else {
-                    var glyph = this._bitmapFont.glyphs[ch];
-                    if (glyph) {
-                        glyphWidth = Math.ceil(glyph.advance * fontScale);
-                        glyphHeight = Math.ceil(glyph.lineHeight * fontScale);
-                    }
-                    else {
-                        glyphWidth = 0;
-                        glyphHeight = 0;
-                    }
-                }
-                if (glyphHeight > lineTextHeight)
-                    lineTextHeight = glyphHeight;
-                if (glyphHeight > lineHeight)
-                    lineHeight = glyphHeight;
-                if (lineWidth != 0)
-                    lineWidth += this._letterSpacing;
-                lineWidth += glyphWidth;
-                if (!wordWrap || lineWidth <= rectWidth) {
-                    lineBuffer += ch;
-                }
-                else {
-                    line = borrow();
-                    line.height = lineHeight;
-                    line.textHeight = lineTextHeight;
-                    if (lineBuffer.length == 0) { //the line cannt fit even a char
-                        line.text = ch;
-                    }
-                    else if (wordChars > 0 && wordEnd > 0) { //if word had broken, move it to new line
-                        lineBuffer += ch;
-                        var len = lineBuffer.length - wordChars;
-                        line.text = fgui.ToolSet.trimRight(lineBuffer.substr(0, len));
-                        line.width = wordEnd;
-                        lineBuffer = lineBuffer.substr(len);
-                        lineWidth -= wordStart;
-                    }
-                    else {
-                        line.text = lineBuffer;
-                        line.width = lineWidth - (glyphWidth + this._letterSpacing);
-                        lineBuffer = ch;
-                        lineWidth = glyphWidth;
-                        lineHeight = glyphHeight;
-                        lineTextHeight = glyphHeight;
-                    }
-                    line.y = lineY;
-                    lineY += (line.height + lineSpacing);
-                    if (line.width > this._textWidth)
-                        this._textWidth = line.width;
-                    wordChars = 0;
-                    wordStart = 0;
-                    wordEnd = 0;
-                    this._lines.push(line);
-                }
-            }
-            if (lineBuffer.length > 0) {
-                line = borrow();
-                line.width = lineWidth;
-                if (lineHeight == 0)
-                    lineHeight = lastLineHeight;
-                if (lineTextHeight == 0)
-                    lineTextHeight = lineHeight;
-                line.height = lineHeight;
-                line.textHeight = lineTextHeight;
-                line.text = lineBuffer;
-                line.y = lineY;
-                if (line.width > this._textWidth)
-                    this._textWidth = line.width;
-                this._lines.push(line);
-            }
-            if (this._textWidth > 0)
-                this._textWidth += GUTTER_X * 2;
-            var count = this._lines.length;
-            if (count == 0) {
-                this._textHeight = 0;
-            }
-            else {
-                line = this._lines[this._lines.length - 1];
-                this._textHeight = line.y + line.height + GUTTER_Y;
-            }
-            var w, h = 0;
-            if (this._widthAutoSize) {
-                if (this._textWidth == 0)
-                    w = 0;
-                else
-                    w = this._textWidth;
-            }
-            else
-                w = this.width;
-            if (this._heightAutoSize) {
-                if (this._textHeight == 0)
-                    h = 0;
-                else
-                    h = this._textHeight;
-            }
-            else
-                h = this.height;
-            this._updatingSize = true;
-            this.setSize(w, h);
-            this._updatingSize = false;
-            this.doAlign();
-            if (w == 0 || h == 0)
-                return;
-            var charX = GUTTER_X;
-            var lineIndent = 0;
-            var charIndent = 0;
-            rectWidth = this.width - GUTTER_X * 2;
-            var lineCount = this._lines.length;
-            var color = this._bitmapFont.tint ? this._color : null;
-            for (var i = 0; i < lineCount; i++) {
-                line = this._lines[i];
-                charX = GUTTER_X;
-                if (this.align == "center")
-                    lineIndent = (rectWidth - line.width) / 2;
-                else if (this.align == "right")
-                    lineIndent = rectWidth - line.width;
-                else
-                    lineIndent = 0;
-                textLength = line.text.length;
-                for (var j = 0; j < textLength; j++) {
-                    ch = line.text.charAt(j);
-                    cc = ch.charCodeAt(0);
-                    if (cc == 10)
-                        continue;
-                    if (cc == 32) {
-                        charX += this._letterSpacing + Math.ceil(fontSize / 2);
-                        continue;
-                    }
-                    glyph = this._bitmapFont.glyphs[ch];
-                    if (glyph) {
-                        charIndent = (line.height + line.textHeight) / 2 - Math.ceil(glyph.lineHeight * fontScale);
-                        if (glyph.texture) {
-                            gr.drawTexture(glyph.texture, charX + lineIndent + Math.ceil(glyph.x * fontScale), line.y + charIndent + Math.ceil(glyph.y * fontScale), glyph.width * fontScale, glyph.height * fontScale, null, 1, color);
-                        }
-                        charX += this._letterSpacing + Math.ceil(glyph.advance * fontScale);
-                    }
-                    else {
-                        charX += this._letterSpacing;
-                    }
-                } //this.text loop
-            } //line loop
-        }
-        handleSizeChanged() {
-            if (this._updatingSize)
-                return;
-            if (this._underConstruct)
-                this._textField.size(this._width, this._height);
-            else {
-                if (this._bitmapFont) {
-                    if (!this._widthAutoSize)
-                        this._textField["setChanged"]();
-                    else
-                        this.doAlign();
-                }
-                else {
-                    if (!this._widthAutoSize) {
-                        if (!this._heightAutoSize)
-                            this._textField.size(this._width, this._height);
-                        else
-                            this._textField.width = this._width;
-                    }
-                }
-            }
-        }
-        handleGrayedChanged() {
-            super.handleGrayedChanged();
-            if (this.grayed)
-                this._textField.color = "#AAAAAA";
-            else
-                this._textField.color = this._color;
-        }
-        doAlign() {
-            if (this.valign == "top" || this._textHeight == 0)
-                this._yOffset = GUTTER_Y;
-            else {
-                var dh = this.height - this._textHeight;
-                if (dh < 0)
-                    dh = 0;
-                if (this.valign == "middle")
-                    this._yOffset = Math.floor(dh / 2);
-                else
-                    this._yOffset = Math.floor(dh);
-            }
-            this.handleXYChanged();
-        }
-        flushVars() {
-            this.text = this._text;
-        }
-    }
-    fgui.GBasicTextField = GBasicTextField;
-    class TextExt extends Laya.Text {
-        constructor(owner) {
-            super();
-            this._owner = owner;
-        }
-        baseTypeset() {
-            this._lock = true;
-            this.typeset();
-            this._lock = false;
-        }
-        typeset() {
-            this._sizeDirty = true; //阻止SIZE_DELAY_CHANGE的触发
-            super.typeset();
-            if (!this._lock)
-                this._owner.typeset();
-            if (this._isChanged) {
-                Laya.timer.clear(this, this.typeset);
-                this._isChanged = false;
-            }
-            this._sizeDirty = false;
-        }
-        setChanged() {
-            this.isChanged = true;
-        }
-        set isChanged(value) {
-            if (value && !this._sizeDirty) {
-                if (this._owner.autoSize != fgui.AutoSizeType.None && this._owner.parent) {
-                    this._sizeDirty = true;
-                    this.event(fgui.Events.SIZE_DELAY_CHANGE);
-                }
-            }
-            super["isChanged"] = value;
-        }
-    }
-    var pool = [];
-    function borrow() {
-        if (pool.length) {
-            var ret = pool.pop();
-            ret.width = 0;
-            ret.height = 0;
-            ret.textHeight = 0;
-            ret.text = null;
-            ret.y = 0;
-            return ret;
-        }
-        else
-            return {
-                width: 0,
-                height: 0,
-                textHeight: 0,
-                text: null,
-                y: 0
-            };
-    }
-    function returnList(value) {
-        var length = value.length;
-        for (var i = 0; i < length; i++) {
-            var li = value[i];
-            pool.push(li);
-        }
-        value.length = 0;
-    }
-    const GUTTER_X = 2;
-    const GUTTER_Y = 2;
-})(fgui);
 
 (function (fgui) {
     class Margin {
@@ -2573,7 +1768,7 @@
         }
         addChildAt(child, index) {
             if (!child)
-                throw "child is null";
+                throw new Error("child is null");
             if (index >= 0 && index <= this._children.length) {
                 if (child.parent == this) {
                     this.setChildIndex(child, index);
@@ -2600,7 +1795,7 @@
                 return child;
             }
             else {
-                throw "Invalid child index";
+                throw new Error("Invalid child index");
             }
         }
         getInsertPosForSortingChild(target) {
@@ -2641,7 +1836,7 @@
                 return child;
             }
             else {
-                throw "Invalid child index";
+                throw new Error("Invalid child index");
             }
         }
         removeChildren(beginIndex, endIndex, dispose) {
@@ -2654,13 +1849,13 @@
             for (var i = beginIndex; i <= endIndex; ++i)
                 this.removeChildAt(beginIndex, dispose);
         }
-        getChildAt(index) {
+        getChildAt(index, classType) {
             if (index >= 0 && index < this._children.length)
                 return this._children[index];
             else
-                throw "Invalid child index";
+                throw new Error("Invalid child index");
         }
-        getChild(name) {
+        getChild(name, classType) {
             var cnt = this._children.length;
             for (var i = 0; i < cnt; ++i) {
                 if (this._children[i].name == name)
@@ -2668,7 +1863,7 @@
             }
             return null;
         }
-        getChildByPath(path) {
+        getChildByPath(path, classType) {
             var arr = path.split(".");
             var cnt = arr.length;
             var gcom = this;
@@ -2720,7 +1915,7 @@
         setChildIndex(child, index) {
             var oldIndex = this._children.indexOf(child);
             if (oldIndex == -1)
-                throw "Not a child of this container";
+                throw new Error("Not a child of this container");
             if (child.sortingOrder != 0) //no effect
                 return;
             var cnt = this._children.length;
@@ -2733,7 +1928,7 @@
         setChildIndexBefore(child, index) {
             var oldIndex = this._children.indexOf(child);
             if (oldIndex == -1)
-                throw "Not a child of this container";
+                throw new Error("Not a child of this container");
             if (child.sortingOrder != 0) //no effect
                 return oldIndex;
             var cnt = this._children.length;
@@ -2789,7 +1984,7 @@
             var index1 = this._children.indexOf(child1);
             var index2 = this._children.indexOf(child2);
             if (index1 == -1 || index2 == -1)
-                throw "Not a child of this container";
+                throw new Error("Not a child of this container");
             this.swapChildrenAt(index1, index2);
         }
         swapChildrenAt(index1, index2) {
@@ -8477,174 +7672,282 @@
     }
     fgui.GProgressBar = GProgressBar;
 })(fgui);
+///<reference path="GObject.ts"/>
 
+///<reference path="GObject.ts"/>
 (function (fgui) {
-    class GRichTextField extends fgui.GTextField {
+    class GTextField extends fgui.GObject {
         constructor() {
             super();
+            this._letterSpacing = 0;
             this._text = "";
+            this._color = "#000000";
         }
         createDisplayObject() {
-            this._displayObject = this._div = new Laya.HTMLDivElement();
-            this._displayObject.mouseEnabled = true;
+            this._displayObject = new Laya.Text();
             this._displayObject["$owner"] = this;
+            this._displayObject.padding = Laya.Styles.labelPadding;
+            this._displayObject.mouseEnabled = false;
+            this._autoSize = fgui.AutoSizeType.Both;
+            this._widthAutoSize = this._heightAutoSize = true;
+            this._displayObject._onPostLayout = () => this.updateSize();
         }
-        get div() {
-            return this._div;
+        get displayObject() {
+            return this._displayObject;
         }
         set text(value) {
-            this._text = value;
-            var text2 = this._text;
-            if (this._templateVars)
-                text2 = this.parseTemplate(text2);
-            try {
-                this._div.size(this._width, this._height);
-                if (this._ubbEnabled)
-                    this._div.innerHTML = fgui.UBBParser.inst.parse(text2);
-                else
-                    this._div.innerHTML = text2;
-                if (this._widthAutoSize || this._heightAutoSize) {
-                    var w, h = 0;
-                    if (this._widthAutoSize) {
-                        w = this._div.contextWidth;
-                        if (w > 0)
-                            w += 8;
-                    }
-                    else
-                        w = this._width;
-                    if (this._heightAutoSize)
-                        h = this._div.contextHeight;
-                    else
-                        h = this._height;
-                    this._updatingSize = true;
-                    this.setSize(w, h);
-                    this._updatingSize = false;
-                }
-            }
-            catch (err) {
-                console.log("laya reports html error:" + err);
-            }
+            this._displayObject.text = value;
         }
         get text() {
-            return this._text;
+            return this._displayObject.text;
         }
         get font() {
-            return this._div.style.font;
+            return this._displayObject.font;
         }
         set font(value) {
-            if (value)
-                this._div.style.font = value;
-            else
-                this._div.style.font = fgui.UIConfig.defaultFont;
+            if (fgui.ToolSet.startsWith(value, "ui://"))
+                fgui.UIPackage.getItemAssetByURL(value);
+            this._displayObject.font = value;
         }
         get fontSize() {
-            return this._div.style.fontSize;
+            return this._displayObject.fontSize;
         }
         set fontSize(value) {
-            this._div.style.fontSize = value;
+            this._displayObject.fontSize = value;
         }
         get color() {
-            return this._div.style.color;
+            return this._color;
         }
         set color(value) {
-            if (this._div.style.color != value) {
-                this._div.style.color = value;
-                this.refresh();
+            if (this._color != value) {
+                this._color = value;
                 this.updateGear(4);
+                if (this.grayed)
+                    this._displayObject.color = "#AAAAAA";
+                else
+                    this._displayObject.color = this._color;
             }
         }
         get align() {
-            return this._div.style.align;
+            return this._displayObject.align;
         }
         set align(value) {
-            if (this._div.style.align != value) {
-                this._div.style.align = value;
-                this.refresh();
-            }
+            this._displayObject.align = value;
         }
         get valign() {
-            return this._div.style.valign;
+            return this._displayObject.valign;
         }
         set valign(value) {
-            if (this._div.style.valign != value) {
-                this._div.style.valign = value;
-                this.refresh();
-            }
+            this._displayObject.valign = value;
         }
         get leading() {
-            return this._div.style.leading;
+            return this._displayObject.leading;
         }
         set leading(value) {
-            if (this._div.style.leading != value) {
-                this._div.style.leading = value;
-                this.refresh();
-            }
+            this._displayObject.leading = value;
+        }
+        get letterSpacing() {
+            return this._letterSpacing;
+        }
+        set letterSpacing(value) {
+            this._letterSpacing = value;
         }
         get bold() {
-            return this._div.style.bold;
+            return this._displayObject.bold;
         }
         set bold(value) {
-            if (this._div.style.bold != value) {
-                this._div.style.bold = value;
-                this.refresh();
-            }
+            this._displayObject.bold = value;
         }
         get italic() {
-            return this._div.style.italic;
+            return this._displayObject.italic;
         }
         set italic(value) {
-            if (this._div.style.italic != value) {
-                this._div.style.italic = value;
-                this.refresh();
-            }
+            this._displayObject.italic = value;
+        }
+        get underline() {
+            return this._displayObject.underline;
+        }
+        set underline(value) {
+            this._displayObject.underline = value;
+        }
+        get singleLine() {
+            return this._singleLine;
+        }
+        set singleLine(value) {
+            this._singleLine = value;
+            this._displayObject.wordWrap = !this._widthAutoSize && !this._singleLine;
         }
         get stroke() {
-            return this._div.style.stroke;
+            return this._displayObject.stroke;
         }
         set stroke(value) {
-            if (this._div.style.stroke != value) {
-                this._div.style.stroke = value;
-                this.refresh();
-            }
+            this._displayObject.stroke = value;
         }
         get strokeColor() {
-            return this._div.style.strokeColor;
+            return this._displayObject.strokeColor;
         }
         set strokeColor(value) {
-            if (this._div.style.strokeColor != value) {
-                this._div.style.strokeColor = value;
-                this.refresh();
+            if (this._displayObject.strokeColor != value) {
+                this._displayObject.strokeColor = value;
                 this.updateGear(4);
             }
         }
         set ubbEnabled(value) {
-            this._ubbEnabled = value;
+            this._displayObject.ubb = value;
         }
         get ubbEnabled() {
-            return this._ubbEnabled;
+            return this._displayObject.ubb;
         }
-        get textWidth() {
-            var w = this._div.contextWidth;
-            if (w > 0)
-                w += 8;
-            return w;
+        get autoSize() {
+            return this._autoSize;
         }
-        refresh() {
-            if (this._text.length > 0 && this._div._refresh)
-                this._div._refresh();
+        set autoSize(value) {
+            if (this._autoSize != value) {
+                this._autoSize = value;
+                this._widthAutoSize = this._autoSize == fgui.AutoSizeType.Both;
+                this._heightAutoSize = this._autoSize == fgui.AutoSizeType.Both || this._autoSize == fgui.AutoSizeType.Height;
+                this.updateAutoSize();
+            }
         }
         updateAutoSize() {
-            this._div.style.wordWrap = !this._widthAutoSize;
+            this._displayObject.wordWrap = !this._widthAutoSize && !this._singleLine;
+            if (!this._underConstruct) {
+                if (!this._heightAutoSize)
+                    this._displayObject.size(this.width, this.height);
+                else if (!this._widthAutoSize)
+                    this._displayObject.width = this.width;
+            }
+        }
+        get textWidth() {
+            return this._displayObject.textWidth;
+        }
+        get templateVars() {
+            return this._displayObject.templateVars;
+        }
+        set templateVars(value) {
+            this._displayObject.templateVars = value;
+        }
+        setVar(name, value) {
+            this._displayObject.setVar(name, value);
+            return this;
+        }
+        flushVars() {
+            //nothing here. auto flush
+        }
+        ensureSizeCorrect() {
+            if (!this._underConstruct)
+                this._displayObject.typeset();
+        }
+        updateSize() {
+            if (this._widthAutoSize)
+                this.setSize(this._displayObject.textWidth, this._displayObject.textHeight);
+            else if (this._heightAutoSize)
+                this.height = this._displayObject.textHeight;
         }
         handleSizeChanged() {
-            if (this._updatingSize)
-                return;
-            this._div.size(this._width, this._height);
-            this._div.style.width = this._width;
-            this._div.style.height = this._height;
+            this._displayObject.size(this._width, this._height);
+        }
+        handleGrayedChanged() {
+            super.handleGrayedChanged();
+            if (this.grayed)
+                this._displayObject.color = "#AAAAAA";
+            else
+                this._displayObject.color = this._color;
+        }
+        getProp(index) {
+            switch (index) {
+                case fgui.ObjectPropID.Color:
+                    return this.color;
+                case fgui.ObjectPropID.OutlineColor:
+                    return this.strokeColor;
+                case fgui.ObjectPropID.FontSize:
+                    return this.fontSize;
+                default:
+                    return super.getProp(index);
+            }
+        }
+        setProp(index, value) {
+            switch (index) {
+                case fgui.ObjectPropID.Color:
+                    this.color = value;
+                    break;
+                case fgui.ObjectPropID.OutlineColor:
+                    this.strokeColor = value;
+                    break;
+                case fgui.ObjectPropID.FontSize:
+                    this.fontSize = value;
+                    break;
+                default:
+                    super.setProp(index, value);
+                    break;
+            }
+        }
+        setup_beforeAdd(buffer, beginPos) {
+            super.setup_beforeAdd(buffer, beginPos);
+            buffer.seek(beginPos, 5);
+            var iv;
+            this.font = buffer.readS();
+            this.fontSize = buffer.getInt16();
+            this.color = buffer.readColorS();
+            iv = buffer.readByte();
+            this.align = iv == 0 ? "left" : (iv == 1 ? "center" : "right");
+            iv = buffer.readByte();
+            this.valign = iv == 0 ? "top" : (iv == 1 ? "middle" : "bottom");
+            this.leading = buffer.getInt16();
+            this.letterSpacing = buffer.getInt16();
+            this.ubbEnabled = buffer.readBool();
+            this.autoSize = buffer.readByte();
+            this.underline = buffer.readBool();
+            this.italic = buffer.readBool();
+            this.bold = buffer.readBool();
+            this.singleLine = buffer.readBool();
+            if (buffer.readBool()) {
+                this.strokeColor = buffer.readColorS();
+                this.stroke = buffer.getFloat32() + 1;
+            }
+            if (buffer.readBool()) //shadow
+                buffer.skip(12);
+            if (buffer.readBool())
+                this._templateVars = {};
+        }
+        setup_afterAdd(buffer, beginPos) {
+            super.setup_afterAdd(buffer, beginPos);
+            buffer.seek(beginPos, 6);
+            var str = buffer.readS();
+            if (str != null)
+                this.text = str;
+        }
+    }
+    fgui.GTextField = GTextField;
+})(fgui);
+///<reference path="GTextField.ts"/>
+
+///<reference path="GTextField.ts"/>
+(function (fgui) {
+    class GRichTextField extends fgui.GTextField {
+        constructor() {
+            super();
+            this._displayObject.html = true;
+            this._displayObject.mouseEnabled = true;
         }
     }
     fgui.GRichTextField = GRichTextField;
+    class GHtmlImage extends Laya.HtmlImage {
+        loadTexture(src) {
+            if (src.startsWith("ui://")) {
+                let tex = fgui.UIPackage.getItemAssetByURL(src);
+                if (tex instanceof Laya.Texture) {
+                    this.obj.width = tex.sourceWidth;
+                    this.obj.height = tex.sourceHeight;
+                    this.obj.texture = tex;
+                }
+            }
+            else
+                super.loadTexture(src);
+        }
+    }
+    fgui.GHtmlImage = GHtmlImage;
+    Laya.HtmlParser.classMap[Laya.HtmlElementType.Image] = GHtmlImage;
 })(fgui);
 
 (function (fgui) {
@@ -9332,148 +8635,66 @@
     fgui.GSlider = GSlider;
     var s_vec2 = new Laya.Point();
 })(fgui);
+///<reference path="GTextField.ts"/>
 
+///<reference path="GTextField.ts"/>
 (function (fgui) {
     class GTextInput extends fgui.GTextField {
         constructor() {
             super();
         }
         createDisplayObject() {
-            this._displayObject = this._input = new Laya.Input();
-            this._displayObject.mouseEnabled = true;
+            this._displayObject = new Laya.Input();
             this._displayObject["$owner"] = this;
         }
         get nativeInput() {
-            return this._input;
-        }
-        set text(value) {
-            this._input.text = value;
-        }
-        get text() {
-            return this._input.text;
-        }
-        get font() {
-            return this._input.font;
-        }
-        set font(value) {
-            if (value)
-                this._input.font = value;
-            else
-                this._input.font = fgui.UIConfig.defaultFont;
-        }
-        get fontSize() {
-            return this._input.fontSize;
-        }
-        set fontSize(value) {
-            this._input.fontSize = value;
-        }
-        get color() {
-            return this._input.color;
-        }
-        set color(value) {
-            this._input.color = value;
-        }
-        get align() {
-            return this._input.align;
-        }
-        set align(value) {
-            this._input.align = value;
-        }
-        get valign() {
-            return this._input.valign;
-        }
-        set valign(value) {
-            this._input.valign = value;
-        }
-        get leading() {
-            return this._input.leading;
-        }
-        set leading(value) {
-            this._input.leading = value;
-        }
-        get bold() {
-            return this._input.bold;
-        }
-        set bold(value) {
-            this._input.bold = value;
-        }
-        get italic() {
-            return this._input.italic;
-        }
-        set italic(value) {
-            this._input.italic = value;
-        }
-        get singleLine() {
-            return !this._input.multiline;
-        }
-        set singleLine(value) {
-            this._input.multiline = !value;
-        }
-        get stroke() {
-            return this._input.stroke;
-        }
-        set stroke(value) {
-            this._input.stroke = value;
-        }
-        get strokeColor() {
-            return this._input.strokeColor;
-        }
-        set strokeColor(value) {
-            this._input.strokeColor = value;
-            this.updateGear(4);
+            return this._displayObject;
         }
         get password() {
-            return this._input.type == "password";
+            return this._displayObject.type == "password";
         }
         set password(value) {
             if (value)
-                this._input.type = "password";
+                this._displayObject.type = "password";
             else
-                this._input.type = "text";
+                this._displayObject.type = "text";
         }
         get keyboardType() {
-            return this._input.type;
+            return this._displayObject.type;
         }
         set keyboardType(value) {
-            this._input.type = value;
+            this._displayObject.type = value;
         }
         set editable(value) {
-            this._input.editable = value;
+            this._displayObject.editable = value;
         }
         get editable() {
-            return this._input.editable;
+            return this._displayObject.editable;
         }
         set maxLength(value) {
-            this._input.maxChars = value;
+            this._displayObject.maxChars = value;
         }
         get maxLength() {
-            return this._input.maxChars;
+            return this._displayObject.maxChars;
         }
         set promptText(value) {
-            this._prompt = value;
-            var str = fgui.UBBParser.inst.parse(value, true);
-            this._input.prompt = str;
-            if (fgui.UBBParser.inst.lastColor)
-                this._input.promptColor = fgui.UBBParser.inst.lastColor;
+            var str = fgui.UBBParser.defaultParser.parse(value, true);
+            this._displayObject.prompt = str;
+            if (fgui.UBBParser.defaultParser.lastColor)
+                this._displayObject.promptColor = fgui.UBBParser.defaultParser.lastColor;
         }
         get promptText() {
-            return this._prompt;
+            return this._displayObject.prompt;
         }
         set restrict(value) {
-            this._input.restrict = value;
+            this._displayObject.restrict = value;
         }
         get restrict() {
-            return this._input.restrict;
-        }
-        get textWidth() {
-            return this._input.textWidth;
+            return this._displayObject.restrict;
         }
         requestFocus() {
-            this._input.focus = true;
+            this._displayObject.focus = true;
             super.requestFocus();
-        }
-        handleSizeChanged() {
-            this._input.size(this._width, this._height);
         }
         setup_beforeAdd(buffer, beginPos) {
             super.setup_beforeAdd(buffer, beginPos);
@@ -9483,10 +8704,10 @@
                 this.promptText = str;
             str = buffer.readS();
             if (str != null)
-                this._input.restrict = str;
+                this._displayObject.restrict = str;
             var iv = buffer.getInt32();
             if (iv != 0)
-                this._input.maxChars = iv;
+                this._displayObject.maxChars = iv;
             iv = buffer.getInt32();
             if (iv != 0) {
                 if (iv == 4)
@@ -13425,21 +12646,21 @@
         static loadFromXML(source) {
             let strings = {};
             TranslationHelper.strings = strings;
-            var xml = Laya.Utils.parseXMLFromString(source);
-            var resNode = findChildNode(xml, "resources");
-            var nodes = resNode.childNodes;
-            var length1 = nodes.length;
-            for (var i1 = 0; i1 < length1; i1++) {
-                var cxml = nodes[i1];
-                if (cxml.nodeName == "string") {
-                    var key = cxml.getAttribute("name");
-                    var text = cxml.textContent;
-                    var i = key.indexOf("-");
+            let xml = new Laya.XML(source);
+            let resNode = xml.getNode("resources");
+            let nodes = resNode.elements();
+            let length1 = nodes.length;
+            for (let i1 = 0; i1 < length1; i1++) {
+                let cxml = nodes[i1];
+                if (cxml.name == "string") {
+                    let key = cxml.getAttrString("name");
+                    let text = cxml.text;
+                    let i = key.indexOf("-");
                     if (i == -1)
                         continue;
-                    var key2 = key.substr(0, i);
-                    var key3 = key.substr(i + 1);
-                    var col = strings[key2];
+                    let key2 = key.substring(0, i);
+                    let key3 = key.substring(i + 1);
+                    let col = strings[key2];
                     if (!col) {
                         col = {};
                         strings[key2] = col;
@@ -13451,26 +12672,25 @@
         static translateComponent(item) {
             if (TranslationHelper.strings == null)
                 return;
-            var compStrings = TranslationHelper.strings[item.owner.id + item.id];
+            let compStrings = TranslationHelper.strings[item.owner.id + item.id];
             if (compStrings == null)
                 return;
-            var elementId, value;
-            var buffer = item.rawData;
-            var nextPos;
-            var itemCount;
-            var i, j, k;
-            var dataLen;
-            var curPos;
-            var valueCnt;
-            var page;
+            let elementId, value;
+            let buffer = item.rawData;
+            let nextPos;
+            let itemCount;
+            let dataLen;
+            let curPos;
+            let valueCnt;
+            let page;
             buffer.seek(0, 2);
-            var childCount = buffer.getInt16();
-            for (i = 0; i < childCount; i++) {
+            let childCount = buffer.getInt16();
+            for (let i = 0; i < childCount; i++) {
                 dataLen = buffer.getInt16();
                 curPos = buffer.pos;
                 buffer.seek(curPos, 0);
-                var baseType = buffer.readByte();
-                var type = baseType;
+                let baseType = buffer.readByte();
+                let type = baseType;
                 buffer.skip(4);
                 elementId = buffer.readS();
                 if (type == fgui.ObjectType.Component) {
@@ -13481,15 +12701,15 @@
                 if ((value = compStrings[elementId + "-tips"]) != null)
                     buffer.writeS(value);
                 buffer.seek(curPos, 2);
-                var gearCnt = buffer.getInt16();
-                for (j = 0; j < gearCnt; j++) {
+                let gearCnt = buffer.getInt16();
+                for (let j = 0; j < gearCnt; j++) {
                     nextPos = buffer.getInt16();
                     nextPos += buffer.pos;
                     if (buffer.readByte() == 6) //gearText
                      {
                         buffer.skip(2); //controller
                         valueCnt = buffer.getInt16();
-                        for (k = 0; k < valueCnt; k++) {
+                        for (let k = 0; k < valueCnt; k++) {
                             page = buffer.readS();
                             if (page != null) {
                                 if ((value = compStrings[elementId + "-texts_" + k]) != null)
@@ -13507,10 +12727,10 @@
                     buffer.seek(curPos, 4);
                     buffer.skip(2); //pageController
                     buffer.skip(4 * buffer.getUint16());
-                    var cpCount = buffer.getUint16();
-                    for (var k = 0; k < cpCount; k++) {
-                        var target = buffer.readS();
-                        var propertyId = buffer.getUint16();
+                    let cpCount = buffer.getUint16();
+                    for (let k = 0; k < cpCount; k++) {
+                        let target = buffer.readS();
+                        let propertyId = buffer.getUint16();
                         if (propertyId == 0 && (value = compStrings[elementId + "-cp-" + target]) != null)
                             buffer.writeS(value);
                         else
@@ -13538,7 +12758,7 @@
                             buffer.seek(curPos, 8);
                             buffer.skip(2);
                             itemCount = buffer.getUint16();
-                            for (j = 0; j < itemCount; j++) {
+                            for (let j = 0; j < itemCount; j++) {
                                 nextPos = buffer.getUint16();
                                 nextPos += buffer.pos;
                                 buffer.skip(2); //url
@@ -13557,10 +12777,10 @@
                                 if (buffer.version >= 2) {
                                     buffer.skip(6);
                                     buffer.skip(buffer.getUint16() * 4); //controllers
-                                    var cpCount = buffer.getUint16();
-                                    for (var k = 0; k < cpCount; k++) {
-                                        var target = buffer.readS();
-                                        var propertyId = buffer.getUint16();
+                                    let cpCount = buffer.getUint16();
+                                    for (let k = 0; k < cpCount; k++) {
+                                        let target = buffer.readS();
+                                        let propertyId = buffer.getUint16();
                                         if (propertyId == 0 && (value = compStrings[elementId + "-" + j + "-" + target]) != null)
                                             buffer.writeS(value);
                                         else
@@ -13603,7 +12823,7 @@
                         {
                             if (buffer.seek(curPos, 6) && buffer.readByte() == type) {
                                 itemCount = buffer.getInt16();
-                                for (j = 0; j < itemCount; j++) {
+                                for (let j = 0; j < itemCount; j++) {
                                     nextPos = buffer.getInt16();
                                     nextPos += buffer.pos;
                                     if ((value = compStrings[elementId + "-" + j]) != null)
@@ -13621,30 +12841,16 @@
         }
     }
     fgui.TranslationHelper = TranslationHelper;
-    function findChildNode(xml, name) {
-        var col = xml.childNodes;
-        var length1 = col.length;
-        if (length1 > 0) {
-            for (var i1 = 0; i1 < length1; i1++) {
-                var cxml = col[i1];
-                if (cxml.nodeName == name) {
-                    return cxml;
-                }
-            }
-        }
-        return null;
-    }
 })(fgui);
 
 (function (fgui) {
     class UIConfig {
         constructor() {
         }
+        //Default font name
+        static get defaultFont() { return Laya.Config.defaultFont; }
+        static set defaultFont(value) { Laya.Config.defaultFont = value; }
     }
-    //Default font name
-    UIConfig.defaultFont = "SimSun";
-    // 字体名称映射表
-    UIConfig.fontRemaps = {};
     //When a modal window is in front, the background becomes dark.
     UIConfig.modalLayerColor = "rgba(33,33,33,0.2)";
     UIConfig.buttonSoundVolumeScale = 1;
@@ -13719,7 +12925,7 @@
                     case fgui.ObjectType.Component:
                         return new fgui.GComponent();
                     case fgui.ObjectType.Text:
-                        return new fgui.GBasicTextField();
+                        return new fgui.GTextField();
                     case fgui.ObjectType.RichText:
                         return new fgui.GRichTextField();
                     case fgui.ObjectType.InputText:
@@ -14377,51 +13583,46 @@
         }
         loadFont(item) {
             item = item.getBranch();
-            var font = new fgui.BitmapFont();
+            let font = new Laya.BitmapFont();
             item.bitmapFont = font;
-            var buffer = item.rawData;
+            Laya.Text.registerBitmapFont("ui://" + this.id + item.id, font);
+            let buffer = item.rawData;
             buffer.seek(0, 0);
-            font.ttf = buffer.readBool();
+            let ttf = buffer.readBool();
             font.tint = buffer.readBool();
-            font.resizable = buffer.readBool();
+            font.autoScaleSize = buffer.readBool();
             buffer.readBool(); //has channel
-            font.size = buffer.getInt32();
-            var xadvance = buffer.getInt32();
-            var lineHeight = buffer.getInt32();
-            var mainTexture = null;
-            var mainSprite = this._sprites[item.id];
+            font.fontSize = buffer.getInt32();
+            let xadvance = buffer.getInt32();
+            let lineHeight = buffer.getInt32();
+            font.lineHeight = Math.max(lineHeight, font.fontSize);
+            let mainTexture = null;
+            let mainSprite = this._sprites[item.id];
             if (mainSprite)
                 mainTexture = (this.getItemAsset(mainSprite.atlas));
             buffer.seek(0, 1);
-            var bg = null;
+            let dict = font.dict;
             var cnt = buffer.getInt32();
-            for (var i = 0; i < cnt; i++) {
-                var nextPos = buffer.getInt16();
+            for (let i = 0; i < cnt; i++) {
+                let nextPos = buffer.getInt16();
                 nextPos += buffer.pos;
-                bg = {};
-                var ch = buffer.readChar();
-                font.glyphs[ch] = bg;
-                var img = buffer.readS();
-                var bx = buffer.getInt32();
-                var by = buffer.getInt32();
+                let ch = buffer.getUint16();
+                let bg = {};
+                dict[ch] = bg;
+                let img = buffer.readS();
+                let bx = buffer.getInt32();
+                let by = buffer.getInt32();
                 bg.x = buffer.getInt32();
                 bg.y = buffer.getInt32();
                 bg.width = buffer.getInt32();
                 bg.height = buffer.getInt32();
                 bg.advance = buffer.getInt32();
-                bg.channel = buffer.readByte();
-                if (bg.channel == 1)
-                    bg.channel = 3;
-                else if (bg.channel == 2)
-                    bg.channel = 2;
-                else if (bg.channel == 3)
-                    bg.channel = 1;
-                if (font.ttf) {
+                buffer.readByte(); //channel
+                if (ttf) {
                     bg.texture = Laya.Texture.create(mainTexture, bx + mainSprite.rect.x, by + mainSprite.rect.y, bg.width, bg.height);
-                    bg.lineHeight = lineHeight;
                 }
                 else {
-                    var charImg = this._itemsById[img];
+                    let charImg = this._itemsById[img];
                     if (charImg) {
                         charImg = charImg.getBranch();
                         bg.width = charImg.width;
@@ -14436,9 +13637,6 @@
                         else
                             bg.advance = xadvance;
                     }
-                    bg.lineHeight = bg.y < 0 ? bg.height : (bg.y + bg.height);
-                    if (bg.lineHeight < font.size)
-                        bg.lineHeight = font.size;
                 }
                 buffer.pos = nextPos;
             }
@@ -14787,16 +13985,6 @@
         }
     }
     fgui.PlayTransitionAction = PlayTransitionAction;
-})(fgui);
-
-(function (fgui) {
-    class BitmapFont {
-        constructor() {
-            this.size = 0;
-            this.glyphs = {};
-        }
-    }
-    fgui.BitmapFont = BitmapFont;
 })(fgui);
 
 (function (fgui) {
@@ -17653,157 +16841,8 @@
 })(fgui);
 
 (function (fgui) {
-    class UBBParser {
-        constructor() {
-            this._readPos = 0;
-            this.defaultImgWidth = 0;
-            this.defaultImgHeight = 0;
-            this._handlers = {};
-            this._handlers["url"] = this.onTag_URL;
-            this._handlers["img"] = this.onTag_IMG;
-            this._handlers["b"] = this.onTag_B;
-            this._handlers["i"] = this.onTag_I;
-            this._handlers["u"] = this.onTag_U;
-            this._handlers["sup"] = this.onTag_Simple;
-            this._handlers["sub"] = this.onTag_Simple;
-            this._handlers["color"] = this.onTag_COLOR;
-            this._handlers["font"] = this.onTag_FONT;
-            this._handlers["size"] = this.onTag_SIZE;
-        }
-        onTag_URL(tagName, end, attr) {
-            if (!end) {
-                if (attr != null)
-                    return "<a href=\"" + attr + "\" target=\"_blank\">";
-                else {
-                    var href = this.getTagText();
-                    return "<a href=\"" + href + "\" target=\"_blank\">";
-                }
-            }
-            else
-                return "</a>";
-        }
-        onTag_IMG(tagName, end, attr) {
-            if (!end) {
-                var src = this.getTagText(true);
-                if (!src)
-                    return null;
-                if (this.defaultImgWidth)
-                    return "<img src=\"" + src + "\" width=\"" + this.defaultImgWidth + "\" height=\"" + this.defaultImgHeight + "\"/>";
-                else
-                    return "<img src=\"" + src + "\"/>";
-            }
-            else
-                return null;
-        }
-        onTag_B(tagName, end, attr) {
-            return end ? ("</span>") : ("<span style='font-weight:bold'>");
-        }
-        onTag_I(tagName, end, attr) {
-            return end ? ("</span>") : ("<span style='font-style:italic'>");
-        }
-        onTag_U(tagName, end, attr) {
-            return end ? ("</span>") : ("<span style='text-decoration:underline'>");
-        }
-        onTag_Simple(tagName, end, attr) {
-            return end ? ("</" + tagName + ">") : ("<" + tagName + ">");
-        }
-        onTag_COLOR(tagName, end, attr) {
-            if (!end) {
-                this.lastColor = attr;
-                return "<span style=\"color:" + attr + "\">";
-            }
-            else
-                return "</span>";
-        }
-        onTag_FONT(tagName, end, attr) {
-            if (!end)
-                return "<span style=\"font-family:" + attr + "\">";
-            else
-                return "</span>";
-        }
-        onTag_SIZE(tagName, end, attr) {
-            if (!end) {
-                this.lastSize = attr;
-                return "<span style=\"font-size:" + attr + "\">";
-            }
-            else
-                return "</span>";
-        }
-        getTagText(remove) {
-            var pos1 = this._readPos;
-            var pos2;
-            var result = "";
-            while ((pos2 = this._text.indexOf("[", pos1)) != -1) {
-                if (this._text.charCodeAt(pos2 - 1) == 92) //\
-                 {
-                    result += this._text.substring(pos1, pos2 - 1);
-                    result += "[";
-                    pos1 = pos2 + 1;
-                }
-                else {
-                    result += this._text.substring(pos1, pos2);
-                    break;
-                }
-            }
-            if (pos2 == -1)
-                return null;
-            if (remove)
-                this._readPos = pos2;
-            return result;
-        }
-        parse(text, remove) {
-            this._text = text;
-            this.lastColor = null;
-            this.lastSize = null;
-            var pos1 = 0, pos2, pos3;
-            var end;
-            var tag, attr;
-            var repl;
-            var func;
-            var result = "";
-            while ((pos2 = this._text.indexOf("[", pos1)) != -1) {
-                if (pos2 > 0 && this._text.charCodeAt(pos2 - 1) == 92) //\
-                 {
-                    result += this._text.substring(pos1, pos2 - 1);
-                    result += "[";
-                    pos1 = pos2 + 1;
-                    continue;
-                }
-                result += this._text.substring(pos1, pos2);
-                pos1 = pos2;
-                pos2 = this._text.indexOf("]", pos1);
-                if (pos2 == -1)
-                    break;
-                end = this._text.charAt(pos1 + 1) == '/';
-                tag = this._text.substring(end ? pos1 + 2 : pos1 + 1, pos2);
-                this._readPos = pos2 + 1;
-                attr = null;
-                repl = null;
-                pos3 = tag.indexOf("=");
-                if (pos3 != -1) {
-                    attr = tag.substring(pos3 + 1);
-                    tag = tag.substring(0, pos3);
-                }
-                tag = tag.toLowerCase();
-                func = this._handlers[tag];
-                if (func != null) {
-                    if (!remove) {
-                        repl = func.call(this, tag, end, attr);
-                        if (repl != null)
-                            result += repl;
-                    }
-                }
-                else
-                    result += this._text.substring(pos1, this._readPos);
-                pos1 = this._readPos;
-            }
-            if (pos1 < this._text.length)
-                result += this._text.substr(pos1);
-            this._text = null;
-            return result;
-        }
+    class UBBParser extends Laya.UBBParser {
     }
-    UBBParser.inst = new UBBParser();
     fgui.UBBParser = UBBParser;
 })(fgui);
 ///<reference path="UBBParser.ts"/>

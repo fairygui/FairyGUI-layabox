@@ -727,61 +727,56 @@ namespace fgui {
 
         private loadFont(item: PackageItem): void {
             item = item.getBranch();
-            var font: BitmapFont = new BitmapFont();
+            let font = new Laya.BitmapFont();
             item.bitmapFont = font;
-            var buffer: ByteBuffer = item.rawData;
+            Laya.Text.registerBitmapFont("ui://" + this.id + item.id, font);
+
+            let buffer = item.rawData;
 
             buffer.seek(0, 0);
 
-            font.ttf = buffer.readBool();
+            let ttf = buffer.readBool();
             font.tint = buffer.readBool();
-            font.resizable = buffer.readBool();
+            font.autoScaleSize = buffer.readBool();
             buffer.readBool(); //has channel
-            font.size = buffer.getInt32();
-            var xadvance: number = buffer.getInt32();
-            var lineHeight: number = buffer.getInt32();
+            font.fontSize = buffer.getInt32();
+            let xadvance = buffer.getInt32();
+            let lineHeight = buffer.getInt32();
+            font.lineHeight = Math.max(lineHeight, font.fontSize);
 
-            var mainTexture: Laya.Texture = null;
-            var mainSprite: AtlasSprite = this._sprites[item.id];
+            let mainTexture: Laya.Texture = null;
+            let mainSprite = this._sprites[item.id];
             if (mainSprite)
                 mainTexture = <Laya.Texture>(this.getItemAsset(mainSprite.atlas));
 
             buffer.seek(0, 1);
 
-            var bg: BMGlyph = null;
+            let dict = font.dict;
             var cnt: number = buffer.getInt32();
-            for (var i: number = 0; i < cnt; i++) {
-                var nextPos: number = buffer.getInt16();
+            for (let i = 0; i < cnt; i++) {
+                let nextPos = buffer.getInt16();
                 nextPos += buffer.pos;
 
-                bg = {};
-                var ch: string = buffer.readChar();
-                font.glyphs[ch] = bg;
+                let ch = buffer.getUint16();
+                let bg: Laya.BMGlyph = {};
+                dict[ch] = bg;
 
-                var img: string = buffer.readS();
-                var bx: number = buffer.getInt32();
-                var by: number = buffer.getInt32();
+                let img: string = buffer.readS();
+                let bx: number = buffer.getInt32();
+                let by: number = buffer.getInt32();
                 bg.x = buffer.getInt32();
                 bg.y = buffer.getInt32();
                 bg.width = buffer.getInt32();
                 bg.height = buffer.getInt32();
                 bg.advance = buffer.getInt32();
-                bg.channel = buffer.readByte();
-                if (bg.channel == 1)
-                    bg.channel = 3;
-                else if (bg.channel == 2)
-                    bg.channel = 2;
-                else if (bg.channel == 3)
-                    bg.channel = 1;
+                buffer.readByte(); //channel
 
-                if (font.ttf) {
+                if (ttf) {
                     bg.texture = Laya.Texture.create(mainTexture,
                         bx + mainSprite.rect.x, by + mainSprite.rect.y, bg.width, bg.height);
-
-                    bg.lineHeight = lineHeight;
                 }
                 else {
-                    var charImg: PackageItem = this._itemsById[img];
+                    let charImg = this._itemsById[img];
                     if (charImg) {
                         charImg = charImg.getBranch();
                         bg.width = charImg.width;
@@ -797,10 +792,6 @@ namespace fgui {
                         else
                             bg.advance = xadvance;
                     }
-
-                    bg.lineHeight = bg.y < 0 ? bg.height : (bg.y + bg.height);
-                    if (bg.lineHeight < font.size)
-                        bg.lineHeight = font.size;
                 }
 
                 buffer.pos = nextPos;

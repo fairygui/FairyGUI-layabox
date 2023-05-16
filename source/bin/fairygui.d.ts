@@ -517,120 +517,6 @@ declare namespace fgui {
     };
 }
 declare namespace fgui {
-    class GTextField extends GObject {
-        protected _templateVars: Record<string, string>;
-        protected _text: string;
-        protected _autoSize: number;
-        protected _widthAutoSize: boolean;
-        protected _heightAutoSize: boolean;
-        protected _ubbEnabled: boolean;
-        protected _updatingSize: boolean;
-        constructor();
-        get font(): string;
-        set font(value: string);
-        get fontSize(): number;
-        set fontSize(value: number);
-        get color(): string;
-        set color(value: string);
-        get align(): string;
-        set align(value: string);
-        get valign(): string;
-        set valign(value: string);
-        get leading(): number;
-        set leading(value: number);
-        get letterSpacing(): number;
-        set letterSpacing(value: number);
-        get bold(): boolean;
-        set bold(value: boolean);
-        get italic(): boolean;
-        set italic(value: boolean);
-        get underline(): boolean;
-        set underline(value: boolean);
-        get singleLine(): boolean;
-        set singleLine(value: boolean);
-        get stroke(): number;
-        set stroke(value: number);
-        get strokeColor(): string;
-        set strokeColor(value: string);
-        set ubbEnabled(value: boolean);
-        get ubbEnabled(): boolean;
-        get autoSize(): number;
-        set autoSize(value: number);
-        protected updateAutoSize(): void;
-        get textWidth(): number;
-        protected parseTemplate(template: string): string;
-        get templateVars(): Record<string, string>;
-        set templateVars(value: Record<string, string>);
-        setVar(name: string, value: string): GTextField;
-        flushVars(): void;
-        getProp(index: number): any;
-        setProp(index: number, value: any): void;
-        setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
-        setup_afterAdd(buffer: ByteBuffer, beginPos: number): void;
-    }
-}
-declare namespace fgui {
-    class GBasicTextField extends GTextField {
-        private _textField;
-        private _font;
-        private _color;
-        private _singleLine;
-        private _letterSpacing;
-        private _textWidth;
-        private _textHeight;
-        private _bitmapFont?;
-        private _lines?;
-        constructor();
-        protected createDisplayObject(): void;
-        get nativeText(): Laya.Text;
-        set text(value: string);
-        get text(): string;
-        get font(): string;
-        set font(value: string);
-        get fontSize(): number;
-        set fontSize(value: number);
-        get color(): string;
-        set color(value: string);
-        get align(): string;
-        set align(value: string);
-        get valign(): string;
-        set valign(value: string);
-        get leading(): number;
-        set leading(value: number);
-        get letterSpacing(): number;
-        set letterSpacing(value: number);
-        get bold(): boolean;
-        set bold(value: boolean);
-        get italic(): boolean;
-        set italic(value: boolean);
-        get underline(): boolean;
-        set underline(value: boolean);
-        get singleLine(): boolean;
-        set singleLine(value: boolean);
-        get stroke(): number;
-        set stroke(value: number);
-        get strokeColor(): string;
-        set strokeColor(value: string);
-        protected updateAutoSize(): void;
-        get textWidth(): number;
-        ensureSizeCorrect(): void;
-        typeset(): void;
-        private updateSize;
-        private renderWithBitmapFont;
-        protected handleSizeChanged(): void;
-        protected handleGrayedChanged(): void;
-        private doAlign;
-        flushVars(): void;
-    }
-    interface LineInfo {
-        width: number;
-        height: number;
-        textHeight: number;
-        text: string;
-        y: number;
-    }
-}
-declare namespace fgui {
     class Margin {
         left: number;
         right: number;
@@ -667,9 +553,9 @@ declare namespace fgui {
         removeChild(child: GObject, dispose?: boolean): GObject;
         removeChildAt(index: number, dispose?: boolean): GObject;
         removeChildren(beginIndex?: number, endIndex?: number, dispose?: boolean): void;
-        getChildAt(index: number): GObject;
-        getChild(name: string): GObject;
-        getChildByPath(path: String): GObject;
+        getChildAt<T extends GObject>(index: number, classType?: new () => T): T;
+        getChild<T extends GObject>(name: string, classType?: new () => T): T;
+        getChildByPath<T extends GObject>(path: String, classType?: new () => T): T;
         getVisibleChild(name: string): GObject;
         getChildInGroup(name: string, group: GGroup): GObject;
         getChildById(id: string): GObject;
@@ -1345,11 +1231,19 @@ declare namespace fgui {
     }
 }
 declare namespace fgui {
-    class GRichTextField extends GTextField {
-        private _div;
+    class GTextField extends GObject {
+        protected _text: string;
+        protected _templateVars: Record<string, string>;
+        protected _autoSize: number;
+        protected _widthAutoSize: boolean;
+        protected _heightAutoSize: boolean;
+        protected _color: string;
+        protected _singleLine: boolean;
+        protected _letterSpacing: number;
+        _displayObject: Laya.Text | Laya.Input;
         constructor();
         protected createDisplayObject(): void;
-        get div(): Laya.HTMLDivElement;
+        get displayObject(): Laya.Text;
         set text(value: string);
         get text(): string;
         get font(): string;
@@ -1364,20 +1258,46 @@ declare namespace fgui {
         set valign(value: string);
         get leading(): number;
         set leading(value: number);
+        get letterSpacing(): number;
+        set letterSpacing(value: number);
         get bold(): boolean;
         set bold(value: boolean);
         get italic(): boolean;
         set italic(value: boolean);
+        get underline(): boolean;
+        set underline(value: boolean);
+        get singleLine(): boolean;
+        set singleLine(value: boolean);
         get stroke(): number;
         set stroke(value: number);
         get strokeColor(): string;
         set strokeColor(value: string);
         set ubbEnabled(value: boolean);
         get ubbEnabled(): boolean;
-        get textWidth(): number;
-        private refresh;
+        get autoSize(): number;
+        set autoSize(value: number);
         protected updateAutoSize(): void;
+        get textWidth(): number;
+        get templateVars(): Record<string, any>;
+        set templateVars(value: Record<string, any>);
+        setVar(name: string, value: any): GTextField;
+        flushVars(): void;
+        ensureSizeCorrect(): void;
+        private updateSize;
         protected handleSizeChanged(): void;
+        protected handleGrayedChanged(): void;
+        getProp(index: number): any;
+        setProp(index: number, value: any): void;
+        setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
+        setup_afterAdd(buffer: ByteBuffer, beginPos: number): void;
+    }
+}
+declare namespace fgui {
+    class GRichTextField extends GTextField {
+        constructor();
+    }
+    class GHtmlImage extends Laya.HtmlImage {
+        protected loadTexture(src: string): void;
     }
 }
 declare namespace fgui {
@@ -1502,35 +1422,10 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class GTextInput extends GTextField {
-        private _input;
-        private _prompt;
+        _displayObject: Laya.Input;
         constructor();
         protected createDisplayObject(): void;
         get nativeInput(): Laya.Input;
-        set text(value: string);
-        get text(): string;
-        get font(): string;
-        set font(value: string);
-        get fontSize(): number;
-        set fontSize(value: number);
-        get color(): string;
-        set color(value: string);
-        get align(): string;
-        set align(value: string);
-        get valign(): string;
-        set valign(value: string);
-        get leading(): number;
-        set leading(value: number);
-        get bold(): boolean;
-        set bold(value: boolean);
-        get italic(): boolean;
-        set italic(value: boolean);
-        get singleLine(): boolean;
-        set singleLine(value: boolean);
-        get stroke(): number;
-        set stroke(value: number);
-        get strokeColor(): string;
-        set strokeColor(value: string);
         get password(): boolean;
         set password(value: boolean);
         get keyboardType(): string;
@@ -1543,9 +1438,7 @@ declare namespace fgui {
         get promptText(): string;
         set restrict(value: string);
         get restrict(): string;
-        get textWidth(): number;
         requestFocus(): void;
-        protected handleSizeChanged(): void;
         setup_beforeAdd(buffer: ByteBuffer, beginPos: number): void;
     }
 }
@@ -1660,7 +1553,7 @@ declare namespace fgui {
         swing?: boolean;
         frames?: Frame[];
         extensionType?: any;
-        bitmapFont?: BitmapFont;
+        bitmapFont?: Laya.BitmapFont;
         templet?: Laya.Templet | Laya.SpineTemplet;
         skeletonAnchor?: Laya.Point;
         constructor();
@@ -1973,8 +1866,8 @@ declare namespace fgui {
 declare namespace fgui {
     class UIConfig {
         constructor();
-        static defaultFont: string;
-        static fontRemaps: Record<string, string>;
+        static get defaultFont(): string;
+        static set defaultFont(value: string);
         static windowModalWaiting: string;
         static globalModalWaiting: string;
         static modalLayerColor: string;
@@ -2170,27 +2063,6 @@ declare namespace fgui {
         protected enter(controller: Controller): void;
         protected leave(controller: Controller): void;
         setup(buffer: ByteBuffer): void;
-    }
-}
-declare namespace fgui {
-    class BitmapFont {
-        id: string;
-        size: number;
-        ttf?: boolean;
-        glyphs: Record<string, BMGlyph>;
-        resizable?: boolean;
-        tint?: boolean;
-        constructor();
-    }
-    interface BMGlyph {
-        x?: number;
-        y?: number;
-        width?: number;
-        height?: number;
-        advance?: number;
-        lineHeight?: number;
-        channel?: number;
-        texture?: Laya.Texture;
     }
 }
 declare namespace fgui {
@@ -2692,27 +2564,7 @@ declare namespace fgui {
     }
 }
 declare namespace fgui {
-    class UBBParser {
-        private _text;
-        private _readPos;
-        protected _handlers: Record<string, (tagName: string, end: boolean, attr: string) => string>;
-        defaultImgWidth: number;
-        defaultImgHeight: number;
-        lastColor: string;
-        lastSize: string;
-        static inst: UBBParser;
-        constructor();
-        protected onTag_URL(tagName: string, end: boolean, attr: string): string;
-        protected onTag_IMG(tagName: string, end: boolean, attr: string): string;
-        protected onTag_B(tagName: string, end: boolean, attr: string): string;
-        protected onTag_I(tagName: string, end: boolean, attr: string): string;
-        protected onTag_U(tagName: string, end: boolean, attr: string): string;
-        protected onTag_Simple(tagName: string, end: boolean, attr: string): string;
-        protected onTag_COLOR(tagName: string, end: boolean, attr: string): string;
-        protected onTag_FONT(tagName: string, end: boolean, attr: string): string;
-        protected onTag_SIZE(tagName: string, end: boolean, attr: string): string;
-        protected getTagText(remove?: boolean): string;
-        parse(text: string, remove?: boolean): string;
+    class UBBParser extends Laya.UBBParser {
     }
 }
 declare namespace fgui {

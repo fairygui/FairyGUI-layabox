@@ -4,9 +4,8 @@ namespace fgui {
     }
 
     //Default font name
-    public static defaultFont: string = "SimSun";
-    // 字体名称映射表
-    public static fontRemaps: Record<string, string> = {};
+    public static get defaultFont() { return Laya.Config.defaultFont; }
+    public static set defaultFont(value: string) { Laya.Config.defaultFont = value; }
 
     //Resource using in Window.ShowModalWait for locking the window.
     public static windowModalWaiting: string;
@@ -75,6 +74,6 @@ namespace fgui {
 
     public static packageFileExtension: string = "fui";
 
-    public static useLayaSkeleton : boolean = false;
+    public static useLayaSkeleton: boolean = false;
   }
 }

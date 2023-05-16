@@ -35,7 +35,7 @@ namespace fgui {
         public extensionType?: any;
 
         //font 
-        public bitmapFont?: BitmapFont;
+        public bitmapFont?: Laya.BitmapFont;
 
         //skeleton
         public templet?: Laya.Templet | Laya.SpineTemplet;

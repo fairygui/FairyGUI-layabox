@@ -892,20 +892,22 @@
   __name(HitTestDemo, "HitTestDemo");
 
   // src/demo/EmojiParser.ts
-  var _EmojiParser = class extends fgui.UBBParser {
+  var EmojiParser = class extends fgui.UBBParser {
     constructor() {
       super();
-      _EmojiParser.TAGS.forEach((element) => {
+      TAGS.forEach((element) => {
         this._handlers[":" + element] = this.onTag_Emoji;
       });
     }
     onTag_Emoji(tagName, end, attr) {
-      return "<img src='" + fgui.UIPackage.getItemURL("Chat", tagName.substring(1).toLowerCase()) + "'/>";
+      let i = TAGS.indexOf(tagName.substring(1).toLowerCase()).toString();
+      if (i.length == 1)
+        i = "0" + i;
+      return "<img src='" + fgui.UIPackage.getItemURL("Chat", "1f6" + i) + "'/>";
     }
   };
-  var EmojiParser = _EmojiParser;
   __name(EmojiParser, "EmojiParser");
-  EmojiParser.TAGS = ["88", "am", "bs", "bz", "ch", "cool", "dhq", "dn", "fd", "gz", "han", "hx", "hxiao", "hxiu"];
+  var TAGS = ["88", "am", "bs", "bz", "ch", "cool", "dhq", "dn", "fd", "gz", "han", "hx", "hxiao", "hxiu"];
 
   // src/demo/ChatDemo.ts
   var Message = class {
@@ -968,11 +970,10 @@
       if (!msg.fromMe)
         item.getChild("name").text = msg.sender;
       item.icon = fgui.UIPackage.getItemURL("Chat", msg.senderIcon);
-      var txtObj = item.getChild("msg").asRichTextField;
-      txtObj.width = txtObj.initWidth;
+      var txtObj = item.getChild("msg");
+      txtObj.displayObject.maxWidth = txtObj.maxWidth;
       txtObj.text = this._emojiParser.parse(msg.msg);
-      if (txtObj.textWidth < txtObj.width)
-        txtObj.width = txtObj.textWidth;
+      txtObj.ensureSizeCorrect();
     }
     onClickSendBtn() {
       let msg = this._input.text;

@@ -82,7 +82,7 @@ namespace fgui {
 
         public addChildAt(child: GObject, index: number): GObject {
             if (!child)
-                throw "child is null";
+                throw new Error("child is null");
 
             if (index >= 0 && index <= this._children.length) {
                 if (child.parent == this) {
@@ -114,7 +114,7 @@ namespace fgui {
                 return child;
             }
             else {
-                throw "Invalid child index";
+                throw new Error("Invalid child index");
             }
         }
 
@@ -165,7 +165,7 @@ namespace fgui {
                 return child;
             }
             else {
-                throw "Invalid child index";
+                throw new Error("Invalid child index");
             }
         }
 
@@ -180,24 +180,24 @@ namespace fgui {
                 this.removeChildAt(beginIndex, dispose);
         }
 
-        public getChildAt(index: number): GObject {
+        public getChildAt<T extends GObject>(index: number, classType?: new () => T): T {
             if (index >= 0 && index < this._children.length)
-                return this._children[index];
+                return <T>this._children[index];
             else
-                throw "Invalid child index";
+                throw new Error("Invalid child index");
         }
 
-        public getChild(name: string): GObject {
+        public getChild<T extends GObject>(name: string, classType?: new () => T): T {
             var cnt: number = this._children.length;
             for (var i: number = 0; i < cnt; ++i) {
                 if (this._children[i].name == name)
-                    return this._children[i];
+                    return <T>this._children[i];
             }
 
             return null;
         }
 
-        public getChildByPath(path: String): GObject {
+        public getChildByPath<T extends GObject>(path: String, classType?: new () => T): T {
             var arr: string[] = path.split(".");
             var cnt: number = arr.length;
             var gcom: GComponent = this;
@@ -217,7 +217,7 @@ namespace fgui {
                 }
             }
 
-            return obj;
+            return <T>obj;
         }
 
         public getVisibleChild(name: string): GObject {
@@ -259,7 +259,7 @@ namespace fgui {
         public setChildIndex(child: GObject, index: number): void {
             var oldIndex: number = this._children.indexOf(child);
             if (oldIndex == -1)
-                throw "Not a child of this container";
+                throw new Error("Not a child of this container");
 
             if (child.sortingOrder != 0) //no effect
                 return;
@@ -276,7 +276,7 @@ namespace fgui {
         public setChildIndexBefore(child: GObject, index: number): number {
             var oldIndex: number = this._children.indexOf(child);
             if (oldIndex == -1)
-                throw "Not a child of this container";
+                throw new Error("Not a child of this container");
 
             if (child.sortingOrder != 0) //no effect
                 return oldIndex;
@@ -344,7 +344,7 @@ namespace fgui {
             var index1: number = this._children.indexOf(child1);
             var index2: number = this._children.indexOf(child2);
             if (index1 == -1 || index2 == -1)
-                throw "Not a child of this container";
+                throw new Error("Not a child of this container");
             this.swapChildrenAt(index1, index2);
         }
 

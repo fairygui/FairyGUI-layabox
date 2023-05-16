@@ -50,7 +50,7 @@ module fgui {
                         return new GComponent();
 
                     case ObjectType.Text:
-                        return new GBasicTextField();
+                        return new GTextField();
 
                     case ObjectType.RichText:
                         return new GRichTextField();

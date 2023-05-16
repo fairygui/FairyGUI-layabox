@@ -13,9 +13,9 @@ namespace fgui {
             this._reversed = reversed;
 
             if (this._reversed)
-                this.unHit = child.hitArea.hit;
+                this.unHit = (<Laya.HitArea>child.hitArea).hit;
             else
-                this.hit = child.hitArea.hit;
+                this.hit = (<Laya.HitArea>child.hitArea).hit;
         }
 
         public contains(x: number, y: number): boolean {

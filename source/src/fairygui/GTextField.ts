@@ -2,115 +2,170 @@
 
 namespace fgui {
     export class GTextField extends GObject {
-        protected _templateVars: Record<string, string>;
         protected _text: string;
+        protected _templateVars: Record<string, string>;
         protected _autoSize: number;
         protected _widthAutoSize: boolean;
         protected _heightAutoSize: boolean;
-        protected _ubbEnabled: boolean;
-        protected _updatingSize: boolean;
+        protected _color: string;
+        protected _singleLine: boolean;
+        protected _letterSpacing: number = 0;
+
+        declare _displayObject: Laya.Text | Laya.Input;
 
         constructor() {
             super();
+
+            this._text = "";
+            this._color = "#000000";
+        }
+
+        protected createDisplayObject(): void {
+            this._displayObject = new Laya.Text();
+            this._displayObject["$owner"] = this;
+            this._displayObject.padding = Laya.Styles.labelPadding;
+            this._displayObject.mouseEnabled = false;
+            this._autoSize = AutoSizeType.Both;
+            this._widthAutoSize = this._heightAutoSize = true;
+            (<Laya.Text>this._displayObject)._onPostLayout = () => this.updateSize();
+        }
+
+        public get displayObject(): Laya.Text {
+            return this._displayObject;
+        }
+
+        public set text(value: string) {
+            this._displayObject.text = value;
+        }
+
+        public get text(): string {
+            return this._displayObject.text;
         }
 
         public get font(): string {
-            return null;
+            return this._displayObject.font;
         }
 
         public set font(value: string) {
+            if (ToolSet.startsWith(value, "ui://"))
+                UIPackage.getItemAssetByURL(value);
+            this._displayObject.font = value;
         }
 
         public get fontSize(): number {
-            return 0;
+            return this._displayObject.fontSize;
         }
 
         public set fontSize(value: number) {
+            this._displayObject.fontSize = value;
         }
 
         public get color(): string {
-            return null;
+            return this._color;
         }
 
         public set color(value: string) {
+            if (this._color != value) {
+                this._color = value;
+                this.updateGear(4);
+
+                if (this.grayed)
+                    this._displayObject.color = "#AAAAAA";
+                else
+                    this._displayObject.color = this._color;
+            }
         }
 
         public get align(): string {
-            return null;
+            return this._displayObject.align;
         }
 
         public set align(value: string) {
+            this._displayObject.align = value;
         }
 
         public get valign(): string {
-            return null;
+            return this._displayObject.valign;
         }
 
         public set valign(value: string) {
+            this._displayObject.valign = value;
         }
 
         public get leading(): number {
-            return 0;
+            return this._displayObject.leading;
         }
 
         public set leading(value: number) {
+            this._displayObject.leading = value;
         }
 
         public get letterSpacing(): number {
-            return 0;
+            return this._letterSpacing;
         }
 
         public set letterSpacing(value: number) {
+            this._letterSpacing = value;
         }
 
         public get bold(): boolean {
-            return false;
+            return this._displayObject.bold;
         }
 
         public set bold(value: boolean) {
+            this._displayObject.bold = value;
         }
 
         public get italic(): boolean {
-            return false;
+            return this._displayObject.italic;
         }
 
         public set italic(value: boolean) {
+            this._displayObject.italic = value;
         }
 
         public get underline(): boolean {
-            return false;
+            return this._displayObject.underline;
         }
 
         public set underline(value: boolean) {
+            this._displayObject.underline = value;
         }
 
         public get singleLine(): boolean {
-            return false;
+            return this._singleLine;
         }
 
         public set singleLine(value: boolean) {
+            this._singleLine = value;
+            this._displayObject.wordWrap = !this._widthAutoSize && !this._singleLine;
         }
 
         public get stroke(): number {
-            return 0;
+            return this._displayObject.stroke;
         }
 
         public set stroke(value: number) {
+            this._displayObject.stroke = value;
         }
 
         public get strokeColor(): string {
-            return null;
+            return this._displayObject.strokeColor;
         }
 
         public set strokeColor(value: string) {
+            if (this._displayObject.strokeColor != value) {
+                this._displayObject.strokeColor = value;
+                this.updateGear(4);
+            }
         }
 
         public set ubbEnabled(value: boolean) {
-            this._ubbEnabled = value;
+            this._displayObject.ubb = value;
         }
 
         public get ubbEnabled(): boolean {
-            return this._ubbEnabled;
+            return this._displayObject.ubb;
         }
 
         public get autoSize(): number {
@@ -128,83 +183,60 @@ namespace fgui {
         }
 
         protected updateAutoSize(): void {
+            this._displayObject.wordWrap = !this._widthAutoSize && !this._singleLine;
+            if (!this._underConstruct) {
+                if (!this._heightAutoSize)
+                    this._displayObject.size(this.width, this.height);
+                else if (!this._widthAutoSize)
+                    this._displayObject.width = this.width;
+            }
         }
 
         public get textWidth(): number {
-            return 0;
+            return this._displayObject.textWidth;
         }
 
-        protected parseTemplate(template: string): string {
-            var pos1: number = 0, pos2: number, pos3: number;
-            var tag: string;
-            var value: string;
-            var result: string = "";
-            while ((pos2 = template.indexOf("{", pos1)) != -1) {
-                if (pos2 > 0 && template.charCodeAt(pos2 - 1) == 92)//\
-                {
-                    result += template.substring(pos1, pos2 - 1);
-                    result += "{";
-                    pos1 = pos2 + 1;
-                    continue;
-                }
-
-                result += template.substring(pos1, pos2);
-                pos1 = pos2;
-                pos2 = template.indexOf("}", pos1);
-                if (pos2 == -1)
-                    break;
-
-                if (pos2 == pos1 + 1) {
-                    result += template.substr(pos1, 2);
-                    pos1 = pos2 + 1;
-                    continue;
-                }
-
-                tag = template.substring(pos1 + 1, pos2);
-                pos3 = tag.indexOf("=");
-                if (pos3 != -1) {
-                    value = this._templateVars[tag.substring(0, pos3)];
-                    if (value == null)
-                        result += tag.substring(pos3 + 1);
-                    else
-                        result += value;
-                }
-                else {
-                    value = this._templateVars[tag];
-                    if (value != null)
-                        result += value;
-                }
-                pos1 = pos2 + 1;
-            }
-
-            if (pos1 < template.length)
-                result += template.substring(pos1);
-
-            return result;
+        public get templateVars(): Record<string, any> {
+            return this._displayObject.templateVars;
         }
 
-        public get templateVars(): Record<string, string> {
-            return this._templateVars;
+        public set templateVars(value: Record<string, any>) {
+            this._displayObject.templateVars = value;
         }
 
-        public set templateVars(value: Record<string, string>) {
-            if (!this._templateVars && !value)
-                return;
-
-            this._templateVars = value;
-            this.flushVars();
-        }
-
-        public setVar(name: string, value: string): GTextField {
-            if (!this._templateVars)
-                this._templateVars = {};
-            this._templateVars[name] = value;
+        public setVar(name: string, value: any): GTextField {
+            this._displayObject.setVar(name, value);
 
             return this;
         }
 
         public flushVars(): void {
-            this.text = this._text;
+            //nothing here. auto flush
+        }
+
+        public ensureSizeCorrect(): void {
+            if (!this._underConstruct)
+                this._displayObject.typeset();
+        }
+
+        private updateSize(): void {
+            if (this._widthAutoSize)
+                this.setSize(this._displayObject.textWidth, this._displayObject.textHeight);
+            else if (this._heightAutoSize)
+                this.height = this._displayObject.textHeight;
+        }
+
+        protected handleSizeChanged(): void {
+            this._displayObject.size(this._width, this._height);
+        }
+
+        protected handleGrayedChanged(): void {
+            super.handleGrayedChanged();
+
+            if (this.grayed)
+                this._displayObject.color = "#AAAAAA";
+            else
+                this._displayObject.color = this._color;
         }
 
         public getProp(index: number): any {
