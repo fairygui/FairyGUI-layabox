@@ -7686,7 +7686,7 @@
         createDisplayObject() {
             this._displayObject = new Laya.Text();
             this._displayObject["$owner"] = this;
-            this._displayObject.padding = Laya.Styles.labelPadding;
+            this._displayObject.padding = labelPadding;
             this._displayObject.mouseEnabled = false;
             this._autoSize = fgui.AutoSizeType.Both;
             this._widthAutoSize = this._heightAutoSize = true;
@@ -7920,6 +7920,7 @@
     }
     fgui.GTextField = GTextField;
 })(fgui);
+const labelPadding = [2, 2, 2, 2];
 ///<reference path="GTextField.ts"/>
 
 ///<reference path="GTextField.ts"/>

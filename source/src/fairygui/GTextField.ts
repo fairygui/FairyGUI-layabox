@@ -23,7 +23,7 @@ namespace fgui {
         protected createDisplayObject(): void {
             this._displayObject = new Laya.Text();
             this._displayObject["$owner"] = this;
-            this._displayObject.padding = Laya.Styles.labelPadding;
+            this._displayObject.padding = labelPadding;
             this._displayObject.mouseEnabled = false;
             this._autoSize = AutoSizeType.Both;
             this._widthAutoSize = this._heightAutoSize = true;
@@ -314,3 +314,5 @@ namespace fgui {
         }
     }
 }
+
+const labelPadding = [2, 2, 2, 2];

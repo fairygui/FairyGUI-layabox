@@ -1292,6 +1292,7 @@ declare namespace fgui {
         setup_afterAdd(buffer: ByteBuffer, beginPos: number): void;
     }
 }
+declare const labelPadding: number[];
 declare namespace fgui {
     class GRichTextField extends GTextField {
         constructor();

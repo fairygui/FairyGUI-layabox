@@ -96,7 +96,7 @@
 
             function hide() {
                 window.removeEventListener("resize", fit);
-                window.removeEventListener("hideSplashScreen", hide);
+                delete window.hideSplashScreen;
 
                 let t = du - (performance.now() - ss);
                 if (t < 0) t = 0;
@@ -106,8 +106,12 @@
                 }, t);
             }
 
+            function onProgress(progress) {
+            }
+
             window.addEventListener("resize", fit);
-            window.addEventListener("hideSplashScreen", hide);
+            window.hideSplashScreen = hide;
+            window.onSplashProgress = onProgress;
 
             fit();
         })();
@@ -118,8 +122,8 @@
     {{#libs}}
     <script type="text/javascript" src="{{{name}}}"></script>
     {{/libs}}
-    <script type="text/javascript" src="js/bundle.js"></script>
-    <script type="text/javascript" src="js/index.js"></script>
+    <script type="text/javascript" src="{{{bundleJS}}}"></script>
+    <script type="text/javascript" src="{{{indexJS}}}"></script>
 </body>
 
 </html>

@@ -31,6 +31,7 @@ declare class Laya {
      * @param	plugins 参数已失效。
      */
     static init(width: number, height: number, ...plugins: any[]): Promise<void>;
+    static createRender(): Laya.Render;
     static addWasmModule(id: string, exports: WebAssembly.Exports, memory: WebAssembly.Memory): void;
     /**
      * 表示是否捕获全局错误并弹出提示。默认为false。
@@ -224,7 +225,7 @@ declare module Laya {
          *
          *      number : 数字输入。
          *      string : 字符串输入。默认为单行输入，如果是多行，需要激活multiline选项。
-         *      boolean : 多选框。
+         *      boolean : 布尔值输入，用于单选框或多选框。
          *      color : 一个颜色框+调色盘+拾色器
          *      vec2 : XY输入的组合
          *      vec3 : XYZ输入的组合
@@ -238,20 +239,20 @@ declare module Laya {
          * inspector为null的话则是完全不创建。
          */
         inspector: string;
-        /** 隐藏控制。
-         * 可以用表达式，支持的语法有：
-         * 1. 字符串。例如"!data.a && !data.b"，表示属性a和属性b均为空时，隐藏这个属性。隐含的变量有两个，data为当前数据，field为IPropertyField接口。
-         * 2. 函数。函数原型为func(data:any, field:IPropertyField)。
+        /** 隐藏控制:true隐藏，false显示。常用于关联属性的情况。
+         * 1. 可以用表达式，通过将条件表达式放到字符串里，获得布尔类型的运算结果，例如"!data.a && !data.b"，表示属性a和属性b均为空时，条件成立（true），隐藏这个属性。
+         * 2. 这里的data为当前组件的对象数据，data.a与data.b属性字段的a与b就是指当前组件中的a与b属性值，通过这种方法取到组件对象数据中的属性值，用于条件判断，作用于当前属性是否隐藏。
          */
         hidden: boolean | string;
-        /** 只读控制。可以用表达式，参考隐藏控制。 */
-        readonly: boolean | string | Function;
+        /** 只读控制。
+         * 1. 可以用表达式，通过将条件表达式放到字符串里，获得布尔类型的运算结果，例如"!data.a && !data.b"，表示属性a和属性b均为空时，条件成立（true），该属性只读。
+         * 2. 这里的data为当前组件的对象数据，data.a与data.b属性字段的a与b就是指当前组件中的a与b属性值，通过这种方法取到组件对象数据中的属性值，用于条件判断，作用于当前属性是否隐藏。
+         */
+        readonly: boolean | string;
         /** 数据检查机制。
-         * 可以用表达式，支持的语法有：
-         * 1. 字符串。例如"data.a"， 如果data.a是一个字符串，表示验证不通过，这个字符串作为错误提示信息显示；如果是其他值，则表示验证通过。
-         *    隐含的变量有三个，data为当前数据，value为当前用户输入的值，field为IPropertyField接口。
-         * 2. 函数。函数原型为func(data:any, value:any, field:IPropertyField)。
-         *    如果返回值是一个字符串，表示验证不通过，这个字符串作为错误提示信息显示；如果是其他值，则表示验证通过。
+         * 1. 将包括表达式的字符串传入，用于判断检查是否符合表达式的条件。符合条件，需要返回报错信息。
+         * 2. 使用示例为："if(value == data.a) return '不能与a的值相同'"
+         * 其中的value为当前用户在该属性输入的值，data为当前组件的对象数据，data.a是当前组件中的a属性值
          */
         validator: string;
         /** 是否序列化 */
@@ -1518,13 +1519,6 @@ declare module Laya {
          */
         private _setClipDatasToNode;
         /**
-         * 启用过渡
-         * @param layerindex
-         * @param transition
-         * @returns
-         */
-        private _applyTransition;
-        /**
          * 播放动画
          * @param name 动画名称
          * @param layerIndex 层索引
@@ -2471,10 +2465,6 @@ declare module Laya {
      */
     class AnimatorStateScript {
         /**
-        * 获取所属动画节点。
-        */
-        owner: AnimatorState | AnimatorState2D;
-        /**
          * 创建一个新的 <code>AnimatorStateScript</code> 实例。
          */
         constructor();
@@ -2763,9 +2753,9 @@ declare module Laya {
          * 动画事件 离开时调用
          */
         static EVENT_OnStateExit: string;
-        curTransition: AnimatorTransition;
         /**是否循环播放,为0时则使用_clip.islooping，1为循环，2为不循环 */
         _isLooping: 0 | 1 | 2;
+        curTransition: AnimatorTransition;
         /**名称。*/
         name: string;
         /**动画播放速度,1.0为正常播放速度。*/
@@ -5515,10 +5505,6 @@ declare module Laya {
         /**透明混合_物理上看似合理的透明。*/
         Transparent = 3
     }
-    enum PBRMaterialType {
-        Standard = 0,
-        Anisotropy = 1
-    }
     /**
      * PBR材质的父类,该类为抽象类。
      */
@@ -5625,14 +5611,56 @@ declare module Laya {
          * 渲染模式。
          */
         set renderMode(value: number);
-        private resetNeedTBN;
+        /**
+         * 是否开启 anisotropy
+         */
+        get anisotropyEnable(): boolean;
+        set anisotropyEnable(value: boolean);
+        /**
+         * anisotropy 强度
+         */
         get anisotropy(): number;
         set anisotropy(value: number);
-        get tangentTexture(): Texture2D;
-        set tangentTexture(value: Texture2D);
-        private _materialType;
-        get materialType(): PBRMaterialType;
-        set materialType(value: PBRMaterialType);
+        /**
+         * anisotropy 强度贴图
+         */
+        get anisotropyTexture(): Texture2D;
+        set anisotropyTexture(value: Texture2D);
+        /**
+         * anisotropy 在 切线空间 中的旋转
+         */
+        get anisotropyRotation(): number;
+        set anisotropyRotation(value: number);
+        /**
+         * 是否开启 clear coat
+         */
+        get clearCoatEnable(): boolean;
+        set clearCoatEnable(value: boolean);
+        /**
+         * clear coat 层 强度
+         */
+        get clearCoat(): number;
+        set clearCoat(value: number);
+        /**
+         * clear coat 强度贴图
+         */
+        get clearCoatTexture(): BaseTexture;
+        set clearCoatTexture(value: BaseTexture);
+        /**
+         * clear coat 层 粗糙度
+         */
+        get clearCoatRoughness(): number;
+        set clearCoatRoughness(value: number);
+        /**
+         * clear coat 层 粗糙度贴图
+         */
+        get clearCoatRoughnessTexture(): BaseTexture;
+        set clearCoatRoughnessTexture(value: BaseTexture);
+        /**
+         * clear coat 法线贴图
+         */
+        get clearCoatNormalTexture(): BaseTexture;
+        set clearCoatNormalTexture(value: BaseTexture);
         constructor();
         /**
          * @deprecated
@@ -10316,6 +10344,7 @@ declare module Laya {
         set sprite(value: Sprite);
         get sprite(): Sprite;
         /**
+         * IDE
          * 3D渲染的UI预制体
          */
         set prefab(value: Prefab);
@@ -14057,69 +14086,6 @@ declare module Laya {
          * @override
          */
         destroy(): void;
-    }
-    /**
-     * <code>SpotLight</code> 类用于创建RenderTextureCube。
-     */
-    class RenderTextureCube extends RenderTexture {
-        /**
-         * +x, -x, +y, -y, +z, -z
-         */
-        faceIndex: number;
-        /**
-         * 实例化一个RendertextureCube
-         * @param size 像素
-         * @param colorFormat 颜色格式
-         * @param depthFormat 深度格式
-         * @param generateMipmap 是否生成mipmap
-         * @param multiSamples
-         */
-        constructor(size: number, colorFormat: RenderTargetFormat, depthFormat: RenderTargetFormat, generateMipmap: boolean, multiSamples: number);
-        _start(): void;
-    }
-    enum TextureCubeFace {
-        /**+x */
-        PositiveX = 0,
-        /**-x */
-        NegativeX = 1,
-        /**+y */
-        PositiveY = 2,
-        /**-y */
-        NegativeY = 3,
-        /**+z */
-        PositiveZ = 4,
-        /**-z */
-        NegativeZ = 5
-    }
-    /**
-     * <code>TextureCube</code> 类用于生成立方体纹理。
-     */
-    class TextureCube extends BaseTexture {
-        /**@private*/
-        private static _blackTexture;
-        /**@private*/
-        private static _grayTexture;
-        /**@private*/
-        private static _whiteTexture;
-        /**
-         * 黑色纯色纹理。
-         */
-        static get blackTexture(): TextureCube;
-        /**
-         * 灰色纯色纹理。
-         */
-        static get grayTexture(): TextureCube;
-        /**
-         * 白色纯色纹理。
-         */
-        static get whiteTexture(): TextureCube;
-        constructor(size: number, format: TextureFormat, mipmap?: boolean, sRGB?: boolean);
-        setImageData(source: (HTMLImageElement | HTMLCanvasElement | ImageBitmap)[], premultiplyAlpha: boolean, invertY: boolean): void;
-        setPixelsData(source: ArrayBufferView[], premultiplyAlpha: boolean, invertY: boolean): void;
-        updateSubPixelsData(source: ArrayBufferView[], xOffset: number, yOffset: number, width: number, height: number, mipmapLevel: number, generateMipmap: boolean, premultiplyAlpha: boolean, invertY: boolean): void;
-        setDDSData(ddsInfo: DDSTextureInfo): void;
-        setKTXData(ktxInfo: KTXTextureInfo): void;
-        get defaultTexture(): BaseTexture;
     }
     class BlinnPhongShaderInit {
         static init(): void;
@@ -23665,6 +23631,7 @@ declare module Laya {
         get volume(): number;
     }
     /**
+     * 自动图集管理类
      * @private
      */
     class AtlasInfoManager {
@@ -23673,7 +23640,11 @@ declare module Laya {
             baseUrl?: string;
         }>;
         static enable(infoFile: string, callback?: Handler | null): void;
-        static addToDict(data: any): void;
+        static addAtlases(data: Record<string, [
+            string,
+            string[]
+        ]>): void;
+        static addAtlas(atlasUrl: string, prefix: string, frames: Array<string>): void;
         static getFileLoadPath(file: string): {
             url: string;
             baseUrl?: string;
@@ -23951,7 +23922,7 @@ declare module Laya {
          * 从指定URL下载。这是较为底层的下载资源的方法，它和load方法不同，不对返回的数据进行解析，也不会缓存下载的内容。
          * 成功则返回下载的数据，失败返回null。
          */
-        fetch<K extends keyof ContentTypeMap>(url: string, contentType: K, onProgress?: (progress: number) => void, options?: Readonly<ILoadOptions>): Promise<ContentTypeMap[K]>;
+        fetch<K extends keyof ContentTypeMap>(url: string, contentType: K, onProgress?: ProgressCallback, options?: Readonly<ILoadOptions>): Promise<ContentTypeMap[K]>;
         private queueToDownload;
         private download;
         private completeItem;
@@ -24038,6 +24009,7 @@ declare module Laya {
          * @param url 资源地址
          */
         cancelLoadByUrl(url: string): void;
+        loadPackage(path: string, remoteUrl?: string, onProgress?: ProgressCallback): Promise<void>;
     }
     /**
      * <p> <code>LocalStorage</code> 类用于没有时间限制的数据存储。</p>
@@ -24086,34 +24058,6 @@ declare module Laya {
          * 清除本地存储信息。
          */
         static clear(): void;
-    }
-    /**
-     * <p>资源版本的生成由layacmd或IDE完成，使用 <code>ResourceVersion</code> 简化使用过程。</p>
-     * <p>调用 <code>enable</code> 启用资源版本管理。</p>
-     */
-    class ResourceVersion {
-        /**基于文件夹的资源管理方式（老版本IDE默认类型）*/
-        static FOLDER_VERSION: number;
-        /**基于文件名映射管理方式（新版本IDE默认类型）*/
-        static FILENAME_VERSION: number;
-        /**版本清单*/
-        static manifest: any;
-        /**当前使用的版本管理类型*/
-        static type: number;
-        /**
-         * <p>启用资源版本管理。</p>
-         * <p>由于只有发布版本需要资源管理。因此没有资源管理文件时，可以设置manifestFile为null或者不存在的路径。</p>
-         * @param	manifestFile	清单（json）文件的路径。
-         * @param   callback		清单（json）文件加载完成后执行。
-         * @param   type			FOLDER_VERSION为基于文件夹管理方式（老版本IDE默认类型），FILENAME_VERSION为基于文件名映射管理（新版本IDE默认类型
-         */
-        static enable(manifestFile: string, callback: Handler, type?: number): void;
-        /**
-         * 为加载路径添加版本前缀。
-         * @param	originURL	源路径。
-         * @return 格式化后的新路径。
-         */
-        static addVersionPrefix(originURL: string): string;
     }
     /**
      * 连接建立成功后调度。
@@ -24259,14 +24203,14 @@ declare module Laya {
      * <p>引擎加载资源的时候，会自动调用formatURL函数格式化URL路径</p>
      * <p>通过basePath属性可以设置网络基础路径</p>
      * <p>通过设置customFormat函数，可以自定义URL格式化的方式</p>
-     * <p>除了默认的通过增加后缀的格式化外，通过VersionManager类，可以开启IDE提供的，基于目录的管理方式来替代 "?v=" 的管理方式</p>
-     * @see laya.net.VersionManager
      */
     class URL {
-        /**URL地址版本映射表，比如{"aaa/bb.png":99,"aaa/bb.png":12}，默认情况下，通过formatURL格式化后，会自动生成为"aaa/bb.png?v=99"的一个地址*/
-        static version: Record<string, number | string>;
+        /**URL地址版本映射表，比如{"aaa/bb.png":"edcba","aaa/bb.png":"1342a"}，默认情况下，通过formatURL格式化后，会自动生成为"aaa/bb-1342a.png"的一个地址*/
+        static version: Record<string, string>;
         /**基础路径。如果不设置，默认为当前网页的路径。最终地址将被格式化为 basePath+相对URL地址，*/
         static basePath: string;
+        /**扩展的基础路径映射表，比如{"aa/":"http://abc.com/"},则把路径以aa/开头的资源映射到http://abc.com/下*/
+        static basePaths: Record<string, string>;
         /**root路径。只针对'~'类型的url路径有效*/
         static rootPath: string;
         /**@private */
@@ -29389,6 +29333,25 @@ declare module Laya {
         getData(x: number, y: number, width: number, height: number): ArrayBufferView;
     }
     /**
+     * <code>SpotLight</code> 类用于创建RenderTextureCube。
+     */
+    class RenderTextureCube extends RenderTexture {
+        /**
+         * +x, -x, +y, -y, +z, -z
+         */
+        faceIndex: number;
+        /**
+         * 实例化一个RendertextureCube
+         * @param size 像素
+         * @param colorFormat 颜色格式
+         * @param depthFormat 深度格式
+         * @param generateMipmap 是否生成mipmap
+         * @param multiSamples
+         */
+        constructor(size: number, colorFormat: RenderTargetFormat, depthFormat: RenderTargetFormat, generateMipmap: boolean, multiSamples: number);
+        _start(): void;
+    }
+    /**
      * <code>Resource</code> 资源存取类。
      */
     class Resource extends EventDispatcher {
@@ -29679,7 +29642,7 @@ declare module Laya {
         /**默认法线纹理 */
         static normalTexture: Texture2D;
         /**错误纹理 */
-        static erroTextur: Texture2D;
+        static errorTexture: Texture2D;
         /**Default Toggle Texture */
         static defalutUITexture: Texture2D;
         /**
@@ -29787,6 +29750,52 @@ declare module Laya {
          * @param invertY 是否反转 Y 轴
          */
         setSubPixelsData(xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, pixels: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, premultiplyAlpha: boolean, invertY: boolean): void;
+    }
+    enum TextureCubeFace {
+        /**+x */
+        PositiveX = 0,
+        /**-x */
+        NegativeX = 1,
+        /**+y */
+        PositiveY = 2,
+        /**-y */
+        NegativeY = 3,
+        /**+z */
+        PositiveZ = 4,
+        /**-z */
+        NegativeZ = 5
+    }
+    /**
+     * <code>TextureCube</code> 类用于生成立方体纹理。
+     */
+    class TextureCube extends BaseTexture {
+        /**@private*/
+        private static _blackTexture;
+        /**@private*/
+        private static _grayTexture;
+        /**@private*/
+        private static _whiteTexture;
+        private static _errorTexture;
+        /**
+         * 黑色纯色纹理。
+         */
+        static get blackTexture(): TextureCube;
+        /**
+         * 灰色纯色纹理。
+         */
+        static get grayTexture(): TextureCube;
+        /**
+         * 白色纯色纹理。
+         */
+        static get whiteTexture(): TextureCube;
+        static get errorTexture(): TextureCube;
+        constructor(size: number, format: TextureFormat, mipmap?: boolean, sRGB?: boolean);
+        setImageData(source: (HTMLImageElement | HTMLCanvasElement | ImageBitmap)[], premultiplyAlpha: boolean, invertY: boolean): void;
+        setPixelsData(source: ArrayBufferView[], premultiplyAlpha: boolean, invertY: boolean): void;
+        updateSubPixelsData(source: ArrayBufferView[], xOffset: number, yOffset: number, width: number, height: number, mipmapLevel: number, generateMipmap: boolean, premultiplyAlpha: boolean, invertY: boolean): void;
+        setDDSData(ddsInfo: DDSTextureInfo): void;
+        setKTXData(ktxInfo: KTXTextureInfo): void;
+        get defaultTexture(): BaseTexture;
     }
     /**
      * WebGLRTMgr 管理WebGLRenderTarget的创建和回收
