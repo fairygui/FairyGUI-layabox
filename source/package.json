@@ -19,6 +19,7 @@
   "devDependencies": {
     "gulp": "^4.0.2",
     "gulp-inject-string": "^1.1.2",
+    "gulp-sourcemaps": "^3.0.0",
     "gulp-typescript": "^6.0.0-alpha.1",
     "merge2": "^1.4.1",
     "typescript": "^4.9.5"
