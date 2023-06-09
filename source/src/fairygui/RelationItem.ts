@@ -344,7 +344,7 @@ namespace fgui {
                     break;
 
                 case RelationType.Width:
-                    if (this._owner._underConstruct && this._owner == this._target.parent)
+                    if (/*this._owner._underConstruct && */this._owner == this._target.parent)
                         v = this._owner.sourceWidth - this._target.initWidth;
                     else
                         v = this._owner._rawWidth - this._targetWidth;
@@ -363,7 +363,7 @@ namespace fgui {
                         this._owner.width = this._target._width + v;
                     break;
                 case RelationType.Height:
-                    if (this._owner._underConstruct && this._owner == this._target.parent)
+                    if (/*this._owner._underConstruct && */this._owner == this._target.parent)
                         v = this._owner.sourceHeight - this._target.initHeight;
                     else
                         v = this._owner._rawHeight - this._targetHeight;
@@ -413,11 +413,11 @@ namespace fgui {
                     tmp = this._owner.xMin;
                     if (info.percent) {
                         if (this._owner == this._target.parent) {
-                            if (this._owner._underConstruct)
-                                this._owner.width = pos + this._target._width - this._target._width * pivot +
-                                    (this._owner.sourceWidth - pos - this._target.initWidth + this._target.initWidth * pivot) * delta;
-                            else
-                                this._owner.width = pos + (this._owner._rawWidth - pos) * delta;
+                            //if (this._owner._underConstruct)
+                            this._owner.width = pos + this._target._width - this._target._width * pivot +
+                                (this._owner.sourceWidth - pos - this._target.initWidth + this._target.initWidth * pivot) * delta;
+                            //else
+                            //    this._owner.width = pos + (this._owner._rawWidth - pos) * delta;
                         }
                         else {
                             v = pos + (tmp + this._owner._rawWidth - pos) * delta - (tmp + this._owner._rawWidth);
@@ -427,10 +427,10 @@ namespace fgui {
                     }
                     else {
                         if (this._owner == this._target.parent) {
-                            if (this._owner._underConstruct)
-                                this._owner.width = this._owner.sourceWidth + (this._target._width - this._target.initWidth) * (1 - pivot);
-                            else
-                                this._owner.width = this._owner._rawWidth + delta * (1 - pivot);
+                            //if (this._owner._underConstruct)
+                            this._owner.width = this._owner.sourceWidth + (this._target._width - this._target.initWidth) * (1 - pivot);
+                            //else
+                            //   this._owner.width = this._owner._rawWidth + delta * (1 - pivot);
                         }
                         else {
                             v = delta * (1 - pivot);
@@ -470,11 +470,11 @@ namespace fgui {
                     tmp = this._owner.yMin;
                     if (info.percent) {
                         if (this._owner == this._target.parent) {
-                            if (this._owner._underConstruct)
-                                this._owner.height = pos + this._target._height - this._target._height * pivot +
-                                    (this._owner.sourceHeight - pos - this._target.initHeight + this._target.initHeight * pivot) * delta;
-                            else
-                                this._owner.height = pos + (this._owner._rawHeight - pos) * delta;
+                            // if (this._owner._underConstruct)
+                            this._owner.height = pos + this._target._height - this._target._height * pivot +
+                                (this._owner.sourceHeight - pos - this._target.initHeight + this._target.initHeight * pivot) * delta;
+                            //else
+                            //    this._owner.height = pos + (this._owner._rawHeight - pos) * delta;
                         }
                         else {
                             v = pos + (tmp + this._owner._rawHeight - pos) * delta - (tmp + this._owner._rawHeight);
@@ -484,10 +484,10 @@ namespace fgui {
                     }
                     else {
                         if (this._owner == this._target.parent) {
-                            if (this._owner._underConstruct)
-                                this._owner.height = this._owner.sourceHeight + (this._target._height - this._target.initHeight) * (1 - pivot);
-                            else
-                                this._owner.height = this._owner._rawHeight + delta * (1 - pivot);
+                            //if (this._owner._underConstruct)
+                            this._owner.height = this._owner.sourceHeight + (this._target._height - this._target.initHeight) * (1 - pivot);
+                            //else
+                            //    this._owner.height = this._owner._rawHeight + delta * (1 - pivot);
                         }
                         else {
                             v = delta * (1 - pivot);

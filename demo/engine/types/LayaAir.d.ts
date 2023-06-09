@@ -302,6 +302,8 @@ declare module Laya {
         hideHeader: boolean;
         /** 对对象类型属性适用。对象创建时可以下拉选择一个类型。如果显示设置为null，则禁止菜单。默认是显示一个创建基类的菜单。*/
         createObjectMenu: Array<string>;
+        /** 说明此属性是引用一个资源 */
+        isAsset?: boolean;
         /** 对资源类型的属性适用。多个资源类型用逗号分隔，例如“Image,Audio"。*/
         assetTypeFilter: string;
         /** 如果属性类型是string，并且进行资源选择时，这个选项决定属性值是资源原始路径还是res://uuid这样的格式。如果是true，则是资源原始路径。默认false。*/
@@ -5068,6 +5070,12 @@ declare module Laya {
          */
         removeDefine(define: ShaderDefine): void;
         /**
+         * 开启 或 关闭 shader 宏定义
+         * @param define
+         * @param value true: addDefine, false: removeDefine
+         */
+        setDefine(define: ShaderDefine, value: boolean): void;
+        /**
          * 是否包含Shader宏定义。
          * @param value 宏定义。
          */
@@ -8424,6 +8432,7 @@ declare module Laya {
     class InstanceRenderElement extends RenderElement {
         static create(): InstanceRenderElement;
         constructor();
+        set InvertFront(value: boolean);
         protected _createRenderElementOBJ(): void;
         compileShader(context: IRenderContext3D): void;
         _renderUpdatePre(context: RenderContext3D): void;
@@ -9776,6 +9785,7 @@ declare module Laya {
      * <code>Sprite3D</code> 类用于实现3D精灵。
      */
     class Sprite3D extends Node {
+        static WORLDINVERTFRONT: number;
         /**
          * 创建精灵的克隆实例。
          * @param	original  原始精灵。
@@ -10121,6 +10131,9 @@ declare module Laya {
      * <code>Transform3D</code> 类用于实现3D变换。
      */
     class Transform3D extends EventDispatcher {
+        protected _faceInvert: boolean;
+        protected _frontFaceValue: number;
+        getFrontFaceValue(): number;
         /**
          * 所属精灵。
          */
@@ -14091,6 +14104,19 @@ declare module Laya {
         static init(): void;
     }
     class PBRShaderLib {
+        /**
+         * emission
+         */
+        static DEFINE_EMISSION: ShaderDefine;
+        /**
+         * clear coat
+         */
+        static DEFINE_CLEARCOAT: ShaderDefine;
+        static DEFINE_CLEARCOAT_NORMAL: ShaderDefine;
+        /**
+         * anisotropy
+         */
+        static DEFINE_ANISOTROPY: ShaderDefine;
         static init(): void;
     }
     class PBRStandardShaderInit {
@@ -15593,6 +15619,7 @@ declare module Laya {
         tint: boolean;
         maxWidth: number;
         lineHeight: number;
+        letterSpacing: number;
         /**
          * 通过指定位图字体文件路径，加载位图字体文件，加载完成后会自动解析。
          * @param	path		位图字体文件的路径。
@@ -16138,7 +16165,6 @@ declare module Laya {
          * （可选）颜色滤镜。
          */
         color: number;
-        colorFlt: ColorFilter | null;
         /**
          * （可选）混合模式。
          */
@@ -16225,10 +16251,9 @@ declare module Laya {
         /**
          * 颜色变换
          */
-        color: ColorFilter;
-        colorNum: number | null;
+        color: number | null;
         /**@private */
-        static create(texture: Texture, x: number, y: number, vertices: Float32Array, uvs: Float32Array, indices: Uint16Array, matrix: Matrix | null, alpha: number, color: string | null, blendMode: string | null, colorNum: number | null): DrawTrianglesCmd;
+        static create(texture: Texture, x: number, y: number, vertices: Float32Array, uvs: Float32Array, indices: Uint16Array, matrix: Matrix | null, alpha: number, color: string | number, blendMode: string | null): DrawTrianglesCmd;
         /**
          * 回收到对象池
          */
@@ -16839,7 +16864,7 @@ declare module Laya {
          * @param color		颜色变换
          * @param blendMode	blend模式
          */
-        drawTriangles(texture: Texture, x: number, y: number, vertices: Float32Array, uvs: Float32Array, indices: Uint16Array, matrix?: Matrix | null, alpha?: number, color?: string | null, blendMode?: string | null, colorNum?: number): DrawTrianglesCmd;
+        drawTriangles(texture: Texture, x: number, y: number, vertices: Float32Array, uvs: Float32Array, indices: Uint16Array, matrix?: Matrix | null, alpha?: number, color?: string | number, blendMode?: string | null): DrawTrianglesCmd;
         /**
          * 用 texture 填充。
          * @param texture		纹理。
@@ -17322,7 +17347,7 @@ declare module Laya {
         get destroyed(): boolean;
         constructor();
         protected onStartListeningToType(type: string): void;
-        bubbleEvent(type: string, ev: Event): void;
+        bubbleEvent(type: string, data?: any): void;
         hasHideFlag(flag: number): boolean;
         /**
          * <p>销毁此对象。destroy对象默认会把自己从父节点移除，并且清理自身引用关系，等待js自动垃圾回收机制回收。destroy后不能再使用。</p>
@@ -19106,7 +19131,7 @@ declare module Laya {
         set htmlParseOptions(value: HtmlParseOptions);
         protected parseTemplate(template: string): string;
         get templateVars(): Record<string, any>;
-        set templateVars(value: Record<string, any>);
+        set templateVars(value: Record<string, any> | boolean);
         setVar(name: string, value: any): Text;
         /**
         * <p>设置横向滚动量。</p>
@@ -20068,6 +20093,49 @@ declare module Laya {
         /**@private 滤镜类型。*/
         get type(): number;
         static _filter: (this: RenderSprite, sprite: Sprite, context: any, x: number, y: number) => void;
+    }
+    module "../glTFInterface" {
+        interface glTFMaterialAnisotropy {
+            /** The anisotropy strength. When anisotropyTexture is present, this value is multiplied by the blue channel. default: 0.0 */
+            anisotropyStrength: number;
+            /** The rotation of the anisotropy in tangent, bitangent space, measured in radians counter-clockwise from the tangent. When anisotropyTexture is present, anisotropyRotation provides additional rotation to the vectors in the texture. default: 0.0 */
+            anisotropyRotation: number;
+            /** The anisotropy texture. Red and green channels represent the anisotropy direction in [-1, 1] tangent, bitangent space, to be rotated by anisotropyRotation. The blue channel contains strength as [0, 1] to be multiplied by anisotropyStrength. */
+            anisotropyTexture: glTFTextureInfo;
+        }
+    }
+    class KHR_materials_anisotropy implements glTFExtension {
+        readonly name: string;
+        private _resource;
+        constructor(resource: glTFResource);
+        loadTextures(basePath: string, progress?: IBatchProgress): Promise<any>;
+        additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
+    }
+    module "../glTFInterface" {
+        interface glTFMaterialClearCoat {
+            /** The clearcoat layer intensity. default: 0.0*/
+            clearcoatFactor?: number;
+            /** The base color texture */
+            clearcoatTexture?: glTFTextureInfo;
+            /** The clearcoat layer roughness.  default: 0.0*/
+            clearcoatRoughnessFactor?: number;
+            /** The clearcoat layer roughness texture.*/
+            clearcoatRoughnessTexture?: glTFTextureInfo;
+            /** The clearcoat normal map texture. */
+            clearcoatNormalTexture?: glTFMaterialNormalTextureInfo;
+        }
+    }
+    module "../glTFInterface" {
+        interface glTFMaterialEmissionStrength {
+            /** The strength adjustment to be multiplied with the material's emissive value. default: 1.0 */
+            emissiveStrength: number;
+        }
+    }
+    class KHR_materials_emissive_strength implements glTFExtension {
+        readonly name: string;
+        private _resource;
+        constructor(resource: glTFResource);
+        additionMaterialProperties?(glTFMaterial: glTFMaterial, material: Material): void;
     }
     enum HtmlElementType {
         Text = 0,
@@ -21612,6 +21680,7 @@ declare module Laya {
     class Matrix4x4 implements IClone {
         /**默认矩阵,禁止修改*/
         static readonly DEFAULT: Readonly<Matrix4x4>;
+        static readonly DEFAULTINVERT: Readonly<Matrix4x4>;
         /**默认矩阵,禁止修改*/
         static readonly ZERO: Readonly<Matrix4x4>;
         /**
@@ -23787,7 +23856,6 @@ declare module Laya {
         constructParams?: TextureConstructParams;
         propertyParams?: TexturePropertyParams;
         blob?: ArrayBuffer;
-        noMetaFile?: boolean;
         [key: string]: any;
     }
     interface ILoadURL extends ILoadOptions {
@@ -24009,7 +24077,21 @@ declare module Laya {
          * @param url 资源地址
          */
         cancelLoadByUrl(url: string): void;
+        /**
+         * 载入一个分包
+         * @path 小游戏的分包路径
+         * @onProgress 加载进度回调
+         */
+        loadPackage(path: string, onProgress?: ProgressCallback): Promise<void>;
+        /**
+         * 载入一个分包。
+         * @path 分包路径
+         * @remoteUrl 如果分包是一个远程包，那需要提供远程资源服务器的地址，例如"http://cdn.com/"
+         * @onProgress 加载进度回调
+         */
         loadPackage(path: string, remoteUrl?: string, onProgress?: ProgressCallback): Promise<void>;
+        private _loadMiniPackage;
+        private _loadSubFileConfig;
     }
     /**
      * <p> <code>LocalStorage</code> 类用于没有时间限制的数据存储。</p>
@@ -24723,6 +24805,10 @@ declare module Laya {
          * @override
          */
         protected getDef(): any;
+        /**
+         * @override 初始化设置为当前显示对象的宽和高
+         */
+        protected _onAdded(): void;
         private _setShape;
         /**相对节点的x轴偏移*/
         get x(): number;
@@ -24787,6 +24873,10 @@ declare module Laya {
          * @override
          */
         protected getDef(): any;
+        /**
+         * @override 初始化设置为当前显示对象的宽和高
+         */
+        protected _onAdded(): void;
         private _setShape;
         /**相对节点的x轴偏移*/
         get x(): number;
@@ -25707,37 +25797,6 @@ declare module Laya {
         static getDDSTextureInfo(source: ArrayBuffer): DDSTextureInfo;
     }
     class DepthState {
-    }
-    /**
-     * https://openexr.readthedocs.io/en/latest/OpenEXRFileLayout.html
-     */
-    enum AttributeType {
-        box2i = "box2i",
-        box2f = "box2f",
-        chlist = "chlist",
-        chromaticities = "chromaticities",
-        compression = "compression",
-        double = "double",
-        envmap = "envmap",
-        float = "float",
-        int = "int",
-        keycode = "keycode",
-        lineOrder = "lineOrder",
-        m33f = "m33f",
-        m44f = "m44f",
-        preview = "preview",
-        rational = "rational",
-        string = "string",
-        stringvector = "stringvector",
-        titledesc = "titledesc",
-        timecode = "timecode",
-        v2i = "v2i",
-        v2f = "v2f",
-        v3i = "v3i",
-        v3f = "v3f"
-    }
-    class EXRTextureInfo {
-        static getEXRInfo(buffer: ArrayBuffer): void;
     }
     /**
      * https://floyd.lbl.gov/radiance/framer.html
@@ -28464,8 +28523,6 @@ declare module Laya {
          * 元资源 数据
          */
         metaMap: Record<string, any>;
-        /** 是否下载图片的描述信息 */
-        enableImageMetaFile: boolean;
         /**
          * uuid获得url
          * @param uuid uuid
@@ -28504,7 +28561,7 @@ declare module Laya {
          * @param uuid
          * @returns
          */
-        getMeta(url: string, uuid: string): any;
+        getMeta(url: string, uuid: string): Promise<any>;
         /**
          * 获得子资源路径
          * @param url
@@ -28833,7 +28890,7 @@ declare module Laya {
          * @param	ty
          * @param	alpha
          */
-        drawTextureWithTransform(tex: Texture, x: number, y: number, width: number, height: number, transform: Matrix | null, tx: number, ty: number, alpha: number, blendMode: string | null, colorfilter?: ColorFilter | null, uv?: number[], color?: number): void;
+        drawTextureWithTransform(tex: Texture, x: number, y: number, width: number, height: number, transform: Matrix | null, tx: number, ty: number, alpha: number, blendMode: string | null, uv?: number[], color?: number): void;
         /**
          * * 把ctx中的submits提交。结果渲染到target上
          * @param	ctx
@@ -28842,7 +28899,7 @@ declare module Laya {
         private _flushToTarget;
         drawCanvas(canvas: HTMLCanvas, x: number, y: number, width: number, height: number): void;
         drawTarget(rt: RenderTexture2D, x: number, y: number, width: number, height: number, m: Matrix, shaderValue: Value2D, uv?: ArrayLike<number> | null, blend?: number, color?: number): boolean;
-        drawTriangles(tex: Texture, x: number, y: number, vertices: Float32Array, uvs: Float32Array, indices: Uint16Array, matrix: Matrix, alpha: number, color: ColorFilter, blendMode: string, colorNum?: number): void;
+        drawTriangles(tex: Texture, x: number, y: number, vertices: Float32Array, uvs: Float32Array, indices: Uint16Array, matrix: Matrix, alpha: number, blendMode: string, colorNum?: number): void;
         transform(a: number, b: number, c: number, d: number, tx: number, ty: number): void;
         setTransformByMatrix(value: Matrix): void;
         rotate(angle: number): void;
@@ -30448,9 +30505,16 @@ declare module Laya {
          */
         get labelFont(): string;
         set labelFont(value: string);
-        /**标签对齐模式，默认为居中对齐。*/
+        /**
+         * 标签对齐模式，
+         */
         get labelAlign(): string;
         set labelAlign(value: string);
+        /**
+         * 标签垂直对齐模式，
+         */
+        get labelVAlign(): string;
+        set labelVAlign(value: string);
         /**
          * 对象的点击事件处理器函数（无默认参数）。
          * @implements
@@ -31248,6 +31312,7 @@ declare module Laya {
          * @private
          */
         protected _scrollBarSkin: string;
+        protected _scrollType: ScrollType;
         /**
          * @private
          */
@@ -31386,6 +31451,11 @@ declare module Laya {
          * 关闭下拉列表。
          */
         protected removeList(e: Event): void;
+        /**
+         * 滚动类型
+         */
+        get scrollType(): ScrollType;
+        set scrollType(value: ScrollType);
         /**
          * 滚动条皮肤。
          */
@@ -32498,6 +32568,7 @@ declare module Laya {
          * @override
          */
         get_width(): number;
+        set_width(value: number): void;
         /**
          * @inheritDoc
          * @override
@@ -32508,6 +32579,7 @@ declare module Laya {
          * @override
          */
         get_height(): number;
+        set_height(value: number): void;
         /**
          * @inheritDoc
          * @override
@@ -32551,7 +32623,7 @@ declare module Laya {
          */
         set ignoreLang(value: boolean);
         get templateVars(): Record<string, any>;
-        set templateVars(value: Record<string, any>);
+        set templateVars(value: Record<string, any> | boolean);
         setVar(name: string, value: any): Label;
     }
     /**
@@ -32836,6 +32908,9 @@ declare module Laya {
          * 获取对 <code>List</code> 组件所包含的内容容器 <code>Box</code> 组件的引用。
          */
         get content(): Box;
+        /**
+         * 滚动类型
+         */
         get scrollType(): ScrollType;
         set scrollType(value: ScrollType);
         /**
@@ -33073,6 +33148,51 @@ declare module Laya {
         protected _setCellChanged(): void;
         /**@override */
         protected commitMeasure(): void;
+    }
+    /**
+     * 微信开放数据展示组件，直接实例本组件，即可根据组件宽高，位置，以最优的方式显示开放域数据
+     */
+    class OpenDataContextView extends UIComponent {
+        private _fps;
+        constructor();
+        get fps(): number;
+        set fps(value: number);
+        /**
+         * @override
+         */
+        _onActive(): void;
+        /**
+         * @override
+         */
+        _onInActive(): void;
+        private _onLoop;
+        /**
+         * @override
+         */
+        _setWidth(value: number): void;
+        /**
+         * @override
+         */
+        _setHeight(value: number): void;
+        /**
+         * @override
+         */
+        set x(value: number);
+        /**
+         * @override
+         */
+        get x(): number;
+        /**
+         * @override
+         */
+        set y(value: number);
+        /**
+         * @override
+         */
+        get y(): number;
+        private updateViewPort;
+        /**向开放数据域发送消息*/
+        postMsg(msg: any): void;
     }
     /**
      * <code>Panel</code> 是一个面板容器类。
@@ -35647,48 +35767,6 @@ declare module Laya {
      */
     class VSlider extends Slider {
     }
-    /**
-     * 微信开放数据展示组件，直接实例本组件，即可根据组件宽高，位置，以最优的方式显示开放域数据
-     */
-    class WXOpenDataViewer extends UIComponent {
-        constructor();
-        /**
-         * @override
-         */
-        onEnable(): void;
-        /**
-         * @override
-         */
-        onDisable(): void;
-        private _onLoop;
-        /**
-         * @override
-         */
-        _setWidth(value: number): void;
-        /**
-         * @override
-         */
-        _setHeight(value: number): void;
-        /**
-         * @override
-         */
-        set x(value: number);
-        /**
-         * @override
-         */
-        get x(): number;
-        /**
-         * @override
-         */
-        set y(value: number);
-        /**
-         * @override
-         */
-        get y(): number;
-        private _postMsg;
-        /**向开放数据域发送消息*/
-        postMsg(msg: any): void;
-    }
     class Base64Tool {
         static chars: string;
         static reg: RegExp;
@@ -37990,6 +38068,7 @@ declare module Laya {
         text: string;
         width: number;
         pageChars: any[];
+        pagecharsCtx: Context;
         scalex: number;
         scaley: number;
         _nativeObj: any;
