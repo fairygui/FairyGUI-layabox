@@ -16796,7 +16796,7 @@ declare module Laya {
          */
         clear(recoverCmds?: boolean): void;
         /**@private */
-        private _clearBoundsCache;
+        _clearBoundsCache(onSizeChanged?: boolean): void;
         /**@private */
         private _initGraphicBounds;
         /**
@@ -17180,15 +17180,11 @@ declare module Laya {
         protected static confirmButton: any;
         /**@private */
         protected static promptStyleDOM: any;
-        /**@private */
         protected _focus: boolean;
-        /**@private */
         protected _multiline: boolean;
-        /**@private */
         protected _editable: boolean;
-        /**@private */
+        protected _restrict: string;
         protected _restrictPattern: any;
-        /**@private */
         protected _maxChars: number;
         private _type;
         /**@private */
@@ -17258,7 +17254,7 @@ declare module Laya {
         get bgColor(): string;
         /**限制输入的字符。*/
         get restrict(): string;
-        set restrict(pattern: string);
+        set restrict(value: string);
         /**
          * 是否可编辑。
          */
@@ -18876,8 +18872,10 @@ declare module Laya {
         static SCROLL: string;
         /**hidden 不显示超出文本域的字符。*/
         static HIDDEN: string;
-        static FIT_HEIGHT: string;
-        static FIT_BOTH: string;
+        /**shrink 超出文本域时，文本整体缩小以适应文本框。*/
+        static SHRINK: string;
+        /**ellipsis 超出文本域时，文本被截断，并且文本最后显示省略号。*/
+        static ELLIPSIS: string;
         /**语言包，是一个包含key:value的集合，用key索引，替换为目标value语言*/
         static langPacks: Record<string, string>;
         /**是否是从右向左的显示顺序*/
@@ -18937,7 +18935,11 @@ declare module Laya {
         protected _elements: Array<HtmlElement>;
         protected _objContainer: Sprite;
         protected _maxWidth: number;
+        protected _hideText: boolean;
         private _updatingLayout;
+        private _fontSizeScale;
+        /**是否将字符串中的\n,\t转换为实际功能的字符 */
+        _parseEscapeChars: boolean;
         _onPostLayout: () => void;
         /**
          * 创建一个新的 <code>Text</code> 实例。
@@ -18993,23 +18995,7 @@ declare module Laya {
         get textHeight(): number;
         /** 当前文本的内容字符串。*/
         get text(): string;
-        set_text(value: string): void;
         set text(value: string);
-        /**
-         * <p>根据指定的文本，从语言包中取当前语言的文本内容。并对此文本中的{i}文本进行替换。</p>
-         * <p>设置Text.langPacks语言包后，即可使用lang获取里面的语言</p>
-         * <p>例如：
-         * <li>（1）text 的值为“我的名字”，先取到这个文本对应的当前语言版本里的值“My name”，将“My name”设置为当前文本的内容。</li>
-         * <li>（2）text 的值为“恭喜你赢得{0}个钻石，{1}经验。”，arg1 的值为100，arg2 的值为200。
-         * 			则先取到这个文本对应的当前语言版本里的值“Congratulations on your winning {0} diamonds, {1} experience.”，
-         * 			然后将文本里的{0}、{1}，依据括号里的数字从0开始替换为 arg1、arg2 的值。
-         * 			将替换处理后的文本“Congratulations on your winning 100 diamonds, 200 experience.”设置为当前文本的内容。
-         * </li>
-         * </p>
-         * @param	text 文本内容。
-         * @param	args 文本替换参数。
-         */
-        lang(text: string, ...args: any[]): void;
         /** @deprecated **/
         changeText(text: string): void;
         /**
@@ -19171,7 +19157,7 @@ declare module Laya {
          * <p>排版文本。</p>
          * <p>进行宽高计算，渲染、重绘文本。</p>
          */
-        private _typeset;
+        protected _typeset(): void;
         /**
          * @private
          * 分析文本换行。
@@ -19444,6 +19430,15 @@ declare module Laya {
         isDblClick: boolean;
         /**滚轮滑动增量*/
         delta: number;
+        /**
+         * 鼠标按键，
+         * 0：主按键，通常指鼠标左键
+         * 1：辅助按键，通常指鼠标滚轮中键
+         * 2：次按键，通常指鼠标右键
+         * 3：第四个按钮，通常指浏览器后退按钮
+         * 4：第五个按钮，通常指浏览器的前进按钮
+         */
+        button: number;
         /** 原生浏览器事件。*/
         nativeEvent: MouseEvent | TouchEvent | WheelEvent | KeyboardEvent;
         constructor();
@@ -19463,15 +19458,6 @@ declare module Laya {
          * 触摸点列表。
          */
         get touches(): ReadonlyArray<Readonly<ITouchInfo>>;
-        /**
-         * 鼠标按键，
-         * 0：主按键，通常指鼠标左键
-         * 1：辅助按键，通常指鼠标滚轮中键
-         * 2：次按键，通常指鼠标右键
-         * 3：第四个按钮，通常指浏览器后退按钮
-         * 4：第五个按钮，通常指浏览器的前进按钮
-         */
-        get button(): number;
         /**
          * 表示 Alt 键是处于活动状态 (true) 还是非活动状态 (false)。
          */
@@ -23964,16 +23950,25 @@ declare module Laya {
         get loading(): boolean;
         /**
          * <p>加载资源。</p>
-         * @param url 要加载的单个资源地址或资源地址数组。
-         * @return 加载成功返回资源对象，加载失败返回null。
+         * @param url 要加载的资源地址或资源地址数组。
+         * @param type 资源类型。比如：Loader.IMAGE。
+         * @param onProgress 进度回调函数。
+         * @return 根据url类型不同分为2种情况：1. url为String或ILoadURL类型，也就是单个资源地址，如果加载成功，则回调参数值为加载完成的资源，否则为null；2. url为数组类型，则返回一个数组，数组每个元素为加载完成的资源或null。
          */
         load(url: string | ILoadURL | (string | Readonly<ILoadURL>)[], type?: string, onProgress?: ProgressCallback): Promise<any>;
+        /**
+         * <p>加载资源。</p>
+         * @param url 要加载的资源地址或资源地址数组。
+         * @param options 加载选项。
+         * @param onProgress 进度回调函数。
+         * @return 根据url类型不同分为2种情况：1. url为String或ILoadURL类型，也就是单个资源地址，如果加载成功，则回调参数值为加载完成的资源，否则为null；2. url为数组类型，则返回一个数组，数组每个元素为加载完成的资源或null。
+         */
         load(url: string | ILoadURL | (string | Readonly<ILoadURL>)[], options?: Readonly<ILoadOptions>, onProgress?: ProgressCallback): Promise<any>;
         /**
          * <p>这是兼容2.0引擎的加载接口</p>
          * <p>加载资源。</p>
          * @param url		要加载的单个资源地址或资源信息数组。比如：简单数组：["a.png","b.png"]；复杂数组[{url:"a.png",type:Loader.IMAGE,size:100,priority:1},{url:"b.json",type:Loader.JSON,size:50,priority:1}]。
-         * @param complete	加载结束回调。根据url类型不同分为2种情况：1. url为String类型，也就是单个资源地址，如果加载成功，则回调参数值为加载完成的资源，否则为null；2. url为数组类型，指定了一组要加载的资源，如果全部加载成功，则回调参数值为true，否则为false。
+         * @param complete	加载结束回调。根据url类型不同分为2种情况：1. url为String类型，也就是单个资源地址，如果加载成功，则回调参数值为加载完成的资源，否则为null；2. url为数组类型，则返回一个数组，数组每个元素为加载完成的资源或null。
          * @param progress	加载进度回调。回调参数值为当前资源的加载进度信息(0-1)。
          * @param type		资源类型。比如：Loader.IMAGE。
          * @param priority	(default = 0)加载的优先级，数字越大优先级越高，优先级高的优先加载。
@@ -32330,6 +32325,7 @@ declare module Laya {
          */
         clickHandler: Handler;
     }
+    type LabelFitContent = "no" | "yes" | "height";
     /**
      * 文本内容发生改变后调度。
      * @eventType laya.events.Event
@@ -32445,7 +32441,7 @@ declare module Laya {
          * 文本 <code>Text</code> 实例。
          */
         protected _tf: Text;
-        protected _fitContent: boolean;
+        protected _fitContent: LabelFitContent;
         /**
          * 创建一个新的 <code>Label</code> 实例。
          * @param text 文本内容字符串。
@@ -32546,9 +32542,9 @@ declare module Laya {
         get maxWidth(): number;
         /** 设置当文本达到最大允许的宽度时，自定换行，设置为0则此限制不生效。*/
         set maxWidth(value: number);
-        get fitContent(): boolean;
+        get fitContent(): LabelFitContent;
         /** 设置文本框大小是否自动适应文本内容的大小。可取值为both或者height */
-        set fitContent(value: boolean);
+        set fitContent(value: LabelFitContent);
         /**
          * 文本控件实体 <code>Text</code> 实例。
          */
@@ -34476,6 +34472,7 @@ declare module Laya {
         /** @private */
         protected _skin: string;
         _graphics: AutoBitmap;
+        _tf: Input;
         /**
          * 创建一个新的 <code>TextInput</code> 类实例。
          * @param text 文本内容。
@@ -34491,22 +34488,6 @@ declare module Laya {
          * @override
         */
         protected createChildren(): void;
-        /**
-         * @private
-         */
-        private _onFocus;
-        /**
-         * @private
-         */
-        private _onBlur;
-        /**
-         * @private
-         */
-        private _onInput;
-        /**
-         * @private
-         */
-        private _onEnter;
         /**
          * @inheritDoc
          * @override
@@ -34526,16 +34507,6 @@ declare module Laya {
          */
         get sizeGrid(): string;
         set sizeGrid(value: string);
-        /**
-         * 当前文本内容字符串。
-         * @see laya.display.Text.text
-         * @override
-         */
-        set text(value: string);
-        /**
-         * @override
-         */
-        get text(): string;
         /**
          * @inheritDoc
          * @override
@@ -35441,10 +35412,6 @@ declare module Laya {
     class UIUtils {
         private static grayFilter;
         /**
-         * 需要替换的转义字符表
-         */
-        static escapeSequence: any;
-        /**
          * 用字符串填充数组，并返回数组副本。
          * @param	arr 源数组对象。
          * @param	str 用逗号连接的字符串。如"p1,p2,p3,p4"。
@@ -35464,18 +35431,6 @@ declare module Laya {
          * @param	isGray 如果值true，则添加灰度滤镜，否则移除灰度滤镜。
          */
         static gray(target: Sprite, isGray?: boolean): void;
-        /**
-         * 获取当前要替换的转移字符
-         * @param word
-         * @return
-         *
-         */
-        private static _getReplaceStr;
-        /**
-         * 替换字符串中的转义字符
-         * @param str
-         */
-        static adptString(str: string): string;
         /**@private */
         private static _funMap;
         /**
@@ -37758,6 +37713,12 @@ declare module Laya {
          */
         runCallLater(caller: any, method: Function): void;
         /**
+         * 取消执行 callLater 。
+         * @param	caller 执行域(this)。
+         * @param	method 定时器回调函数。
+         */
+        clearCallLater(caller: any, method: Function): void;
+        /**
          * 立即提前执行定时器，执行之后从队列中删除
          * @param	caller 执行域(this)。
          * @param	method 定时器回调函数。
@@ -38896,6 +38857,7 @@ declare module Laya {
         static forceSplitRender: boolean;
         static forceWholeRender: boolean;
         static scaleFontWithCtx: boolean;
+        static maxFontScale: number;
         static standardFontSize: number;
         static destroyAtlasDt: number;
         static checkCleanTextureDt: number;

@@ -7811,6 +7811,7 @@
         }
         updateAutoSize() {
             this._displayObject.wordWrap = !this._widthAutoSize && !this._singleLine;
+            this._displayObject.overflow = this._autoSize == fgui.AutoSizeType.Shrink ? "shrink" : (this._autoSize == fgui.AutoSizeType.Ellipsis ? "ellipsis" : "visible");
             if (!this._underConstruct) {
                 if (!this._heightAutoSize)
                     this._displayObject.size(this.width, this.height);

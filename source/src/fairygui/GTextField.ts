@@ -184,6 +184,7 @@ namespace fgui {
 
         protected updateAutoSize(): void {
             this._displayObject.wordWrap = !this._widthAutoSize && !this._singleLine;
+            this._displayObject.overflow = this._autoSize == AutoSizeType.Shrink ? "shrink" : (this._autoSize == AutoSizeType.Ellipsis ? "ellipsis" : "visible");
             if (!this._underConstruct) {
                 if (!this._heightAutoSize)
                     this._displayObject.size(this.width, this.height);
