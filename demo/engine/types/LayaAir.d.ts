@@ -1700,7 +1700,7 @@ declare module Laya {
         states: TypeAnimatorState[];
         playOnWake: boolean;
         defaultWeight: number;
-        avatarMask?: Record<string, boolean>;
+        avatarMask?: any;
         stageX?: number;
         stageY?: number;
         stageScale?: number;
@@ -2891,7 +2891,7 @@ declare module Laya {
         /**
          * 创建一个<code>AvatarMask</code>实例
          */
-        constructor(data?: Record<string, boolean>);
+        constructor(data?: any);
         /**
          * 查找节点路径遮罩
          * @param path
@@ -10372,6 +10372,11 @@ declare module Laya {
          */
         set renderMode(value: MaterialRenderMode);
         get renderMode(): MaterialRenderMode;
+        /**
+         * UI剔除模式
+         */
+        set cull(value: number);
+        get cull(): number;
         /**
          * 分辨率比例
          */
@@ -18394,7 +18399,6 @@ declare module Laya {
          * @param elasticDistance	（可选）橡皮筋效果的距离值，0为无橡皮筋效果，默认为0，可选。
          * @param elasticBackTime	（可选）橡皮筋回弹时间，单位为毫秒，默认为300毫秒，可选。
          * @param data				（可选）拖动事件携带的数据，可选。
-         * @param disableMouseEvent	（可选）禁用其他对象的鼠标检测，默认为false，设置为true能提高性能。
          * @param ratio				（可选）惯性阻尼系数，影响惯性力度和时长。
          */
         startDrag(area?: Rectangle, hasInertia?: boolean, elasticDistance?: number, elasticBackTime?: number, data?: any, ratio?: number): void;
@@ -20080,42 +20084,12 @@ declare module Laya {
         get type(): number;
         static _filter: (this: RenderSprite, sprite: Sprite, context: any, x: number, y: number) => void;
     }
-    module "../glTFInterface" {
-        interface glTFMaterialAnisotropy {
-            /** The anisotropy strength. When anisotropyTexture is present, this value is multiplied by the blue channel. default: 0.0 */
-            anisotropyStrength: number;
-            /** The rotation of the anisotropy in tangent, bitangent space, measured in radians counter-clockwise from the tangent. When anisotropyTexture is present, anisotropyRotation provides additional rotation to the vectors in the texture. default: 0.0 */
-            anisotropyRotation: number;
-            /** The anisotropy texture. Red and green channels represent the anisotropy direction in [-1, 1] tangent, bitangent space, to be rotated by anisotropyRotation. The blue channel contains strength as [0, 1] to be multiplied by anisotropyStrength. */
-            anisotropyTexture: glTFTextureInfo;
-        }
-    }
     class KHR_materials_anisotropy implements glTFExtension {
         readonly name: string;
         private _resource;
         constructor(resource: glTFResource);
         loadTextures(basePath: string, progress?: IBatchProgress): Promise<any>;
         additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
-    }
-    module "../glTFInterface" {
-        interface glTFMaterialClearCoat {
-            /** The clearcoat layer intensity. default: 0.0*/
-            clearcoatFactor?: number;
-            /** The base color texture */
-            clearcoatTexture?: glTFTextureInfo;
-            /** The clearcoat layer roughness.  default: 0.0*/
-            clearcoatRoughnessFactor?: number;
-            /** The clearcoat layer roughness texture.*/
-            clearcoatRoughnessTexture?: glTFTextureInfo;
-            /** The clearcoat normal map texture. */
-            clearcoatNormalTexture?: glTFMaterialNormalTextureInfo;
-        }
-    }
-    module "../glTFInterface" {
-        interface glTFMaterialEmissionStrength {
-            /** The strength adjustment to be multiplied with the material's emissive value. default: 1.0 */
-            emissiveStrength: number;
-        }
     }
     class KHR_materials_emissive_strength implements glTFExtension {
         readonly name: string;
@@ -23173,6 +23147,7 @@ declare module Laya {
         private static _setVolume;
     }
     /**
+     * 用于播放背景音乐或者音效的节点
      */
     class SoundNode extends Sprite {
         private _channel;
@@ -23180,9 +23155,27 @@ declare module Laya {
         private _playEvents;
         private _stopEvents;
         private _source;
+        private _isMusic;
+        private _autoPlay;
+        private _loop;
         constructor();
         get source(): string;
         set source(value: string);
+        /**
+         * 如果是，音乐类型为背景音乐，否则为音效
+         */
+        get isMusic(): boolean;
+        set isMusic(value: boolean);
+        /**
+         * 循环次数
+         */
+        get loop(): number;
+        set loop(value: number);
+        /**
+         * 是否自动播放
+         */
+        get autoPlay(): boolean;
+        set autoPlay(value: boolean);
         /**@private */
         private _onParentChange;
         /**
@@ -24357,43 +24350,26 @@ declare module Laya {
         static overrideExtension(originalExts: Array<string>, targetExt: string): void;
     }
     /**
-     * @private
      * Worker Image加载器
      */
-    class WorkerLoader extends EventDispatcher {
-        /**单例*/
-        static I: WorkerLoader;
+    class WorkerLoader {
         /**worker.js的路径 */
         static workerPath: string;
-        /**@private */
+        private static _worker;
+        private static _dispatcher;
         private static _enable;
-        /**使用的Worker对象。*/
-        worker: Worker;
-        /**@private */
-        protected _useWorkerLoader: boolean;
-        constructor();
         /**
          * 是否支持worker
          * @return 是否支持worker
          */
         static workerSupported(): boolean;
         /**
-         * 尝试启用WorkerLoader,只有第一次调用有效
-         */
-        static enableWorkerLoader(): void;
-        /**
          * 是否启用。
          */
         static set enable(value: boolean);
         static get enable(): boolean;
-        /**
-         * @private
-         */
-        private workerMessage;
-        /**
-         * @private
-         */
-        private imageLoaded;
+        static load(url: string, options: any): Promise<any>;
+        private static workerMessage;
     }
     /**
      *
@@ -26123,7 +26099,7 @@ declare module Laya {
     /**
      * 将继承修改为类似 WebGLRenderingContextBase, WebGLRenderingContextOverloads 多继承 ?
      */
-    class GL2TextureContext extends GLTextureContext {
+    class GL2TextureContext extends GLTextureContext implements ITexture3DContext {
         protected _gl: WebGL2RenderingContext;
         constructor(engine: WebGLEngine);
         protected getTarget(dimension: TextureDimension): number;
@@ -26212,7 +26188,8 @@ declare module Laya {
         WEBGL_compressed_texture_pvrtc = 15,
         WEBGL_compressed_texture_etc1 = 16,
         WEBGL_compressed_texture_etc = 17,
-        WEBGL_compressed_texture_astc = 18
+        WEBGL_compressed_texture_astc = 18,
+        OES_standard_derivatives = 19
     }
     /**
      * WebGL mode.
@@ -26271,20 +26248,54 @@ declare module Laya {
         drawGeometryElement(geometryElement: IRenderGeometryElement): void;
     }
     class GLRenderState {
-        _engine: WebGLEngine;
-        _gl: WebGLRenderingContext | WebGL2RenderingContext;
+        /**
+         * intance glRenderState
+         * @param engine
+         */
         constructor(engine: WebGLEngine);
+        /**
+         * init
+         */
         private _initState;
+        /**
+         * get gl blend factor
+         * @param factor
+         * @returns
+         */
         _getBlendFactor(factor: BlendFactor): number;
+        /**
+         * get gl blend operation
+         * @param factor
+         * @returns
+         */
         _getBlendOperation(factor: BlendEquationSeparate): number;
+        /**
+         * get gl compare fun factor
+         * @param compareFunction
+         * @returns
+         */
         _getGLCompareFunction(compareFunction: CompareFunction): number;
+        /**
+         * get gl stencil operation
+         * @param compareFunction
+         * @returns
+         */
         _getGLStencilOperation(compareFunction: StencilOperation): number;
+        /**
+         * get gl frontface factor
+         * @param cullmode
+         * @returns
+         */
         _getGLFrontfaceFactor(cullmode: CullMode): number;
         /**
          * 模板写入开关
          * @param value
          */
         setStencilMask(value: boolean): void;
+        /**
+         * apply RenderState list
+         * @param cmd
+         */
         applyRenderStateCommand(cmd: RenderStateCommand): void;
     }
     class GLShaderInstance extends GLObject implements IRenderShaderInstance {
@@ -26363,9 +26374,6 @@ declare module Laya {
         createTextureInternal(dimension: TextureDimension, width: number, height: number, format: TextureFormat, generateMipmap: boolean, sRGB: boolean): InternalTexture;
         setTextureImageData(texture: WebGLInternalTex, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, premultiplyAlpha: boolean, invertY: boolean): void;
         setTextureSubImageData(texture: WebGLInternalTex, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexture3DImageData(texture: WebGLInternalTex, sources: HTMLImageElement[] | HTMLCanvasElement[] | ImageBitmap[], depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexture3DPixlesData(texture: InternalTexture, source: ArrayBufferView, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexture3DSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
         initVideoTextureData(texture: WebGLInternalTex): void;
         setTexturePixelsData(texture: WebGLInternalTex, source: ArrayBufferView, premultiplyAlpha: boolean, invertY: boolean): void;
         setTextureSubPixelsData(texture: WebGLInternalTex, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, width: number, height: number, premultiplyAlpha: boolean, invertY: boolean): void;
@@ -26439,7 +26447,7 @@ declare module Laya {
         private _GLTextureContext;
         private _GLRenderDrawContext;
         private _GL2DRenderContext;
-        private _GLRenderState;
+        _GLRenderState: GLRenderState;
         private _GLStatisticsInfo;
         constructor(config: WebGlConfig, webglMode?: WebGLMode);
         /**
@@ -26709,7 +26717,9 @@ declare module Laya {
         MSAA = 17,
         UnifromBufferObject = 18,
         GRAPHICS_API_GLES3 = 19,
-        Texture3D = 20
+        Texture3D = 20,
+        Texture_FloatLinearFiltering = 21,
+        Texture_HalfFloatLinearFiltering = 22
     }
     enum RenderClearFlag {
         Nothing = 0,
@@ -27085,9 +27095,6 @@ declare module Laya {
         setTextureImageData(texture: InternalTexture, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, premultiplyAlpha: boolean, invertY: boolean): void;
         setTextureSubImageData(texture: InternalTexture, source: HTMLImageElement | HTMLCanvasElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
         setTexturePixelsData(texture: InternalTexture, source: ArrayBufferView, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexture3DImageData(texture: InternalTexture, source: HTMLImageElement[] | HTMLCanvasElement[] | ImageBitmap[], depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexture3DPixlesData(texture: InternalTexture, source: ArrayBufferView, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
-        setTexture3DSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
         initVideoTextureData(texture: InternalTexture): void;
         setTextureSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, width: number, height: number, premultiplyAlpha: boolean, invertY: boolean): void;
         setTextureDDSData(texture: InternalTexture, ddsInfo: DDSTextureInfo): void;
@@ -27109,6 +27116,11 @@ declare module Laya {
         readRenderTargetPixelData(renderTarget: InternalRenderTarget, xOffset: number, yOffset: number, width: number, height: number, out: ArrayBufferView): ArrayBufferView;
         updateVideoTexture(texture: InternalTexture, video: HTMLVideoElement, premultiplyAlpha: boolean, invertY: boolean): void;
         getRenderTextureData(internalTex: InternalRenderTarget, x: number, y: number, width: number, height: number): ArrayBufferView;
+    }
+    interface ITexture3DContext extends ITextureContext {
+        setTexture3DImageData(texture: InternalTexture, source: HTMLImageElement[] | HTMLCanvasElement[] | ImageBitmap[], depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DPixlesData(texture: InternalTexture, source: ArrayBufferView, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
     }
     /**
      * 基本渲染单元
@@ -27460,41 +27472,39 @@ declare module Laya {
     class Shader3D {
         static _configDefineValues: DefineDatas;
         /**渲染状态_剔除。*/
-        static RENDER_STATE_CULL: number;
+        static CULL: number;
         /**渲染状态_混合。*/
-        static RENDER_STATE_BLEND: number;
+        static BLEND: number;
         /**渲染状态_混合源。*/
-        static RENDER_STATE_BLEND_SRC: number;
+        static BLEND_SRC: number;
         /**渲染状态_混合目标。*/
-        static RENDER_STATE_BLEND_DST: number;
+        static BLEND_DST: number;
         /**渲染状态_混合源RGB。*/
-        static RENDER_STATE_BLEND_SRC_RGB: number;
+        static BLEND_SRC_RGB: number;
         /**渲染状态_混合目标RGB。*/
-        static RENDER_STATE_BLEND_DST_RGB: number;
+        static BLEND_DST_RGB: number;
         /**渲染状态_混合源ALPHA。*/
-        static RENDER_STATE_BLEND_SRC_ALPHA: number;
+        static BLEND_SRC_ALPHA: number;
         /**渲染状态_混合目标ALPHA。*/
-        static RENDER_STATE_BLEND_DST_ALPHA: number;
-        /**渲染状态_混合常量颜色。*/
-        static RENDER_STATE_BLEND_CONST_COLOR: number;
+        static BLEND_DST_ALPHA: number;
         /**渲染状态_混合方程。*/
-        static RENDER_STATE_BLEND_EQUATION: number;
-        /**渲染状态_RGB混合方程。*/
-        static RENDER_STATE_BLEND_EQUATION_RGB: number;
+        static BLEND_EQUATION: number;
+        /**渲染状态_混合方程。*/
+        static BLEND_EQUATION_RGB: number;
         /**渲染状态_ALPHA混合方程。*/
-        static RENDER_STATE_BLEND_EQUATION_ALPHA: number;
+        static BLEND_EQUATION_ALPHA: number;
         /**渲染状态_深度测试。*/
-        static RENDER_STATE_DEPTH_TEST: number;
+        static DEPTH_TEST: number;
         /**渲染状态_深度写入。*/
-        static RENDER_STATE_DEPTH_WRITE: number;
+        static DEPTH_WRITE: number;
         /**渲染状态_模板测试。*/
-        static RENDER_STATE_STENCIL_TEST: number;
+        static STENCIL_TEST: number;
         /**渲染状态_模板写入 */
-        static RENDER_STATE_STENCIL_WRITE: number;
+        static STENCIL_WRITE: number;
         /**渲染状态_模板写入值 */
-        static RENDER_STATE_STENCIL_REF: number;
+        static STENCIL_Ref: number;
         /**渲染状态_模板写入设置 */
-        static RENDER_STATE_STENCIL_OP: number;
+        static STENCIL_Op: number;
         /**shader变量提交周期，自定义。*/
         static PERIOD_CUSTOM: number;
         /**shader变量提交周期，逐材质。*/
@@ -27788,8 +27798,6 @@ declare module Laya {
      * <code>ShaderInstance</code> 类用于实现ShaderInstance。
      */
     class ShaderInstance {
-        private _renderShaderInstance;
-        _cullStateCMD: RenderStateCommand;
         /**
          * 创建一个 <code>ShaderInstance</code> 实例。
          */
@@ -27799,14 +27807,42 @@ declare module Laya {
                 ShaderDataType
             ];
         }, shaderPass: ShaderCompileDefineBase);
+        /**
+         * get complete
+         */
         get complete(): boolean;
         /**
          * @inheritDoc
          * @override
          */
         protected _disposeResource(): void;
+        /**
+         * apply shader programe
+         * @returns
+         */
         bind(): boolean;
+        /**
+         * upload uniform data
+         * @param shaderUniform
+         * @param shaderDatas
+         * @param uploadUnTexture
+         */
         uploadUniforms(shaderUniform: CommandEncoder, shaderDatas: ShaderData, uploadUnTexture: boolean): void;
+        /**
+         * set blend depth stencil RenderState
+         * @param shaderDatas
+         */
+        uploadRenderStateBlendDepth(shaderDatas: ShaderData): void;
+        /**
+         * set blend depth stencil RenderState frome Shader
+         * @param shaderDatas
+         */
+        uploadRenderStateBlendDepthByShader(shaderDatas: ShaderData): void;
+        /**
+         * set blend depth stencil RenderState frome Material
+         * @param shaderDatas
+         */
+        uploadRenderStateBlendDepthByMaterial(shaderDatas: ShaderData): void;
     }
     /**
      * <code>ShaderPass</code> 类用于实现ShaderPass。
@@ -28056,27 +28092,6 @@ declare module Laya {
      * @private
      */
     class RenderStateContext {
-        static mainContext: any;
-        static DepthTestCMD: RenderStateCommand;
-        static DepthMaskCMD: RenderStateCommand;
-        static DepthFuncCMD: RenderStateCommand;
-        static StencilTestCMD: RenderStateCommand;
-        static StencilMaskCMD: RenderStateCommand;
-        static StencilFuncCMD: RenderStateCommand;
-        static stencilOpCMD: RenderStateCommand;
-        static BlendCMD: RenderStateCommand;
-        static BlendEquationCMD: RenderStateCommand;
-        static BlendEquationSeparateCMD: RenderStateCommand;
-        static BlendFuncCMD: RenderStateCommand;
-        static BlendFuncSeperateCMD: RenderStateCommand;
-        static CullFaceCMD: RenderStateCommand;
-        static FrontFaceCMD: RenderStateCommand;
-        static stencilFuncArray: number[];
-        static blendEquationSeparateArray: number[];
-        static blenfunArray: any[];
-        static blendFuncSeperateArray: any[];
-        static stencilOpArray: number[];
-        static __init__(): void;
         /**
          * 模板写入开关
          * @param gl
@@ -28432,7 +28447,7 @@ declare module Laya {
         private static _getTypeRender;
         constructor(type: number, next: RenderSprite | null);
         protected onCreate(type: number): void;
-        _maskNative(sprite: Sprite, context: Context, x: number, y: number): void;
+        _maskNative(sprite: Sprite, ctx: Context, x: number, y: number): void;
         static tmpTarget(ctx: Context, rt: RenderTexture2D, w: number, h: number): void;
         static recycleTarget(rt: RenderTexture2D): void;
         static setBlendMode(blendMode: string): void;

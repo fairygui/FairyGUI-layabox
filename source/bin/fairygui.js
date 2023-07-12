@@ -11180,8 +11180,7 @@ const labelPadding = [2, 2, 2, 2];
         __mouseWheel(evt) {
             if (!this._mouseWheelEnabled)
                 return;
-            var delta = evt["delta"];
-            delta = delta > 0 ? -1 : (delta < 0 ? 1 : 0);
+            let delta = Math.sign(evt.delta);
             if (this._overlapSize.x > 0 && this._overlapSize.y == 0) {
                 if (this._pageMode)
                     this.setPosX(this._xPos + this._pageSize.x * delta, false);
@@ -14442,7 +14441,7 @@ const labelPadding = [2, 2, 2, 2];
                 //this.mask = this._mask;
                 return;
             }
-            g.drawPoly(0, 0, points, "#FFFFFF");
+            g.drawPoly(0, 0, points, "#FFFFFF", null, 0);
         }
     }
     fgui.Image = Image;
