@@ -217,7 +217,7 @@ namespace fgui {
                 return;
             }
 
-            g.drawPoly(0, 0, points, "#FFFFFF");
+            g.drawPoly(0, 0, points, "#FFFFFF", null, 0);
         }
     }
 }
