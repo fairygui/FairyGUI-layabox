@@ -1298,8 +1298,7 @@ namespace fgui {
             if (!this._mouseWheelEnabled)
                 return;
 
-            var delta: number = evt["delta"];
-            delta = delta > 0 ? -1 : (delta < 0 ? 1 : 0);
+            let delta = Math.sign(evt.delta);
             if (this._overlapSize.x > 0 && this._overlapSize.y == 0) {
                 if (this._pageMode)
                     this.setPosX(this._xPos + this._pageSize.x * delta, false);
