@@ -306,7 +306,7 @@ declare namespace fgui {
 }
 declare namespace fgui {
     class GObject {
-        data: Object;
+        data: any;
         packageItem: PackageItem;
         static draggingObject: GObject;
         private _x;
@@ -1558,7 +1558,7 @@ declare namespace fgui {
         templet?: Laya.Templet | Laya.SpineTemplet;
         skeletonAnchor?: Laya.Point;
         constructor();
-        load(): Object;
+        load(): any;
         getBranch(): PackageItem;
         getHighResolution(): PackageItem;
         toString(): string;
@@ -1951,7 +1951,7 @@ declare namespace fgui {
         static createObjectFromURL(url: string, userClass?: new () => GObject): GObject;
         static getItemURL(pkgName: string, resName: string): string;
         static getItemByURL(url: string): PackageItem;
-        static getItemAssetByURL(url: string): Object;
+        static getItemAssetByURL(url: string): any;
         static normalizeURL(url: string): string;
         static setStringsSource(source: string): void;
         private loadPackage;
@@ -1968,8 +1968,8 @@ declare namespace fgui {
         getItems(): ReadonlyArray<PackageItem>;
         getItemById(itemId: string): PackageItem;
         getItemByName(resName: string): PackageItem;
-        getItemAssetByName(resName: string): Object;
-        getItemAsset(item: PackageItem): Object;
+        getItemAssetByName(resName: string): any;
+        getItemAsset(item: PackageItem): any;
         getItemAssetAsync(item: PackageItem, onComplete?: (err: any, item: PackageItem) => void): void;
         private loadMovieClip;
         private loadFont;

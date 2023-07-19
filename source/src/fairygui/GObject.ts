@@ -1,6 +1,6 @@
 namespace fgui {
     export class GObject {
-        public data: Object;
+        public data: any;
         public packageItem: PackageItem;
         public static draggingObject: GObject;
 

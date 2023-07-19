@@ -44,7 +44,7 @@ namespace fgui {
         constructor() {
         }
 
-        public load(): Object {
+        public load(): any {
             return this.owner.getItemAsset(this);
         }
 

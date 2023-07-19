@@ -9,7 +9,7 @@ namespace fgui {
         private _itemsByName: Record<string, PackageItem>;
         private _resKey: string;
         private _customId: string;
-        private _sprites: Object;
+        private _sprites: Record<string, AtlasSprite>;
         private _dependencies: Array<PackageDependency>;
         private _branches: Array<string>;
         public _branchIndex: number;
@@ -235,7 +235,7 @@ namespace fgui {
             return null;
         }
 
-        public static getItemAssetByURL(url: string): Object {
+        public static getItemAssetByURL(url: string): any {
             var item: PackageItem = UIPackage.getItemByURL(url);
             if (item == null)
                 return null;
@@ -578,7 +578,7 @@ namespace fgui {
             return this._itemsByName[resName];
         }
 
-        public getItemAssetByName(resName: string): Object {
+        public getItemAssetByName(resName: string): any {
             var pi: PackageItem = this._itemsByName[resName];
             if (pi == null) {
                 throw "Resource not found -" + resName;
@@ -587,7 +587,7 @@ namespace fgui {
             return this.getItemAsset(pi);
         }
 
-        public getItemAsset(item: PackageItem): Object {
+        public getItemAsset(item: PackageItem): any {
             switch (item.type) {
                 case PackageItemType.Image:
                     if (!item.decoded) {
