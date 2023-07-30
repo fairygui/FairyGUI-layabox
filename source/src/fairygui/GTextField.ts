@@ -310,8 +310,12 @@ namespace fgui {
             buffer.seek(beginPos, 6);
 
             var str: string = buffer.readS();
-            if (str != null)
+            if (str != null) {
                 this.text = str;
+                if (this._templateVars) {
+                    this._displayObject.templateVars = this._templateVars;
+                }
+            }
         }
     }
 }
