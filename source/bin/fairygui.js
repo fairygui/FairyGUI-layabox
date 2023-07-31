@@ -7909,7 +7909,7 @@
             if (buffer.readBool()) //shadow
                 buffer.skip(12);
             if (buffer.readBool())
-                this._templateVars = {};
+                this._displayObject.templateVars = {};
         }
         setup_afterAdd(buffer, beginPos) {
             super.setup_afterAdd(buffer, beginPos);

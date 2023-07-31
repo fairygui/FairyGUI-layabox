@@ -1233,7 +1233,6 @@ declare namespace fgui {
 declare namespace fgui {
     class GTextField extends GObject {
         protected _text: string;
-        protected _templateVars: Record<string, string>;
         protected _autoSize: number;
         protected _widthAutoSize: boolean;
         protected _heightAutoSize: boolean;

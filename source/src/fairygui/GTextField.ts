@@ -3,7 +3,6 @@
 namespace fgui {
     export class GTextField extends GObject {
         protected _text: string;
-        protected _templateVars: Record<string, string>;
         protected _autoSize: number;
         protected _widthAutoSize: boolean;
         protected _heightAutoSize: boolean;
@@ -301,7 +300,7 @@ namespace fgui {
                 buffer.skip(12);
 
             if (buffer.readBool())
-                this._templateVars = {};
+                this._displayObject.templateVars = {};
         }
 
         public setup_afterAdd(buffer: ByteBuffer, beginPos: number): void {
