@@ -2524,7 +2524,7 @@ declare namespace fgui {
         private _child;
         private _reversed;
         constructor(child: Laya.Sprite, reversed?: boolean);
-        contains(x: number, y: number): boolean;
+        contains(x: number, y: number, sp: Laya.Sprite): boolean;
     }
 }
 declare namespace fgui {

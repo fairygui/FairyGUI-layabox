@@ -739,7 +739,7 @@ namespace fgui {
             font.tint = buffer.readBool();
             font.autoScaleSize = buffer.readBool();
             buffer.readBool(); //has channel
-            font.fontSize = buffer.getInt32();
+            font.fontSize = Math.max(buffer.getInt32(), 1);
             let xadvance = buffer.getInt32();
             let lineHeight = buffer.getInt32();
             font.lineHeight = Math.max(lineHeight, font.fontSize);

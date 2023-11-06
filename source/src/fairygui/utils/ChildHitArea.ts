@@ -18,15 +18,15 @@ namespace fgui {
                 this.hit = (<Laya.HitArea>child.hitArea).hit;
         }
 
-        public contains(x: number, y: number): boolean {
+        public contains(x: number, y: number, sp: Laya.Sprite): boolean {
             var tPos: Laya.Point;
             tPos = Laya.Point.TEMP;
             tPos.setTo(0, 0);
             tPos = this._child.toParentPoint(tPos);
             if (this._reversed)
-                return !_func(x - tPos.x, y - tPos.y, this.unHit);
+                return !_func(x - tPos.x, y - tPos.y, sp, this.unHit);
             else
-                return _func(x - tPos.x, y - tPos.y, this.hit);
+                return _func(x - tPos.x, y - tPos.y, sp, this.hit);
         }
     }
 }
