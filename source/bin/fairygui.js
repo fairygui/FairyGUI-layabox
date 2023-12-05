@@ -1551,9 +1551,54 @@
                 fgui.ToolSet.setColorFilter(this._displayObject, [buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()]);
             }
             var str = buffer.readS();
-            if (str != null)
-                this.data = str;
+            if (str != null) {
+                try {
+                    // 尝试解析成JSON
+                    this.data = JSON.parse(str);
+                }
+                catch (error) {
+                    try {
+                        // 尝试根据换行去解析
+                        this.data = this.parseArgs(str);
+                    }
+                    catch (error) {
+                        this.data = str;
+                    }
+                }
+            }
         }
+        /**
+         * 将 ["x1=xxx","x2=333","x3=true"]转换为一个对象
+         * @param args
+         * @returns
+         */
+        parseArgs(datas) {
+            datas = datas.replace(/\r\n/g, " ");
+            datas = datas.replace(/\n/g, " ");
+            let args = datas.split(" ");
+            let argsMap = {};
+            if (datas.indexOf("=") < 0) {
+                return datas;
+            }
+            for (let i = 0; i < args.length; i++) {
+                let arg = args[i];
+                let sep = arg.indexOf('=');
+                let key = arg.slice(0, sep);
+                let value = arg.slice(sep + 1);
+                if (!isNaN(Number(value)) && (value.indexOf('.') < 0)) {
+                    value = Number(value);
+                }
+                else if (value === "true") {
+                    value = true;
+                }
+                else if (value === "false") {
+                    value = false;
+                }
+                argsMap[key] = value;
+            }
+            return argsMap;
+        }
+        ;
         setup_afterAdd(buffer, beginPos) {
             buffer.seek(beginPos, 1);
             var str = buffer.readS();
