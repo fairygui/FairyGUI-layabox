@@ -1558,8 +1558,8 @@ namespace fgui {
                         ratio = Math.pow((v2 - 500) / 500, 2);
                 }
                 else {
-                    if (v2 > 1000)
-                        ratio = Math.pow((v2 - 1000) / 1000, 2);
+                    if (v2 > 200)
+                        ratio = Math.pow((v2 - 200) / 200, 2);
                 }
                 if (ratio != 0) {
                     if (ratio > 1)

@@ -20,7 +20,7 @@ namespace fgui {
         private static _instByName: { [index: string]: UIPackage; } = {};
         private static _branch: string = "";
         private static _vars: { [index: string]: string; } = {};
-
+        private static preloadingList ={};
         constructor() {
             this._items = [];
             this._itemsById = {};
@@ -111,16 +111,21 @@ namespace fgui {
                 completeHandler.runWith([pkgArr]);
                 return;
             }
+            var preloadingList= UIPackage.preloadingList
             var descCompleteHandler: Laya.Handler = Laya.Handler.create(this, function () {
                 let pkg: UIPackage;
                 let urls = [];
                 for (i = 0; i < loadKeyArr.length; i++) {
                     let asset = AssetProxy.inst.getRes(loadKeyArr[i].url);
                     if (asset) {
-                        pkg = new UIPackage();
-                        pkgArr.push(pkg);
-                        pkg._resKey = keys[i];
-                        pkg.loadPackage(new ByteBuffer(asset));
+                        if(preloadingList[keys[i]]){
+                            pkg =preloadingList[keys[i]];
+                            // continue;
+                        }else{
+                            pkg =preloadingList[keys[i]] = new UIPackage();
+                            pkg._resKey = keys[i];
+                            pkg.loadPackage(new fgui.ByteBuffer(asset));
+                        }
                         let cnt: number = pkg._items.length;
                         for (let j: number = 0; j < cnt; j++) {
                             let pi: PackageItem = pkg._items[j];
@@ -141,6 +146,7 @@ namespace fgui {
                                 UIPackage._instById[pkg.id] = pkg;
                                 UIPackage._instByName[pkg.name] = pkg;
                                 UIPackage._instById[pkg._resKey] = pkg;
+                                preloadingList[pkg._resKey] =null;
                             }
                         }
                         completeHandler.runWith([pkgArr]);
@@ -153,6 +159,7 @@ namespace fgui {
                             UIPackage._instById[pkg.id] = pkg;
                             UIPackage._instByName[pkg.name] = pkg;
                             UIPackage._instById[pkg._resKey] = pkg;
+                            preloadingList[pkg._resKey] =null;
                         }
                     }
                     completeHandler.runWith([pkgArr]);

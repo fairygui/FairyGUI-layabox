@@ -1551,9 +1551,54 @@
                 fgui.ToolSet.setColorFilter(this._displayObject, [buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32(), buffer.getFloat32()]);
             }
             var str = buffer.readS();
-            if (str != null)
-                this.data = str;
+            if (str != null) {
+                try {
+                    // 尝试解析成JSON
+                    this.data = JSON.parse(str);
+                }
+                catch (error) {
+                    try {
+                        // 尝试根据换行去解析
+                        this.data = this.parseArgs(str);
+                    }
+                    catch (error) {
+                        this.data = str;
+                    }
+                }
+            }
         }
+        /**
+         * 将 ["x1=xxx","x2=333","x3=true"]转换为一个对象
+         * @param args
+         * @returns
+         */
+        parseArgs(datas) {
+            datas = datas.replace(/\r\n/g, " ");
+            datas = datas.replace(/\n/g, " ");
+            let args = datas.split(" ");
+            let argsMap = {};
+            if (datas.indexOf("=") < 0) {
+                return datas;
+            }
+            for (let i = 0; i < args.length; i++) {
+                let arg = args[i];
+                let sep = arg.indexOf('=');
+                let key = arg.slice(0, sep);
+                let value = arg.slice(sep + 1);
+                if (!isNaN(Number(value)) && (value.indexOf('.') < 0)) {
+                    value = Number(value);
+                }
+                else if (value === "true") {
+                    value = true;
+                }
+                else if (value === "false") {
+                    value = false;
+                }
+                argsMap[key] = value;
+            }
+            return argsMap;
+        }
+        ;
         setup_afterAdd(buffer, beginPos) {
             buffer.seek(beginPos, 1);
             var str = buffer.readS();
@@ -12071,8 +12116,8 @@
                         ratio = Math.pow((v2 - 500) / 500, 2);
                 }
                 else {
-                    if (v2 > 1000)
-                        ratio = Math.pow((v2 - 1000) / 1000, 2);
+                    if (v2 > 200)
+                        ratio = Math.pow((v2 - 200) / 200, 2);
                 }
                 if (ratio != 0) {
                     if (ratio > 1)
@@ -13734,16 +13779,22 @@
                 completeHandler.runWith([pkgArr]);
                 return;
             }
+            var preloadingList = UIPackage.preloadingList;
             var descCompleteHandler = Laya.Handler.create(this, function () {
                 let pkg;
                 let urls = [];
                 for (i = 0; i < loadKeyArr.length; i++) {
                     let asset = fgui.AssetProxy.inst.getRes(loadKeyArr[i].url);
                     if (asset) {
-                        pkg = new UIPackage();
-                        pkgArr.push(pkg);
-                        pkg._resKey = keys[i];
-                        pkg.loadPackage(new fgui.ByteBuffer(asset));
+                        if (preloadingList[keys[i]]) {
+                            pkg = preloadingList[keys[i]];
+                            // continue;
+                        }
+                        else {
+                            pkg = preloadingList[keys[i]] = new UIPackage();
+                            pkg._resKey = keys[i];
+                            pkg.loadPackage(new fgui.ByteBuffer(asset));
+                        }
                         let cnt = pkg._items.length;
                         for (let j = 0; j < cnt; j++) {
                             let pi = pkg._items[j];
@@ -13764,6 +13815,7 @@
                                 UIPackage._instById[pkg.id] = pkg;
                                 UIPackage._instByName[pkg.name] = pkg;
                                 UIPackage._instById[pkg._resKey] = pkg;
+                                preloadingList[pkg._resKey] = null;
                             }
                         }
                         completeHandler.runWith([pkgArr]);
@@ -13776,6 +13828,7 @@
                             UIPackage._instById[pkg.id] = pkg;
                             UIPackage._instByName[pkg.name] = pkg;
                             UIPackage._instById[pkg._resKey] = pkg;
+                            preloadingList[pkg._resKey] = null;
                         }
                     }
                     completeHandler.runWith([pkgArr]);
@@ -14322,6 +14375,7 @@
     UIPackage._instByName = {};
     UIPackage._branch = "";
     UIPackage._vars = {};
+    UIPackage.preloadingList = {};
     fgui.UIPackage = UIPackage;
 })(fgui);
 

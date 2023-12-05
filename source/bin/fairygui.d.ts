@@ -1816,6 +1816,7 @@ declare namespace fgui {
         private static _instByName;
         private static _branch;
         private static _vars;
+        private static preloadingList;
         constructor();
         static branch: string;
         static getVar(key: string): string;
