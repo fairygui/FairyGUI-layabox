@@ -12071,8 +12071,8 @@
                         ratio = Math.pow((v2 - 500) / 500, 2);
                 }
                 else {
-                    if (v2 > 1000)
-                        ratio = Math.pow((v2 - 1000) / 1000, 2);
+                    if (v2 > 200)
+                        ratio = Math.pow((v2 - 200) / 200, 2);
                 }
                 if (ratio != 0) {
                     if (ratio > 1)
@@ -13734,16 +13734,22 @@
                 completeHandler.runWith([pkgArr]);
                 return;
             }
+            var preloadingList = UIPackage.preloadingList;
             var descCompleteHandler = Laya.Handler.create(this, function () {
                 let pkg;
                 let urls = [];
                 for (i = 0; i < loadKeyArr.length; i++) {
                     let asset = fgui.AssetProxy.inst.getRes(loadKeyArr[i].url);
                     if (asset) {
-                        pkg = new UIPackage();
-                        pkgArr.push(pkg);
-                        pkg._resKey = keys[i];
-                        pkg.loadPackage(new fgui.ByteBuffer(asset));
+                        if (preloadingList[keys[i]]) {
+                            pkg = preloadingList[keys[i]];
+                            // continue;
+                        }
+                        else {
+                            pkg = preloadingList[keys[i]] = new UIPackage();
+                            pkg._resKey = keys[i];
+                            pkg.loadPackage(new fgui.ByteBuffer(asset));
+                        }
                         let cnt = pkg._items.length;
                         for (let j = 0; j < cnt; j++) {
                             let pi = pkg._items[j];
@@ -13764,6 +13770,7 @@
                                 UIPackage._instById[pkg.id] = pkg;
                                 UIPackage._instByName[pkg.name] = pkg;
                                 UIPackage._instById[pkg._resKey] = pkg;
+                                preloadingList[pkg._resKey] = null;
                             }
                         }
                         completeHandler.runWith([pkgArr]);
@@ -13776,6 +13783,7 @@
                             UIPackage._instById[pkg.id] = pkg;
                             UIPackage._instByName[pkg.name] = pkg;
                             UIPackage._instById[pkg._resKey] = pkg;
+                            preloadingList[pkg._resKey] = null;
                         }
                     }
                     completeHandler.runWith([pkgArr]);
@@ -14322,6 +14330,7 @@
     UIPackage._instByName = {};
     UIPackage._branch = "";
     UIPackage._vars = {};
+    UIPackage.preloadingList = {};
     fgui.UIPackage = UIPackage;
 })(fgui);
 
