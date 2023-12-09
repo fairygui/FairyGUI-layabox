@@ -1599,6 +1599,8 @@ declare namespace fgui {
         private _targetY;
         private _targetWidth;
         private _targetHeight;
+        private _targetInitX;
+        private _targetInitY;
         constructor(owner: GObject);
         get owner(): GObject;
         set target(value: GObject);

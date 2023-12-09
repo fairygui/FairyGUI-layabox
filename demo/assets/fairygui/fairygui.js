@@ -9827,7 +9827,7 @@ const labelPadding = [2, 2, 2, 2];
                     else {
                         if (this._owner == this._target.parent) {
                             //if (this._owner._underConstruct)
-                            this._owner.width = this._owner.sourceWidth + (this._target._width - this._target.initWidth) * (1 - pivot);
+                            this._owner.width = this._owner.sourceWidth + pos - this._targetInitX + (this._target._width - this._target.initWidth) * (1 - pivot);
                             //else
                             //   this._owner.width = this._owner._rawWidth + delta * (1 - pivot);
                         }
@@ -9884,7 +9884,7 @@ const labelPadding = [2, 2, 2, 2];
                     else {
                         if (this._owner == this._target.parent) {
                             //if (this._owner._underConstruct)
-                            this._owner.height = this._owner.sourceHeight + (this._target._height - this._target.initHeight) * (1 - pivot);
+                            this._owner.height = this._owner.sourceHeight + pos - this._targetInitY + (this._target._height - this._target.initHeight) * (1 - pivot);
                             //else
                             //    this._owner.height = this._owner._rawHeight + delta * (1 - pivot);
                         }
@@ -9902,8 +9902,8 @@ const labelPadding = [2, 2, 2, 2];
                 this._target.on(fgui.Events.XY_CHANGED, this, this.__targetXYChanged);
             this._target.on(fgui.Events.SIZE_CHANGED, this, this.__targetSizeChanged);
             this._target.on(fgui.Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
-            this._targetX = this._target.x;
-            this._targetY = this._target.y;
+            this._targetX = this._targetInitX = this._target.x;
+            this._targetY = this._targetInitY = this._target.y;
             this._targetWidth = this._target._width;
             this._targetHeight = this._target._height;
         }

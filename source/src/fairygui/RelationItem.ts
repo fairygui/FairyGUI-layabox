@@ -7,6 +7,8 @@ namespace fgui {
         private _targetY: number;
         private _targetWidth: number;
         private _targetHeight: number;
+        private _targetInitX: number;
+        private _targetInitY: number;
 
         constructor(owner: GObject) {
             this._owner = owner;
@@ -415,7 +417,7 @@ namespace fgui {
                         if (this._owner == this._target.parent) {
                             //if (this._owner._underConstruct)
                             this._owner.width = pos + this._target._width - this._target._width * pivot +
-                                (this._owner.sourceWidth - pos - this._target.initWidth + this._target.initWidth * pivot) * delta;
+                                (this._owner.sourceWidth - this._targetInitX - this._target.initWidth + this._target.initWidth * pivot) * delta;
                             //else
                             //    this._owner.width = pos + (this._owner._rawWidth - pos) * delta;
                         }
@@ -428,7 +430,7 @@ namespace fgui {
                     else {
                         if (this._owner == this._target.parent) {
                             //if (this._owner._underConstruct)
-                            this._owner.width = this._owner.sourceWidth + (this._target._width - this._target.initWidth) * (1 - pivot);
+                            this._owner.width = this._owner.sourceWidth + pos - this._targetInitX + (this._target._width - this._target.initWidth) * (1 - pivot);
                             //else
                             //   this._owner.width = this._owner._rawWidth + delta * (1 - pivot);
                         }
@@ -472,7 +474,7 @@ namespace fgui {
                         if (this._owner == this._target.parent) {
                             // if (this._owner._underConstruct)
                             this._owner.height = pos + this._target._height - this._target._height * pivot +
-                                (this._owner.sourceHeight - pos - this._target.initHeight + this._target.initHeight * pivot) * delta;
+                                (this._owner.sourceHeight - this._targetInitY - this._target.initHeight + this._target.initHeight * pivot) * delta;
                             //else
                             //    this._owner.height = pos + (this._owner._rawHeight - pos) * delta;
                         }
@@ -485,7 +487,7 @@ namespace fgui {
                     else {
                         if (this._owner == this._target.parent) {
                             //if (this._owner._underConstruct)
-                            this._owner.height = this._owner.sourceHeight + (this._target._height - this._target.initHeight) * (1 - pivot);
+                            this._owner.height = this._owner.sourceHeight + pos - this._targetInitY + (this._target._height - this._target.initHeight) * (1 - pivot);
                             //else
                             //    this._owner.height = this._owner._rawHeight + delta * (1 - pivot);
                         }
@@ -505,8 +507,8 @@ namespace fgui {
             this._target.on(Events.SIZE_CHANGED, this, this.__targetSizeChanged);
             this._target.on(Events.SIZE_DELAY_CHANGE, this, this.__targetSizeWillChange);
 
-            this._targetX = this._target.x;
-            this._targetY = this._target.y;
+            this._targetX = this._targetInitX = this._target.x;
+            this._targetY = this._targetInitY = this._target.y;
             this._targetWidth = this._target._width;
             this._targetHeight = this._target._height;
         }
