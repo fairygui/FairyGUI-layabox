@@ -54,7 +54,7 @@ namespace fgui {
 
                 if (this._autoPlay) {
                     if (this._owner.onStage)
-                        this.play(null, null, this._autoPlayTimes, this._autoPlayDelay);
+                        this.play(null, this._autoPlayTimes, this._autoPlayDelay);
                 }
                 else {
                     if (!this._owner.onStage)
