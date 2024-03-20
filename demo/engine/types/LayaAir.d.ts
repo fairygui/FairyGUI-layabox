@@ -31,6 +31,7 @@ declare class Laya {
      * @param	plugins 参数已失效。
      */
     static init(width: number, height: number, ...plugins: any[]): Promise<void>;
+    static initRender2D(stageConfig: Laya.IStageConfig): Promise<void>;
     static createRender(): Laya.Render;
     static addWasmModule(id: string, exports: WebAssembly.Exports, memory: WebAssembly.Memory): void;
     /**
@@ -56,11 +57,6 @@ declare class Laya3D {
      * @param 是否启用物理。
      */
     static get enablePhysics(): any;
-    /**
-     * 初始化Laya3D相关设置。
-     * @deprecated use Laya.init instead.
-     */
-    static init(width: number, height: number, config?: any, complete?: Laya.Handler): void;
     static createRenderObjInit(): void;
 }
 declare module Laya {
@@ -2013,7 +2009,7 @@ declare module Laya {
      */
     class Component {
         /** @private */
-        private _id;
+        _id: number;
         /**@private */
         private _hideFlags;
         /**@private */
@@ -3143,6 +3139,7 @@ declare module Laya {
          * 实例化一个LODGroup
          */
         constructor();
+        shadowCullPass(): boolean;
         /**
         * get LODInfo 数组
         * @returns
@@ -3266,7 +3263,6 @@ declare module Laya {
         _getType(): number;
         _updateRenderParams(state: RenderContext3D): void;
         _prepareRender(state: RenderContext3D): boolean;
-        _render(state: RenderContext3D): void;
         destroy(): void;
     }
     class StaticMeshMergeInfo {
@@ -4267,6 +4263,7 @@ declare module Laya {
      */
     class GeometryElement {
         protected _owner: any;
+        static _typeCounter: number;
         _geometryElementOBj: IRenderGeometryElement;
         /**
          * VAO OBJ
@@ -4543,6 +4540,12 @@ declare module Laya {
          */
         constructor();
     }
+    enum LightType {
+        Directional = 0,
+        Spot = 1,
+        Point = 2,
+        Area = 3
+    }
     enum LightMode {
         mix = 0,
         realTime = 1,
@@ -4600,6 +4603,7 @@ declare module Laya {
         get lightmapBakedType(): LightMode;
         set lightmapBakedType(value: LightMode);
         get lightWorldMatrix(): Matrix4x4;
+        get lightType(): LightType;
         /**
          * 创建一个 <code>LightSprite</code> 实例。
          */
@@ -5192,6 +5196,7 @@ declare module Laya {
          * @override
          */
         protected _disposeResource(): void;
+        get shader(): Shader3D;
         /**
          * get all material uniform property
          * @returns
@@ -5394,6 +5399,30 @@ declare module Laya {
          * @param value 值
          */
         setMatrix4x4(name: string, value: Matrix4x4): void;
+        /**
+         * 获取 matrix3x3
+         * @param index
+         * @returns
+         */
+        getMatrix3x3ByIndex(index: number): Matrix3x3;
+        /**
+         * 设置 matrix3x3
+         * @param index
+         * @param value
+         */
+        setMatrix3x3ByIndex(index: number, value: Matrix3x3): void;
+        /**
+         * 获取 matrix3x3
+         * @param name
+         * @returns
+         */
+        getMatrix3x3(name: string): Matrix3x3;
+        /**
+         * 设置 matrix3x3
+         * @param name
+         * @param value
+         */
+        setMatrix3x3(name: string, value: Matrix3x3): void;
         /**
          * 设置纹理
          * @param uniformIndex 属性索引
@@ -6003,6 +6032,11 @@ declare module Laya {
         getMesh(): Mesh;
         protected _changeVertexDefine(mesh: Mesh): void;
         private _morphTargetValues;
+        /**
+         * 设置 morph target 通道 权重
+         * @param channelName 通道名
+         * @param weight 权重值
+         */
         setMorphChannelWeight(channelName: string, weight: number): void;
         /**
          * 更新 morph target 数据
@@ -6021,6 +6055,7 @@ declare module Laya {
         _cloneTo(dest: Component): void;
     }
     /**
+     * @deprecated
      * <code>MeshSprite3D</code> 类用于创建网格。
      */
     class MeshSprite3D extends RenderableSprite3D {
@@ -7465,6 +7500,7 @@ declare module Laya {
          * 创建一个 <code>ShurikenParticleRender</code> 实例。
          */
         constructor();
+        protected _getcommonUniformMap(): Array<string>;
         protected _onAdded(): void;
         protected _onEnable(): void;
         protected _onDisable(): void;
@@ -7970,6 +8006,8 @@ declare module Laya {
         get renderbitFlag(): number;
         set boundsChange(value: boolean);
         get boundsChange(): boolean;
+        /**@interface */
+        _receiveShadow: boolean;
         get renderNode(): IBaseRenderNode;
         set distanceForSort(value: number);
         get distanceForSort(): number;
@@ -8033,6 +8071,7 @@ declare module Laya {
          * 创建一个新的 <code>BaseRender</code> 实例。
          */
         constructor();
+        protected _getcommonUniformMap(): Array<string>;
         protected _createBaseRenderNode(): IBaseRenderNode;
         private _changeLayer;
         private _changeStaticMask;
@@ -8775,6 +8814,173 @@ declare module Laya {
         */
         render(context: PostProcessRenderContext): void;
     }
+    class LensFlareCMD extends Command {
+        /**instance绘制的个数 */
+        private _instanceCount;
+        get instanceCount(): number;
+        set instanceCount(value: number);
+        /**
+         * instance CMD
+         */
+        constructor();
+        /**
+         * init material
+         */
+        private _initMaterial;
+        get lensFlareElement(): LensFlareElement;
+        /**
+         * apply element Data
+         */
+        applyElementData(): void;
+        /**
+         * @inheritDoc
+         * @override
+         */
+        run(): void;
+    }
+    /**
+     * lens Flare Element
+     * 光耀元素
+     */
+    class LensFlareElement {
+        private _startPosition;
+        private _angularOffset;
+        /**
+         * 是否激活
+         */
+        get active(): boolean;
+        set active(value: boolean);
+        /**
+         * 颜色
+         */
+        get tint(): Color;
+        set tint(value: Color);
+        /**
+         * 强度
+         */
+        get intensity(): number;
+        set intensity(value: number);
+        /**
+         * 贴图
+         */
+        get texture(): BaseTexture;
+        set texture(value: BaseTexture);
+        /**
+         * 位置偏移(屏幕空间下)
+         */
+        get positionOffset(): Vector2;
+        set positionOffset(value: Vector2);
+        /**
+         * 缩放(每个轴上)
+         */
+        get scale(): Vector2;
+        set scale(value: Vector2);
+        /**
+         * 自动旋转
+         */
+        get autoRotate(): boolean;
+        set autoRotate(value: boolean);
+        /**
+         * 旋转角度
+         */
+        get rotation(): number;
+        set rotation(value: number);
+        /**
+         * 起始位置
+         */
+        get startPosition(): number;
+        set startPosition(value: number);
+        /**
+         * 角度偏移
+         */
+        get angularOffset(): number;
+        set angularOffset(value: number);
+    }
+    /**
+     * lens Flare Data
+     * 资源数据
+     */
+    class LensFlareData {
+        elements: LensFlareElement[];
+    }
+    /**
+     * lens Flare Element
+     */
+    class LensFlareEffect extends PostProcessEffect {
+        /**@interal */
+        static SHADERDEFINE_AUTOROTATE: ShaderDefine;
+        /**
+         * init Shader\Geometry
+         */
+        static init(): void;
+        /**
+         * LensFlareData
+         */
+        set lensFlareData(value: LensFlareData);
+        get lensFlareData(): LensFlareData;
+        /**
+         * bind light
+         */
+        set bindLight(light: Light);
+        get bindLight(): Light;
+        /**
+         * 后处理强度
+         */
+        get effectIntensity(): number;
+        set effectIntensity(value: number);
+        /**
+         * 后处理缩放
+         */
+        get effectScale(): number;
+        set effectScale(value: number);
+        constructor();
+        /**
+         * 计算直射光中心点
+         * @param camera
+         */
+        caculateDirCenter(camera: Camera): void;
+        /**
+         * 计算点光
+         * @param camera
+         */
+        caculatePointCenter(camera: Camera): void;
+        /**
+         * 计算spot光
+         * @param value
+         */
+        caculateSpotCenter(value: Vector2): void;
+        /**
+         * 渲染流程
+         * @param context
+         * @returns
+         */
+        render(context: PostProcessRenderContext): void;
+        /**
+       * 释放Effect
+       * @inheritDoc
+       * @override
+       */
+        release(postprocess: PostProcess): void;
+    }
+    class LensFlareElementGeomtry extends GeometryElement {
+        static PositionUV: number;
+        static PositionRotationScale: number;
+        /**
+         * initData
+         */
+        static init(): void;
+        /**
+         * instance LensFlaresGeometry
+         */
+        constructor();
+        /**
+         * 销毁。
+         */
+        destroy(): void;
+    }
+    class LensFlareShaderInit {
+        static init(): void;
+    }
     /**
      * AO质量
      */
@@ -8890,11 +9096,13 @@ declare module Laya {
      * <code>RenderContext3D</code> 类用于实现渲染状态。
      */
     class RenderContext3D {
+        static _instance: RenderContext3D;
         /**渲染区宽度。*/
         static clientWidth: number;
         /**渲染区高度。*/
         static clientHeight: number;
         static __init__(): void;
+        camera: Camera;
         /**设置渲染管线 */
         configPipeLineMode: PipelineMode;
         set viewport(value: Viewport);
@@ -8906,6 +9114,7 @@ declare module Laya {
         get scene(): Scene3D;
         changeViewport(x: number, y: number, width: number, height: number): void;
         changeScissor(x: number, y: number, width: number, height: number): void;
+        applyContext(cameraUpdateMark: number): void;
         /**
          * 渲染一个
          * @param renderelemt
@@ -8925,13 +9134,49 @@ declare module Laya {
          */
         _renderElementOBJ: IRenderElement;
         _batchElement: RenderElement;
+        _transform: Transform3D;
+        /**
+         * set RenderElement Material/Shaderdata
+         */
+        set material(value: Material);
+        /**
+         * 设置 SubShader
+         */
+        set renderSubShader(value: SubShader);
+        get renderSubShader(): SubShader;
+        set subShaderIndex(value: number);
+        get subShaderIndex(): number;
         get render(): BaseRender;
         /**
          * 创建一个 <code>RenderElement</code> 实例。
          */
         constructor();
         protected _createRenderElementOBJ(): void;
+        /**
+         * 设置位置
+         */
+        setTransform(transform: Transform3D): void;
+        /**
+         * 设置渲染几何信息
+         */
+        setGeometry(geometry: GeometryElement): void;
+        /**
+         * 编译shader
+         * @param context
+         */
+        compileShader(context: IRenderContext3D): void;
+        /**
+         * 切换Shader
+         * @param customShader
+         * @param replacementTag
+         * @param subshaderIndex
+         * @returns
+         */
         _convertSubShader(customShader: Shader3D, replacementTag: string, subshaderIndex?: number): void;
+        /**
+         * pre update data
+         * @param context
+         */
         _renderUpdatePre(context: RenderContext3D): void;
     }
     /**
@@ -8958,6 +9203,7 @@ declare module Laya {
         static SHADERDEFINE_VOLUMETRICGI: ShaderDefine;
     }
     /**
+     * @deprecated
      * <code>RenderableSprite3D</code> 类用于可渲染3D精灵的父类，抽象类不允许实例。
      */
     class RenderableSprite3D extends Sprite3D {
@@ -9234,8 +9480,9 @@ declare module Laya {
         /**
          * 获得这个节点包含的所有content
          * @param out
+         * @param conditionalFun条件函数
          */
-        traverseBoundsCell(out: SingletonList<IBoundsCell>): void;
+        traverseBoundsCell(out: SingletonList<IBoundsCell>, conditionalFun?: Function): void;
         /**
          * Override it
          * @returns
@@ -9413,6 +9660,7 @@ declare module Laya {
      * 光照贴图。
      */
     class Lightmap {
+        static ApplyLightmapEvent: string;
         /** 光照贴图颜色。 */
         lightmapColor: Texture2D;
         /** 光照贴图方向。 */
@@ -9470,6 +9718,10 @@ declare module Laya {
         currentCreationLayer: number;
         /** 是否启用灯光。*/
         enableLight: boolean;
+        /**
+         * Scene3D所属的2D场景，使用IDE编辑的场景载入后具有此属性。
+         */
+        get scene2D(): Scene;
         /**
          * set SceneRenderableManager
          */
@@ -9688,6 +9940,7 @@ declare module Laya {
          * 创建一个 <code>SkinnedMeshRender</code> 实例。
          */
         constructor();
+        protected _getcommonUniformMap(): string[];
         _cloneTo(dest: Component): void;
         /**
          * 删除节点
@@ -10030,6 +10283,7 @@ declare module Laya {
          * 实例化一个拖尾渲染器
          */
         constructor();
+        protected _getcommonUniformMap(): Array<string>;
         protected _onAdded(): void;
         /**
          * 获取淡出时间。单位s
@@ -10712,6 +10966,9 @@ declare module Laya {
          * @override
          */
         destroy(): void;
+    }
+    class LegsFlareSettingsLoader implements IResourceLoader {
+        load(task: ILoadTask): Promise<LensFlareData>;
     }
     class MaterialParser {
         static parse(data: any): Material;
@@ -11471,6 +11728,7 @@ declare module Laya {
     interface IBoundsCell {
         bounds: Bounds;
         id: number;
+        shadowCullPass(): boolean;
     }
     /**
      * 平面。
@@ -13008,7 +13266,16 @@ declare module Laya {
         constructor(_nativeObj: any, stateName: string);
         hasPtrID(propertyID: number): boolean;
         getMap(): {
-            [key: number]: string;
+            [key: number]: {
+                block?: Object;
+                propertyName: string;
+                uniformtype?: import("../../../RenderEngine/RenderShader/ShaderData").ShaderDataType;
+                blockProperty?: {
+                    id: number;
+                    propertyName: string;
+                    uniformtype?: import("../../../RenderEngine/RenderShader/ShaderData").ShaderDataType;
+                }[];
+            };
         };
     }
     class NativeCullPassBase implements ICullPass {
@@ -13060,6 +13327,7 @@ declare module Laya {
         private _globalShaderData;
         private _nativeObj;
         constructor();
+        end(): void;
         drawRenderElement(renderelemt: NativeRenderElementOBJ): void;
         /**设置IRenderContext */
         applyContext(cameraUpdateMark: number): void;
@@ -13146,12 +13414,7 @@ declare module Laya {
         createRenderGeometry(mode: MeshTopology, drayType: DrawType): IRenderGeometryElement;
         createVertexBuffer3D(byteLength: number, bufferUsage: BufferUsage, canRead?: boolean): NativeVertexBuffer3D;
         createIndexBuffer3D(indexType: IndexFormat, indexCount: number, bufferUsage?: BufferUsage, canRead?: boolean): IndexBuffer3D;
-        createShaderInstance(vs: string, ps: string, attributeMap: {
-            [name: string]: [
-                number,
-                ShaderDataType
-            ];
-        }, shaderPass: ShaderCompileDefineBase): ShaderInstance;
+        createShaderInstance(shaderProcessInfo: ShaderProcessInfo, shaderPass: ShaderCompileDefineBase): ShaderInstance;
         createBaseRenderNode(): IBaseRenderNode;
         createRenderContext3D(): IRenderContext3D;
         createSceneRenderManager(): ISceneRenderManager;
@@ -13163,6 +13426,7 @@ declare module Laya {
         createRenderState(): RenderState;
         createUniformBufferObject(glPointer: number, name: string, bufferUsage: BufferUsage, byteLength: number, isSingle: boolean): UniformBufferObject;
         createGlobalUniformMap(blockName: string): NativeCommandUniformMap;
+        createEngine(config: any, canvas: any): Promise<void>;
     }
     class NativeRenderState {
         _nativeObj: any;
@@ -13236,6 +13500,7 @@ declare module Laya {
         updataSizeMap: Map<number, number>;
         payload32bitNum: number;
         clearUpload(): void;
+        applyUBOData(): void;
         compressNumber(index: number, memoryBlock: UploadMemory, stride: number): number;
         compressVector2(index: number, memoryBlock: UploadMemory, stride: number): number;
         compressVector3(index: number, memoryBlock: UploadMemory, stride: number): number;
@@ -13654,6 +13919,13 @@ declare module Laya {
     class QuickSort implements ISortPass {
         private elementArray;
         private isTransparent;
+        /**
+         * 快速排序
+         * @param elements
+         * @param isTransparent
+         * @param left
+         * @param right
+         */
         sort(elements: SingletonList<RenderElement>, isTransparent: boolean, left: number, right: number): void;
     }
     class RenderContext3DOBJ implements IRenderContext3D {
@@ -13668,6 +13940,7 @@ declare module Laya {
         cameraUpdateMark: number;
         globalShaderData: ShaderData;
         constructor();
+        end(): void;
         /**设置IRenderContext */
         applyContext(cameraUpdateMark: number): void;
         drawRenderElement(renderelemt: RenderElementOBJ): void;
@@ -13692,7 +13965,19 @@ declare module Laya {
         drawGeometry(shaderIns: ShaderInstance): void;
         _destroy(): void;
     }
+    class FastSinglelist<T> extends SingletonList<T> {
+    }
     class RenderGeometryElementOBJ implements IRenderGeometryElement {
+        /**
+         * index format
+         */
+        get indexFormat(): IndexFormat;
+        set indexFormat(value: IndexFormat);
+        /**
+         * Mesh Topology mode
+         */
+        get mode(): MeshTopology;
+        set mode(value: MeshTopology);
     }
     class RenderOBJCreateUtil implements IRenderOBJCreate {
         createTransform(owner: Sprite3D): Transform3D;
@@ -13705,12 +13990,7 @@ declare module Laya {
         createRenderGeometry(mode: MeshTopology, drayType: DrawType): IRenderGeometryElement;
         createVertexBuffer3D(byteLength: number, bufferUsage: BufferUsage, canRead?: boolean): VertexBuffer3D;
         createIndexBuffer3D(indexType: IndexFormat, indexCount: number, bufferUsage?: BufferUsage, canRead?: boolean): IndexBuffer3D;
-        createShaderInstance(vs: string, ps: string, attributeMap: {
-            [name: string]: [
-                number,
-                ShaderDataType
-            ];
-        }, shaderPass: ShaderCompileDefineBase): ShaderInstance;
+        createShaderInstance(shaderProcessInfo: ShaderProcessInfo, shaderPass: ShaderCompileDefineBase): ShaderInstance;
         createBaseRenderNode(): IBaseRenderNode;
         createRenderContext3D(): IRenderContext3D;
         createSceneRenderManager(): ISceneRenderManager;
@@ -13722,6 +14002,9 @@ declare module Laya {
         createRenderState(): RenderState;
         createUniformBufferObject(glPointer: number, name: string, bufferUsage: BufferUsage, byteLength: number, isSingle: boolean): UniformBufferObject;
         createGlobalUniformMap(blockName: string): CommandUniformMap;
+        createEngine(config: any, canvas: any): Promise<void>;
+        /**@private test function*/
+        private _replaceWebglcall;
     }
     class SceneRenderManagerOBJ implements ISceneRenderManager {
         _motionRenders: SingletonList<BaseRender>;
@@ -13747,6 +14030,273 @@ declare module Laya {
         constructor();
         /** 更新数据并且 */
         drawGeometry(shaderIns: ShaderInstance): void;
+    }
+    /**
+     * WebGPU BlendState
+     */
+    class WGPUBlendState {
+        static pool: {
+            [key: number]: WGPUBlendState;
+        };
+        static getBlendState(blend: BlendType, operationRGB?: BlendEquationSeparate, srcBlendRGB?: BlendFactor, dstBlendRGB?: BlendFactor, operationAlpha?: BlendEquationSeparate, srcBlendAlpha?: BlendFactor, dstBlendAlpha?: BlendFactor): WGPUBlendState;
+        mapId: number;
+        state: GPUBlendState;
+        constructor(blend: BlendType, operationRGB: BlendEquationSeparate, srcBlendRGB: BlendFactor, dstBlendRGB: BlendFactor, operationAlpha: BlendEquationSeparate, srcBlendAlpha: BlendFactor, dstBlendAlpha: BlendFactor);
+        getComponent(operation: BlendEquationSeparate, src: BlendFactor, dst: BlendFactor): GPUBlendComponent;
+        static getmapID(blend: BlendType, operationRGB: BlendEquationSeparate, srcBlendRGB: BlendFactor, dstBlendRGB: BlendFactor, operationAlpha: BlendEquationSeparate, srcBlendAlpha: BlendFactor, dstBlendAlpha: BlendFactor): number;
+    }
+    /**
+     * WebGPU DepthStencil
+     */
+    class WGPUDepthStencilState {
+        static pool: {
+            [key: number]: WGPUDepthStencilState;
+        };
+        static getmapID(format: RenderTargetFormat, depthWriteEnabled: boolean, depthCompare: CompareFunction, stencilParam?: any, depthBiasParam?: any): number;
+        static getDepthStencilState(format: RenderTargetFormat, depthWriteEnabled: boolean, depthCompare: CompareFunction, stencilParam?: any, depthBiasParam?: any): WGPUDepthStencilState;
+        state: GPUDepthStencilState;
+        mapId: number;
+        constructor(format: RenderTargetFormat, depthWriteEnabled: boolean, depthCompare: CompareFunction, stencilParam?: any, depthBiasParam?: any);
+    }
+    /**
+     * WebGPU GPUPrimitiveState
+     */
+    class WGPUPrimitiveState {
+        static pool: {
+            [key: number]: WGPUPrimitiveState;
+        };
+        static getmapID(mode: MeshTopology, indexformat: IndexFormat, cullMode: CullMode, unclippedDepth?: boolean): number;
+        static getPrimitiveState(mode: MeshTopology, indexformat: IndexFormat, cullMode: CullMode, unclippedDepth?: boolean): WGPUPrimitiveState;
+        state: GPUPrimitiveState;
+        mapId: number;
+        constructor(mode: MeshTopology, indexformat: IndexFormat, cullMode: CullMode, unclippedDepth?: boolean);
+    }
+    /**
+     * WebGPU GPUVertexState.buffers
+     */
+    class WGPUVertexBufferLayouts {
+        static pool: {
+            [key: number]: WGPUVertexBufferLayouts;
+        };
+        static getVertexBufferLayouts(vetexlayout: VertexAttributeLayout): WGPUVertexBufferLayouts;
+        state: Array<GPUVertexBufferLayout>;
+        mapID: number;
+        constructor(vertexlayout: VertexAttributeLayout);
+        getvertexAttributeFormat(data: string): GPUVertexFormat;
+    }
+    class WGPURenderPipeline {
+        static offscreenFormat: GPUTextureFormat;
+        pipeline: GPURenderPipeline;
+        constructor(engine: WebGPUEngine, gpuPipelineLayout: GPUPipelineLayout, vertexModule: GPUShaderModule, fragModule: GPUShaderModule, vertexBufferLayouts: WGPUVertexBufferLayouts, targets: WebGPUInternalRT, blendState: WGPUBlendState, depthStencilState: WGPUDepthStencilState, primitiveState: WGPUPrimitiveState);
+        getFragmentFormatByRT(rt: WebGPUInternalRT, blendState: WGPUBlendState): Array<GPUColorTargetState>;
+    }
+    class WGPURenderContext3D implements IRenderContext3D {
+        device: GPUDevice;
+        private _destTarget;
+        get destTarget(): IRenderTarget;
+        set destTarget(value: IRenderTarget);
+        internalRT: WebGPUInternalRT;
+        viewPort: Viewport;
+        scissor: Vector4;
+        invertY: boolean;
+        pipelineMode: PipelineMode;
+        cameraShaderData: WGPUShaderData;
+        sceneID: number;
+        sceneShaderData: WGPUShaderData;
+        cameraUpdateMark: number;
+        globalShaderData: WGPUShaderData;
+        commandEncoder: WebGPURenderCommandEncoder;
+        renderPassDec: WebGPURenderPassDescriptor;
+        constructor();
+        /**设置IRenderContext */
+        applyContext(cameraUpdateMark: number): void;
+        /**draw one element by context */
+        drawRenderElement(renderelemt: WGPURenderElementObJ): void;
+        /**end Encoder orcall submit render*/
+        end(): void;
+        /**
+         * Render pre
+         */
+        private _startRender;
+    }
+    class WGPURenderElementObJ implements IRenderElement {
+        _geometry: IRenderGeometryElement;
+        _shaderInstances: SingletonList<ShaderInstance>;
+        _materialShaderData: WGPUShaderData;
+        _renderShaderData: WGPUShaderData;
+        _transform: Transform3D;
+        _isRender: boolean;
+        _owner: IBaseRenderNode;
+        _invertFront: boolean;
+        constructor();
+        _render(context: WGPURenderContext3D): void;
+        _addShaderInstance(shader: ShaderInstance): void;
+        _clearShaderInstance(): void;
+        _destroy(): void;
+    }
+    class WGPURenderOBJCreateUtil implements IRenderOBJCreate {
+        createTransform(owner: Sprite3D): Transform3D;
+        createBounds(min: Vector3, max: Vector3): any;
+        createShaderData(): WGPUShaderData;
+        createRenderElement(): WGPURenderElementObJ;
+        createSkinRenderElement(): SkinRenderElementOBJ;
+        createInstanceRenderElement(): InstanceRenderElementOBJ;
+        createBaseRenderQueue(isTransparent: boolean): IRenderQueue;
+        createRenderGeometry(mode: MeshTopology, drayType: DrawType): IRenderGeometryElement;
+        createVertexBuffer3D(byteLength: number, bufferUsage: BufferUsage, canRead?: boolean): VertexBuffer3D;
+        createIndexBuffer3D(indexType: IndexFormat, indexCount: number, bufferUsage?: BufferUsage, canRead?: boolean): IndexBuffer3D;
+        createShaderInstance(shaderProcessInfo: ShaderProcessInfo, shaderPass: ShaderCompileDefineBase): WGPURenderPipelineInstance;
+        createBaseRenderNode(): BaseRenderNode;
+        createRenderContext3D(): WGPURenderContext3D;
+        createSceneRenderManager(): SceneRenderManagerOBJ;
+        createCullPass(): CullPassBase;
+        createSortPass(): QuickSort;
+        createShadowCullInfo(): ShadowCullInfo;
+        createCameraCullInfo(): CameraCullInfo;
+        createRenderStateComand(): RenderStateCommand;
+        createRenderState(): RenderState;
+        createUniformBufferObject(glPointer: number, name: string, bufferUsage: BufferUsage, byteLength: number, isSingle: boolean): UniformBufferObject;
+        createGlobalUniformMap(blockName: string): CommandUniformMap;
+        createEngine(config: any, canvas: any): Promise<any>;
+    }
+    class WGPURenderPipelineInstance {
+        cachePool: any;
+        engine: WebGPUEngine;
+        /**
+         * 创建一个 <code>ShaderInstance</code> 实例。
+         */
+        constructor(shaderProcessInfo: ShaderProcessInfo, shaderPass: ShaderCompileDefineBase);
+        get complete(): boolean;
+        /**
+         * @inheritDoc
+         * @override
+         */
+        protected _disposeResource(): void;
+        private _getData;
+        bind(): boolean;
+        getBlendState(shaderDatas: ShaderData): WGPUBlendState;
+        /**
+         * WGPU VertexBuffer Layouts
+         * @param vertexLayout
+         * @returns
+         */
+        getVertexAttributeLayout(vertexLayout: VertexAttributeLayout): WGPUVertexBufferLayouts;
+        /**
+         * Render Pipeline
+         * @param blendState
+         * @param depthStencilState
+         * @param primitiveState
+         * @param vertexBufferLayouts
+         * @param destTexture
+         * @returns
+         */
+        getGPURenderPipeline(blendState: WGPUBlendState, depthStencilState: WGPUDepthStencilState, primitiveState: WGPUPrimitiveState, vertexBufferLayouts: WGPUVertexBufferLayouts, destTexture: WebGPUInternalRT): WGPURenderPipeline;
+        /**
+         * update Uniform Data
+         * @param WGPURenderCommand
+         */
+        uploadUniforms(shaderUniform: CommandEncoder, shaderDatas: WGPUShaderData, renderEncoder: WebGPURenderCommandEncoder): void;
+        private testCreateSceneCommandEncoder;
+        private testCreateCameraCommandEncoder;
+        private testCreateSpriteCommandEncoder;
+        private testMaterialUniformParamsMap;
+    }
+    interface BindGroupResourceMap {
+        [key: number]: WebGPUBuffer | WebGPUInternalTex;
+    }
+    /**
+     * WGPU着色器数据类
+     */
+    class WGPUShaderData extends ShaderData {
+        static arrayOne: Float32Array;
+        static arrayVec2: Float32Array;
+        static arrayVec3: Float32Array;
+        static arrayVec4: Float32Array;
+        protected _device: GPUDevice;
+        constructor();
+        private _setChangeFlag;
+        private uploadUniformOneValue;
+        private uploadUniformVec2Value;
+        private uploadUniformVec3Value;
+        private uploadUniformVec4Value;
+        private uploadUniformMatValue;
+        private uploadUniformBufferValue;
+        private uploadUniformTexture;
+        /**
+         * 重新绑定BindGroup
+         */
+        private rebindResource;
+        /**
+         * 设置整型。
+         * @param	index shader索引。
+         * @param	value 整形。
+         */
+        setInt(index: number, value: number): void;
+        /**
+         * 设置布尔。
+         * @param	index shader索引。
+         * @param	value 布尔。
+         */
+        setBool(index: number, value: boolean): void;
+        /**
+         * 设置浮点。
+         * @param	index shader索引。
+         * @param	value 浮点。
+         */
+        setNumber(index: number, value: number): void;
+        /**
+         * 设置Vector2向量。
+         * @param	index shader索引。
+         * @param	value Vector2向量。
+         */
+        setVector2(index: number, value: Vector2): void;
+        /**
+         * 设置Vector3向量。
+         * @param	index shader索引。
+         * @param	value Vector3向量。
+         */
+        setVector3(index: number, value: Vector3): void;
+        /**
+         * 设置向量。
+         * @param	index shader索引。
+         * @param	value 向量。
+         */
+        setVector(index: number, value: Vector4): void;
+        /**
+         * 设置颜色
+         * @param index 索引
+         * @param value 颜色值
+         */
+        setColor(index: number, value: Color): void;
+        /**
+         * 设置矩阵。
+         * @param	index shader索引。
+         * @param	value  矩阵。
+         */
+        setMatrix4x4(index: number, value: Matrix4x4): void;
+        /**
+         * set Buffer
+         * @param index
+         * @param value
+         */
+        setBuffer(index: number, value: Float32Array): void;
+        setTexture(index: number, value: BaseTexture): void;
+        /**
+         * 更新_dataBindGroupResourceMap，bufferUpdate，textureResource change
+         */
+        updateBindGroup(): void;
+        clearBindGroup(): void;
+        getBindGroup(shaderVariable: WGPUShaderVariable): GPUBindGroup;
+        destroy(): void;
+    }
+    class ShaderDataCacheNode {
+        constructor(variable: WGPUShaderVariable, shaderData: WGPUShaderData);
+        /**needUpdata */
+        needUpdate(propertyIndex: number): boolean;
+        /**rebuild */
+        rebuild(shaderData: WGPUShaderData): void;
+        /**release */
+        destroy(): void;
     }
     /**
      * <code>Mesh</code> 类用于创建文件网格数据模板。
@@ -14122,6 +14672,22 @@ declare module Laya {
          * anisotropy
          */
         static DEFINE_ANISOTROPY: ShaderDefine;
+        /**
+         * ior
+         */
+        static DEFINE_IOR: ShaderDefine;
+        /**
+         * iridescence
+         */
+        static DEFINE_IRIDESCENCE: ShaderDefine;
+        /**
+         * sheen
+         */
+        static DEFINE_SHEEN: ShaderDefine;
+        /**
+         * transmission
+         */
+        static DEFINE_TRANSMISSION: ShaderDefine;
         static init(): void;
     }
     class PBRStandardShaderInit {
@@ -17737,6 +18303,9 @@ declare module Laya {
          */
         get timer(): Timer;
         set timer(value: Timer);
+        /**
+         * 场景包含的3D场景实例
+         */
         get scene3D(): any;
         /**
          * <p>从组件顶边到其内容区域顶边之间的垂直距离（以像素为单位）。</p>
@@ -20088,14 +20657,65 @@ declare module Laya {
         readonly name: string;
         private _resource;
         constructor(resource: glTFResource);
-        loadTextures(basePath: string, progress?: IBatchProgress): Promise<any>;
+        loadAdditionTextures(basePath: string, progress?: IBatchProgress): Promise<any>;
         additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
     }
     class KHR_materials_emissive_strength implements glTFExtension {
         readonly name: string;
         private _resource;
         constructor(resource: glTFResource);
-        additionMaterialProperties?(glTFMaterial: glTFMaterial, material: Material): void;
+        additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
+    }
+    class KHR_materials_ior implements glTFExtension {
+        readonly name: string;
+        private _resource;
+        constructor(resource: glTFResource);
+        additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
+    }
+    class KHR_materials_iridescence implements glTFExtension {
+        readonly name: string;
+        private _resource;
+        constructor(resource: glTFResource);
+        loadAdditionTextures(basePath: string, progress?: IBatchProgress): Promise<any>;
+        additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
+    }
+    class KHR_materials_sheen implements glTFExtension {
+        readonly name: string;
+        private _resource;
+        constructor(resource: glTFResource);
+        loadAdditionTextures(basePath: string, progress?: IBatchProgress): Promise<any>;
+        additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
+    }
+    class KHR_materials_specular implements glTFExtension {
+        readonly name: string;
+        private _resource;
+        constructor(resource: glTFResource);
+        loadAdditionTextures(basePath: string, progress?: IBatchProgress): Promise<Texture2D[]>;
+        additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
+    }
+    class KHR_materials_transmission implements glTFExtension {
+        readonly name: string;
+        private _resource;
+        constructor(resource: glTFResource);
+        loadAdditionTextures(basePath: string, progress?: IBatchProgress): Promise<any>;
+        additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
+    }
+    class KHR_materials_volume implements glTFExtension {
+        readonly name: string;
+        private _resource;
+        constructor(resource: glTFResource);
+        loadAdditionTextures(basePath: string, progress?: IBatchProgress): Promise<any>;
+        additionMaterialProperties(glTFMaterial: glTFMaterial, material: Material): void;
+    }
+    class KHR_texture_transform implements glTFExtension {
+        readonly name: string;
+        private _resource;
+        constructor(resource: glTFResource);
+        createTransform(extension: glTFTextureTransform): Matrix3x3;
+        loadExtensionTextureInfo(info: glTFTextureInfo): {
+            transform: Matrix3x3;
+            texCoord: number;
+        };
     }
     enum HtmlElementType {
         Text = 0,
@@ -21572,6 +22192,11 @@ declare module Laya {
          */
         constructor(createElement?: boolean);
         /**
+         * 克隆
+         * @param destObject
+         */
+        cloneByArray(destObject: Float32Array): void;
+        /**
          * 计算3x3矩阵的行列式
          * @return    矩阵的行列式
          */
@@ -22538,7 +23163,7 @@ declare module Laya {
          * @param  arr 数组。
          * @param  offset 数组偏移。
          */
-        fromArray(arr: any[], offset?: number): void;
+        fromArray(arr: ArrayLike<number>, offset?: number): void;
         /**
          * 转换为Array数组
          * @return
@@ -22654,7 +23279,7 @@ declare module Laya {
          * @param  arr 数组。
          * @param  offset 数组偏移。
          */
-        fromArray(arr: any[], offset?: number): void;
+        fromArray(arr: ArrayLike<number>, offset?: number): void;
         /**
          * 转换为Array数组
          * @return
@@ -25701,6 +26326,534 @@ declare module Laya {
         get bullet(): boolean;
         set bullet(value: boolean);
     }
+    /**
+     * Base class for character controllers.
+     */
+    interface ICharacterController extends ICollider {
+        /**
+         * Moves the character using a "collide-and-slide" algorithm.
+         * @param disp Displacement vector
+         * @param minDist The minimum travelled distance to consider.
+         * @param elapsedTime Time elapsed since last call
+         */
+        move(disp: Vector3, minDist: number, elapsedTime: number): number;
+        /**
+         * Sets controller's world position.
+         * @param position The new (center) position for the controller.
+         */
+        setWorldPosition(position: Vector3): void;
+        /**
+         * Retrieve the world position of the controller.
+         * @param position The controller's center position
+         */
+        getWorldPosition(position: Vector3): void;
+        /**
+         * The step height.
+         * @param offset The new step offset for the controller.
+         */
+        setStepOffset(offset: number): void;
+        /**
+         * Sets the non-walkable mode for the CCT.
+         * @param flag The new value of the non-walkable mode.
+         */
+        setNonWalkableMode(flag: number): void;
+        /**
+         * Sets the 'up' direction.
+         * @param up The up direction for the controller.
+         */
+        setUpDirection(up: Vector3): void;
+        /**
+         * Sets the slope limit.
+         * @param slopeLimit The slope limit for the controller.
+         */
+        setSlopeLimit(slopeLimit: number): void;
+    }
+    interface ICollider {
+        /**
+         * Add collider shape on collider.
+         * @param shape - The collider shape attached
+         */
+        addShape(shape: IColliderShape): void;
+        /**
+         * Remove collider shape on collider.
+         * @param shape - The collider shape attached
+         */
+        removeShape(shape: IColliderShape): void;
+        /**
+         * Deletes the collider.
+         */
+        destroy(): void;
+    }
+    /**
+     * Interface of physics dynamic collider.
+     */
+    interface IDynamicCollider extends ICollider {
+        /**
+         * Set global transform of collider.
+         * @param position - The global position
+         * @param rotation - The global rotation
+         */
+        setWorldTransform(position: Vector3, rotation: Quaternion): void;
+        /**
+         * Get global transform of collider.
+         * @param outPosition - The global position
+         * @param outRotation - The global rotation
+         */
+        getWorldTransform(outPosition: Vector3, outRotation: Quaternion): void;
+        /**
+         * Sets the linear damping coefficient.
+         * @param value - Linear damping coefficient.
+         */
+        setLinearDamping(value: number): void;
+        /**
+         * Sets the angular damping coefficient.
+         * @param value - Angular damping coefficient.
+         */
+        setAngularDamping(value: number): void;
+        /**
+         * Sets the linear velocity of the actor.
+         * @param value - New linear velocity of actor.
+         */
+        setLinearVelocity(value: Vector3): void;
+        /**
+         * Sets the angular velocity of the actor.
+         * @param value - New angular velocity of actor.
+         */
+        setAngularVelocity(value: Vector3): void;
+        /**
+         *  Sets the mass of a dynamic actor.
+         * @param value - New mass value for the actor.
+         */
+        setMass(value: number): void;
+        /**
+         * Sets the pose of the center of mass relative to the actor.
+         * @param value - Mass frame offset transform relative to the actor frame.
+         */
+        setCenterOfMass(value: Vector3): void;
+        /**
+         * Sets the inertia tensor, using a parameter specified in mass space coordinates.
+         * @param value - New mass space inertia tensor for the actor.
+         */
+        setInertiaTensor(value: Vector3): void;
+        /**
+         * Set the maximum angular velocity permitted for this actor.
+         * @param value - Max allowable angular velocity for actor.
+         */
+        setMaxAngularVelocity(value: number): void;
+        /**
+         * Sets the maximum depenetration velocity permitted to be introduced by the solver.
+         * @param value - The maximum velocity to de-penetrate
+         */
+        setMaxDepenetrationVelocity(value: number): void;
+        /**
+         * Sets the mass-normalized kinetic energy threshold below which an actor may go to sleep.
+         * @param value - Energy below which an actor may go to sleep.
+         */
+        setSleepThreshold(value: number): void;
+        /**
+         * Sets the solver iteration counts for the body.
+         * @param value - Number of position iterations the solver should perform for this body.
+         */
+        setSolverIterations(value: number): void;
+        /**
+         * Sets the colliders' collision detection mode.
+         * @param value - rigid body flag
+         */
+        setCollisionDetectionMode(value: number): void;
+        /**
+         * Controls whether physics affects the dynamic collider.
+         * @param value - is or not
+         */
+        setIsKinematic(value: boolean): void;
+        /**
+         * Raises or clears a particular rigid dynamic lock flag.
+         * @param flags - the flag to raise(set) or clear.
+         */
+        setConstraints(flags: number): void;
+        /**
+         * Apply a force to the dynamic collider.
+         * @param force - The force make the collider move
+         */
+        addForce(force: Vector3): void;
+        /**
+         * Apply a torque to the dynamic collider.
+         * @param torque - The force make the collider rotate
+         */
+        addTorque(torque: Vector3): void;
+        /**
+         * Moves kinematically controlled dynamic actors through the game world.
+         * @param positionOrRotation - The desired position or rotation for the kinematic actor
+         * @param rotation - The desired rotation for the kinematic actor
+         */
+        move(positionOrRotation: Vector3 | Quaternion, rotation?: Quaternion): void;
+        /**
+         * Forces a collider to sleep at least one frame.
+         */
+        sleep(): void;
+        /**
+         * Forces a collider to wake up.
+         */
+        wakeUp(): void;
+    }
+    interface IPhysicsCreateUtil {
+        /**
+         * 初始化物理
+         */
+        initialize(): Promise<void>;
+        /**
+         * 创建物理管理类
+         */
+        createPhysicsManger(): IPhysicsManager;
+        /**
+         * 创建动态碰撞体
+         */
+        createDynamicCollider(): IDynamicCollider;
+        /**
+         * 创建静态碰撞体
+         */
+        createStaticCollider(): IStaticCollider;
+        /**
+         * 创建角色碰撞器
+         */
+        createCharacterController(): ICharacterController;
+        /**
+         * 创建物理材质
+         */
+        createPhysicsMaterial(): IPhysicsMaterial;
+        /**
+         * Create fixed joint.
+         * @param collider - Affector of joint
+         */
+        createFixedJoint(): IFixedJoint;
+        /**
+         * Create hinge joint.
+         * @param collider - Affector of joint
+         */
+        createHingeJoint(): IHingeJoint;
+        /**
+         * Create spring joint
+         * @param collider - Affector of joint
+         */
+        createSpringJoint(): ISpringJoint;
+        /**
+         * Create Custom Joint
+         */
+        createCustomJoint(): ICustomJoint;
+        /**
+         * Create box collider shape.
+         * @param uniqueID - Shape unique id
+         * @param size - Size of the box
+         * @param material - The material of this shape
+         */
+        createBoxColliderShape(uniqueID: number, size: Vector3, material: IPhysicsMaterial): IBoxColliderShape;
+        /**
+         * Create sphere collider shape.
+         * @param uniqueID - Shape unique id
+         * @param radius - Radius of the sphere
+         * @param material - The material of this shape
+         */
+        createSphereColliderShape(uniqueID: number, radius: number, material: IPhysicsMaterial): ISphereColliderShape;
+        /**
+         * Create plane collider shape.
+         * @param uniqueID - Shape unique id
+         * @param material - The material of this shape
+         */
+        createPlaneColliderShape(uniqueID: number, material: IPhysicsMaterial): IPlaneColliderShape;
+        /**
+         * Create capsule collider shape.
+         * @param uniqueID - Shape unique id
+         * @param radius - Radius of capsule
+         * @param height - Height of capsule
+         * @param material - The material of this shape
+         */
+        createCapsuleColliderShape(uniqueID: number, radius: number, height: number, material: IPhysicsMaterial): ICapsuleColliderShape;
+        /**
+         * create Mesh Collider shape
+         */
+        createMeshColliderShape(): IMeshColliderShape;
+    }
+    interface IPhysicsManager {
+        /**
+        * Set gravity.
+        * @param gravity - Physics gravity
+        */
+        setGravity(gravity: Vector3): void;
+        /**
+         * Add IColliderShape into the manager.??
+         * @param colliderShape - The Collider Shape.
+         */
+        /**
+         * Remove IColliderShape.??
+         * @param colliderShape - The Collider Shape.
+         */
+        /**
+         * Add ICollider into the manager.
+         * @param collider - StaticCollider or DynamicCollider.
+         */
+        addCollider(collider: ICollider): void;
+        /**
+         * Remove ICollider.
+         * @param collider - StaticCollider or DynamicCollider.
+         */
+        removeCollider(collider: ICollider): void;
+        /**
+         * Add ICharacterController into the manager.
+         * @param characterController The Character Controller.
+         */
+        /**
+         * Remove ICharacterController.
+         * @param characterController The Character Controller.
+         */
+        /**
+         * Call on every frame to update pose of objects.
+         * @param elapsedTime - Step time of update.
+         */
+        update(elapsedTime: number): void;
+        /**
+         * Casts a ray through the Scene and returns the first hit.
+         * @param ray - The ray
+         * @param distance - The max distance the ray should check
+         * @param onRaycast - The raycast result callback which prefilter result
+         * @param outHitResult - If true is returned, outHitResult will contain more detailed collision information
+         * @returns Returns True if the ray intersects with a collider, otherwise false
+         */
+        raycast(ray: Ray, distance: number, onRaycast: (obj: number) => boolean, outHitResult?: (shapeUniqueID: number, distance: number, point: Vector3, normal: Vector3) => void): boolean;
+    }
+    interface IPhysicsMaterial {
+        /**
+         * 设置弹力
+         * @param value - The bounciness
+         */
+        setBounciness(value: number): void;
+        /**
+         * 设置动态摩擦力
+         * @param value - The dynamic friction
+         */
+        setDynamicFriction(value: number): void;
+        /**
+         * 设置静态摩擦力
+         * @param value - The static friction
+         */
+        setStaticFriction(value: number): void;
+        /**
+         * 设置弹性组合模式
+         * @param value - The combine mode
+         */
+        setBounceCombine(value: number): void;
+        /**
+         * 设置摩擦组合模式
+         * @param value - The combine mode
+         */
+        setFrictionCombine(value: number): void;
+        /**
+         * Decrements the reference count of a material and releases it if the new reference count is zero.
+         */
+        destroy(): void;
+    }
+    interface IStaticCollider extends ICollider {
+        /**
+         * Set global transform of collider.
+         * @param position - The global position
+         * @param rotation - The global rotation
+         */
+        setWorldTransform(position: Vector3, rotation: Quaternion): void;
+        /**
+         * Get global transform of collider.
+         * @param outPosition - The global position
+         * @param outRotation - The global rotation
+         */
+        getWorldTransform(outPosition: Vector3, outRotation: Quaternion): void;
+    }
+    interface ICustomJoint extends IJoint {
+    }
+    interface IFixedJoint extends IJoint {
+    }
+    interface IHingeJoint extends IJoint {
+        /**
+       * The anchor rotation.
+       */
+        setAxis(value: Vector3): void;
+        /**
+         * The swing offset.
+         */
+        setSwingOffset(value: Vector3): void;
+        /**
+         * The current angle in degrees of the joint relative to its rest position.
+         */
+        getAngle(): number;
+        /**
+         * The angular velocity of the joint in degrees per second.
+         */
+        getVelocity(): Readonly<Vector3>;
+        /**
+         * Set a cone hard limit.
+         * @param lowerLimit The lower angle of the limit
+         * @param upperLimit The upper angle of the limit
+         * @param contactDist The distance from the limit at which it becomes active. Default is the lesser of 0.1 radians, and 0.49 * the lower of the limit angles
+         */
+        setHardLimit(lowerLimit: number, upperLimit: number, contactDist: number): void;
+        /**
+         * Set a cone soft limit.
+         * @param lowerLimit The lower angle of the limit
+         * @param upperLimit The upper angle of the limit
+         * @param stiffness the spring strength of the drive
+         * @param damping the damping strength of the drive
+         */
+        setSoftLimit(lowerLimit: number, upperLimit: number, stiffness: number, damping: number): void;
+        /**
+         * set the target velocity for the drive model.
+         * @param velocity the drive target velocity
+         */
+        setDriveVelocity(velocity: number): void;
+        /**
+         * sets the maximum torque the drive can exert.
+         * @param limit the maximum torque
+         */
+        setDriveForceLimit(limit: number): void;
+        /**
+         * sets the gear ratio for the drive.
+         * @param ratio the gear ratio
+         */
+        setDriveGearRatio(ratio: number): void;
+        /**
+         * sets a single flag specific to a Hinge Joint.
+         * @param flag The flag to set or clear.
+         * @param value the value to which to set the flag
+         */
+        setHingeJointFlag(flag: number, value: boolean): void;
+    }
+    interface IJoint {
+        /**
+     * The connected collider.
+     */
+        setConnectedCollider(value: ICollider): void;
+        /**
+         * The connected anchor position.
+         * @remarks If connectedCollider is set, this anchor is relative offset, or the anchor is world position.
+         */
+        setConnectedAnchor(value: Vector3): void;
+        /**
+         *  The scale to apply to the inverse mass of collider 0 for resolving this constraint.
+         */
+        setConnectedMassScale(value: number): void;
+        /**
+         * The scale to apply to the inverse inertia of collider0 for resolving this constraint.
+         */
+        setConnectedInertiaScale(value: number): void;
+        /**
+         * The scale to apply to the inverse mass of collider 1 for resolving this constraint.
+         */
+        setMassScale(value: number): void;
+        /**
+         * The scale to apply to the inverse inertia of collider1 for resolving this constraint.
+         */
+        setInertiaScale(value: number): void;
+        /**
+         * The maximum force the joint can apply before breaking.
+         */
+        setBreakForce(value: number): void;
+        /**
+         * The maximum torque the joint can apply before breaking.
+         */
+        setBreakTorque(value: number): void;
+    }
+    interface ISpringJoint extends IJoint {
+        /**
+       * The swing offset.
+       */
+        setSwingOffset(value: Vector3): void;
+        /**
+         * Set the allowed minimum distance for the joint.
+         * @param distance the minimum distance
+         */
+        setMinDistance(distance: number): void;
+        /**
+         * Set the allowed maximum distance for the joint.
+         * @param distance the maximum distance
+         */
+        setMaxDistance(distance: number): void;
+        /**
+         * Set the error tolerance of the joint.
+         * @param tolerance the distance beyond the allowed range at which the joint becomes active
+         */
+        setTolerance(tolerance: number): void;
+        /**
+         * Set the strength of the joint spring.
+         * @param stiffness the spring strength of the joint
+         */
+        setStiffness(stiffness: number): void;
+        /**
+         * Set the damping of the joint spring.
+         * @param damping the degree of damping of the joint spring of the joint
+         */
+        setDamping(damping: number): void;
+    }
+    interface IBoxColliderShape extends IColliderShape {
+        /**
+          * Set size of Box Shape.
+          * @param size - The size
+          */
+        setSize(size: Vector3): void;
+    }
+    interface ICapsuleColliderShape extends IColliderShape {
+        /**
+         * Set radius of capsule.
+         * @param radius - The radius
+         */
+        setRadius(radius: number): void;
+        /**
+         * Set height of capsule.
+         * @param height - The height
+         */
+        setHeight(height: number): void;
+        /**
+         * Set up axis of capsule.
+         * @param upAxis - The up axis
+         */
+        setUpAxis(upAxis: number): void;
+    }
+    interface IColliderShape {
+        /**
+         * Set local rotation.
+         * @param rotation - The local rotation
+         */
+        setRotation(rotation: Vector3): void;
+        /**
+         * Set local position.
+         * @param position - The local position
+         */
+        setPosition(position: Vector3): void;
+        /**
+         * Set world scale of shape.
+         * @param scale - The scale
+         */
+        setWorldScale(scale: Vector3): void;
+        /**
+         * Set physics material on shape.
+         * @param material - The physics material
+         */
+        setMaterial(material: IPhysicsMaterial): void;
+        /**
+         * Set trigger or not.
+         * @param value - True for TriggerShape, false for SimulationShape
+         */
+        setIsTrigger(value: boolean): void;
+        /**
+         * Decrements the reference count of a shape and releases it if the new reference count is zero.
+         */
+        destroy(): void;
+    }
+    interface IMeshColliderShape extends IColliderShape {
+    }
+    interface IPlaneColliderShape extends IColliderShape {
+    }
+    interface ISphereColliderShape extends IColliderShape {
+        /**
+         * Set radius of sphere.
+         * @param radius - The radius
+         */
+        setRadius(radius: number): void;
+    }
     class BlendState {
         static _blend_All_pool: any;
         static _blend_seperate_pool: any;
@@ -25742,13 +26895,29 @@ declare module Laya {
          */
         destroy(): void;
     }
+    type UniformProperty = {
+        id: number;
+        propertyName: string;
+        uniformtype?: ShaderDataType;
+    };
     class CommandUniformMap {
         _stateName: string;
         constructor(stateName: string);
         hasPtrID(propertyID: number): boolean;
         getMap(): {
-            [key: number]: string;
+            [key: number]: {
+                block?: Object;
+                propertyName: string;
+                uniformtype?: ShaderDataType;
+                blockProperty?: UniformProperty[];
+            };
         };
+        /**
+         * 增加一个Uniform
+         * @param propertyID
+         * @param propertyKey
+         */
+        addShaderBlockUniform(propertyID: number, blockname: string, blockProperty: UniformProperty[]): void;
     }
     /**
      * dds 未存储 color space 需要手动指定
@@ -25986,6 +27155,7 @@ declare module Laya {
     class NativeGLRenderDrawContext extends NativeGLObject implements IRenderDrawContext {
         _nativeObj: any;
         constructor(engine: NativeWebGLEngine);
+        drawElements2DTemp(mode: MeshTopology, count: number, type: IndexFormat, offset: number): void;
     }
     class NativeGLTextureContext extends NativeGLObject implements ITextureContext {
         protected _native: any;
@@ -26008,7 +27178,7 @@ declare module Laya {
         setCubeDDSData(texture: InternalTexture, ddsInfo: DDSTextureInfo): void;
         setCubeKTXData(texture: InternalTexture, ktxInfo: KTXTextureInfo): void;
         setTextureCompareMode(texture: InternalTexture, compareMode: TextureCompareMode): TextureCompareMode;
-        bindRenderTarget(renderTarget: InternalRenderTarget): void;
+        bindRenderTarget(renderTarget: InternalRenderTarget, faceIndex?: number): void;
         bindoutScreenTarget(): void;
         unbindRenderTarget(renderTarget: InternalRenderTarget): void;
         createRenderTextureInternal(dimension: TextureDimension, width: number, height: number, format: RenderTargetFormat, generateMipmap: boolean, sRGB: boolean): InternalTexture;
@@ -26239,13 +27409,7 @@ declare module Laya {
         bindUseProgram(webglProgram: any): boolean;
     }
     class GLRenderDrawContext extends GLObject implements IRenderDrawContext {
-        private _angleInstancedArrays;
         constructor(engine: WebGLEngine);
-        getMeshTopology(mode: MeshTopology): number;
-        getIndexType(type: IndexFormat): number;
-        drawArrays(mode: MeshTopology, first: number, count: number): void;
-        drawElements(mode: MeshTopology, count: number, type: IndexFormat, offset: number): void;
-        drawGeometryElement(geometryElement: IRenderGeometryElement): void;
     }
     class GLRenderState {
         /**
@@ -26512,6 +27676,7 @@ declare module Laya {
         _depthTexture: InternalTexture;
         colorFormat: RenderTargetFormat;
         depthStencilFormat: RenderTargetFormat;
+        isSRGB: boolean;
         /**bytelength */
         _gpuMemory: number;
         get gpuMemory(): number;
@@ -26575,6 +27740,601 @@ declare module Laya {
         protected getWrapParam(wrapMode: WrapMode): number;
         protected _setWrapMode(pname: number, param: number): void;
         dispose(): void;
+    }
+    /**
+     */
+    enum GPUBUfferUsage {
+        MAP_READ = 1,
+        MAP_WRITE = 2,
+        COPY_SRC = 4,
+        COPY_DST = 8,
+        INDEX = 16,
+        VERTEX = 32,
+        UNIFORM = 64,
+        STORAGE = 128,
+        INDIRECT = 256,
+        QUERY_RESOLVE = 512
+    }
+    class WebGPUBuffer extends WebGPUObject implements IRenderBuffer {
+        _gpuBuffer: GPUBuffer;
+        _gpuUsage: GPUBufferUsageFlags;
+        _size: number;
+        private _isCreate;
+        private _mappedAtCreation;
+        constructor(engine: WebGPUEngine, usage: GPUBufferUsageFlags, byteSize?: number, mappedAtCreation?: boolean);
+        bindBuffer(): boolean;
+        unbindBuffer(): void;
+        bindBufferBase(glPointer: number): void;
+        bindBufferRange(glPointer: number, offset: number, byteCount: number): void;
+        /**
+         *
+         * @param srcData
+         */
+        setDataLength(srcData: number): void;
+        private _create;
+        private _alignedLength;
+        private _memorychange;
+        setData(srcData: ArrayBuffer | ArrayBufferView, offset: number): void;
+        setDataEx(srcData: ArrayBuffer | ArrayBufferView, offset: number, bytelength: number, dstOffset?: number): void;
+        setSubDataEx(srcData: ArrayBuffer | ArrayBufferView, offset: number, bytelength: number, dstOffset?: number): void;
+        readDataFromBuffer(): void;
+        destroy(): void;
+        release(): void;
+    }
+    class WebGPUCapable extends WebGPUObject {
+        constructor(gpuEngine: WebGPUEngine);
+        initCapable(): void;
+        getCapable(type: RenderCapable): boolean;
+    }
+    /**
+     * init webgpu option
+     */
+    class WebGPUConfig {
+        /**
+         * Defines the category of adapter to use.
+         */
+        powerPreference: GPUPowerPreference;
+        /**
+         * Defines the device descriptor used to create a device.
+         */
+        deviceDescriptor?: GPUDeviceDescriptor;
+        /**
+         * context params
+         */
+        swapChainFormat?: GPUTextureFormat;
+        /**
+         * canvans alpha mode
+         */
+        alphaMode: GPUCanvasAlphaMode;
+        /**
+         * attach canvans usage
+         */
+        usage?: GPUTextureUsageFlags;
+        /**
+         * color space
+         */
+        colorSpace?: string;
+    }
+    class WebGPUEngine implements IRenderEngine {
+        _canvas: HTMLCanvasElement;
+        _context: GPUCanvasContext;
+        _isShaderDebugMode: boolean;
+        _renderOBJCreateContext: IRenderOBJCreate;
+        private _lastViewport;
+        private _lastScissor;
+        private _enableScissor;
+        private _GLStatisticsInfo;
+        private _adapter;
+        private _adapterSupportedExtensions;
+        _device: GPUDevice;
+        private _deviceEnabledExtensions;
+        _config: WebGPUConfig;
+        _deferredDestroyBuffers: WebGPUBuffer[];
+        _deferredDestroyTextures: WebGPUInternalTex[];
+        _samplerContext: WebGPUSamplerContext;
+        _webGPUTextureContext: WebGPUTextureContext;
+        _cavansRT: WebGPUInternalRT;
+        /**
+         * 实例化一个webgpuEngine
+         */
+        constructor(config: WebGPUConfig, canvas: any);
+        /**
+         * get adapter by computer
+         * @returns
+         */
+        private _getAdapter;
+        /**
+         * init Adapter
+         * @param adapter
+         */
+        _initAdapter(adapter: GPUAdapter): void;
+        /**
+         * get GPUDevice
+         * @param deviceDescriptor
+         * @returns
+         */
+        private _getGPUdevice;
+        /**
+         * get init Device info
+         * @param device
+         */
+        private _initGPUDevice;
+        /**
+         * error handle
+         * @param event
+         */
+        private _uncapturederrorCall;
+        /**
+         * device lost handle
+         * @param info
+         */
+        private _deviceLostCall;
+        /**
+         * init webgpu environment
+         * @returns
+         */
+        _initAsync(): Promise<void>;
+        /**
+         * get and config webgpu context
+         */
+        private _initContext;
+        initRenderEngine(): Promise<void>;
+        applyRenderStateCMD(cmd: RenderStateCommand): void;
+        viewport(x: number, y: number, width: number, height: number): void;
+        scissor(x: number, y: number, width: number, height: number): void;
+        scissorTest(value: boolean): void;
+        clearRenderTexture(clearFlag: number, clearcolor: Color, clearDepth: number): void;
+        colorMask(r: boolean, g: boolean, b: boolean, a: boolean): void;
+        copySubFrameBuffertoTex(texture: BaseTexture, level: number, xoffset: number, yoffset: number, x: number, y: number, width: number, height: number): void;
+        bindTexture(texture: BaseTexture): void;
+        propertyNameToID(name: string): number;
+        propertyIDToName(id: number): string;
+        getParams(params: RenderParams): number;
+        getCapable(capatableType: RenderCapable): boolean;
+        getTextureContext(): WebGPUTextureContext;
+        getDrawContext(): IRenderDrawContext;
+        get2DRenderContext(): IRender2DContext;
+        getCreateRenderOBJContext(): IRenderOBJCreate;
+        uploadUniforms(shader: IRenderShaderInstance, commandEncoder: CommandEncoder, shaderData: WGPUShaderData, uploadUnTexture: boolean): number;
+        uploadCustomUniforms(shader: IRenderShaderInstance, custom: any[], index: number, data: any): number;
+        createRenderStateComand(): RenderStateCommand;
+        createShaderInstance(vs: string, ps: string, attributeMap: {
+            [name: string]: [
+                number,
+                ShaderDataType
+            ];
+        }): IRenderShaderInstance;
+        createBuffer(targetType: BufferTargetType, bufferUsageType: BufferUsage): WebGPUBuffer;
+        createVertexState(): IRenderVertexState;
+        getUBOPointer(name: string): number;
+        clearStatisticsInfo(info: RenderStatisticsInfo): void;
+        getStatisticsInfo(info: RenderStatisticsInfo): number;
+        unbindVertexState(): void;
+        getCurCommandEncoder(): GPUCommandEncoder;
+        private _destroyDeferredBuffer;
+        private _destroyDefferedTexture;
+        /**
+         * resize canvans
+         */
+        resizeCavansRT(): void;
+        setRenderPassDescriptor(rt: WebGPUInternalRT, renderPassDec: WebGPURenderPassDescriptor): void;
+        createUniformBuffer(bufferSize: number): WebGPUBuffer;
+        /**
+         *
+         * 每帧结束后的调用
+         */
+        endframe(): void;
+    }
+    interface WGPRenderPassDesCache {
+        clearFlag: number;
+        clearColor: Color;
+        clearDepth: number;
+    }
+    interface GPURTSourceGroup {
+        texture: WebGPUInternalTex;
+        view: GPUTextureView;
+    }
+    class WebGPUInternalRT extends WebGPUObject implements InternalRenderTarget {
+        _isCube: boolean;
+        _samples: number;
+        _generateMipmap: boolean;
+        _textures: WebGPUInternalTex[];
+        _depthTexture: WebGPUInternalTex;
+        colorFormat: RenderTargetFormat;
+        depthStencilFormat: RenderTargetFormat;
+        gpuMemory: number;
+        isSRGB: boolean;
+        loadClear: boolean;
+        clearDes: WGPRenderPassDesCache;
+        isOffscreenRT: boolean;
+        constructor(engine: WebGPUEngine, colorFormat: RenderTargetFormat, depthStencilFormat: RenderTargetFormat, isCube: boolean, generateMipmap: boolean, samples: number);
+        dispose(): void;
+    }
+    class WebGPUInternalTex extends WebGPUObject implements InternalTexture {
+        resource: GPUTexture;
+        target: number;
+        width: number;
+        height: number;
+        mipmap: boolean;
+        mipmapCount: number;
+        webGPUFormat: GPUTextureFormat;
+        view: GPUTextureView;
+        descriptor: GPUTextureDescriptor;
+        webgpuSampler: GPUSampler;
+        webGPUSamplerParams: WebGPUSamplerParams;
+        isPotSize: boolean;
+        baseMipmapLevel: number;
+        maxMipmapLevel: number;
+        gpuMemory: number;
+        useSRGBLoad: boolean;
+        gammaCorrection: number;
+        _cacheBindGroup: GPUBindGroup;
+        _cacheSampler: GPUSampler;
+        constructor(engine: WebGPUEngine, width: number, height: number, dimension: TextureDimension, mipmap: boolean);
+        get textureView(): GPUTextureView;
+        releaseTexture(texture: InternalTexture | GPUTexture): void;
+        private _filterMode;
+        get filterMode(): FilterMode;
+        set filterMode(value: FilterMode);
+        private _warpU;
+        get wrapU(): WrapMode;
+        set wrapU(value: WrapMode);
+        private _warpV;
+        get wrapV(): WrapMode;
+        set wrapV(value: WrapMode);
+        private _warpW;
+        get wrapW(): WrapMode;
+        set wrapW(value: WrapMode);
+        private _anisoLevel;
+        get anisoLevel(): number;
+        set anisoLevel(value: number);
+        private _compareMode;
+        get compareMode(): TextureCompareMode;
+        set compareMode(value: TextureCompareMode);
+        dispose(): void;
+        disposDerredDispose(): void;
+    }
+    /**
+     * WebGPUObject基类
+     */
+    class WebGPUObject {
+        protected _engine: WebGPUEngine;
+        protected _device: GPUDevice;
+        protected _context: GPUCanvasContext;
+        protected _id: number;
+        protected _destroyed: boolean;
+        /**
+         * instance one WebGPU Object
+         * @param engine
+         */
+        constructor(engine: WebGPUEngine);
+        /**
+         * get destroyed state
+         */
+        get destroyed(): boolean;
+        /**
+         * destroy
+         * @override
+         * @returns
+         */
+        destroy(): void;
+    }
+    class WebGPURenderCommandEncoder {
+        /**
+         * command Encoder
+         */
+        commandEncoder: GPUCommandEncoder;
+        /**
+         * if Render has RenderEncoder
+         */
+        renderpassEncoder: GPURenderPassEncoder;
+        /**
+         * engine
+         */
+        engine: WebGPUEngine;
+        /**
+         * pipeline
+         */
+        curpipeline: WGPURenderPipeline;
+        curGeometry: IRenderGeometryElement;
+        cachemap: {
+            [key: number]: GPUBindGroup;
+        };
+        obb: any;
+        constructor();
+        /**
+         * crate Render CommandEncoder
+         * @param renderpassDes
+         */
+        startRender(renderpassDes: GPURenderPassDescriptor): void;
+        setPipeline(pipeline: WGPURenderPipeline): void;
+        /**
+         * draw
+         * @param geometry
+         */
+        applyGeometry(geometry: IRenderGeometryElement): void;
+        /**
+         * 设置indexBuffer
+         * @param buffer
+         * @param indexformat
+         * @param offset
+         * @param byteSize
+         */
+        setIndexBuffer(buffer: WebGPUBuffer, indexformat: GPUIndexFormat, offset: number, byteSize: number): void;
+        setVertexBuffer(slot: GPUIndex32, buffer: GPUBuffer, offset?: GPUSize64, size?: GPUSize64): void;
+        drawIndirect(indirectBuffer: GPUBuffer, indirectOffset: GPUSize64): void;
+        drawIndexedIndirect(indirectBuffer: GPUBuffer, indirectOffset: GPUSize64): void;
+        setBindGroup(index: GPUIndex32, bindGroup: GPUBindGroup, dynamicOffsets?: Iterable<GPUBufferDynamicOffset>): void;
+        setBindGroupByDataOffaset(index: GPUIndex32, bindGroup: GPUBindGroup, dynamicOffsetsData: Uint32Array, dynamicOffsetsDataStart: GPUSize64, dynamicOffsetsDataLength: GPUSize32): void;
+        end(): void;
+        setViewport(x: number, y: number, width: number, height: number, minDepth: number, maxDepth: number): void;
+        setScissorRect(x: GPUIntegerCoordinate, y: GPUIntegerCoordinate, width: GPUIntegerCoordinate, height: GPUIntegerCoordinate): void;
+        setBlendConstant(color: GPUColor): void;
+        setStencilReference(reference: GPUStencilValue): void;
+        executeBundles(bundles: Iterable<GPURenderBundle>): void;
+        finish(): GPUCommandBuffer;
+    }
+    class WebGPURenderPassDescriptor {
+        des: GPURenderPassDescriptor;
+        constructor();
+        setColorAttachments(textures: WebGPUInternalTex[], clear: boolean, clearColor?: Color): void;
+        setDepthAttachments(depthTex: WebGPUInternalTex, clear: boolean, clearDepthValue?: number): void;
+    }
+    interface WebGPUSamplerParams {
+        comparedMode: TextureCompareMode;
+        wrapU: WrapMode;
+        warpV: WrapMode;
+        warpW: WrapMode;
+        mipmapFilter: FilterMode;
+        filterMode: FilterMode;
+        anisoLevel: number;
+    }
+    class WebGPUSamplerContext extends WebGPUObject {
+        private _cacheMap;
+        createGPUSampler(params: WebGPUSamplerParams): GPUSampler;
+        getcacheSampler(params: WebGPUSamplerParams): any;
+        private _getCatchWrapKey;
+        private _anisoLevel;
+        private _getSamplerDescriptor;
+        private _getSamplerAddressMode;
+        private _getFilterMode;
+        private _getGPUCompareFunction;
+    }
+    class WebGPUShaderInstance extends WebGPUObject implements IRenderShaderInstance {
+        _complete: boolean;
+        private _pipelineLayout;
+        constructor(engine: WebGPUEngine);
+        _WGSLShaderLanguageProcess3D(vs: ShaderNode, fs: ShaderNode): void;
+        create(): void;
+        /**
+         * contactBindGroupLayout
+         * @returns
+         */
+        private _contactBindGroupLayout;
+        getVertexModule(): GPUShaderModule;
+        getFragmentModule(): GPUShaderModule;
+        getUniformMap(): WGPUShaderVariable[];
+        applyBindGroupLayoutByUniformMap(uniformMap: {
+            [name: string]: ShaderDataType;
+        }, command: CommandEncoder): void;
+        applyBindGroupLayout(map: CommandUniformMap, command: CommandEncoder): void;
+        getWGPUPipelineLayout(): GPUPipelineLayout;
+        bind(): boolean;
+    }
+    enum GPUTextureViewDimension {
+        VD1d = "1d",
+        VD2d = "2d",
+        VD2d_array = "2d-array",
+        VDcube = "cube",
+        VDcube_array = "cube-array",
+        VD3d = "3d"
+    }
+    enum GPUTextureFormat {
+        r8unorm = "r8unorm",
+        r8snorm = "r8snorm",
+        r8uint = "r8uint",
+        r8sint = "r8sint",
+        r16uint = "r16uint",
+        r16sint = "r16sint",
+        r16float = "r16float",
+        rg8unorm = "rg8unorm",
+        rg8snorm = "rg8snorm",
+        rg8uint = "rg8uint",
+        rg8sint = "rg8sint",
+        r32uint = "r32uint",
+        r32sint = "r32sint",
+        r32float = "r32float",
+        rg16uint = "rg16uint",
+        rg16sint = "rg16sint",
+        rg16float = "rg16float",
+        rgba8unorm = "rgba8unorm",
+        rgba8unorm_srgb = "rgba8unorm-srgb",
+        rgba8snorm = "rgba8snorm",
+        rgba8uint = "rgba8uint",
+        rgba8sint = "rgba8sint",
+        bgra8unorm = "bgra8unorm",
+        bgra8unorm_srgb = "bgra8unorm-srgb",
+        rgb9e5ufloat = "rgb9e5ufloat",
+        rgb10a2unorm = "rgb10a2unorm",
+        rg11b10ufloat = "rg11b10ufloat",
+        rg32uint = "rg32uint",
+        rg32sint = "rg32sint",
+        rg32float = "rg32float",
+        rgba16uint = "rgba16uint",
+        rgba16sint = "rgba16sint",
+        rgba16float = "rgba16float",
+        rgba32uint = "rgba32uint",
+        rgba32sint = "rgba32sint",
+        rgba32float = "rgba32float",
+        stencil8 = "stencil8",
+        depth16unorm = "depth16unorm",
+        depth24plus = "depth24plus",
+        depth24plus_stencil8 = "depth24plus-stencil8",
+        depth32float = "depth32float",
+        depth32float_stencil8 = "depth32float-stencil8",
+        bc1_rgba_unorm = "bc1-rgba-unorm",
+        bc1_rgba_unorm_srgb = "bc1-rgba-unorm-srgb",
+        bc2_rgba_unorm = "bc2-rgba-unorm",
+        bc2_rgba_unorm_srgb = "bc2-rgba-unorm-srgb",
+        bc3_rgba_unorm = "bc3-rgba-unorm",
+        bc3_rgba_unorm_srgb = "bc3-rgba-unorm-srgb",
+        bc4_r_unorm = "bc4-r-unorm",
+        bc4_r_snorm = "bc4-r-snorm",
+        bc5_rg_unorm = "bc5-rg-unorm",
+        bc5_rg_snorm = "bc5-rg-snorm",
+        bc6h_rgb_ufloat = "bc6h-rgb-ufloat",
+        bc6h_rgb_float = "bc6h-rgb-float",
+        bc7_rgba_unorm = "bc7-rgba-unorm",
+        bc7_rgba_unorm_srgb = "bc7-rgba-unorm-srgb",
+        etc2_rgb8unorm = "etc2-rgb8unorm",
+        etc2_rgb8unorm_srgb = "etc2-rgb8unorm-srgb",
+        etc2_rgb8a1unorm = "etc2-rgb8a1unorm",
+        etc2_rgb8a1unorm_srgb = "etc2-rgb8a1unorm-srgb",
+        etc2_rgba8unorm = "etc2-rgba8unorm",
+        etc2_rgba8unorm_srgb = "etc2-rgba8unorm-srgb",
+        astc_4x4_unorm = "astc-4x4-unorm",
+        astc_4x4_unorm_srgb = "astc-4x4-unorm-srgb",
+        astc_5x4_unorm = "astc-5x4-unorm",
+        astc_5x4_unorm_srgb = "astc-5x4-unorm-srgb",
+        astc_5x5_unorm = "astc-5x5-unorm",
+        astc_5x5_unorm_srgb = "astc-5x5-unorm-srgb",
+        astc_6x5_unorm = "astc-6x5-unorm",
+        astc_6x5_unorm_srgb = "astc-6x5-unorm-srgb",
+        astc_6x6_unorm = "astc-6x6-unorm",
+        astc_6x6_unorm_srgb = "astc-6x6-unorm-srgb",
+        astc_8x5_unorm = "astc-8x5-unorm",
+        astc_8x5_unorm_srgb = "astc-8x5-unorm-srgb",
+        astc_8x6_unorm = "astc-8x6-unorm",
+        astc_8x6_unorm_srgb = "astc-8x6-unorm-srgb",
+        astc_8x8_unorm = "astc-8x8-unorm",
+        astc_8x8_unorm_srgb = "astc-8x8-unorm-srgb",
+        astc_10x5_unorm = "astc-10x5-unorm",
+        astc_10x5_unorm_srgb = "astc-10x5-unorm-srgb",
+        astc_10x6_unorm = "astc-10x6-unorm",
+        astc_10x6_unorm_srgb = "astc-10x6-unorm-srgb",
+        astc_10x8_unorm = "astc-10x8-unorm",
+        astc_10x8_unorm_srgb = "astc-10x8-unorm-srgb",
+        astc_10x10_unorm = "astc-10x10-unorm",
+        astc_10x10_unorm_srgb = "astc-10x10-unorm-srgb",
+        astc_12x10_unorm = "astc-12x10-unorm",
+        astc_12x10_unorm_srgb = "astc-12x10-unorm-srgb",
+        astc_12x12_unorm = "astc-12x12-unorm",
+        astc_12x12_unorm_srgb = "astc-12x12-unorm-srgb"
+    }
+    enum GPUTextureUsage {
+        COPY_SRC = 1,
+        COPY_DST = 2,
+        TEXTURE_BINDING = 4,
+        STORAGE_BINDING = 8,
+        RENDER_ATTACHMENT = 16
+    }
+    class WebGPUTextureContext extends WebGPUObject implements ITextureContext {
+        curBindWGPURT: WebGPUInternalRT;
+        constructor(engine: WebGPUEngine);
+        setTexture3DImageData(texture: InternalTexture, source: HTMLImageElement[] | HTMLCanvasElement[] | ImageBitmap[], depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DPixlesData(texture: InternalTexture, source: ArrayBufferView, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexture3DSubPixelsData(texture: InternalTexture, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, zOffset: number, width: number, height: number, depth: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        getGPUTextureFormat(format: TextureFormat, useSRGB: boolean): GPUTextureFormat;
+        private isCompressTexture;
+        getGPURenderTargetFormat(format: RenderTargetFormat, useSRGB: boolean): GPUTextureFormat.rgba8unorm | GPUTextureFormat.rgba8unorm_srgb | GPUTextureFormat.rgba16float | GPUTextureFormat.rgba32float | GPUTextureFormat.stencil8 | GPUTextureFormat.depth16unorm | GPUTextureFormat.depth24plus | GPUTextureFormat.depth24plus_stencil8 | GPUTextureFormat.depth32float;
+        getTextureViewDimension(demension: TextureDimension): GPUTextureViewDimension;
+        /**
+        * caculate texture memory
+        * @param tex
+        * @returns
+        */
+        getGLtexMemory(tex: WebGPUInternalTex, depth?: number): number;
+        private _generateMipmaps;
+        createTextureInternal(dimension: TextureDimension, width: number, height: number, format: TextureFormat, generateMipmap: boolean, sRGB: boolean): WebGPUInternalTex;
+        private getGPUTextureDescriptor;
+        createRenderTextureInternal(dimension: TextureDimension, width: number, height: number, format: RenderTargetFormat, generateMipmap: boolean, sRGB: boolean): WebGPUInternalTex;
+        createRenderTargetInternal(width: number, height: number, format: RenderTargetFormat, depthStencilFormat: RenderTargetFormat, generateMipmap: boolean, sRGB: boolean, multiSamples: number): WebGPUInternalRT;
+        setTextureImageData(texture: WebGPUInternalTex, source: HTMLCanvasElement | HTMLImageElement | ImageBitmap, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTextureSubImageData(texture: InternalTexture, source: HTMLCanvasElement | HTMLImageElement | ImageBitmap, x: number, y: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTexturePixelsData(texture: WebGPUInternalTex, source: ArrayBufferView, premultiplyAlpha: boolean, invertY: boolean): void;
+        setTextureSubPixelsData(texture: WebGPUInternalTex, source: ArrayBufferView, mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, width: number, height: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        initVideoTextureData(texture: WebGPUInternalTex): void;
+        setTextureDDSData(texture: WebGPUInternalTex, ddsInfo: DDSTextureInfo): void;
+        setTextureKTXData(texture: WebGPUInternalTex, ktxInfo: KTXTextureInfo): void;
+        setTextureHDRData(texture: WebGPUInternalTex, hdrInfo: HDRTextureInfo): void;
+        setCubeImageData(texture: WebGPUInternalTex, sources: (HTMLCanvasElement | HTMLImageElement | ImageBitmap)[], premultiplyAlpha: boolean, invertY: boolean): void;
+        setCubePixelsData(texture: WebGPUInternalTex, source: ArrayBufferView[], premultiplyAlpha: boolean, invertY: boolean): void;
+        setCubeSubPixelData(texture: WebGPUInternalTex, source: ArrayBufferView[], mipmapLevel: number, generateMipmap: boolean, xOffset: number, yOffset: number, width: number, height: number, premultiplyAlpha: boolean, invertY: boolean): void;
+        setCubeDDSData(texture: WebGPUInternalTex, ddsInfo: DDSTextureInfo): void;
+        setCubeKTXData(texture: WebGPUInternalTex, ktxInfo: KTXTextureInfo): void;
+        setTextureCompareMode(texture: WebGPUInternalTex, compareMode: TextureCompareMode): TextureCompareMode;
+        createRenderTargetCubeInternal(size: number, colorFormat: RenderTargetFormat, depthStencilFormat: RenderTargetFormat, generateMipmap: boolean, sRGB: boolean, multiSamples: number): InternalRenderTarget;
+        setupRendertargetTextureAttachment(renderTarget: InternalRenderTarget, texture: InternalTexture): void;
+        bindRenderTarget(renderTarget: InternalRenderTarget, faceIndex?: number): void;
+        bindoutScreenTarget(): void;
+        unbindRenderTarget(renderTarget: InternalRenderTarget): void;
+        readRenderTargetPixelData(renderTarget: InternalRenderTarget, xOffset: number, yOffset: number, width: number, height: number, out: ArrayBufferView): ArrayBufferView;
+        updateVideoTexture(texture: InternalTexture, video: HTMLVideoElement, premultiplyAlpha: boolean, invertY: boolean): void;
+        getRenderTextureData(internalTex: InternalRenderTarget, x: number, y: number, width: number, height: number): ArrayBufferView;
+    }
+    class WGPUBindGroup {
+    }
+    class WGPUBindGroupHelper {
+        static device: GPUDevice;
+        /**create BindGroup by ShaderVariable */
+        static getBindGroupbyUniformMap(shaderVariable: WGPUShaderVariable, shaderData: WGPUShaderData): GPUBindGroup;
+        /**Buffer BindGroup */
+        static getBufferBindGroup(shaderVariable: WGPUShaderVariable, databuffer: GPUBuffer, size: number, offset?: number): GPUBindGroup;
+        /**Texture BindGroup */
+        static getTextureBindGroup(shaderVariable: WGPUShaderVariable, internalTexture: WebGPUInternalTex): GPUBindGroup;
+        /**Buffer BindGroup Entry */
+        static createBufferBindGroupEntry(bindIndex: number, databuffer: GPUBuffer, size: number, offset?: number): GPUBindGroupEntry;
+        /**Sampler BindGroup Entry */
+        static createSamplerBindGroupEntry(bindIndex: number, sampler: GPUSampler): GPUBindGroupEntry;
+        /**TextureView BindGroup Entry */
+        static createTextureBindGroupEntry(bindIndex: number, texture: GPUTextureView): GPUBindGroupEntry;
+        /**todo */
+        static createExternalTextureBindGroupEntry(): void;
+    }
+    class WGPUBindGroupLayoutHelper {
+        /**
+         * CommandUniformMap生成GPUBindGroupLayout
+         * @param bindStart
+         * @param map
+         * @param out
+         *
+         * @returns
+         */
+        static getBindGroupLayoutByMap(map: CommandUniformMap, out: WGPUShaderVariable[]): void;
+        static getBindGroupLayoutByUniformMap(uniformMap: {
+            [name: string]: ShaderDataType;
+        }, out: WGPUShaderVariable[]): void;
+        static getTextureBindGroupLayout(visibility: GPUShaderStageFlags, dimension?: GPUTextureViewDimension, mulsampler?: boolean, GPUTtextureType?: GPUTextureSampleType, samplerType?: GPUSamplerBindingType): GPUBindGroupLayout;
+        static getBufferBindGroupLayout(visibility: GPUShaderStageFlags, bufferBindType?: GPUBufferBindingType): GPUBindGroupLayout;
+        /**
+         * BufferEntry
+         * @returns
+         */
+        static createBufferLayoutEntry(binding: number, visibility: GPUShaderStageFlags, bufferBindType: GPUBufferBindingType, dynamicOffset?: boolean): GPUBindGroupLayoutEntry;
+        /**
+         * TextureEntry
+         * @returns
+         */
+        static createTextureLayoutEntry(binding: number, visibility: GPUShaderStageFlags, dimension?: GPUTextureViewDimension, mulsampler?: boolean, GPUTtextureType?: GPUTextureSampleType): GPUBindGroupLayoutEntry;
+        /**
+         * SamplerEntry
+         * @returns
+         */
+        static createSamplerLayoutEntry(binding: number, visibility: GPUShaderStageFlags, samplerType?: GPUSamplerBindingType): GPUBindGroupLayoutEntry;
+        /**
+         * StrorageEntry
+         * @returns
+         */
+        static createStorageTextureEntry(binding: number, visibility: GPUShaderStageFlags, textureFormat: GPUTextureFormat, dimension?: GPUTextureViewDimension): GPUBindGroupLayoutEntry;
+        /**
+         * ExternalTextureEntry
+         * @returns
+         */
+        static createExternalTextureEntry(): GPUBindGroupLayoutEntry;
+    }
+    class WGPUShaderVariable extends ShaderVariable {
+        constructor();
+        containProperty(propertyIndex: number): boolean;
     }
     enum BlendEquationSeparate {
         ADD = 0,
@@ -26716,10 +28476,9 @@ declare module Laya {
         Texture_SRGB = 16,
         MSAA = 17,
         UnifromBufferObject = 18,
-        GRAPHICS_API_GLES3 = 19,
-        Texture3D = 20,
-        Texture_FloatLinearFiltering = 21,
-        Texture_HalfFloatLinearFiltering = 22
+        Texture3D = 19,
+        Texture_FloatLinearFiltering = 20,
+        Texture_HalfFloatLinearFiltering = 21
     }
     enum RenderClearFlag {
         Nothing = 0,
@@ -26809,7 +28568,8 @@ declare module Laya {
         DEPTH_16 = 35,
         STENCIL_8 = 36,
         DEPTHSTENCIL_24_8 = 37,
-        DEPTH_32 = 38
+        DEPTH_32 = 38,
+        DEPTHSTENCIL_24_Plus = 39
     }
     enum StencilOperation {
         /** Keeps the current value. */
@@ -26945,6 +28705,7 @@ declare module Laya {
         _depthTexture: InternalTexture;
         colorFormat: RenderTargetFormat;
         depthStencilFormat: RenderTargetFormat;
+        isSRGB: boolean;
         gpuMemory: number;
         dispose(): void;
     }
@@ -27031,12 +28792,7 @@ declare module Laya {
         unbindVertexState(): void;
     }
     interface IRenderOBJCreate {
-        createShaderInstance(vs: string, ps: string, attributeMap: {
-            [name: string]: [
-                number,
-                ShaderDataType
-            ];
-        }, shaderPass: ShaderCompileDefineBase): ShaderInstance;
+        createShaderInstance(shaderProcessInfo: ShaderProcessInfo, shaderPass: ShaderCompileDefineBase): any;
         createTransform(owner: Sprite3D): Transform3D;
         createBounds(min: Vector3, max: Vector3): any;
         createShaderData(ownerResource: Resource): ShaderData;
@@ -27058,6 +28814,7 @@ declare module Laya {
         createRenderState(): RenderState;
         createUniformBufferObject(glPointer: number, name: string, bufferUsage: BufferUsage, byteLength: number, isSingle: boolean): UniformBufferObject;
         createGlobalUniformMap(blockName: string): CommandUniformMap;
+        createEngine(config: Config, canvas: any): Promise<void>;
     }
     interface IRenderShaderInstance {
         getUniformMap(): ShaderVariable[];
@@ -27164,6 +28921,7 @@ declare module Laya {
         applyContext(cameraUpdateMark: number): void;
         /**draw one element by context */
         drawRenderElement(renderelemt: IRenderElement): void;
+        end(): void;
     }
     interface IRenderElement {
         _geometry: IRenderGeometryElement;
@@ -27545,7 +29303,7 @@ declare module Laya {
          * @param   passIndex  通道索引。
          * @param	defineNames 宏定义名字集合。
          */
-        static compileShaderByDefineNames(shaderName: string, subShaderIndex: number, passIndex: number, defineNames: string[]): void;
+        static compileShaderByDefineNames(shaderName: string, subShaderIndex: number, passIndex: number, defineNames: string[], nodeCommonMap: string[]): void;
         /**
          * 添加预编译shader文件，主要是处理宏定义
          */
@@ -27576,15 +29334,6 @@ declare module Laya {
          * @return 子着色器。
          */
         getSubShaderAt(index: number): SubShader;
-        /**
-         * @deprecated
-         * 通过宏定义遮罩编译shader,建议使用compileShaderByDefineNames。
-         * @param	shaderName Shader名称。
-         * @param   subShaderIndex 子着色器索引。
-         * @param   passIndex  通道索引。
-         * @param	defineMask 宏定义遮罩集合。
-         */
-        static compileShader(shaderName: string, subShaderIndex: number, passIndex: number, ...defineMask: any[]): void;
     }
     enum ShaderDataType {
         Int = 0,
@@ -27597,10 +29346,11 @@ declare module Laya {
         Matrix4x4 = 7,
         Texture2D = 8,
         TextureCube = 9,
-        Buffer = 10
+        Buffer = 10,
+        Matrix3x3 = 11
     }
-    type ShaderDataItem = number | boolean | Vector2 | Vector3 | Vector4 | Color | Matrix4x4 | BaseTexture | Float32Array;
-    function ShaderDataDefaultValue(type: ShaderDataType): false | Readonly<Vector2> | 0 | Readonly<Vector3> | Readonly<Matrix4x4> | Readonly<Vector4> | Color;
+    type ShaderDataItem = number | boolean | Vector2 | Vector3 | Vector4 | Color | Matrix4x4 | BaseTexture | Float32Array | Matrix3x3;
+    function ShaderDataDefaultValue(type: ShaderDataType): false | Readonly<Vector2> | 0 | Readonly<Matrix3x3> | Readonly<Vector3> | Readonly<Matrix4x4> | Readonly<Vector4> | Color;
     /**
      * 着色器数据类。
      */
@@ -27723,6 +29473,18 @@ declare module Laya {
          */
         setMatrix4x4(index: number, value: Matrix4x4): void;
         /**
+         * 获取矩阵
+         * @param index
+         * @returns
+         */
+        getMatrix3x3(index: number): Matrix3x3;
+        /**
+         * 设置矩阵。
+         * @param index
+         * @param value
+         */
+        setMatrix3x3(index: number, value: Matrix3x3): void;
+        /**
          * 获取Buffer。
          * @param	index shader索引。
          * @return
@@ -27762,7 +29524,7 @@ declare module Laya {
         setUniformBuffer(index: number, value: UniformBufferObject): void;
         getUniformBuffer(index: number): UniformBufferObject;
         setShaderData(uniformIndex: number, type: ShaderDataType, value: ShaderDataItem | Quaternion): void;
-        getShaderData(uniformIndex: number, type: ShaderDataType): number | boolean | Vector2 | Float32Array | Vector3 | Matrix4x4 | Vector4 | Color | BaseTexture;
+        getShaderData(uniformIndex: number, type: ShaderDataType): number | boolean | Vector2 | Float32Array | Vector3 | Matrix3x3 | Matrix4x4 | Vector4 | Color | BaseTexture;
         /**
          * get shader data
          * @deprecated
@@ -27798,19 +29560,28 @@ declare module Laya {
      * <code>ShaderInstance</code> 类用于实现ShaderInstance。
      */
     class ShaderInstance {
+        private _renderShaderInstance;
         /**
          * 创建一个 <code>ShaderInstance</code> 实例。
          */
-        constructor(vs: string, ps: string, attributeMap: {
-            [name: string]: [
-                number,
-                ShaderDataType
-            ];
-        }, shaderPass: ShaderCompileDefineBase);
+        constructor(shaderProcessInfo: ShaderProcessInfo, shaderPass: ShaderCompileDefineBase);
         /**
          * get complete
          */
         get complete(): boolean;
+        protected _webGLShaderLanguageProcess3D(defineString: string[], attributeMap: {
+            [name: string]: [
+                number,
+                ShaderDataType
+            ];
+        }, uniformMap: UniformMapType, VS: ShaderNode, FS: ShaderNode): void;
+        protected _webGLShaderLanguageProcess2D(defineString: string[], attributeMap: {
+            [name: string]: [
+                number,
+                ShaderDataType
+            ];
+        }, uniformMap: UniformMapType, VS: ShaderNode, FS: ShaderNode): void;
+        private hasSpritePtrID;
         /**
          * @inheritDoc
          * @override
@@ -27860,6 +29631,7 @@ declare module Laya {
      *  <code>shaderVariable</code> 类用于保存shader变量上传相关信息。
      */
     class ShaderVariable {
+        static pointID: number;
         /**
          * 创建一个 <code>shaderVariable</code> 实例。
          */
@@ -28257,6 +30029,7 @@ declare module Laya {
          */
         setMatrixbyIndex(uniformID: number, value: Matrix4x4): void;
         clone(): UnifromBufferData;
+        cloneTo(destObject: UnifromBufferData): void;
     }
     /**
      * 类封装WebGL2UniformBufferObect
@@ -28324,6 +30097,36 @@ declare module Laya {
          * @private
          */
         destroy(): void;
+    }
+    interface VAElement {
+        format: string;
+        stride: number;
+        shaderLocation: number;
+    }
+    class VertexAttributeLayout {
+        static IPoint: number;
+        static _pool: {
+            [key: number]: VertexAttributeLayout;
+        };
+        static getVertexLayoutByPool(vertexs: VertexBuffer[]): VertexAttributeLayout;
+        /**
+         * vertex attribute byte size Array
+         */
+        attributeByteSize: Array<number>;
+        /**
+         * vertex Layout des
+         */
+        VAElements: Array<VAElement[]>;
+        instanceMode: Array<boolean>;
+        /**
+         * pool index
+         */
+        id: number;
+        /**
+         * instance one VertexAttributeLayout
+         * @param vertexs
+         */
+        constructor(vertexs: VertexBuffer[]);
     }
     class VertexBuffer extends Buffer {
         private _instanceBuffer;
@@ -28408,8 +30211,6 @@ declare module Laya {
          */
         static vsyncTime(): number;
         initRender(canvas: HTMLCanvas, w: number, h: number): boolean;
-        /**@private */
-        private _replaceWebglcall;
         /**@private */
         private _enterFrame;
         /** 目前使用的渲染器。*/
@@ -29446,7 +31247,7 @@ declare module Laya {
         private static _destroyUnusedResources;
         private _cpuMemory;
         private _gpuMemory;
-        protected _id: number;
+        _id: number;
         protected _destroyed?: boolean;
         protected _referenceCount: number;
         protected _obsolute: boolean;
@@ -29706,6 +31507,8 @@ declare module Laya {
         static whiteTexture: Texture2D;
         /**纯黑色纹理。*/
         static blackTexture: Texture2D;
+        /**纯红色纹理。*/
+        static redTexture: Texture2D;
         /**默认法线纹理 */
         static normalTexture: Texture2D;
         /**错误纹理 */
@@ -37335,6 +39138,7 @@ declare module Laya {
         static TextureMemeory: StatUIParams;
         static RenderTextureMemory: StatUIParams;
         static BufferMemory: StatUIParams;
+        static uploadUniformNum: StatUIParams;
         static AllShow: Array<StatUIParams>;
         static memoryShow: Array<StatUIParams>;
         static renderShow: Array<StatUIParams>;
@@ -37357,6 +39161,7 @@ declare module Laya {
         static renderSlow: boolean;
         /** 资源管理器所管理资源的累计内存,以字节为单位。*/
         static cpuMemory: number;
+        static blitDrawCall: number;
         /** 资源管理器所管理资源的累计内存,以字节为单位。*/
         static gpuMemory: number;
         /**@interanl */
@@ -38337,6 +40142,7 @@ declare module Laya {
         constructor(mainID: number, subID: number);
         setValue(value: Shader2D): void;
         private _ShaderWithCompile;
+        updateShaderData(): void;
         upload(): void;
         setFilters(value: any[]): void;
         clear(): void;
@@ -39365,7 +41171,21 @@ declare module Laya {
          */
         private static _compileToTree;
     }
+    class ShaderProcessInfo {
+        defineString: string[];
+        vs: ShaderNode;
+        ps: ShaderNode;
+        attributeMap: {
+            [name: string]: [
+                number,
+                ShaderDataType
+            ];
+        };
+        uniformMap: UniformMapType;
+        is2D: boolean;
+    }
     class ShaderCompileDefineBase {
+        nodeCommonMap: Array<string>;
         constructor(owner: any, name: string, compiledObj: IShaderCompiledObj);
     }
     class ShaderNode {

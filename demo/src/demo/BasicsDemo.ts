@@ -48,7 +48,7 @@ export class BasicDemo {
     }
 
     private runDemo(evt: Laya.Event): void {
-        var type: string = fgui.GObject.cast(evt.currentTarget).name.substr(4);
+        var type: string = fgui.GObject.cast(evt.currentTarget).name.substring(4);
         var obj: fgui.GComponent = this._demoObjects[type];
         if (obj == null) {
             obj = fgui.UIPackage.createObject("Basics", "Demo_" + type).asCom;

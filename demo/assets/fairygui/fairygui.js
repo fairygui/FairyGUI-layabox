@@ -541,11 +541,6 @@
         LoaderFillType[LoaderFillType["ScaleMatchWidth"] = 3] = "ScaleMatchWidth";
         LoaderFillType[LoaderFillType["ScaleFree"] = 4] = "ScaleFree";
         LoaderFillType[LoaderFillType["ScaleNoBorder"] = 5] = "ScaleNoBorder";
-        /**
-         * 组件根据 GLoader 的大小自动调整尺寸的适配模式
-         * @note 2023/03/03 编辑器中还没有这种适配模式，暂时用 ScaleFree 代替
-         */
-        LoaderFillType[LoaderFillType["Resize"] = 4] = "Resize";
     })(LoaderFillType = fgui.LoaderFillType || (fgui.LoaderFillType = {}));
     let ListLayoutType;
     (function (ListLayoutType) {
@@ -6691,6 +6686,15 @@
                 this.updateLayout();
             }
         }
+        get useResize() {
+            return this._useResize;
+        }
+        set useResize(value) {
+            if (this._useResize != value) {
+                this._useResize = value;
+                this.updateLayout();
+            }
+        }
         get autoSize() {
             return this._autoSize;
         }
@@ -6891,7 +6895,10 @@
                 if (cw == this._width && ch == this._height) {
                     if (this._content2) {
                         this._content2.setXY(0, 0);
-                        this._content2.setScale(1, 1);
+                        if (this._useResize)
+                            this._content2.setSize(cw, ch);
+                        else
+                            this._content2.setScale(1, 1);
                     }
                     else {
                         this._content.size(cw, ch);
@@ -6932,12 +6939,10 @@
                 }
             }
             if (this._content2) {
-                if (this._fill == fgui.LoaderFillType.Resize) {
+                if (this._useResize)
                     this._content2.setSize(cw, ch);
-                }
-                else {
+                else
                     this._content2.setScale(sx, sy);
-                }
             }
             else {
                 this._content.size(cw, ch);
@@ -7037,6 +7042,8 @@
                 this._content.fillClockwise = buffer.readBool();
                 this._content.fillAmount = buffer.getFloat32();
             }
+            if (buffer.version >= 7)
+                this._useResize = buffer.readBool();
             if (this._url)
                 this.loadContent();
         }
@@ -9814,7 +9821,7 @@ const labelPadding = [2, 2, 2, 2];
                         if (this._owner == this._target.parent) {
                             //if (this._owner._underConstruct)
                             this._owner.width = pos + this._target._width - this._target._width * pivot +
-                                (this._owner.sourceWidth - pos - this._target.initWidth + this._target.initWidth * pivot) * delta;
+                                (this._owner.sourceWidth - this._targetInitX - this._target.initWidth + this._target.initWidth * pivot) * delta;
                             //else
                             //    this._owner.width = pos + (this._owner._rawWidth - pos) * delta;
                         }
@@ -9871,7 +9878,7 @@ const labelPadding = [2, 2, 2, 2];
                         if (this._owner == this._target.parent) {
                             // if (this._owner._underConstruct)
                             this._owner.height = pos + this._target._height - this._target._height * pivot +
-                                (this._owner.sourceHeight - pos - this._target.initHeight + this._target.initHeight * pivot) * delta;
+                                (this._owner.sourceHeight - this._targetInitY - this._target.initHeight + this._target.initHeight * pivot) * delta;
                             //else
                             //    this._owner.height = pos + (this._owner._rawHeight - pos) * delta;
                         }
@@ -11631,7 +11638,7 @@ const labelPadding = [2, 2, 2, 2];
                 this._autoPlayDelay = delay;
                 if (this._autoPlay) {
                     if (this._owner.onStage)
-                        this.play(null, null, this._autoPlayTimes, this._autoPlayDelay);
+                        this.play(null, this._autoPlayTimes, this._autoPlayDelay);
                 }
                 else {
                     if (!this._owner.onStage)
@@ -13159,19 +13166,19 @@ const labelPadding = [2, 2, 2, 2];
             var pos2 = url.indexOf("/", pos1 + 2);
             if (pos2 == -1) {
                 if (url.length > 13) {
-                    var pkgId = url.substr(5, 8);
+                    var pkgId = url.substring(5, 13);
                     var pkg = UIPackage.getById(pkgId);
                     if (pkg) {
-                        var srcId = url.substr(13);
+                        var srcId = url.substring(13);
                         return pkg.getItemById(srcId);
                     }
                 }
             }
             else {
-                var pkgName = url.substr(pos1 + 2, pos2 - pos1 - 2);
+                var pkgName = url.substring(pos1 + 2, pos2);
                 pkg = UIPackage.getByName(pkgName);
                 if (pkg) {
-                    var srcName = url.substr(pos2 + 1);
+                    var srcName = url.substring(pos2 + 1);
                     return pkg.getItemByName(srcName);
                 }
             }
@@ -13192,8 +13199,8 @@ const labelPadding = [2, 2, 2, 2];
             var pos2 = url.indexOf("/", pos1 + 2);
             if (pos2 == -1)
                 return url;
-            var pkgName = url.substr(pos1 + 2, pos2 - pos1 - 2);
-            var srcName = url.substr(pos2 + 1);
+            var pkgName = url.substring(pos1 + 2, pos2);
+            var srcName = url.substring(pos2 + 1);
             return UIPackage.getItemURL(pkgName, srcName);
         }
         static setStringsSource(source) {
@@ -13246,7 +13253,7 @@ const labelPadding = [2, 2, 2, 2];
             var pi;
             var path = this._resKey;
             let pos = path.lastIndexOf('/');
-            let shortPath = pos == -1 ? "" : path.substr(0, pos + 1);
+            let shortPath = pos == -1 ? "" : path.substring(0, pos + 1);
             path = path + "_";
             cnt = buffer.getUint16();
             for (i = 0; i < cnt; i++) {
@@ -16910,9 +16917,9 @@ const labelPadding = [2, 2, 2, 2];
             if (str.length < 1)
                 return 0;
             if (str.charAt(0) == "#")
-                str = str.substr(1);
+                str = str.substring(1);
             if (str.length == 8)
-                return (parseInt(str.substr(0, 2), 16) << 24) + parseInt(str.substr(2), 16);
+                return (parseInt(str.substring(0, 2), 16) << 24) + parseInt(str.substring(2), 16);
             else if (hasAlpha)
                 return 0xFF000000 + parseInt(str, 16);
             else

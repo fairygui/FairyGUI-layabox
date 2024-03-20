@@ -2,3 +2,6 @@ temp
 library
 local
 release
+bin
+.objs
+.DS_Store

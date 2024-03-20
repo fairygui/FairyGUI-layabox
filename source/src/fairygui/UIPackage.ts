@@ -215,19 +215,19 @@ namespace fgui {
             var pos2: number = url.indexOf("/", pos1 + 2);
             if (pos2 == -1) {
                 if (url.length > 13) {
-                    var pkgId: string = url.substr(5, 8);
+                    var pkgId: string = url.substring(5, 13);
                     var pkg: UIPackage = UIPackage.getById(pkgId);
                     if (pkg) {
-                        var srcId: string = url.substr(13);
+                        var srcId: string = url.substring(13);
                         return pkg.getItemById(srcId);
                     }
                 }
             }
             else {
-                var pkgName: string = url.substr(pos1 + 2, pos2 - pos1 - 2);
+                var pkgName: string = url.substring(pos1 + 2, pos2);
                 pkg = UIPackage.getByName(pkgName);
                 if (pkg) {
-                    var srcName: string = url.substr(pos2 + 1);
+                    var srcName: string = url.substring(pos2 + 1);
                     return pkg.getItemByName(srcName);
                 }
             }
@@ -255,8 +255,8 @@ namespace fgui {
             if (pos2 == -1)
                 return url;
 
-            var pkgName: string = url.substr(pos1 + 2, pos2 - pos1 - 2);
-            var srcName: string = url.substr(pos2 + 1);
+            var pkgName: string = url.substring(pos1 + 2, pos2);
+            var srcName: string = url.substring(pos2 + 1);
             return UIPackage.getItemURL(pkgName, srcName);
         }
 
@@ -322,7 +322,7 @@ namespace fgui {
             var pi: PackageItem;
             var path: string = this._resKey;
             let pos = path.lastIndexOf('/');
-            let shortPath = pos == -1 ? "" : path.substr(0, pos + 1);
+            let shortPath = pos == -1 ? "" : path.substring(0, pos + 1);
             path = path + "_";
 
             cnt = buffer.getUint16();

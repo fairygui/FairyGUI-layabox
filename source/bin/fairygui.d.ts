@@ -143,12 +143,7 @@ declare namespace fgui {
         ScaleMatchHeight = 2,
         ScaleMatchWidth = 3,
         ScaleFree = 4,
-        ScaleNoBorder = 5,
-        /**
-         * 组件根据 GLoader 的大小自动调整尺寸的适配模式
-         * @note 2023/03/03 编辑器中还没有这种适配模式，暂时用 ScaleFree 代替
-         */
-        Resize = 4
+        ScaleNoBorder = 5
     }
     enum ListLayoutType {
         SingleColumn = 0,
@@ -1051,6 +1046,7 @@ declare namespace fgui {
         private _autoSize;
         private _fill;
         private _shrinkOnly;
+        private _useResize;
         private _showErrorSign;
         private _contentItem;
         private _content;
@@ -1073,6 +1069,8 @@ declare namespace fgui {
         set fill(value: number);
         get shrinkOnly(): boolean;
         set shrinkOnly(value: boolean);
+        get useResize(): boolean;
+        set useResize(value: boolean);
         get autoSize(): boolean;
         set autoSize(value: boolean);
         get playing(): boolean;

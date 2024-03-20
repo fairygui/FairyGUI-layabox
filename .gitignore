@@ -1,6 +1,3 @@
 node_modules
 .DS_Store
-.objs
-.laya
-.idea
-yarn.lock
+package-lock.json
