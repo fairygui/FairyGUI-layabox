@@ -66,10 +66,10 @@ namespace fgui {
                 return 0;
 
             if (str.charAt(0) == "#")
-                str = str.substr(1);
+                str = str.substring(1);
 
             if (str.length == 8)
-                return (parseInt(str.substr(0, 2), 16) << 24) + parseInt(str.substr(2), 16);
+                return (parseInt(str.substring(0, 2), 16) << 24) + parseInt(str.substring(2), 16);
             else if (hasAlpha)
                 return 0xFF000000 + parseInt(str, 16);
             else

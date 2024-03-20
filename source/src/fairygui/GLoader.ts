@@ -8,6 +8,7 @@ namespace fgui {
         private _autoSize: boolean;
         private _fill: number;
         private _shrinkOnly: boolean;
+        private _useResize: boolean;
         private _showErrorSign: boolean;
         private _contentItem: PackageItem;
         private _content: MovieClip;
@@ -107,6 +108,17 @@ namespace fgui {
         public set shrinkOnly(value: boolean) {
             if (this._shrinkOnly != value) {
                 this._shrinkOnly = value;
+                this.updateLayout();
+            }
+        }
+
+        public get useResize(): boolean {
+            return this._useResize;
+        }
+
+        public set useResize(value: boolean) {
+            if (this._useResize != value) {
+                this._useResize = value;
                 this.updateLayout();
             }
         }
@@ -349,7 +361,10 @@ namespace fgui {
                 if (cw == this._width && ch == this._height) {
                     if (this._content2) {
                         this._content2.setXY(0, 0);
-                        this._content2.setScale(1, 1);
+                        if (this._useResize)
+                            this._content2.setSize(cw, ch);
+                        else
+                            this._content2.setScale(1, 1);
                     }
                     else {
                         this._content.size(cw, ch);
@@ -395,11 +410,10 @@ namespace fgui {
             }
 
             if (this._content2) {
-                if (this._fill == LoaderFillType.Resize) {
+                if (this._useResize)
                     this._content2.setSize(cw, ch);
-                } else {
+                else
                     this._content2.setScale(sx, sy);
-                }
             } else {
                 this._content.size(cw, ch);
             }
@@ -514,6 +528,9 @@ namespace fgui {
                 this._content.fillClockwise = buffer.readBool();
                 this._content.fillAmount = buffer.getFloat32();
             }
+
+            if (buffer.version >= 7)
+                this._useResize = buffer.readBool();
 
             if (this._url)
                 this.loadContent();
