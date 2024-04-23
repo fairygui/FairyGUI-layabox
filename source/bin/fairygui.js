@@ -13236,6 +13236,14 @@ const labelPadding = [2, 2, 2, 2];
             for (i = 0; i < cnt; i++)
                 stringTable[i] = buffer.readUTFString();
             buffer.stringTable = stringTable;
+            if (buffer.seek(indexTablePos, 5)) {
+                cnt = buffer.readInt32();
+                for (let i = 0; i < cnt; i++) {
+                    let index = buffer.readUint16();
+                    let len = buffer.readInt32();
+                    stringTable[index] = buffer.getCustomString(len);
+                }
+            }
             buffer.seek(indexTablePos, 0);
             cnt = buffer.getInt16();
             for (i = 0; i < cnt; i++)
