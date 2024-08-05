@@ -244,6 +244,7 @@ namespace fgui {
             this.url = null;
 
             this._content = skeleton;
+            this._content.on(Laya.Event.STOPPED,this,this._playComplete);
             this._container.addChild(this._content);
             this._content.pos(anchor.x, anchor.y);
             ToolSet.setColorFilter(this._content, this._color);
@@ -251,6 +252,10 @@ namespace fgui {
             this.onChange();
 
             this.updateLayout();
+        }
+
+        private _playComplete(){
+            fgui.Events.dispatch(Laya.Event.STOPPED,this.displayObject);
         }
 
         private onChange(): void {
