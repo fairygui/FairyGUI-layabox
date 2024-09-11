@@ -102,6 +102,8 @@ namespace fgui {
             }
             if (buffer.readBool())
                 this.password = true;
+
+            this._displayObject.multiline = !this.singleLine;
         }
     }
 }
