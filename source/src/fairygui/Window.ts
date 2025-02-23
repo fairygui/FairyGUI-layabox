@@ -37,6 +37,7 @@ namespace fgui {
                     this.removeChild(this._contentPane);
                 this._contentPane = val;
                 if (this._contentPane) {
+                    this._contentPane.name = this._contentPane.name || 'contentPane';
                     this.addChild(this._contentPane);
                     this.setSize(this._contentPane.width, this._contentPane.height);
                     this._contentPane.addRelation(this, RelationType.Size);

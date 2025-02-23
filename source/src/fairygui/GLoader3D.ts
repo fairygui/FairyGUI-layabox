@@ -32,6 +32,7 @@ namespace fgui {
             super.createDisplayObject();
 
             this._container = new Laya.Sprite();
+            this._container.name = '<Container>';
             this._displayObject.addChild(this._container);
         }
 

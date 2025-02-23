@@ -32,6 +32,7 @@ namespace fgui {
             super.createDisplayObject();
 
             this._content = new MovieClip();
+            this._content.name = "<Image>";
             this._displayObject.addChild(this._content);
             this._displayObject.mouseEnabled = true;
         }
@@ -272,6 +273,7 @@ namespace fgui {
                     }
                     else {
                         this._content2 = obj.asCom;
+                        this._content2.name = obj.name || this._contentItem.name || "<Content>";
                         this._displayObject.addChild(this._content2.displayObject);
                         this.updateLayout();
                     }
@@ -323,6 +325,7 @@ namespace fgui {
             }
 
             if (this._errorSign) {
+                this._errorSign.name = this._errorSign.name || "<ErrorSign>";
                 this._errorSign.setSize(this.width, this.height);
                 this._displayObject.addChild(this._errorSign.displayObject);
             }

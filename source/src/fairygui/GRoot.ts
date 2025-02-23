@@ -26,6 +26,7 @@ namespace fgui {
             this.opaque = false;
             this._popupStack = [];
             this._justClosedPopups = [];
+            this.name = 'GRoot';
             this.displayObject.once(Laya.Event.ADDED, this, this.__addedToStage);
         }
 

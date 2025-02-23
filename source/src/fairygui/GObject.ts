@@ -78,6 +78,9 @@ namespace fgui {
 
         public set name(value: string) {
             this._name = value;
+            if (this.displayObject) {
+                this._displayObject.name = value;
+            }
         }
 
         public get x(): number {
@@ -991,7 +994,7 @@ namespace fgui {
             var f2: number;
 
             this._id = buffer.readS();
-            this._name = buffer.readS();
+            this.name = buffer.readS();
             f1 = buffer.getInt32();
             f2 = buffer.getInt32();
             this.setXY(f1, f2);

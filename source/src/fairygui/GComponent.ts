@@ -735,29 +735,28 @@ namespace fgui {
         }
 
         protected setupScroll(buffer: ByteBuffer): void {
-            if (this._displayObject == this._container) {
-                this._container = new Laya.Sprite();
-                this._displayObject.addChild(this._container);
-            }
+            this.createContainer();
             this._scrollPane = new ScrollPane(this);
             this._scrollPane.setup(buffer);
         }
 
         protected setupOverflow(overflow: number): void {
             if (overflow == OverflowType.Hidden) {
-                if (this._displayObject == this._container) {
-                    this._container = new Laya.Sprite();
-                    this._displayObject.addChild(this._container);
-                }
+                this.createContainer();
                 this.updateMask();
                 this._container.pos(this._margin.left, this._margin.top);
             }
             else if (this._margin.left != 0 || this._margin.top != 0) {
-                if (this._displayObject == this._container) {
-                    this._container = new Laya.Sprite();
-                    this._displayObject.addChild(this._container);
-                }
+                this.createContainer();
                 this._container.pos(this._margin.left, this._margin.top);
+            }
+        }
+
+        protected createContainer(): void {
+            if (this._displayObject == this._container) {
+                this._container = new Laya.Sprite();
+                this._container.name = '<Container>';
+                this._displayObject.addChild(this._container);
             }
         }
 

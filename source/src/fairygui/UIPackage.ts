@@ -565,7 +565,7 @@ namespace fgui {
 
         public internalCreateObject(item: PackageItem, userClass?: new () => GObject): GObject {
             var g: GObject = UIObjectFactory.newObject(item, userClass);
-
+            g.name = g.name || item.name;
             if (g == null)
                 return null;
 

@@ -50,6 +50,7 @@ namespace fgui {
             this._verticalAlign = "top";
 
             this._container = new Laya.Sprite();
+            this._container.name = '<Container>';
             this._displayObject.addChild(this._container);
         }
 

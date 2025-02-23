@@ -68,6 +68,7 @@ namespace fgui {
             this._owner = owner;
 
             this._maskContainer = new Laya.Sprite();
+            this._maskContainer.name = '<ScrollPane>';
             this._owner.displayObject.addChild(this._maskContainer);
 
             this._container = this._owner._container;
