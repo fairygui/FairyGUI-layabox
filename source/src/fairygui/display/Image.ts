@@ -21,14 +21,9 @@ namespace fgui {
             this._color = "#FFFFFF";
         }
 
-        set_width(value: number) {
-            super.set_width(value);
+        size(width: number, height: number): Laya.Sprite {
             this.markChanged(1);
-        }
-
-        set_height(value: number): void {
-            super.set_height(value);
-            this.markChanged(1);
+            return super.size(width, height);
         }
 
         public get texture(): Laya.Texture {
