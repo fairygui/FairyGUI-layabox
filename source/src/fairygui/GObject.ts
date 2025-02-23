@@ -784,8 +784,9 @@ namespace fgui {
             return this._displayObject.hasListener(Laya.Event.CLICK);
         }
 
-        public on(type: string, thisObject: any, listener: Function, args?: any[]): void {
+        public on(type: string, thisObject: any, listener: Function, args?: any[]) {
             this._displayObject.on(type, thisObject, listener, args);
+            return listener;
         }
 
         public off(type: string, thisObject: any, listener: Function): void {
