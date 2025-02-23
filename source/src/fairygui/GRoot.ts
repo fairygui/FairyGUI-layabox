@@ -26,7 +26,7 @@ namespace fgui {
             this.opaque = false;
             this._popupStack = [];
             this._justClosedPopups = [];
-            this.displayObject.once(Laya.Event.DISPLAY, this, this.__addedToStage);
+            this.displayObject.once(Laya.Event.ADDED, this, this.__addedToStage);
         }
 
         public showWindow(win: Window): void {
