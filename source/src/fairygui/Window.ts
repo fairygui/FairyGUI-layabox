@@ -286,7 +286,7 @@ namespace fgui {
         }
 
         private __dragStart(evt: Laya.Event): void {
-            GObject.cast(evt.currentTarget).stopDrag();
+            cast(evt.currentTarget).stopDrag();
 
             this.startDrag();
         }

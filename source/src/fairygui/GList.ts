@@ -631,7 +631,7 @@ namespace fgui {
             if (this._scrollPane && this._scrollPane.isDragged)
                 return;
 
-            var item: GObject = GObject.cast(evt.currentTarget);
+            var item: GObject = cast(evt.currentTarget);
             this.setSelectionOnEvent(item, evt);
 
             if (this._scrollPane && this.scrollItemToViewOnClick)

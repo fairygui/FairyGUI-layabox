@@ -1201,16 +1201,16 @@ namespace fgui {
             }
         }
         //-------------------------------------------------------------------
-
-        public static cast(sprite: Laya.Sprite): GObject {
-            return <GObject>(sprite["$owner"]);
-        }
     }
 
     export const BlendMode = {
         2: Laya.BlendMode.LIGHTER,
         //3: Laya.BlendMode.MULTIPLY,
         //4: Laya.BlendMode.SCREEN
+    }
+
+    export function cast<T extends GObject>(sprite: Laya.Sprite): T {
+        return <T>(sprite["$owner"]);
     }
 
     var _gInstanceCounter: number = 0;

@@ -315,7 +315,7 @@ namespace fgui {
         }
 
         private __cellMouseDown(evt: Laya.Event): void {
-            var node: GTreeNode = GObject.cast(evt.currentTarget)._treeNode;
+            var node: GTreeNode = cast(evt.currentTarget)._treeNode;
             this._expandedStatusInEvt = node.expanded;
         }
 

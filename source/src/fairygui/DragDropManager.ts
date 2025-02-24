@@ -60,7 +60,7 @@ namespace fgui {
             var sourceData: any = this._sourceData;
             this._sourceData = null;
 
-            var obj: GObject = GObject.cast(evt.target);
+            var obj: GObject = cast(evt.target);
             while (obj) {
                 if (obj.displayObject.hasListener(Events.DROP)) {
                     obj.requestFocus();
