@@ -42,6 +42,9 @@ namespace fgui {
         }
 
         public dispose(): void {
+
+            this.onDispose();
+
             var i: number;
             var cnt: number;
 
@@ -1213,6 +1216,9 @@ namespace fgui {
 
         protected onConstruct(): void {
             this.constructFromXML(null); //old version
+        }
+
+        protected onDispose(): void {
         }
 
         protected constructFromXML(xml: Object): void {
