@@ -503,9 +503,9 @@ namespace fgui {
             if (this._sound) {
                 var pi: PackageItem = UIPackage.getItemByURL(this._sound);
                 if (pi)
-                    GRoot.inst.playOneShotSound(pi.file);
+                    GRoot.inst.playOneShotSound(pi, this._soundVolumeScale);
                 else
-                    GRoot.inst.playOneShotSound(this._sound);
+                    GRoot.inst.playOneShotSound(this._sound, this._soundVolumeScale);
             }
 
             if (this._mode == ButtonMode.Check) {

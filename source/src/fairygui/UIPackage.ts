@@ -589,10 +589,7 @@ namespace fgui {
 
         public getItemAssetByName(resName: string): any {
             var pi: PackageItem = this._itemsByName[resName];
-            if (pi == null) {
-                throw "Resource not found -" + resName;
-            }
-
+            if (!pi) return null;
             return this.getItemAsset(pi);
         }
 
@@ -643,7 +640,7 @@ namespace fgui {
 
                 case PackageItemType.Component:
                     return item.rawData;
-
+                case PackageItemType.Sound:
                 case PackageItemType.Misc:
                     if (item.file)
                         return AssetProxy.inst.getItemRes(item);

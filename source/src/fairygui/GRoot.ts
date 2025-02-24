@@ -308,10 +308,19 @@ namespace fgui {
             Laya.SoundManager.soundVolume = value;
         }
 
-        public playOneShotSound(url: string, volumeScale?: number): void {
-            if (ToolSet.startsWith(url, "ui://"))
-                return;
-
+        public playOneShotSound(url: string, volumeScale?: number);
+        public playOneShotSound(url: PackageItem, volumeScale?: number);
+        public playOneShotSound(item: string | PackageItem, volumeScale?: number) {
+            let url: string;
+            if (typeof item === 'string') {
+                url = item;
+                if (ToolSet.startsWith(url, "ui://")) {
+                    item = UIPackage.getItemByURL(url);
+                }
+            }
+            if (item) {
+                url = (item as PackageItem).file;
+            }
             Laya.SoundManager.playSound(url);
         }
 

@@ -1003,7 +1003,7 @@ namespace fgui {
                         if (value.audioClip == null) {
                             var pi: PackageItem = UIPackage.getItemByURL(value.sound);
                             if (pi)
-                                value.audioClip = pi.file;
+                                value.audioClip = pi;
                             else
                                 value.audioClip = value.sound;
                         }
