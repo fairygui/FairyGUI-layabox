@@ -3,9 +3,14 @@ namespace fgui {
     constructor() {
     }
 
+    public static fontRemaps: Record<string, string> = {};
+    protected static _defaultFont: string = Laya.Config.defaultFont;
+
     //Default font name
-    public static get defaultFont() { return Laya.Config.defaultFont; }
-    public static set defaultFont(value: string) { Laya.Config.defaultFont = value; }
+    public static get defaultFont() { return this._defaultFont; }
+    public static set defaultFont(value: string) {
+      Laya.Config.defaultFont = this._defaultFont = this.fontRemaps[value] || value;
+    }
 
     //Resource using in Window.ShowModalWait for locking the window.
     public static windowModalWaiting: string;
