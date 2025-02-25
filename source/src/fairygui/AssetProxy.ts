@@ -15,8 +15,14 @@ namespace fgui {
             return this.loader.getRes(url, type);
         }
 
-        getItemRes(item: PackageItem) {
+        public getItemRes(item: PackageItem) {
             return this.getRes(item.file);
+        }
+
+        public clearItemRes(item: PackageItem): void {
+            if (item.file) {
+                Laya.loader.clearRes(item.file);
+            }
         }
 
         public load(url: string | Laya.ILoadURL | (string | Readonly<Laya.ILoadURL>)[], type?: string, onProgress?: Laya.ProgressCallback): Promise<any> {

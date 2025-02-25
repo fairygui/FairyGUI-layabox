@@ -37,6 +37,7 @@ namespace fgui {
         }
 
         public dispose(): void {
+            this.clearContent();
             super.dispose();
         }
 
@@ -232,17 +233,16 @@ namespace fgui {
             if (!templet)
                 return;
 
-            if (templet instanceof Laya.Templet)
+            if (Laya.Templet && templet instanceof Laya.Templet)
                 this.setSkeleton(templet.buildArmature(1), this._contentItem.skeletonAnchor);
-            else {
+            else if (Laya.SpineSkeleton && templet instanceof Laya.SpineTemplet) {
                 let obj = new Laya.SpineSkeleton();
-                obj.templet = templet;
+                obj.templet = templet as Laya.SpineTemplet;
                 this.setSkeleton(obj, this._contentItem.skeletonAnchor);
             }
         }
 
         public setSkeleton(skeleton: Laya.Skeleton | Laya.SpineSkeleton, anchor?: Laya.Point): void {
-            this.url = null;
 
             this._content = skeleton;
             this._container.addChild(this._content);
@@ -351,11 +351,14 @@ namespace fgui {
         }
 
         private clearContent(): void {
-            this._contentItem = null;
             if (this._content) {
                 this._container.removeChild(this._content);
                 this._content.destroy();
                 this._content = null;
+            }
+            if (this._contentItem && !this._contentItem.loading) {
+                AssetProxy.inst.clearItemRes(this._contentItem);
+                this._contentItem = null;
             }
         }
 
