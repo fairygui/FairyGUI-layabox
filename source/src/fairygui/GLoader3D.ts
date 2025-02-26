@@ -13,8 +13,8 @@ namespace fgui {
         private _skinName: string;
         private _color: string;
         private _contentItem: PackageItem;
-        private _container: Laya.Sprite;
-        private _content: Laya.Skeleton | Laya.SpineSkeleton;
+        protected _container: Laya.Sprite;
+        protected _content: Laya.Sprite;
         private _updatingLayout: boolean;
 
         public constructor() {
@@ -255,28 +255,29 @@ namespace fgui {
         }
 
         private onChange(): void {
-            if (!this._content)
+            if (!this._content || !((Laya.Skeleton && this._content instanceof Laya.Skeleton) || (Laya.SpineSkeleton && this._content instanceof Laya.SpineSkeleton)))
                 return;
 
+            const content = this._content as Laya.Skeleton | Laya.SpineSkeleton;
             if (this._animationName) {
                 if (this._playing)
-                    this._content.play(this._animationName, this._loop);
+                    content.play(this._animationName, this._loop);
                 else
-                    this._content.play(this._animationName, false, true, this._frame, this._frame);
+                    content.play(this._animationName, false, true, this._frame, this._frame);
             }
             else
-                this._content.stop();
+                content.stop();
 
             if (this._skinName)
-                this._content.showSkinByName(this._skinName);
+                content.showSkinByName(this._skinName);
             else
-                this._content.showSkinByIndex(0);
+                content.showSkinByIndex(0);
         }
 
         protected loadExternal(): void {
         }
 
-        private updateLayout(): void {
+        protected updateLayout(): void {
             let cw = this.sourceWidth;
             let ch = this.sourceHeight;
 
@@ -350,7 +351,7 @@ namespace fgui {
             this._container.pos(nx, ny);
         }
 
-        private clearContent(): void {
+        protected clearContent(): void {
             if (this._content) {
                 this._container.removeChild(this._content);
                 this._content.destroy();
