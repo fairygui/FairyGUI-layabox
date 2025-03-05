@@ -244,6 +244,8 @@ namespace fgui {
             this.url = null;
 
             this._content = skeleton;
+            this._content.on(Laya.Event.LABEL, this, this._playLabel);
+            this._content.on(Laya.Event.STOPPED, this, this._playComplete);
             this._container.addChild(this._content);
             this._content.pos(anchor.x, anchor.y);
             ToolSet.setColorFilter(this._content, this._color);
@@ -251,6 +253,15 @@ namespace fgui {
             this.onChange();
 
             this.updateLayout();
+        }
+
+        private _playComplete() {
+            fgui.Events.dispatch(Laya.Event.STOPPED, this.displayObject);
+        }
+
+        private _playLabel(evt_data: Laya.EventData) {
+            let event = fgui.Events.createEvent(Laya.Event.LABEL, this.displayObject);
+            this.displayObject.event(Laya.Event.LABEL, [evt_data, event]);
         }
 
         private onChange(): void {
