@@ -3429,13 +3429,13 @@
             if (str) {
                 this.dropdown = (fgui.UIPackage.createObjectFromURL(str));
                 if (!this.dropdown) {
-                    Laya.Log.print("下拉框必须为元件");
+                    console.warn("下拉框必须为元件");
                     return;
                 }
                 this.dropdown.name = "this._dropdownObject";
                 this._list = this.dropdown.getChild("list");
                 if (!this._list) {
-                    Laya.Log.print(this.resourceURL + ": 下拉框的弹出元件里必须包含名为list的列表");
+                    console.warn(this.resourceURL + ": 下拉框的弹出元件里必须包含名为list的列表");
                     return;
                 }
                 this._list.on(fgui.Events.CLICK_ITEM, this, this.__clickItem);
@@ -5437,7 +5437,7 @@
                 this._virtualListChanged = 2;
             else if (this._virtualListChanged == 0)
                 this._virtualListChanged = 1;
-            Laya.timer.callLater(this, this._refreshVirtualList);
+            Laya.timer.frameOnce(1, this, this._refreshVirtualList);
         }
         _refreshVirtualList() {
             if (!this._displayObject)
@@ -8148,7 +8148,7 @@ const labelPadding = [2, 2, 2, 2];
             if (this._defaultTooltipWin == null) {
                 var resourceURL = fgui.UIConfig.tooltipsWin;
                 if (!resourceURL) {
-                    Laya.Log.print("UIConfig.tooltipsWin not defined");
+                    console.warn("UIConfig.tooltipsWin not defined");
                     return;
                 }
                 this._defaultTooltipWin = fgui.UIPackage.createObjectFromURL(resourceURL);
@@ -8345,12 +8345,12 @@ const labelPadding = [2, 2, 2, 2];
             this._fixedGripSize = buffer.readBool();
             this._grip = this.getChild("grip");
             if (!this._grip) {
-                Laya.Log.print("需要定义grip");
+                console.warn("需要定义grip");
                 return;
             }
             this._bar = this.getChild("bar");
             if (!this._bar) {
-                Laya.Log.print("需要定义bar");
+                console.warn("需要定义bar");
                 return;
             }
             this._arrowButton1 = this.getChild("arrow1");
@@ -8700,6 +8700,13 @@ const labelPadding = [2, 2, 2, 2];
         }
         get restrict() {
             return this._displayObject.restrict;
+        }
+        get singleLine() {
+            return this._singleLine;
+        }
+        set singleLine(value) {
+            super.singleLine = value;
+            this._displayObject.multiline = !value;
         }
         requestFocus() {
             this._displayObject.focus = true;
@@ -14291,12 +14298,28 @@ const labelPadding = [2, 2, 2, 2];
             this.mouseEnabled = false;
             this._color = "#FFFFFF";
         }
+        /**
+         * @internal
+         * @param value
+         */
         set_width(value) {
+            //@ts-ignore 3.3 remove this
             super.set_width(value);
             this.markChanged(1);
         }
+        /**
+         * @internal
+         * @param value
+         */
         set_height(value) {
+            //@ts-ignore 3.3 remove this
             super.set_height(value);
+            this.markChanged(1);
+        }
+        //@ts-ignore 3.3 add this
+        _transChanged(kind) {
+            //@ts-ignore 3.3 add this
+            super._transChanged(kind);
             this.markChanged(1);
         }
         get texture() {
