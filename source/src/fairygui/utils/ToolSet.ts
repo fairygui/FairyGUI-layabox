@@ -138,7 +138,7 @@ namespace fgui {
             }
             else {
                 if (tp == "string") {
-                    var arr: any[] = Laya.ColorUtils.create(color).arrColor;
+                    var arr: any[] = Laya.ColorUtils.create(<any>color).arrColor;
                     if (arr[0] == 1 && arr[1] == 1 && arr[2] == 1)
                         color = null;
                     else {

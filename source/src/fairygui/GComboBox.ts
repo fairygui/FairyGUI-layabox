@@ -296,13 +296,13 @@ namespace fgui {
             if (str) {
                 this.dropdown = <GComponent>(UIPackage.createObjectFromURL(str));
                 if (!this.dropdown) {
-                    Laya.Log.print("下拉框必须为元件");
+                    console.warn("下拉框必须为元件");
                     return;
                 }
                 this.dropdown.name = "this._dropdownObject";
                 this._list = <GList>this.dropdown.getChild("list");
                 if (!this._list) {
-                    Laya.Log.print(this.resourceURL + ": 下拉框的弹出元件里必须包含名为list的列表");
+                    console.warn(this.resourceURL + ": 下拉框的弹出元件里必须包含名为list的列表");
                     return;
                 }
                 this._list.on(Events.CLICK_ITEM, this, this.__clickItem);

@@ -21,13 +21,30 @@ namespace fgui {
             this._color = "#FFFFFF";
         }
 
+        /**
+         * @internal
+         * @param value
+         */
         set_width(value: number) {
+            //@ts-ignore 3.3 remove this
             super.set_width(value);
             this.markChanged(1);
         }
 
+        /**
+         * @internal
+         * @param value
+         */
         set_height(value: number): void {
+            //@ts-ignore 3.3 remove this
             super.set_height(value);
+            this.markChanged(1);
+        }
+
+        //@ts-ignore 3.3 add this
+        protected _transChanged(kind: Laya.TransformKind) {
+            //@ts-ignore 3.3 add this
+            super._transChanged(kind);
             this.markChanged(1);
         }
 

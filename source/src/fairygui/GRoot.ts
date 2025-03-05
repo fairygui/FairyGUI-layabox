@@ -232,7 +232,7 @@ namespace fgui {
             if (this._defaultTooltipWin == null) {
                 var resourceURL: string = UIConfig.tooltipsWin;
                 if (!resourceURL) {
-                    Laya.Log.print("UIConfig.tooltipsWin not defined");
+                    console.warn("UIConfig.tooltipsWin not defined");
                     return;
                 }
 
