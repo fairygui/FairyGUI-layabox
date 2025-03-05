@@ -71,6 +71,15 @@ namespace fgui {
             return this._displayObject.restrict;
         }
 
+        public get singleLine(): boolean {
+            return this._singleLine;
+        }
+
+        public set singleLine(value: boolean) {
+            super.singleLine = value;
+            this._displayObject.multiline = !value;
+        }
+
         public requestFocus(): void {
             this._displayObject.focus = true;
 
