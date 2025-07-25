@@ -90,7 +90,7 @@ declare global {
             IsPrefab = 16,
             IsPrefabNewAdded = 32,
             IsTopPrefab = 64,
-            IsModel = 128,
+            IsPrefabReadonly = 128,
             HideByEditor = 1024,
             LockByEditor = 2048,
             PrefabMissing = 4096,
@@ -125,15 +125,86 @@ declare global {
             hideFlags: number;
             enabled: boolean;
         }
+        export namespace MyMessagePortStatic {
+            /**
+             * It is used inside the webview or iframe to create a communication channel with the host.
+             * @param queueTask Whether to queue the task. If true, the received messages will be queued and processed sequentially. Defaults to false.
+             * @returns The message port.
+             */
+            function requestFromHost(queueTask?: boolean): Promise<IMyMessagePort>;
+
+            /**
+             * Connect to a named service.
+             * @param serviceName Service name.
+             * @param subscribe Whether to receive broadcast messages from the service. Defaults to false.
+             * @param args Arguments to pass to the service.
+             * @returns The message port.
+             */
+            function connectService(serviceName: string, subscribe?: boolean, ...args: any[]): IMyMessagePort;
+        }
 
         export interface IMyMessagePort {
+            /**
+             * A delegate that is called when the port is closed.
+             */
+            readonly onClose: IDelegate<() => void>;
+
+            /**
+             * Whether to log an error to the console when a received message does not have a corresponding handler function.
+             */
+            logHandlerMissing: boolean;
+
+            /**
+             * Start the message port. 
+             * 
+             * This function only needs to be called when manually constructing a MyMessagePort object. In other cases, such as the object returned by connectService, it does not need to be called.
+             */
             start(): void;
+
+            /**
+             * Close the message port.
+             */
             close(): void;
 
-            handle(channel: string, func: (...args: any[]) => Promise<any> | any, target?: any, noAwait?: boolean): void;
+            /**
+             * Register a handler function for a channel.
+             * @param channel Channel name.
+             * @param func Handler function.
+             * @param thisArg The this object to bind the handler function to.
+             * @param noAwait If true, the handler function will not be awaited. Defaults to false.
+             */
+            handle(channel: string, func: (...args: any[]) => Promise<any> | any, thisArg?: any, noAwait?: boolean): void;
+
+            /**
+             * Send a message to the other side.
+             * @param channel Channel name.
+             * @param args Arguments.
+             */
             send(channel: string, ...args: any[]): void;
+
+            /**
+             * Send a message to the other side and transfer some Transferable objects.
+             * @param channel Channel name.
+             * @param transfer Transferable objects.
+             * @param args Arguments.
+             */
             transfer(channel: string, transfer: Transferable[], ...args: any[]): void;
+
+            /**
+             * Send a message to the other side and expect a response.
+             * @param channel Channel name.
+             * @param args Arguments.
+             * @returns The response.
+             */
             invoke(channel: string, ...args: any[]): Promise<any>;
+
+            /**
+             * Manually call a handler function.
+             * @param channel Channel name.
+             * @param args Arguments.
+             * @returns The response.
+             */
+            callHandler(channel: string, ...args: any[]): Promise<any>;
         }
         export interface IEditorClientSingleton {
             readonly port: IMyMessagePort;
@@ -146,7 +217,78 @@ declare global {
             postMessageToPanel(panelId: string, cmd: string, ...args: Array<any>): Promise<void>;
             runUIScript(command: string, ...args: any[]): Promise<any>;
         }
+        /**
+         * A delegate that can be used to manage multiple callbacks.
+         */
+        export interface IDelegate<T extends (...args: any[]) => any> {
+            /**
+             * By default, callbacks will be executed directly. Unless this property is set, the delegate will use this method to execute the callback.
+             * @param method The method to execute.
+             * @param thisArg The this argument of the method. 
+             * @param args The arguments of the method. 
+             */
+            executor: (method: Function, thisArg: any, ...args: any[]) => void;
 
+            /**
+             * Add a callback.
+             * @param callback The callback to add. 
+             * @param target The this argument of the callback. 
+             */
+            add(callback: T, target?: any): void;
+
+            /**
+             * Add a run-once callback.
+             * @param callback The callback to add.
+             * @param target The this argument of the callback. 
+             */
+            once(callback: T, target?: any): void;
+
+            /**
+             * Remove a callback.
+             * @param callback The callback to remove. 
+             * @param target The this argument of the callback. 
+             */
+            remove(callback: T, target?: any): void;
+
+            /**
+             * Clear all callbacks.
+             */
+            clear(): void;
+
+            /**
+             * Clear callbacks for a specific target.
+             * @param target The this argument of the callbacks to clear.
+             */
+            clearForTarget(target: any): void;
+
+            /**
+             * Clear callbacks that meet a specific condition.
+             * @param test The test function. Return true to clear the callback. 
+             */
+            clearFor(test: (target: any, callback: T) => boolean): void;
+
+            /**
+             * Count of the callbacks.
+             */
+            readonly count: number;
+
+            /**
+             * Execute the callbacks immediately.
+             * @param args Arguments of the callbacks.
+             */
+            invoke(...args: Parameters<T>): void;
+        }
+
+        /**
+         * The `MyMessagePort` class is used to create a message port object.
+         * 
+         * A message port is a communication channel that allows two different processes to communicate with each other.
+         * @param port The native message port.
+         * @param queueTask Whether to queue the task. If true, the received messages will be queued and processed sequentially. Defaults to false.
+         * @see IMyMessagePort
+         * @see MyMessagePortStatic
+         */
+        const MyMessagePort: (new (port: MessagePort, queueTask?: boolean) => IMyMessagePort) & typeof MyMessagePortStatic;
     }
 
     var EditorClient: IEditorClient.IEditorClientSingleton;

@@ -6,6 +6,9 @@ declare global {
      * All classes and functions in this namespace are running in the Scene process.
      */
     export namespace IEditorEnv {
+        export interface ITypedDataAnalyzer {
+            analyse(data: any, typeDef: FTypeDescriptor): Array<IAssetLinkInfo>;
+        }
         export interface ITextureToolOptions {
             /**
              * Abort token. If you want to abort the tool on some conditions, you can pass an abort token here. Call abortToken.signal() to abort the tool.
@@ -37,7 +40,7 @@ declare global {
             /**
              * A Laya.TextureFormat enum value. e.g. 0-R8G8B8, 1-R8G8B8A8, etc.
              */
-            format: number;
+            format: Laya.TextureFormat;
         }
 
         export interface ITexturePlatformSettings {
@@ -152,16 +155,6 @@ declare global {
             /**
              * 
              */
-            textureData?: number;
-
-            /**
-             * 
-             */
-            framesLayout?: boolean;
-
-            /**
-             * 
-             */
             mipmapCoverageIBL?: boolean;
 
             /**
@@ -270,7 +263,7 @@ declare global {
             pma: boolean;
 
             /**
-             * 
+             *
              */
             hdrEncodeFormat: number;
 
@@ -343,6 +336,10 @@ declare global {
 
         export interface ITexturePackerResult {
             /**
+             * Metadata of the atlas.
+             */
+            meta: any;
+            /**
              * All the frames in the atlas.
              */
             frames: Record<string, IAtlasFrame>;
@@ -390,7 +387,7 @@ declare global {
             /**
              * An array to receive the errors during deserialization.
              */
-            outErrors?: Array<string>;
+            outErrors?: Array<any>;
 
             /**
              * Validate the type of the deserialized object strictly. Default is false.
@@ -483,6 +480,28 @@ declare global {
              * All scenes.
              */
             readonly scenes: ReadonlyArray<IMyScene>;
+
+            /**
+             * Execute a function by name. The name is in the form of "className.staticMethodName".
+             * A className must be registered with ＠IEditorEnv.regClass.
+             * @param scene The this object.
+             * @param name objectName.methodName
+             * @param args The arguments.
+             * @returns The function found. Null if not found.
+             * @example
+             * ```
+             * ＠IEditorEnv.regClass
+             * class MyTest {
+             *    static sayHello() {
+             *       console.log("Hello");
+             *   }
+             * }
+             * 
+             * const func = EditorEnv.scene.runScript("MyTest.sayHello");
+             * func(); // Output: Hello
+             * ```
+             */
+            runSceneScript(scene: IMyScene, name: string, ...args: any[]): Promise<any>;
         }
         export interface ISceneHook {
             /**
@@ -490,34 +509,73 @@ declare global {
              * @param scene The scene where the node is created. 
              * @param node The new node instance. 
              */
-            onCreateNode?(scene: IGameScene, node: Laya.Node): void | Promise<void>;
+            onCreateNode?(scene: IMyScene, node: Laya.Node): void | Promise<void>;
 
             /**
              * Called when a new widget is about to be created.
              * @param scene The scene where the widget is created. 
              * @param widget The new widget instance. 
              */
-            onCreateWidget?(scene: IUIScene, widget: gui.Widget): void | Promise<void>;
+            onCreateWidget?(scene: IMyScene, widget: gui.Widget): void | Promise<void>;
 
             /**
              * Called when a new component is about to be created.
              * @param scene The scene where the component is created. 
              * @param comp The new component instance. 
              */
-            onCreateComponent?(scene: IGameScene, comp: Laya.Component): void | Promise<void>;
+            onCreateComponent?(scene: IMyScene, comp: Laya.Component): void | Promise<void>;
 
             /**
-             * Called when a new scene is about to be saved.
+             * Called when a scene is about to be saved.
              * @param scene The scene to be saved. 
              * @param data The data to be saved. 
              */
-            onSaveScene?(scene: IGameScene, data: any): void | Promise<void>;
+            onSaveScene?(scene: IMyScene, data: any): void | Promise<void>;
 
             /**
-             * Called when a new scene is loaded.
+             * Called when a scene is loaded.
              * @param scene The scene to be loaded. 
              */
-            onLoadScene?(scene: IGameScene): void | Promise<void>;
+            onLoadScene?(scene: IMyScene): void | Promise<void>;
+
+            /**
+             * Called when a scene is about to write runtime code.
+             * @param scene The scene. 
+             * @param info The information of the runtime code. 
+             */
+            onWriteRuntime?(scene: IMyScene, info: IWriteRuntimeInfo): void | Promise<void>;
+        }
+
+        export interface IWriteRuntimeInfo {
+            /**
+             * The generated code. You can replace it with your own code, or set it to null to skip the generation.
+             */
+            code: string;
+
+            /**
+             * The runtime script asset.
+             */
+            readonly scriptAsset: IAssetInfo;
+
+            /**
+             * The import statements.
+             */
+            readonly imports: string[];
+
+            /**
+             * The class name.
+             */
+            readonly className: string;
+
+            /**
+             * The super class name.
+             */
+            readonly superClassName: string;
+
+            /**
+             * The variable declaration statements.
+             */
+            readonly vars: string[];
         }
 
         export interface IResourceManager {
@@ -572,6 +630,45 @@ declare global {
              * Whether to get the i18n strings.
              */
             getI18nStrings?: boolean;
+
+            /**
+             * To clear the unused data of the prefab in release mode.
+             */
+            minify?: boolean;
+
+            /**
+             * A callback function that will be called when visiting an entity.
+             * @param data Entity data.
+             * @param typeDef The type definition of the entity.
+             * @param isOverrideEntry Whether the entity is an override entry.
+             */
+            entityVisitor?: (data: any, typeDef: FTypeDescriptor, isOverrideEntry: boolean) => void;
+
+            /**
+             * A callback function that will be called when visiting an error entity.
+             * @param data Entity data.
+             * @param error The error code. 
+             * @param isComponent Whether the entity is a component. 
+             * @param isOverrideEntry Whether the entity is an override entry. 
+             */
+            errorEntityVisitor?: (data: any, error: PrefabEntityErrorCode, isComponent: boolean, isOverrideEntry: boolean) => void;
+        }
+
+        export enum PrefabEntityErrorCode {
+            /**
+             * The type is missing.
+             */
+            TypeMissing = 0,
+
+            /**
+             * The entity points to a prefab, but the prefab is missing.
+             */
+            ResourceMissing = 1,
+
+            /**
+             * The entity is an override entry, but the target specified by the override is missing.
+             */
+            OverrideTargetMissing = 2
         }
 
         export interface IPrefabAnalyseResult<ProvidedOptions extends IPrefabAnalyseOptions> {
@@ -621,7 +718,7 @@ declare global {
              * 
              * If it is null, the rendering result is empty.
              */
-            readonly renderTarget: Laya.Sprite;
+            readonly renderTarget: Laya.Sprite | Laya.Scene3D | null;
 
             /**
              * The background color of the preview.
@@ -773,6 +870,32 @@ declare global {
              * Destroy the pool.
              */
             destroy(): void;
+        }
+        export interface INavigationManager {
+            readonly allGizmos: Array<IGizmosManager>;
+            readonly isMouseDown: boolean;
+            readonly scroller: gui.IScroller;
+            hideGizmos: boolean;
+            viewScale: number;
+            mode2d: boolean;
+
+            changeToolType(toolType: SceneNavToolType, notifyHost?: boolean, isTemp?: boolean): void;
+            focusNode(node: IMyNode): void;
+
+            drawGizmos(): void;
+        }
+        export type SceneNavToolType = "move" | "orbit" | "orbit_focus" | "zoom" | "obj_move" | "obj_rotate" | "obj_scale" | "obj_transform";
+
+        export interface ICreateNodeOptions {
+            /**
+             * When creating a node, a reasonable position will be set for the node if this option is true. Default is true.
+             */
+            setDefaultPos?: boolean;
+
+            /**
+             * When creating a node, name conflict will be resolved if this option is true. Default is true.
+             */
+            fixDupName?: boolean;
         }
 
         export interface IMyScene extends gui.EventDispatcher {
@@ -986,7 +1109,7 @@ declare global {
              * @param options Options for creating the node. 
              * @returns The new created node.
              */
-            instantiatePrefab(assetId: string, nodeProps: Record<string, any>, parentNode: IMyNode, options: ICreateNodeOptions): Promise<IMyNode>;
+            instantiatePrefab(assetId: string, nodeProps: Record<string, any>, parentNode: IMyNode, options?: ICreateNodeOptions): Promise<IMyNode>;
 
             /**
              * Unpack a prefab. That means all nodes in the prefab will be converted to normal nodes.
@@ -1070,6 +1193,8 @@ declare global {
             readonly type?: string;
             readonly selected?: boolean;
             readonly isTopPrefab?: boolean;
+            readonly isPrefabReadonly?: boolean;
+            readonly prefabId?: string;
             readonly scene?: IMyScene;
         }
 
@@ -1225,12 +1350,52 @@ declare global {
             readonly url: string;
 
             /**
+             * The instance of the express application.
+             */
+            readonly expressApp: express.Express;
+
+            /**
+             * The instance of the express application with web socket support.
+             */
+            readonly expressWsApp: expressWs.Application;
+
+            /**
              * Start a web server to serve the specified directory.
              * @param webRootPath The root path of the web server. It is a absolute path.
              * @param secure Whether to use secure connection. Default is false.
              * @returns The URL of the server, e.g. "http://192.168.1.1:19090".
              */
             serveAnywhere(webRootPath: string, secure?: boolean): Promise<string>;
+        }
+        export namespace ILineEditor {
+            /**
+             * Get the distance from a point to a line segment. 
+             * @param x The x coordinate of the point. 
+             * @param y The y coordinate of the point. 
+             * @param x1 The x coordinate of the line segment's starting point. 
+             * @param y1 The y coordinate of the line segment's starting point. 
+             * @param x2 The x coordinate of the line segment's ending point. 
+             * @param y2 The y coordinate of the line segment's ending point.
+             * @return The distance from the point to the line segment.
+             * - d: The distance from the point to the line segment.
+             * - x: The x coordinate of the projection point on the line segment.
+             * - y: The y coordinate of the projection point on the line segment.
+             */
+            function getDistance(x: number, y: number, x1: number, y1: number, x2: number, y2: number): { d: number, x: number, y: number };
+
+            /**
+             * Add a point to a line segment.
+             * @param points The coordinates of the points of the line segment, in the format of [x1, y1, x2, y2, x3, y3,...]. 
+             * @param x The x coordinate.
+             * @param y The y coordinate. 
+             * @param isLoop Whether to form a closed loop with the first point when the last point is detected. 
+             * @param tolerance The tolerance of the detection. Default is 5.
+             * @return Whether the point is added successfully. 
+             */
+            function addPoint(points: number[], x: number, y: number, isLoop?: boolean, tolerance?: number): boolean;
+        }
+        export namespace ILayaDCC {
+            function build(task: IBuildTask, resourcePath: string): Promise<void>;
         }
         export interface IIcoEncoder {
             /**
@@ -1263,6 +1428,11 @@ declare global {
              * Don't product the header like "_$ver: 1" to the output. Default is false.
              */
             noHeader?: boolean;
+
+            /**
+             * If true, additional actions will be performed according to the `forInstanceOnly` flag.
+             */
+            creatingPrefab?: boolean;
         }
 
         export namespace IHierarchyWriter {
@@ -1280,7 +1450,7 @@ declare global {
              * @param scene3D The 3D scene to serialize.
              * @returns The serialized object.
              */
-            function writeScene(scene2D: Laya.Scene, scene3D: Laya.Scene3D): any;
+            function writeScene(scene2D: Laya.Scene, scene3D: Laya.Scene3D, options?: IHierarchyWriterOptions): any;
 
             /**
              * Collect all resources referenced by the node.
@@ -1450,6 +1620,17 @@ declare global {
              * @param color Line color. 
              */
             function drawDottedLine(start: Laya.Vector3, end: Laya.Vector3, color?: Laya.Color): void;
+
+            /**
+             * Draw a arc line.
+             * @param start Start position. 
+             * @param end End position. 
+             * @param height Height. 
+             * @param startAllow  
+             * @param ednAllow 
+             * @param color Line color.
+             */
+            function drawArcLine(start: Laya.Vector3, end: Laya.Vector3, height: number, startAllow: boolean, ednAllow: boolean, color?: Laya.Color): void;
 
             /**
              * Draw a wire circle.
@@ -1639,8 +1820,9 @@ declare global {
              * @param center The center of the box.
              * @param size The size of the box.
              * @param color The line color. Default is white.
+             * @param rotation The rotation of the box. Default is null.
              */
-            function drawWireBox(center: Laya.Vector3, size: Laya.Vector3, color?: Laya.Color): void;
+            function drawWireBox(center: Laya.Vector3, size: Laya.Vector3, color?: Laya.Color, rotation?: Laya.Quaternion): void;
 
             /**
              * Draw wire sphere.
@@ -1649,6 +1831,18 @@ declare global {
              * @param color The line color. Default is white.
              */
             function drawWireSphere(center: Laya.Vector3, radius: number, color?: Laya.Color): void;
+
+            /**
+             * Draw a cylinder.
+             * @param center The center of the cylinder. 
+             * @param upRadius The radius of the top of the cylinder. 
+             * @param downRadius The radius of the bottom of the cylinder. 
+             * @param height The height of the cylinder. 
+             * @param color The line color. Default is white. 
+             * @param rotation The rotation of the cylinder. Default is null. 
+             * @param scale The scale of the cylinder. Default is null. 
+             */
+            function drawCylinder(center: Laya.Vector3, upRadius: number, downRadius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion, scale?: Laya.Vector3): void;
 
             /**
              * Draw a bound frustum.
@@ -1675,6 +1869,16 @@ declare global {
              */
             function drawMesh(mesh: Laya.Mesh, subMeshIndex: number, position?: Laya.Vector3, rotation?: Laya.Quaternion, scale?: Laya.Vector3, color?: Laya.Color): void;
 
+            /**
+             * Draw Mesh Line.
+             * @param mesh The Mesh object. 
+             * @param subMeshIndex The sub mesh index, -1 means draw all sub meshes. 
+             * @param position The position. 
+             * @param rotation The rotation. 
+             * @param scale The scale. 
+             * @param color The color. 
+             */
+            function drawMeshLine(mesh: Laya.Mesh, subMeshIndex: number, position?: Laya.Vector3, rotation?: Laya.Quaternion, scale?: Laya.Vector3, color?: Laya.Color): void;
         }
         export interface IGraphicsEditingInfo {
             node: IMyNode;
@@ -1694,7 +1898,7 @@ declare global {
             const allowObjectAction: boolean;
 
             /**
-             * Get a manager for drawing gizmos.
+             * Get a vector graphics manager for drawing gizmos. Only available in onDrawGizmosSelected callback.
              * @param node The node.
              * @returns The gizmos manager.
              */
@@ -1707,6 +1911,41 @@ declare global {
              * @param propPath Property path of the graphics. Can be null. 
              */
             function switchEditingGraphics(node: IMyNode, comp?: IMyComponent, propPath?: Array<string>): void;
+
+            /**
+             * Draw mesh.
+             * @param mesh The mesh to draw.
+             * @param mat The matrix to transform the mesh. 
+             * @param meshTexture The texture of the mesh. Default is a white texture.
+             * @param color The color of the mesh. Default is white. 
+             * @param material The material of the mesh. Default is a built-in material. 
+             */
+            function drawMesh(mesh: Laya.Mesh2D, mat: Laya.Matrix, meshTexture?: Laya.BaseTexture, color?: Laya.Color, material?: Laya.Material): void;
+
+            /**
+             *  Draw lines
+             * @param pintNums line points,4 number show one line
+             * @param mat The matrix to transform the lines
+             * @param color The color of the lines. Default is white. 
+             * @param lineWidth The pixel width of the lines. Default is 3. 
+             */
+            function drawLines(pintNums: number[], mat?: Laya.Matrix, color?: Laya.Color, lineWidth?: number): void;
+            /**
+             * Draw quad of texture
+             * @param texture texutre resource 
+             * @param scale the scale of the quad mesh.defalut 1 pixel;
+             * @param offsettilling uv transform value.xy is offset of texture(0-1),zw is scale of uv
+             * @param mat The matrix to transform the quad
+             * @param material The material to the quad
+             * @param color The color of the quad. Default is white.
+             */
+            function draw2DQuad(texture: Laya.BaseTexture, scale?: Laya.Vector2, offsettilling?: Laya.Vector4, mat?: Laya.Matrix, material?: Laya.Material, color?: Laya.Color): void;
+
+            /**
+             * Add a cache command.
+             * @param cmd The command to add. 
+             */
+            function addCacheCommand(cmd: Laya.Command2D): void;
         }
 
         export interface StrokeData {
@@ -2096,6 +2335,16 @@ declare global {
 
             getNodeById(id: string): Laya.Node;
         }
+        export interface IGUIPrefabWriterOptions {
+            getNodeRef?: (node: gui.Widget) => string | string[];
+            noHeader?: boolean;
+            creatingPrefab?: boolean;
+        }
+
+        export namespace IGUIPrefabWriter {
+            function write(node: gui.Widget, options?: IGUIPrefabWriterOptions): any;
+            function collectResources(node: gui.Widget, out?: Set<any>): Set<any>;
+        }
         export enum ReloadReason {
             Code = 1,
             ScriptBundles = 2,
@@ -2113,6 +2362,7 @@ declare global {
             loadOrder: number;
             minifyOnPublish: boolean;
             keepNames: boolean;
+            keepUnused: boolean;
         }
 
         export interface IExtensionManager {
@@ -2120,6 +2370,15 @@ declare global {
              * Whether a reload is in progress.
              */
             readonly loading: boolean;
+
+            /**
+             * Whether a reload of packages is in progress.
+             * 
+             * When a hot reload occurs, there are two modes:
+             * 1. Reload all packages (`loadingPackages=true`) and reload user scripts (`loadingPackages=false`).
+             * 2. Only reload user scripts (`loadingPackages=false`).
+             */
+            readonly loadingPackages: boolean;
 
             /**
              * Find a function by name. The name is in the form of "className.staticMethodName".
@@ -2504,9 +2763,14 @@ declare global {
             minify?: boolean;
 
             /**
-             * When minify is true, whether to keep the class names and function names during compression.
+             * When minify is true, whether to keep the class names and function names during compression. Default is false.
              */
             keepNamesOnMinify?: boolean;
+
+            /**
+             * When minify is true, whether to keep unreferenced functions and variables. Default is false.
+             */
+            keepUnusedOnMinify?: boolean;
         }
 
         export interface IExportAssetTool {
@@ -2542,6 +2806,121 @@ declare global {
              * @param abortToken The token that can be used to cancel the export process.
              */
             write(outputPath: string, outFiles?: Map<string, IOutFileInfo>, progressCallback?: (value: number) => void, abortToken?: IAbortToken): Promise<void>;
+        }
+
+        export interface IEngineLib {
+            /**
+             * The name of the engine library. It should be unique.
+             */
+            name: string;
+            /**
+             * The caption of the engine library.
+             */
+            caption: string;
+            /**
+             * The description of the engine library.
+             */
+            tips: string;
+            /**
+             * The catalog of the engine library.
+             */
+            catalog: string;
+            /**
+             * The files of the engine library, including the js files and the wasm files.
+             */
+            files: string[];
+            /**
+             * The worker files of the engine library, empty if there is no worker files.
+             */
+            workerFiles: string[];
+            /**
+             * The debugger files of the engine library, empty if there is no debugger files.
+             */
+            debuggerFiles: string[];
+            /**
+             * Whether this library should be loaded in the editor on startup.
+             */
+            runInEditor: boolean;
+            /**
+             * Whether this library should be shown in the modules section of the Project Settings. Default is true.
+             */
+            visible: boolean;
+            /**
+             * The key to store the selected addon in the data. Default is the name of the library.
+             */
+            settingsKey: string;
+            /**
+             * The default addon name of the engine library.
+             */
+            defaultAddon: string;
+            /**
+             * All the addons of the engine library. Null if no addons.
+             */
+            addons: Array<IEngineLibAddOn>;
+        }
+
+        export interface IEngineLibAddOn {
+            /**
+             * The name of the addon.
+             */
+            name: string;
+            /**
+             * The caption of the addon.
+             */
+            caption: string;
+            /**
+             * The description of the addon.
+             */
+            tips: string;
+            /**
+             * The files of the addon, including the js files and the wasm files.
+             */
+            files: string[];
+            /**
+             * The worker files of the addon, empty if there is no worker files.
+             */
+            workerFiles: string[];
+            /**
+             * The debugger files of the addon, empty if there is no debugger files.
+             */
+            debuggerFiles: string[];
+            /**
+             * Whether this addon will not include the files defines in it's owner. Default is false.
+             */
+            ignoreEntryFiles: boolean;
+        }
+
+        export interface IEngineLibsManager {
+            /**
+             * All the engine libraries.
+             */
+            readonly allLibs: ReadonlyMap<string, IEngineLib>;
+            /**
+             * All the engine library names.
+             */
+            readonly allLibNames: ReadonlyArray<string>;
+
+            /**
+             * Get all files.
+             * @param options
+             * - renderDevice: The render device. Default is "webgl".
+             * - debug: Whether to load the debug files. Default is false.
+             * - disableWebAssembly: Whether to disable the web assembly. Default is false.
+             * @returns The files. 
+             */
+            getFiles(options?: { renderDevice?: string, debug?: boolean, disableWebAssembly?: boolean }): { files: Array<string>, otherFiles: Array<string>, workerFiles: Array<string>, wasmFallbackLog: Array<string> };
+
+            /**
+             * Get the full path of the lib.
+             * @param libName The lib name.
+             */
+            getFullPathSync(libName: string): string;
+
+            /**
+             * Get the full path of the lib.
+             * @param libName The lib name.
+             */
+            getFullPath(libName: string): Promise<string>;
         }
         export interface IEditorEnvSingleton {
             /**
@@ -2692,6 +3071,11 @@ declare global {
             readonly extensionManager: IExtensionManager;
 
             /**
+             * The engine libs manager.
+             */
+            readonly engineLibsManager: IEngineLibsManager;
+
+            /**
              * Frame update event.
              */
             readonly onUpdate: IDelegate<() => void>;
@@ -2731,10 +3115,7 @@ declare global {
 
             /**
              * Get a settings object by name. Note that the settings are defined in the UI process, so the data read directly from settings may not be the latest. You can set autoSync=true to automatically synchronize when the data changes, or you can call the sync method to synchronize manually.
-             * 
-             * EditorEnv.playerSettings/EditorEnv.editorSettings/EditorEnv.sceneViewSettings are pre-cached settings objects and have autoSync=true set.
-             * 
-             * @param name The name of the settings.
+             * @param name The name of the settings. The default supported configuration information includes: PlayerSettings, EditorSettings, CompilerSettings, BuildSettings, SceneViewSettings, Preferences, DimensionsSettings.
              * @param autoSync Whether to automatically synchronize when the data changes.
              * @return The settings object.
              */
@@ -2897,6 +3278,8 @@ declare global {
              * @returns The new created asset.
              */
             function createMaterial(mat: Laya.Material, path: string, textureImporter?: Record<string, any>): Promise<IAssetInfo>;
+
+            function createMesh2D(mesh: Laya.Mesh2D, path: string): Promise<IAssetInfo>;
 
             /**
              * Create a mesh asset from the specified mesh object.
@@ -3330,6 +3713,11 @@ declare global {
             readonly platform: string;
 
             /**
+             * Whether the build target is a mini-game platform, e.g. WeChat Mini Game, Oppo Mini Game, etc.
+             */
+            readonly isMiniGame: boolean;
+
+            /**
              * Configurations of the build. It is a copy of the build settings. Feel free to modify it, as it won't affect the original settings.
              */
             readonly config: IBuildConfig;
@@ -3435,13 +3823,10 @@ declare global {
             findFileInBuildTemplate(filePath: string): string;
 
             /**
-             * Find a file in the engine folder. The search order is as follows:
-             * - The engine folder in the project.
-             * - The internal engine folder of the IDE.
-             * @param filePath A relative path.
-             * @returns The absolute path of the file.
+             * Load the index.html template file. This method is used to load the index.html template file for web platforms.
+             * @returns The content of the index.html template file.
              */
-            findFileInLib(filePath: string): string;
+            loadIndexHTMLTemplate(): Promise<string>;
 
             /**
              * Get a module location by its ID.
@@ -3498,17 +3883,17 @@ declare global {
             indexJS: string;
 
             /**
-             * All engine js and wasm files.
+             * All engine js files.
              */
             libs: Array<string>;
 
             /**
-             * All engine js files in esm format.
+             * If disableWebAssembly is `alternative`, this is the alternative engine js files if WebAssembly is supported.
              */
-            esmLibs: Array<string>;
+            alternativeLibs: Array<string>;
 
             /**
-             * All user js and wasm files.
+             * All user js files.
              */
             bundles: Array<string>;
 
@@ -3534,58 +3919,58 @@ declare global {
              * The modifications to these configurations are only effective for this task and will not affect the project.
              * @param task The build task.
              */
-            onSetup?(task: IBuildTask): Promise<void>;
+            onSetup?(task: IBuildTask): void | Promise<void>;
 
             /**
              * Build task start event. You can initialize the structure of the output folder, perform necessary checks, and module installations in this event.
              * @param task The build task.
              */
-            onStart?(task: IBuildTask): Promise<void>;
+            onStart?(task: IBuildTask): void | Promise<void>;
 
             /**
              * Collecting assets required for the build. The assets set is collected based on dependencies, rules of the resources directory, and all other valid rules. You can add more assets to the set.
              * @param task The build task.
              * @param assets The set of assets to be exported. 
              */
-            onCollectAssets?(task: IBuildTask, assets: Set<IAssetInfo>): Promise<void>;
+            onCollectAssets?(task: IBuildTask, assets: Set<IAssetInfo>): void | Promise<void>;
 
             /**
              * Assets are ready to be written to the output directory. The exportInfoMap contains information about all the resources to be written, including the output path, etc. You can modify outPath to customize the output path of the asset.
              * @param task The build task.
              * @param exportInfoMap The information of all the assets to be written. 
              */
-            onBeforeExportAssets?(task: IBuildTask, exportInfoMap: Map<IAssetInfo, IAssetExportInfo>): Promise<void>;
+            onBeforeExportAssets?(task: IBuildTask, exportInfoMap: Map<IAssetInfo, IAssetExportInfo>): void | Promise<void>;
 
             /**
              * Script generation completed. If developers need to modify the generated code files, e.g. minify, obsfucate, etc., they can handle it in this event.
              * @param task The build task.
              */
-            onExportScripts?(task: IBuildTask): Promise<void>;
+            onExportScripts?(task: IBuildTask): void | Promise<void>;
 
             /**
              * Assets writing completed. If developers need to add their own files, or perform operations such as file compression, they can handle it in this event.
              * @param task The build task.
              */
-            onAfterExportAssets?(task: IBuildTask): Promise<void>;
+            onAfterExportAssets?(task: IBuildTask): void | Promise<void>;
 
             /**
              * The build is complete. You can generate some manifest files, configuration files, etc. in this event.
              * Common examples include generating the index.html file for web platforms, manifest.json files for mini-game platforms, etc.
              * @param task The build task.
              */
-            onCreateManifest?(task: IBuildTask): Promise<void>;
+            onCreateManifest?(task: IBuildTask): void | Promise<void>;
 
             /**
              * If there is a native packaging process, handle it here. e.g. apk, ipa, etc.
              * @param task The build task.
              */
-            onCreatePackage?(task: IBuildTask): Promise<void>;
+            onCreatePackage?(task: IBuildTask): void | Promise<void>;
 
             /**
              * Event triggered when the build task is completed.
              * @param task The build task.
              */
-            onEnd?(task: IBuildTask): Promise<void>;
+            onEnd?(task: IBuildTask): void | Promise<void>;
         }
 
         export enum BuildTaskStatus {
@@ -3633,6 +4018,13 @@ declare global {
              * @param platform The platform. For example, "android", "ios", "web", etc.
              */
             getTargetInfo(platform: string): IBuildTargetInfo;
+
+            /**
+             * Get the default build plugin for the specified platform.
+             * @param targetName The name of the target platform, such as "web", "android", "ios", etc.
+             * @returns The default build plugin class for the specified platform.
+             */
+            getDefaultPlugin(targetName: string): new () => IBuildPlugin;
         }
         export interface IBuildConfig {
             /**
@@ -3708,6 +4100,21 @@ declare global {
             enableVersion: boolean;
 
             /**
+             * When enableVersion is true, ignore these files in the version management. They are asset ids in 'res://uuid' format.
+             */
+            ignoreFilesInVersion: Array<string>;
+
+            /**
+             * The length of the hash value of the file name when version management is enabled. Default is 5.
+             */
+            versionTagLength: number;
+
+            /**
+             * The algorithm used to generate the hash value of the file name when version management is enabled. Default is md5.
+             */
+            versionAlgorithm: 'md5' | 'sha256';
+
+            /**
              * Enable subpackages. If true, the assets will be divided into multiple packages.
              */
             enableSubpackages: boolean;
@@ -3716,6 +4123,11 @@ declare global {
              * Subpackages configuration.
              */
             subpackages: Array<ISubpackageInfo>;
+
+            /**
+             * Enable WebAssembly subpackage. If true, the WebAssembly libraries will be placed in a separate subpackage.
+             */
+            enableWasmSubpackage: boolean;
 
             /**
              * If true, The main package will be treated as a remote package, which means the main package also needs to be configured with a remote address and will be automatically loaded from the remote at startup.
@@ -3769,14 +4181,16 @@ declare global {
             /**
              * Additional engine js files can be added to the build.
              */
-            engineLibs: Array<string | { name: string, esm?: boolean }>;
+            engineLibs: Array<string>;
 
             /**
              * For some platforms whose do not support WebAssembly, you can disable WebAssembly here.
              * 
              * After disabling, all WebAssembly libraries will be replaced with pure JavaScript libraries.
+             * 
+             * If you set it to "alternative", the engine will still export WebAssembly libraries, but will set task.exports.libs to pure JavaScript libraries and set task.exports.alternativeLibs to WebAssembly libraries.
              */
-            disableWebAssembly: boolean;
+            disableWebAssembly: boolean | "alternative";
 
             /**
              * Chose the rendering device.
@@ -3814,17 +4228,20 @@ declare global {
             /**
              * Define an action that can be executed after the build. Currently supported actions are:
              * - Open a webpage. `serve` is the folder path relative to `destPath`, used as the root directory of the website, and can be an empty string; `open` is the file path relative to `serve`, used as the webpage to open, and can be an empty string. If you want to use https, you can set `secure` to true.
-             * - Open a QR code. `serve` is the folder path relative to `destPath`, used as the root directory of the website, and can be an empty string; `QRCode` is the file path relative to `destPath`, used as the webpage to open after scanning the QR code, and can be an empty string. If you want to use https, you can set `secure` to true.
-             * - Run a command. `open` is a command line string, or it can be a local file path that will be opened by the system's default program. Do not set other properties.
+             * - Show a QR code. `serve` is the folder path relative to `destPath`, used as the root directory of the website, and can be an empty string; `QRCode` is the file path relative to `destPath`, used as the webpage to open after scanning the QR code, and can be an empty string. If you want to use https, you can set `secure` to true.
+             * - Open an external url. 'open' is the url to open, and can be a local file path or a remote url. 
+             * - Run a command in terminal. `runInTerminal` is a command line string.
              * @example
              * ```
              * { serve: "", open: "" } // Open the root page of the website.
              * { serve: "abc", open: "test.html" } // Open the test.html page of the website, the root directory is abc.
              * { serve: "", QRCode: "abc.apk" } // Open the test.apk page of the website by scanning the QR code.
-             * { open: "abc.exe" } // Open the abc.exe
+             * { open: "https://example.com" } // Open an url.
+             * { open: "index.html" } // Open an local file in the release folder.
+             * { runInTerminal: "{projectPath}/abc.exe" } // Open the abc.exe in the project folder.
              * ```
              */
-            runHandler: { serve: string, open?: string, QRCode?: string, secure?: boolean },
+            runHandler: { serve?: string, open?: string, QRCode?: string, secure?: boolean, runInTerminal?: string };
         }
         export interface IAssetThumbnail {
             /**
@@ -3950,7 +4367,8 @@ declare global {
             displayName?: string;
             resolved?: string;
             dependencies: Record<string, string>;
-        };
+            contributes?: any;
+        }
 
         export interface IAssetManager {
             /**
@@ -3985,6 +4403,11 @@ declare global {
             readonly packages: Readonly<Record<string, Readonly<IPackageInfo>>>;
 
             /**
+             * All package names in the project. They are already sorted by dependencies.
+             */
+            readonly packageNames: ReadonlyArray<string>;
+
+            /**
              * Get all assets in the specified folder.
              * @param folderAsset The folder asset.
              * @param types The types of assets to get. If not specified, all types of assets will be returned.
@@ -4014,7 +4437,7 @@ declare global {
              * @param customFilter The custom filter to use. The filter should have been registered through the `IEditorEnv.assetMgr.customAssetFilters` method.
              * @returns The assets.
              */
-            getChildrenAssets(folderAsset: IAssetInfo, types: ReadonlyArray<AssetType>, matchSubType?: boolean, customFilter?: string): IAssetInfo[];
+            getChildrenAssets(folderAsset: IAssetInfo, types: ReadonlyArray<AssetType>, matchSubType?: boolean, customFilter?: string): Array<IAssetInfo>;
 
             /**
              * Find assets by keyword.
@@ -4022,10 +4445,19 @@ declare global {
              * @param types The types of assets to get. If not specified, all types of assets will be returned.
              * @param matchSubType Whether to return assets whose subtypes match the types parameter.
              * @param customFilter The custom filter to use. The filter should have been registered through the `IEditorEnv.assetMgr.customAssetFilters` method.
-             * @param limit The maximum number of assets to return. Default is no limit.
+             * @param limit The maximum number of assets to return. Default is 5000.
              * @returns The assets.
              */
-            findAssets(keyword: string, types?: ReadonlyArray<AssetType>, matchSubType?: boolean, customFilter?: string, limit?: number): IAssetInfo[];
+            findAssets(keyword: string, types?: ReadonlyArray<AssetType>, matchSubType?: boolean, customFilter?: string, limit?: number): Array<IAssetInfo>;
+
+            /**
+             * Find assets by keyword.
+             * @param keyword The keyword to search. 
+             * @param types The types of assets to get. If not specified, all types of assets will be returned. 
+             * @param options The options.
+             * @returns The assets. 
+             */
+            findAssets(keyword: string, types?: ReadonlyArray<AssetType | string>, options?: IFindAssetsOptions): Array<IAssetInfo>;
 
             /**
              * Filter a collection of assets.
@@ -4035,7 +4467,7 @@ declare global {
              * @param customFilter The custom filter to use. The filter should have been registered through the `IEditorEnv.assetMgr.customAssetFilters` method.
              * @returns The assets.
              */
-            filterAssets(assetIds: ReadonlyArray<string>, types?: ReadonlyArray<AssetType>, matchSubType?: boolean, customFilter?: string): IAssetInfo[];
+            filterAssets(assetIds: ReadonlyArray<string>, types?: ReadonlyArray<AssetType>, matchSubType?: boolean, customFilter?: string): Array<IAssetInfo>;
 
             /**
              * Get an asset by its id or path.
@@ -4087,13 +4519,6 @@ declare global {
              * @returns The shader assets.
              */
             getAllShaders(): Record<string, IAssetInfo>;
-
-            /**
-             * Set shader name of the asset. If multiple assets have the same shader name, the first one will be used.
-             * @param asset The asset.
-             * @param shaderName The name of the shader.
-             */
-            setAssetIsShader(asset: IAssetInfo, shaderName: string): void;
 
             /**
              * Get i18n settings asset by id.
@@ -4156,6 +4581,13 @@ declare global {
             toFullPath(path: string): string;
 
             /**
+             * Convert the path to the relative path.
+             * @param path The path, which is absolute.
+             * @returns The relative path to the assets folder, or if it is in internal folders, prefix with `~/`.
+             */
+            toRelativePath(path: string): string;
+
+            /**
              * Get absolute path of the scene file of a prefab.
              * @param asset The prefab asset.
              * @returns The absolute path of the scene file.
@@ -4181,6 +4613,36 @@ declare global {
              * @param asset The model asset.
              */
             unpackModel(asset: IAssetInfo): Promise<void>;
+
+            /**
+             * Read metadata of the asset.
+             * @param asset The asset.
+             * @param ignoreCache Whether to ignore the cache.
+             * @returns The metadata.
+             */
+            readMeta(asset: IAssetInfo, ignoreCache?: boolean): any;
+
+            /**
+             * Read metadata of the asset asynchronously.
+             * @param asset The asset. 
+             * @param ignoreCache Whether to ignore the cache.
+             * @returns The metadata. 
+             */
+            readMetaAsync(asset: IAssetInfo, ignoreCache?: boolean): Promise<any>;
+
+            /**
+             * Write metadata of the asset.
+             * @param asset The asset.
+             * @param meta The metadata.
+             */
+            writeMeta(asset: IAssetInfo, meta: any): void;
+
+            /**
+             * Write metadata of the asset asynchronously.
+             * @param asset The asset. 
+             * @param meta The metadata.
+             */
+            writeMetaAsync(asset: IAssetInfo, meta: any): Promise<void>;
 
             /**
              * Whether the asset manager is busying with importing assets.
@@ -4216,7 +4678,17 @@ declare global {
              * How many tasks of this importer can be executed in parallel. Default is 100.
              */
             numParallelTasks?: number;
-        };
+
+            /**
+             * Reimport the asset when the name of the asset is changed. Default is false.
+             */
+            runAfterRenaming?: boolean;
+
+            /**
+             * Reimport the asset when the path of the asset is changed. Default is false.
+             */
+            runAfterMoving?: boolean;
+        }
 
         export interface IAssetImporter {
             /**
@@ -4309,6 +4781,13 @@ declare global {
             addTypesToRegistry(types: ReadonlyArray<FTypeDescriptor>): void;
 
             /**
+             * Set shader name of the asset. If multiple assets have the same shader name, the first one will be used.
+             * @param shaderName The name of the shader.
+             * @param typeDef The type definition of the shader.
+             */
+            setIsShader(shaderName: string, typeDef: FTypeDescriptor): void;
+
+            /**
              * Get the path relative to the assets folder by the asset ID.
              * @param assetId 
              * @returns The path relative to the assets folder.
@@ -4318,13 +4797,14 @@ declare global {
             /**
              * Find an asset by a relative path, starting from the folder where the current asset is located. Null if not found.
              * @param filePath A relative path.
+             * @param predicate An optional filter function.
              * @returns The asset info. 
              * @example
              * ```
              * let asset = this.findAsset("textures/texture.png");
              * ```
              */
-            findAsset(filePath: string): IAssetInfo;
+            findAsset(filePath: string, predicate?: (asset: IAssetInfo) => boolean): IAssetInfo;
 
             /**
              * Report the progress of the importer. The value should be between 0 and 100.
@@ -4545,7 +5025,7 @@ declare global {
              */
             serializable?: boolean;
             /**
-             * When the property does not participate in serialization, if its data may be affected by other serializable properties, fill in the name of other property here.
+             * When the property does not participate in serialization, if its data may be affected by another serializable property, fill in the name of other property here.
              * 
              * This is usually used to determine whether the prefab property is overridden.
              */
@@ -4669,9 +5149,14 @@ declare global {
             reverseBool?: boolean;
 
             /**
-             * Whether null values are allowed. Default is true.
+             * Whether null values are allowed. Default is true. Sometimes it is necessary to explicitly set it to true, e.g. to display a checkbox for a color/vec2/vec3/vec4 inspector to determine whether the property value is null.
              */
             nullable?: boolean;
+
+            /**
+             * For a property that can switch between null and non-null, when switching from a null value to a non-null value, the value here will be used.
+             */
+            nonNullDefault?: any;
 
             /**
              * Minimum value for numbers. Default is -Infinity.
@@ -4711,6 +5196,16 @@ declare global {
             fixedLength?: boolean;
 
             /**
+             * Applicable to array type properties. Minimum length of the array. Default is null.
+             */
+            minArrayLength?: number;
+
+            /**
+             * Applicable to array type properties. Maximum length of the array. Default is null.
+             */
+            maxArrayLength?: number;
+
+            /**
              * Applicable to array type properties. If not provided, it means all operations are allowed on the array; if provided, only the listed operations are allowed.
              * - append: Add an element to the end of the array.
              * - insert: Insert an element at a specified position.
@@ -4735,14 +5230,19 @@ declare global {
             showAlpha?: boolean;
 
             /**
-             * Applicable to color type properties. Unlike the default value, when the `default` is null, a non-null default value can be defined with defaultColor.
+             * @deprecated Use 'nonNullDefault' instead.
              */
             defaultColor?: any;
 
             /**
-             * Applicable to color type properties. Allows displaying a checkbox to determine whether the color is null.
+             * @deprecated Explicitly set 'nullable' to true to display a checkbox.
              */
             colorNullable?: boolean;
+
+            /**
+             * Applicable to color type properties. When storing hexadecimal color values, this property determines the position of each channel. If the color value does not include an alpha channel, the default value is 'rgb'; if it does, the default value is 'argb'.
+             */
+            colorFormat?: 'rgb' | 'argb' | 'abgr';
 
             /**
              * Applicable to object type properties. If true, hides the object's title, and the display indentation of the object's properties will be reduced by one level.
@@ -4794,9 +5294,14 @@ declare global {
             useAssetPath?: boolean;
 
             /**
-             * Applicable to asset type properties. Indicates whether internal assets can be selected.
+             * Applicable to asset type properties. Indicates whether internal assets can be selected. Default is true.
              */
             allowInternalAssets?: boolean;
+
+            /**
+             * Applicable to asset type properties. Indicates whether GUI assets can be selected. Default is false.
+             */
+            allowInternalGUIAssets?: boolean;
 
             /**
              * Applicable to asset type properties. Allows setting a custom filter. The filter needs to be registered through EditorEnv.assetMgr.customAssetFilters.
@@ -4822,6 +5327,11 @@ declare global {
              * ```
              */
             toTemplate?: string;
+
+            /**
+             * Applicable to properties of type Node or Component. It sets a filter for the node/component types that can be selected. If not provided, all node types can be selected.
+             */
+            nodeTypeFilter?: Array<string>;
 
             /**
              * Indicates whether the property is writable. The default is true. If set to false, the property is read-only.
@@ -4863,6 +5373,11 @@ declare global {
              * If true, the root node of the prefab instance will always write this property during serialization, regardless of whether it is overridden. This also means that this property will not appear in the override list. Default is false.
              */
             forceWriteInPrefabRoot?: boolean;
+
+            /**
+             * Indicates that this property is not written to the prefab file when it is the root node of the prefab template. Default is false.
+             */
+            forInstanceOnly?: boolean;
 
             /**
              * Indicates whether the property can be edited in multi-selection mode. Default is true.
@@ -4923,8 +5438,22 @@ declare global {
              * If the type is a component and the inHierarchyMenu option is set to true, the type will be displayed in the context menu of the hierarchy panel.
              * 
              * Use a comma and a number to specify the position of the menu item. For example, "2D,0" means the first item in the "2D" menu.
+             * 
+             * It can also be an i18n key, such as "i18n:MyKey", in this case, the menu id will be the value of the key, and the menu label will be the translation of the key.
+             * 
+             * @example
+             * ```
+             * menu: "2D"
+             * menu: "2D,0"
+             * menu: "i18n:MyKey"
+             * ```
              */
             menu?: string;
+
+            /**
+             * When this type is clicked in the menu to create a new node, the name of the new node.
+             */
+            newNodeName?: string;
 
             /**
              * Icon of the type.  Images are generally placed in the editorResources directory or its subdirectories, and then referenced using a path starting from editorResources, such as "editorResources/my-plugin/icon.png".
@@ -5039,9 +5568,42 @@ declare global {
             catalogBarStyle?: CatalogBarStyle;
 
             /**
+             * A translation strings collection for localization of the captions.
+             */
+            captionTranslation?: Record<string, any>;
+
+            /**
+             * A translation strings collection for localization of the tips.
+             */
+            tipsTranslation?: Record<string, any>;
+
+            /**
              * Additional options. The meaning of these options depends on the inspector used.
              */
             options?: Record<string, any>;
+        }
+
+        export interface IPropertyButtonsOptions {
+            /**
+             * Whether to display the caption of property buttons. Default is "hidden".
+             */
+            showCaption?: boolean | "normal" | "hidden" | "none";
+            /**
+             * Alignment of the button list. Default is "left".
+             */
+            align?: "left" | "center" | "right" | gui.AlignType;
+            /**
+             * Padding of the button list. The order is [top, right, bottom, left].
+             */
+            padding?: [number, number, number, number];
+            /**
+             * Additional space between buttons. Default is 0.
+             */
+            spacing?: number;
+            /**
+             * Button list.
+             */
+            buttons: Array<string | IPropertyButtonInfo>;
         }
 
         export interface IPropertyButtonInfo {
@@ -5138,7 +5700,9 @@ declare global {
             Texture2DArray,
 
             SVGImage,
-            I18nSettings
+            I18nSettings,
+
+            Dll,
         }
 
         /**
@@ -5181,6 +5745,14 @@ declare global {
              * The asset is top level asset of the project.
              */
             ProjectLayoutFolder = 0x4000,
+            /**
+             * The asset is hidden in all assets view.
+             */
+            InternalGUI = 0x8000,
+            /**
+             * The asset is a built-in asset.
+             */
+            BuiltIn = 0x10000,
         }
 
         /**
@@ -5306,6 +5878,33 @@ declare global {
              */
             (asset: IAssetInfo): boolean;
         }
+
+        export interface IFindAssetsOptions {
+            /**
+             * Whether to match the sub type. Some assets have a type and a sub type. Such as a json asset has a type of `Json` and a sub type of `Spine` if it is a description file of spine.
+             */
+            matchSubType?: boolean;
+
+            /**
+             * The custom filter. Developers can register custom filters by calling the `IEditorEnv.assetMgr.customAssetFilters` method in scene process.
+             */
+            customFilter?: string;
+
+            /**
+             * Whether to ignore the internal assets. The default value is true.
+             */
+            ignoreInternalAssets?: boolean;
+
+            /**
+             * Whether to ignore the internal GUI assets. The default value is true.
+             */
+            ignoreInternalGUIAssets?: boolean;
+
+            /**
+             * The maximum number of assets to return. The default value is 5000.
+             */
+            limit?: number;
+        }
         /**
          * Interface for the configuration file.
          */
@@ -5402,17 +6001,18 @@ declare global {
             /**
              * Create a MD5 hash.
              * @param data The data to create hash.
+             * @param algorithm The algorithm to use. Default is md5.
              * @returns The hash.
              */
-            createHash(data: string): string;
+            createHash(data: string, algorithm?: 'md5' | 'sha1' | 'sha256' | 'sha512'): string;
 
             /**
              * Create a MD5 hash for a file.
              * @param path file absolute path. 
-             * @param footer A string to append to the file content. 
+             * @param algorithm The algorithm to use. Default is md5.
              * @returns The hash.
              */
-            createFileHash(path: string, footer?: string): Promise<string>;
+            createFileHash(path: string, algorithm?: 'md5' | 'sha1' | 'sha256' | 'sha512'): Promise<string>;
 
             /**
              * Encrypt data with AES.
@@ -5802,7 +6402,7 @@ declare global {
              * Whether to throw an error If AbortToken is signaled. Default: false.
              */
             throwIfAborted?: boolean;
-        };
+        }
 
         /**
          * 
@@ -5905,6 +6505,13 @@ declare global {
              * @returns The machine identification code.
              */
             getMachineId(): Promise<string>;
+
+            /**
+             * Opens the terminal and runs a command.
+             * @param command The command to run. 
+             * @param workingDirectory The working directory. Default is the project root directory. 
+             */
+            runCommandInTerminal(command: string, workingDirectory?: string): Promise<void>;
         }
         export interface IFetchResponseTypeMap {
             "text": string;
@@ -6152,9 +6759,49 @@ declare global {
             push?(keys?: ReadonlyArray<string>): Promise<void>;
         }
 
+        export interface ISettingsService {
+            /**
+             * Create a built-in configuration file. This method is only available in the UI process. User should call this method directly.
+             * @param name The name of the settings.
+             * @param location The location of the configuration file. The default is "project".
+             * - application: Saved to the user data directory of the application. On Windows, it is generally C:\Users\{user}\AppData\Local\{appname}, and on Mac, it is generally ~/Library/Application Support/{appname}. This means that this configuration needs to be shared across different projects.
+             * - project: Saved to the `settings` directory of the project. This means that this configuration is specific to the current project.
+             * - local: Saved to the `local` directory of the project. This means that this configuration is specific to the current project but does not need to be tracked by the version control system.
+             * - memory: Maintained only in memory and not saved to a file.
+             * @param typeName The data type corresponding to the configuration.
+             */
+            enableSettings(name: string, location?: SettingsLocation, typeName?: string): void;
+
+            /**
+             * Create a built-in configuration file. This method is only available in the UI process. User should call this method directly.
+             * @param name The name of the configuration. It should be unique within the editor and use characters that conform to file name specifications.
+             * @param pathToAsset The path to the configuration file. It is a relative path to the assets directory.
+             * @param typeName The data type corresponding to the configuration.
+             */
+            enableSettings(name: string, pathToAsset: string, typeName?: string): void;
+            /**
+             * Query the settings by name.
+             * @param name The name of the settings.
+             * @returns The settings.
+             */
+            getSettings(name: string): ISettings;
+
+            /**
+             * Query the settings type name.
+             * @param name The name of the settings.
+             * @returns The type name of the settings.
+             */
+            getSettingsType(name: string): string;
+        }
         export const ShaderTypePrefix = "Shader.";
-        export type DefaultValueComparator = (value: any) => boolean;
-        export type TypeMenuItem = { type: FTypeDescriptor, assetId?: string, label: string, icon: string, order: number };
+        /**
+         * A callback function that is used to determine whether a value is equal to the default value.
+         * @param value The value to compare.
+         * @param overridedDefaultValue By default, the `default` property of the property descriptor is used as the default value. You can override it by passing in this parameter.
+         */
+        export type DefaultValueComparator = (value: any, overridedDefaultValue?: any) => boolean;
+        export type TypeMenuItem = { type: FTypeDescriptor, label: string, icon: string, order: number };
+        export type TypeMenuItems = Array<TypeMenuItem> & { menuLabel: string };
         export type PropertyTestFunctions = { hiddenTest: Function, readonlyTest: Function, validator: Function, requiredTest: Function };
 
         export interface ITypeRegistry {
@@ -6241,18 +6888,18 @@ declare global {
             /**
              * Get node menu items.
              * @param type The world type.
+             * @param inHierarchyMenu Whether to include the component types that are allowed to be added in the hierarchy menu. This is determined by the inHierarchyMenu option of the type.
              * @returns Node menu items. Key is the category name, value is the menu items. 
+             * @see FTypeDescriptor.inHierarchyMenu
              */
-            getNodeMenuItems(type: WorldType): Record<string, Array<TypeMenuItem>>;
+            getNodeMenuItems(type: WorldType, inHierarchyMenu?: boolean): Readonly<Record<string, TypeMenuItems>>;
 
             /**
              * Get component menu items.
              * @param type The world type. 
-             * @param inHierarchyMenu Whether to include the component types that are not allowed to be added to a node in the hierarchy menu. This is determined by the inHierarchyMenu option of the type.
              * @returns Component menu items. Key is the category name, value is the menu items.
-             * @see FTypeDescriptor.inHierarchyMenu
              */
-            getComponentMenuItems(type: WorldType, inHierarchyMenu?: boolean): Record<string, Array<TypeMenuItem>>;
+            getComponentMenuItems(type: WorldType): Readonly<Record<string, TypeMenuItems>>;
 
             /**
              * Find a type defined in the typescript code by its path.
@@ -6273,7 +6920,7 @@ declare global {
              * @param baseType The base type name.
              * @returns Whether the type is derived from the base type. 
              */
-            isDerivedOf(type: string, baseType: string): boolean;
+            isDerivedOf(type: string, baseType: string | ReadonlyArray<string>): boolean;
 
             /**
              * Whether a type is a node type. In other words, this type is derived from Node.
@@ -6300,9 +6947,10 @@ declare global {
              * Get caption of a type.
              * @param type The type name or the type descriptor. 
              * @param noSplit Whether to tokenize the results. The default is false, meaning the results will be tokenized.
+             * @param noLocalize Whether to localize the results. The default is null, meaning the results will be processed according to the localization settings.
              * @returns The caption of the type.
              */
-            getTypeCaption(type: string | FTypeDescriptor, noSplit?: boolean): string;
+            getTypeCaption(type: string | FTypeDescriptor, noSplit?: boolean, noLocalize?: boolean): string;
 
             /**
              * Get icon of a type.
@@ -6312,12 +6960,26 @@ declare global {
             getTypeIcon(type: string | FTypeDescriptor): string;
 
             /**
+             * @en Get property of a type, if the property is not found, look for it in the base types.
+             * @param type The type descriptor.
+             * @param propName The property name.
+             * @returns The property value.
+             * @zh 获取类型的属性，如果属性未找到，则在基类中查找。
+             * @param type 类型描述符。
+             * @param propName 属性名称。
+             * @returns 属性值。
+             */
+            findTypePropertyInChain(typeDef: FTypeDescriptor, propName: string): string;
+
+            /**
              * Get caption of a property.
              * @param type The type descriptor. 
              * @param prop The property descriptor.
+             * @param noSplit Whether to tokenize the results. The default is false, meaning the results will be tokenized.
+             * @param noLocalize Whether to localize the results. The default is null, meaning the results will be processed according to the localization settings.
              * @returns The caption of the property. 
              */
-            getPropCaption(type: FTypeDescriptor, prop: FPropertyDescriptor): string;
+            getPropCaption(type: FTypeDescriptor, prop: FPropertyDescriptor, noSplit?: boolean, noLocalize?: boolean): string;
 
             /**
              * Get tips of a property.
@@ -6327,6 +6989,21 @@ declare global {
              * @returns The tips of the property.
              */
             getPropTips(type: FTypeDescriptor, prop: FPropertyDescriptor, showPropertyName?: boolean): string;
+
+            /**
+             * Get the caption of the catalog.
+             * @param type The type descriptor. 
+             * @param prop The property descriptor.
+             * @returns The caption of the catalog. 
+             */
+            getCatalogCaption(type: FTypeDescriptor, prop: FPropertyDescriptor): string;
+
+            /**
+             * Get the default node name when creating a new node of this type.
+             * @param type The type descriptor.
+             * @returns The default node name.
+             */
+            getNewNodeName(type: FTypeDescriptor): string;
 
             /**
              * Get all properties of a type in a map. Key is the property name.
@@ -6348,17 +7025,20 @@ declare global {
              * Get an object that contains the default values of the type.
              * @param typeDef The type descriptor. 
              * @param includePrivate Whether to include private properties. The default is false.
+             * @param data The object data.
              * @returns The default values of the type. 
              */
-            getDefaultValue(typeDef: FTypeDescriptor, includePrivate?: boolean): any;
+            getDefaultValue(typeDef: FTypeDescriptor, includePrivate?: boolean, data?: any): any;
 
             /**
              * Get the default value of a property.
              * @param prop The property descriptor.
              * @param realType If the type is a polymorphic reference type, use this parameter to specify the actual type.
+             * @param includePrivate Whether to include private properties. The default is false.
+             * @param data The property data.
              * @returns The default value of the property. 
              */
-            getPropDefaultValue(prop: FPropertyDescriptor, realType?: string): any;
+            getPropDefaultValue(prop: FPropertyDescriptor, realType?: string, includePrivate?: boolean, data?: any): any;
 
             /**
              * Get the test functions of a property.
@@ -6396,6 +7076,13 @@ declare global {
              * @returns The type descriptor of the class. 
              */
             getTypeOfClass(cls: Function): FTypeDescriptor;
+
+            /**
+             * Sort properties. The order is determined by the position property and the catalog property of the property descriptor.
+             * @param props The properties to sort. 
+             * @param considerCatalog Whether to consider the catalog property. The default is false.
+             */
+            sortProps(props: Array<FPropertyDescriptor>, considerCatalog?: boolean): void;
         }
         export interface IUtils {
             /**
@@ -6850,6 +7537,19 @@ declare global {
              * ```
              */
             makeExecuteOnceFunction<T>(fn: () => Promise<T>, errorHandler?: (err: any) => T): () => Promise<T>;
+
+            /**
+             * Whether the new UI system is being used.
+             * @returns Whether the new UI system is being used.
+             */
+            isUsingNewUI(): boolean;
+
+            /**
+             * Filter top-level items from a list of items.
+             * @param items The list of items to filter.
+             * @returns The filtered list of top-level items. 
+             */
+            filterTopLevels<T extends { parent: any }>(items: ReadonlyArray<T>): ReadonlyArray<T>;
         }
         export interface IUUIDUtils {
             /**
@@ -7054,6 +7754,11 @@ declare global {
             caption?: string;
 
             /**
+             * The icon path of the build target. 
+             */
+            icon?: string;
+
+            /**
              * The settings panel id of the build target. The panel will be integrated into the build settings panel.
              * Be aware that the panel usage should be "build-settings".
              * @example
@@ -7087,6 +7792,18 @@ declare global {
              * The dependent modules that are required by the build target. Modules are external packages that managed by the editor.
              */
             requireModules?: Array<string>;
+
+            /**
+             * Whether the build target is a mini-game platform, e.g. WeChat Mini Game, Oppo Mini Game, etc.
+             */
+            isMiniGame?: boolean;
+
+            /**
+             * Sets the position of the build target in the build settings panel. 
+             * 
+             * Supported syntax: "first" / "last" / "before id" / "after id". e.g. "before web" or "after android".
+             */
+            position?: string;
         }
 
         /**
@@ -7186,6 +7903,7 @@ declare global {
              */
             renderTemplateFileAsync(filePath: string, templateArgs?: Record<string, any>, options?: RenderTemplateOptions): Promise<void>;
         }
+
         export interface IClipboard {
             // Docs: https://electronjs.org/docs/api/clipboard
 
@@ -7222,7 +7940,7 @@ declare global {
              *
              * @platform darwin,win32
              */
-            readBookmark(): ReadBookmark;
+            readBookmark(): any;
             /**
              * Reads `format` type from the clipboard.
              *
@@ -7247,7 +7965,7 @@ declare global {
             /**
              * The image content in the clipboard.
              */
-            readImage(type?: 'selection' | 'clipboard'): NativeImage;
+            readImage(type?: 'selection' | 'clipboard'): any;
             /**
              * The content in the clipboard as RTF.
              */
@@ -7259,7 +7977,7 @@ declare global {
             /**
              * Writes `data` to the clipboard.
              */
-            write(data: Data, type?: 'selection' | 'clipboard'): void;
+            write(data: any, type?: 'selection' | 'clipboard'): void;
             /**
              * Writes the `title` (macOS only) and `url` into the clipboard as a bookmark.
              *
@@ -7292,7 +8010,7 @@ declare global {
             /**
              * Writes `image` to the clipboard.
              */
-            writeImage(image: NativeImage, type?: 'selection' | 'clipboard'): void;
+            writeImage(image: any, type?: 'selection' | 'clipboard'): void;
             /**
              * Writes the `text` into the clipboard in RTF.
              */
@@ -7331,6 +8049,307 @@ declare global {
              * @returns The plist format string. 
              */
             buildPlist(obj: Record<string, any>): string;
+        }
+        export interface MessageBoxOptions {
+            /**
+             * Content of the message box.
+             */
+            message: string;
+            /**
+             * Can be `"none"`, `"info"`, `"error"`, `"question"` or `"warning"`. On Windows,
+             * `"question"` displays the same icon as `"info"`, unless you set an icon using
+             * the `"icon"` option. On macOS, both `"warning"` and `"error"` display the same
+             * warning icon.
+             */
+            type?: string;
+            /**
+             * Array of texts for buttons. On Windows, an empty array will result in one button
+             * labeled "OK".
+             */
+            buttons?: string[];
+            /**
+             * Index of the button in the buttons array which will be selected by default when
+             * the message box opens.
+             */
+            defaultId?: number;
+            /**
+             * Pass an instance of AbortSignal to optionally close the message box, the message
+             * box will behave as if it was cancelled by the user. On macOS, `signal` does not
+             * work with message boxes that do not have a parent window, since those message
+             * boxes run synchronously due to platform limitations.
+             */
+            signal?: AbortSignal;
+            /**
+             * Title of the message box, some platforms will not show it.
+             */
+            title?: string;
+            /**
+             * Extra information of the message.
+             */
+            detail?: string;
+            /**
+             * If provided, the message box will include a checkbox with the given label.
+             */
+            checkboxLabel?: string;
+            /**
+             * Initial checked state of the checkbox. `false` by default.
+             */
+            checkboxChecked?: boolean;
+            /**
+             * Custom width of the text in the message box.
+             *
+             * @platform darwin
+             */
+            textWidth?: number;
+            /**
+             * The index of the button to be used to cancel the dialog, via the `Esc` key. By
+             * default this is assigned to the first button with "cancel" or "no" as the label.
+             * If no such labeled buttons exist and this option is not set, `0` will be used as
+             * the return value.
+             */
+            cancelId?: number;
+            /**
+             * On Windows Electron will try to figure out which one of the `buttons` are common
+             * buttons (like "Cancel" or "Yes"), and show the others as command links in the
+             * dialog. This can make the dialog appear in the style of modern Windows apps. If
+             * you don't like this behavior, you can set `noLink` to `true`.
+             */
+            noLink?: boolean;
+            /**
+             * Normalize the keyboard access keys across platforms. Default is `false`.
+             * Enabling this assumes `&` is used in the button labels for the placement of the
+             * keyboard shortcut access key and labels will be converted so they work correctly
+             * on each platform, `&` characters are removed on macOS, converted to `_` on
+             * Linux, and left untouched on Windows. For example, a button label of `Vie&w`
+             * will be converted to `Vie_w` on Linux and `View` on macOS and can be selected
+             * via `Alt-W` on Windows and Linux.
+             */
+            normalizeAccessKeys?: boolean;
+        }
+
+        export interface MessageBoxReturnValue {
+            /**
+             * The index of the clicked button.
+             */
+            response: number;
+            /**
+             * The checked state of the checkbox if `checkboxLabel` was set. Otherwise `false`.
+             */
+            checkboxChecked: boolean;
+        }
+
+        export interface FileFilter {
+
+            // Docs: https://electronjs.org/docs/api/structures/file-filter
+
+            extensions: string[];
+            name: string;
+        }
+
+        export interface OpenDialogOptions {
+            title?: string;
+            defaultPath?: string;
+            /**
+             * Custom label for the confirmation button, when left empty the default label will
+             * be used.
+             */
+            buttonLabel?: string;
+            filters?: FileFilter[];
+            /**
+             * Contains which features the dialog should use. The following values are
+             * supported:
+             */
+            properties?: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'showHiddenFiles' | 'createDirectory' | 'promptToCreate' | 'noResolveAliases' | 'treatPackageAsDirectory' | 'dontAddToRecent'>;
+            /**
+             * Message to display above input boxes.
+             *
+             * @platform darwin
+             */
+            message?: string;
+            /**
+             * Create security scoped bookmarks when packaged for the Mac App Store.
+             *
+             * @platform darwin,mas
+             */
+            securityScopedBookmarks?: boolean;
+        }
+
+        export interface OpenDialogReturnValue {
+            /**
+             * whether or not the dialog was canceled.
+             */
+            canceled: boolean;
+            /**
+             * An array of file paths chosen by the user. If the dialog is cancelled this will
+             * be an empty array.
+             */
+            filePaths: string[];
+            /**
+             * An array matching the `filePaths` array of base64 encoded strings which contains
+             * security scoped bookmark data. `securityScopedBookmarks` must be enabled for
+             * this to be populated. (For return values, see table here.)
+             *
+             * @platform darwin,mas
+             */
+            bookmarks?: string[];
+        }
+
+        export interface SaveDialogOptions {
+            /**
+             * The dialog title. Cannot be displayed on some _Linux_ desktop environments.
+             */
+            title?: string;
+            /**
+             * Absolute directory path, absolute file path, or file name to use by default.
+             */
+            defaultPath?: string;
+            /**
+             * Custom label for the confirmation button, when left empty the default label will
+             * be used.
+             */
+            buttonLabel?: string;
+            filters?: FileFilter[];
+            /**
+             * Message to display above text fields.
+             *
+             * @platform darwin
+             */
+            message?: string;
+            /**
+             * Custom label for the text displayed in front of the filename text field.
+             *
+             * @platform darwin
+             */
+            nameFieldLabel?: string;
+            /**
+             * Show the tags input box, defaults to `true`.
+             *
+             * @platform darwin
+             */
+            showsTagField?: boolean;
+            properties?: Array<'showHiddenFiles' | 'createDirectory' | 'treatPackageAsDirectory' | 'showOverwriteConfirmation' | 'dontAddToRecent'>;
+            /**
+             * Create a security scoped bookmark when packaged for the Mac App Store. If this
+             * option is enabled and the file doesn't already exist a blank file will be
+             * created at the chosen path.
+             *
+             * @platform darwin,mas
+             */
+            securityScopedBookmarks?: boolean;
+        }
+
+        export interface SaveDialogReturnValue {
+            /**
+             * whether or not the dialog was canceled.
+             */
+            canceled: boolean;
+            /**
+             * If the dialog is canceled, this will be `undefined`.
+             */
+            filePath?: string;
+            /**
+             * Base64 encoded string which contains the security scoped bookmark data for the
+             * saved file. `securityScopedBookmarks` must be enabled for this to be present.
+             * (For return values, see table here.)
+             *
+             * @platform darwin,mas
+             */
+            bookmark?: string;
+        }
+        export interface IServiceProvider {
+            /**
+             * Start the service.
+             */
+            start(): Promise<void>;
+
+            /**
+             * Stop the service.
+             */
+            stop(): void;
+
+            /**
+             * Whether the service is started.
+             */
+            get started(): boolean;
+
+            /**
+             * Get all clients.
+             */
+            get clients(): ReadonlyArray<IMyMessagePort>;
+
+            /**
+             * Register a handler for a channel.
+             * @param channel Channel name. 
+             * @param func Handler function. 
+             * @param thisArg This object of the handler function. 
+             * @param passClientParam Whether to pass the client object as the first parameter to the handler function.
+             */
+            handle(channel: string, func: Function, thisArg?: any, passClientParam?: boolean): void;
+
+            /**
+             * Broadcast a message to all clients those have `subscribe` flag setted to true.
+             * @param channel Channel name.
+             * @param args Message arguments. 
+             */
+            notifyAll(channel: string, ...args: any[]): void;
+        }
+        export interface ITypeParser {
+            getClassMeta(constructor: Function, forceCreate?: boolean): any;
+            parsePropType(ptype: any): Partial<FPropertyDescriptor>;
+        }
+        export namespace IReflectUtils {
+            /**
+             * Define metadata for a target.
+             * @param key Metadata key.
+             * @param value Metadata value.
+             * @param target Target object.
+             * @param propertyName Optional property name.
+             */
+            function defineMetadata(key: string, value: any, target: any, propertyName?: string): void;
+
+            /**
+             * Get metadata for a target.
+             * @param key Metadata key.
+             * @param target Target object.
+             * @param propertyName Optional property name.
+             * @returns Metadata value or undefined if not found.
+             */
+            function getMetadata(key: string, target: any, propertyName?: string): any;
+
+            /**
+             * Get own metadata for a target.
+             * @param key Metadata key.
+             * @param target Target object.
+             * @param propertyName Optional property name.
+             * @returns Metadata value or undefined if not found.
+             */
+            function getOwnMetadata(key: string, target: any, propertyName?: string): any;
+        }
+
+        /**
+         * Serialization interface for JSON binary data.
+         */
+        export interface IJsonBin {
+            /**
+             * Deserializes binary data into a JavaScript object.
+             * @param data The binary data to parse.
+             * @param createObjWithClass Optional function to create objects with a specific class.
+             */
+            parse(data: ArrayBufferLike, createObjWithClass?: Function): any;
+
+            /**
+             * Serializes a JavaScript object into binary data.
+             * @param o The object to serialize. 
+             * @param enableClass Optional flag to enable class serialization. 
+             */
+            write(o: any, enableClass?: boolean): ArrayBuffer;
+
+            /**
+             * Checks if the provided binary data is in JSON binary format.
+             * @param data The binary data to check.
+             * @returns True if the data is in JSON binary format, false otherwise. 
+             */
+            isJsonBin(data: ArrayBufferLike): boolean;
         }
         export class CustomEditor {
             /**
@@ -7385,7 +8404,8 @@ declare global {
              */
             onSceneGUI?(): void;
             /**
-             * In this callback, you can draw gizmos that are always drawn. Only available for 3D nodes.
+             * In this callback, you can draw gizmos that are always drawn. Available for both 2D and 3D nodes.
+             * If owner is a 2D node, no vector graphics manager is available in this callback.
              * @example
              * ```
              * // Draw a gizmo icon at the node's position.
@@ -7397,6 +8417,7 @@ declare global {
             onDrawGizmos?(): void;
             /**
              * In this callback, you can draw gizmos only when the object is selected. Available for both 2D and 3D nodes.
+             * IEditorEnv.Gizmos2D.getManager can be used to get a vector graphics manager for drawing gizmos.
              * @example
              * ```
              * //Demo for drawing a circle gizmo when a 2D sprite is selected.
@@ -7512,8 +8533,9 @@ declare global {
             createAsset(filePath: string, metaData?: any): IAssetInfo;
             setSubType(value: AssetType | string): void;
             addTypesToRegistry(types: FTypeDescriptor[]): void;
+            setIsShader(shaderName: string, typeDef: FTypeDescriptor): void;
             getAssetPathById(assetId: string): string;
-            findAsset(filePath: string): IAssetInfo;
+            findAsset(filePath: string, predicate?: (asset: IAssetInfo) => boolean): IAssetInfo;
             get tempPath(): string;
             /**
              * @param progress 0-100的值
@@ -7574,6 +8596,8 @@ declare global {
             private _fractionDigits;
             private _step;
             private _suffix;
+            private _prevTabStop;
+            private _savedText;
             constructor();
             /**
              * Number of decimal places. Default is 3;
@@ -7668,6 +8692,7 @@ declare global {
             get text(): string;
             set text(value: string);
             onConstruct(): void;
+            private __keyDown;
             private __focusIn;
             private __focusOut;
             private __clickLang;
@@ -7678,7 +8703,7 @@ declare global {
             private _name;
             private _handlers;
             protected _listenPort: MessagePort;
-            protected _clients: Array<MyMessagePort>;
+            protected _clients: Array<IMyMessagePort>;
             protected _subscribedClients: Array<MessagePort>;
             constructor(name: string);
             start(): Promise<void>;
@@ -7696,8 +8721,9 @@ declare global {
              * @param func Handler function.
              * @param thisArg This object of the handler function.
              * @param passClientParam Whether to pass the client object as the first parameter to the handler function.
+             * @param noAwait If true, the handler function will not be awaited. Defaults to false.
              */
-            handle(channel: string, func: Function, thisArg?: any, passClientParam?: boolean): void;
+            handle(channel: string, func: Function, thisArg?: any, passClientParam?: boolean, noAwait?: boolean): void;
             /**
              * Broadcast a message to all clients those have `subscribe` flag setted to true.
              * @param channel Channel name.
@@ -7774,7 +8800,12 @@ declare global {
         /**
          * The `utils` object provides various utility functions.
         */
-        const utils: ICryptoUtils & INativeTools & IUUIDUtils & IObjectUtils & IUtils & INetUtils & ITemplateUtils & IPlist & IScriptTool;
+        const utils: ICryptoUtils & INativeTools & IUUIDUtils & IObjectUtils & IUtils & INetUtils & ITemplateUtils & IPlist & IScriptTool & ITypeParser;
+
+        /**
+         * Some helper functions for line manipulation.
+         */
+        const LineEditor: typeof ILineEditor;
 
         /**
          * `CreateAssetUtil` is a helper class for creating assets.
@@ -7858,9 +8889,29 @@ declare global {
         const BuildTask: typeof BuildTaskStatic;
 
         /**
+         * Laya DCC machanism.
+         */
+        const LayaDCC: typeof ILayaDCC;
+
+        /**
          * The `PropsKey` symbol is used to define the key of the props.
          */
         const PropsKey: Symbol;
+
+        /**
+         * The `GUIPrefabWriter` class is used to write the GUI prefab to a file.
+         */
+        const GUIPrefabWriter: typeof IGUIPrefabWriter;
+
+        /**
+         * The `RelectUtils` class is used to manage metadata.
+         */
+        const ReflectUtils: typeof IReflectUtils;
+
+        /**
+         * The `JsonBin` object is used to serialize and deserialize objects into binary data.
+         */
+        const JsonBin: IJsonBin;
         /**
          * References a commonjs module. You can import built-in Node.js modules such as: path, fs, child_process, etc. 
          * The IDE also includes some third-party modules, including: electron, @svgdotjs, sharp, glob, qrcode, typescript, etc.
@@ -7896,6 +8947,20 @@ declare global {
          * ```
          */
         function onUnload(target: Object, propertyName: string): void;
+
+        /**
+         * Decorator function for registering a callback to be invoked when the user script loads.
+         * 
+         * The difference between `onUserScriptsLoad` and `onLoad` is that if the script is inside a package, `onUserScriptsLoad` will execute during every reload, but `onLoad` will not. This is because hot module replacement (HMR) triggered by user script modifications does not include the scripts from the package.
+         */
+        function onUserScriptsLoad(target: Object, propertyName: string): void;
+
+        /**
+         * Decorator function for registering a callback to be invoked when the Hot Module Replacement (HMR) ends.
+         * 
+         * The difference between `onUserScriptsUnload` and `onUnload` is that if the script is inside a package, `onUserScriptsUnload` will execute during every reload, but `onUnload` will not. This is because hot module replacement (HMR) triggered by user script modifications does not include the scripts from the package.
+         */
+        function onUserScriptsUnload(target: Object, propertyName: string): void;
 
         /**
          * Decorator function for registering a function that is called when the scene environment is about to be reloded.

@@ -11,7 +11,7 @@ namespace fgui {
         private _fillOrigin: number = 0;
         private _fillAmount: number = 0;
         private _fillClockwise?: boolean;
-        private _mask?: Laya.Sprite;
+        private _mask2?: Laya.Sprite;
         private _color: string;
 
         constructor() {
@@ -106,15 +106,17 @@ namespace fgui {
             if (this._fillMethod != value) {
                 this._fillMethod = value;
                 if (this._fillMethod != 0) {
-                    if (!this._mask) {
-                        this._mask = new Laya.Sprite();
-                        this._mask.mouseEnabled = false;
+                    if (!this._mask2) {
+                        this._mask2 = new Laya.Sprite();
+                        this._mask2.mouseEnabled = false;
+                        this.addChild(this._mask2);
                     }
-                    this.mask = this._mask;
+                    this.mask = this._mask2;
                     this.markChanged(2);
                 }
                 else if (this.mask) {
-                    this._mask.graphics.clear();
+                    this._mask2.graphics.clear();
+                    this._mask2.removeSelf();
                     this.mask = null;
                 }
             }
@@ -221,7 +223,7 @@ namespace fgui {
         private doFill(): void {
             var w: number = this.width;
             var h: number = this.height;
-            var g: Laya.Graphics = this._mask.graphics;
+            var g: Laya.Graphics = this._mask2.graphics;
             g.clear();
 
             if (w == 0 || h == 0)

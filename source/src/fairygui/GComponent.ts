@@ -431,7 +431,7 @@ namespace fgui {
             if (!child.displayObject)
                 return;
 
-            if (child.internalVisible && child.displayObject != this._displayObject.mask) {
+            if (child.internalVisible && (child.displayObject != this._displayObject.mask || this._displayObject._struct)) { //3.3开始mask需要visible，之前不需要
                 if (!child.displayObject.parent) {
                     var index: number = 0
                     if (this._childrenRenderOrder == ChildrenRenderOrder.Ascent) {

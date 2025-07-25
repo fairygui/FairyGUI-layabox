@@ -458,7 +458,7 @@ namespace fgui {
 
         public get internalVisible(): boolean {
             return this._internalVisible && (!this._group || this._group.internalVisible)
-                && !(<any>this._displayObject)._cacheStyle.maskParent;
+                && !((<any>this._displayObject)._cacheStyle?.maskParent); //3.3开始mask需要visible，之前不需要
         }
 
         public get internalVisible2(): boolean {
@@ -529,7 +529,7 @@ namespace fgui {
         }
 
         public set blendMode(value: string) {
-            this._displayObject.blendMode = value;
+            this._displayObject.blendMode = value as any;
         }
 
         public get filters(): any[] {
@@ -1204,7 +1204,7 @@ namespace fgui {
     }
 
     export const BlendMode = {
-        2: Laya.BlendMode.LIGHTER,
+        2: "lighter",
         //3: Laya.BlendMode.MULTIPLY,
         //4: Laya.BlendMode.SCREEN
     }

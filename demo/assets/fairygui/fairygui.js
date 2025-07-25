@@ -1072,8 +1072,9 @@
             }
         }
         get internalVisible() {
+            var _a;
             return this._internalVisible && (!this._group || this._group.internalVisible)
-                && !this._displayObject._cacheStyle.maskParent;
+                && !((_a = this._displayObject._cacheStyle) === null || _a === void 0 ? void 0 : _a.maskParent); //3.3开始mask需要visible，之前不需要
         }
         get internalVisible2() {
             return this._visible && (!this._group || this._group.internalVisible2);
@@ -1675,7 +1676,7 @@
     }
     fgui.GObject = GObject;
     fgui.BlendMode = {
-        2: Laya.BlendMode.LIGHTER,
+        2: "lighter",
         //3: Laya.BlendMode.MULTIPLY,
         //4: Laya.BlendMode.SCREEN
     };
@@ -2048,7 +2049,7 @@
             }
             if (!child.displayObject)
                 return;
-            if (child.internalVisible && child.displayObject != this._displayObject.mask) {
+            if (child.internalVisible && (child.displayObject != this._displayObject.mask || this._displayObject._struct)) { //3.3开始mask需要visible，之前不需要
                 if (!child.displayObject.parent) {
                     var index = 0;
                     if (this._childrenRenderOrder == fgui.ChildrenRenderOrder.Ascent) {
@@ -13434,7 +13435,7 @@ const labelPadding = [2, 2, 2, 2];
                     }
                 }
                 else if (pi.type == fgui.PackageItemType.Sound) {
-                    Laya.SoundManager.destroySound(pi.file);
+                    //Laya.SoundManager.destroySound(pi.file);
                 }
                 else if (pi.templet)
                     pi.templet.destroy();
@@ -14371,15 +14372,17 @@ const labelPadding = [2, 2, 2, 2];
             if (this._fillMethod != value) {
                 this._fillMethod = value;
                 if (this._fillMethod != 0) {
-                    if (!this._mask) {
-                        this._mask = new Laya.Sprite();
-                        this._mask.mouseEnabled = false;
+                    if (!this._mask2) {
+                        this._mask2 = new Laya.Sprite();
+                        this._mask2.mouseEnabled = false;
+                        this.addChild(this._mask2);
                     }
-                    this.mask = this._mask;
+                    this.mask = this._mask2;
                     this.markChanged(2);
                 }
                 else if (this.mask) {
-                    this._mask.graphics.clear();
+                    this._mask2.graphics.clear();
+                    this._mask2.removeSelf();
                     this.mask = null;
                 }
             }
@@ -14469,7 +14472,7 @@ const labelPadding = [2, 2, 2, 2];
         doFill() {
             var w = this.width;
             var h = this.height;
-            var g = this._mask.graphics;
+            var g = this._mask2.graphics;
             g.clear();
             if (w == 0 || h == 0)
                 return;

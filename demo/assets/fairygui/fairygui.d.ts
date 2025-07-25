@@ -2082,7 +2082,7 @@ declare namespace fgui {
         private _fillOrigin;
         private _fillAmount;
         private _fillClockwise?;
-        private _mask?;
+        private _mask2?;
         private _color;
         constructor();
         /**

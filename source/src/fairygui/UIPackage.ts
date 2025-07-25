@@ -524,7 +524,7 @@ namespace fgui {
                     }
                 }
                 else if (pi.type == PackageItemType.Sound) {
-                    Laya.SoundManager.destroySound(pi.file);
+                    //Laya.SoundManager.destroySound(pi.file);
                 }
                 else if (pi.templet)
                     pi.templet.destroy();
