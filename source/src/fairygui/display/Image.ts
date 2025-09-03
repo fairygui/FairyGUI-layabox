@@ -210,7 +210,7 @@ namespace fgui {
                     var right: number = Math.max(tw - this._scale9Grid.right, 0);
                     var top: number = this._scale9Grid.y;
                     var bottom: number = Math.max(th - this._scale9Grid.bottom, 0);
-                    this._sizeGrid = [top, right, bottom, left, this._tileGridIndice];
+                    this._sizeGrid = [top, right, bottom, left, this._tileGridIndice != 0 ? 1 : 0];
                 }
 
                 g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid, this._color);
