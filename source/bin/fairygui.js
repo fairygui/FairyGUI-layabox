@@ -14461,7 +14461,7 @@ const labelPadding = [2, 2, 2, 2];
                     var right = Math.max(tw - this._scale9Grid.right, 0);
                     var top = this._scale9Grid.y;
                     var bottom = Math.max(th - this._scale9Grid.bottom, 0);
-                    this._sizeGrid = [top, right, bottom, left, this._tileGridIndice];
+                    this._sizeGrid = [top, right, bottom, left, this._tileGridIndice != 0 ? 1 : 0];
                 }
                 g.draw9Grid(tex, 0, 0, w, h, this._sizeGrid, this._color);
             }
@@ -17000,8 +17000,9 @@ const labelPadding = [2, 2, 2, 2];
             return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
         }
         static setColorFilter(obj, color) {
-            var filter = obj.$_colorFilter_; //cached instance
             var filters = obj.filters;
+            var index = filters ? filters.findIndex(f => f instanceof Laya.ColorFilter) : -1;
+            var filter = index !== -1 ? filters[index] : null;
             var toApplyColor;
             var toApplyGray;
             var tp = typeof (color);
@@ -17026,30 +17027,22 @@ const labelPadding = [2, 2, 2, 2];
                 toApplyGray = filter ? filter.$_grayed_ : false;
             }
             if ((!toApplyColor && toApplyColor != 0) && !toApplyGray) {
-                if (filters && filter) {
-                    let i = filters.indexOf(filter);
-                    if (i != -1) {
-                        filters.splice(i, 1);
-                        if (filters.length > 0)
-                            obj.filters = filters;
-                        else
-                            obj.filters = null;
-                    }
+                if (filter) {
+                    filters.splice(index, 1);
+                    if (filters.length > 0)
+                        obj.filters = filters.concat();
+                    else
+                        obj.filters = null;
                 }
                 return;
             }
             if (!filter) {
                 filter = new Laya.ColorFilter();
-                obj.$_colorFilter_ = filter;
             }
             if (!filters)
-                filters = [filter];
-            else {
-                let i = filters.indexOf(filter);
-                if (i == -1)
-                    filters.push(filter);
-            }
-            obj.filters = filters;
+                obj.filters = [filter];
+            else if (index === -1)
+                obj.filters = filters.concat(filter);
             filter.$_color_ = toApplyColor;
             filter.$_grayed_ = toApplyGray;
             filter.reset();

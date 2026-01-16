@@ -125,8 +125,9 @@ namespace fgui {
         }
 
         public static setColorFilter(obj: Laya.Sprite, color?: string | number[] | boolean): void {
-            var filter: Laya.ColorFilter = (<any>obj).$_colorFilter_; //cached instance
-            var filters: any[] = obj.filters;
+            var filters: Laya.Filter[] = obj.filters;
+            var index = filters ? filters.findIndex(f => f instanceof Laya.ColorFilter) : -1;
+            var filter = index !== -1 ? filters[index] as Laya.ColorFilter : null;
 
             var toApplyColor: any;
             var toApplyGray: boolean;
@@ -153,31 +154,23 @@ namespace fgui {
             }
 
             if ((!toApplyColor && toApplyColor != 0) && !toApplyGray) {
-                if (filters && filter) {
-                    let i: number = filters.indexOf(filter);
-                    if (i != -1) {
-                        filters.splice(i, 1);
-                        if (filters.length > 0)
-                            obj.filters = filters;
-                        else
-                            obj.filters = null;
-                    }
+                if (filter) {
+                    filters.splice(index, 1);
+                    if (filters.length > 0)
+                        obj.filters = filters.concat();
+                    else
+                        obj.filters = null;
                 }
                 return;
             }
 
             if (!filter) {
                 filter = new Laya.ColorFilter();
-                (<any>obj).$_colorFilter_ = filter;
             }
             if (!filters)
-                filters = [filter];
-            else {
-                let i: number = filters.indexOf(filter);
-                if (i == -1)
-                    filters.push(filter);
-            }
-            obj.filters = filters;
+                obj.filters = [filter];
+            else if (index === -1)
+                obj.filters = filters.concat(filter);
 
             (<any>filter).$_color_ = toApplyColor;
             (<any>filter).$_grayed_ = toApplyGray;
