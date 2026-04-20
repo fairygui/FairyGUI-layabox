@@ -1,0 +1,9 @@
+{
+  "name": "fairygui",
+  "version": "1.0.1",
+  "description": "A flexible UI framework for LayaAir Engine",
+  "homepage": "https://www.fairygui.com",
+  "repository": "https://github.com/fairygui/FairyGUI-layabox",
+  "author": "guzhu",
+  "license": "MIT"
+}

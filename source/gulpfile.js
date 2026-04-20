@@ -5,6 +5,28 @@ const ts = require('gulp-typescript');
 const merge = require('merge2');
 const tsProject = ts.createProject('tsconfig.json');
 const sourcemaps = require('gulp-sourcemaps');
+const fs = require('fs');
+const path = require('path');
+const pkg = require('./package.json');
+
+function writePackageJson(done) {
+    const binDir = path.resolve(__dirname, 'bin');
+    const targetFile = path.join(binDir, 'package.json');
+    const manifest = {
+        name: "fairygui",
+        version: pkg.version,
+        description: pkg.description,
+        homepage: pkg.homepage,
+        repository: pkg.repository,
+        author: pkg.author,
+        license: pkg.license
+    };
+
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.writeFileSync(targetFile, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    done();
+}
 
 gulp.task('compile', () => {
     const tsResult = tsProject.src().pipe(sourcemaps.init()).pipe(tsProject());
@@ -24,7 +46,7 @@ gulp.task('start', () => {
 });
 
 gulp.task('copy', () => {
-    return gulp.src(['bin/*.js', 'bin/*.d.ts', 'bin/*.js.map']).pipe(gulp.dest('../demo/assets/fairygui/'));
+    return gulp.src(['bin/*']).pipe(gulp.dest('../demo/packages/fairygui/'));
 });
 
-gulp.task('build', gulp.series('compile', 'copy'));
+gulp.task('build', gulp.series('compile', writePackageJson, 'copy'));
