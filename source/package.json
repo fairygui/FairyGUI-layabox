@@ -1,6 +1,6 @@
 {
   "name": "fairygui-layabox",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A flexible UI framework for LayaAir Engine",
   "homepage": "https://www.fairygui.com",
   "repository": "https://github.com/fairygui/FairyGUI-layabox",
@@ -12,7 +12,8 @@
     "start": "gulp start",
     "build": "gulp build",
     "compile": "gulp compile",
-    "copy": "gulp copy"
+    "copy": "gulp copy",
+    "tsc": "tsc -p tsconfig.json --noEmit"
   },
   "author": "guzhu",
   "license": "MIT",

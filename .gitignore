@@ -1,3 +1,8 @@
 node_modules
 .DS_Store
 package-lock.json
+
+source/bin/fairygui.js
+source/bin/fairygui.d.ts
+source/bin/fairygui.js.map
+source/bin/package.json
