@@ -6,6 +6,8 @@
     "sourceMap": false,
     "removeComments": false,
     "outFile": "./fairygui.js",
+    "strictNullChecks": false,
+    "strictPropertyInitialization": false,
     "skipLibCheck": true
   },
   "exclude": [

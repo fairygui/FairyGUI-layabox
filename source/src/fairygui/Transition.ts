@@ -253,7 +253,7 @@ namespace fgui {
             return this._totalDuration;
         }
 
-        public setValue(label: string, ...args): void {
+        public setValue(label: string, ...args: any[]): void {
             var cnt: number = this._items.length;
             var found: boolean = false;
             var value: any;

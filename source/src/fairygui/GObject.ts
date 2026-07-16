@@ -901,7 +901,7 @@ namespace fgui {
 
         protected createDisplayObject(): void {
             this._displayObject = new Laya.Sprite();
-            this._displayObject["$owner"] = this;
+            (this._displayObject as any)["$owner"] = this;
         }
 
         protected handleXYChanged(): void {
@@ -1041,8 +1041,8 @@ namespace fgui {
             if (buffer.readBool())
                 this.grayed = true;
             var bm: number = buffer.readByte();
-            if (BlendMode[bm])
-                this.blendMode = BlendMode[bm];
+            if ((BlendMode as any)[bm])
+                this.blendMode = (BlendMode as any)[bm];
 
             var filter: number = buffer.readByte();
             if (filter == 1) {
@@ -1199,7 +1199,7 @@ namespace fgui {
         //-------------------------------------------------------------------
 
         public static cast(sprite: Laya.Sprite): GObject {
-            return <GObject>(sprite["$owner"]);
+            return <GObject>((sprite as any)["$owner"]);
         }
     }
 

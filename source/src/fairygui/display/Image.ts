@@ -45,7 +45,9 @@ namespace fgui {
         protected _transChanged(kind: Laya.TransformKind) {
             //@ts-ignore 3.3 add this
             super._transChanged(kind);
-            this.markChanged(1);
+
+            if (kind !== Laya.TransformKind.Pos)
+                this.markChanged(1);
         }
 
         public get texture(): Laya.Texture {

@@ -14321,7 +14321,8 @@ const labelPadding = [2, 2, 2, 2];
         _transChanged(kind) {
             //@ts-ignore 3.3 add this
             super._transChanged(kind);
-            this.markChanged(1);
+            if (kind !== Laya.TransformKind.Pos)
+                this.markChanged(1);
         }
         get texture() {
             return this._source;
@@ -17000,6 +17001,47 @@ const labelPadding = [2, 2, 2, 2];
             return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
         }
         static setColorFilter(obj, color) {
+            if (Laya.PostProcess2D) {
+                if (typeof (color) === "boolean") {
+                    if (color) {
+                        if (!obj.postProcess)
+                            obj.postProcess = new Laya.PostProcess2D();
+                        let effect = obj.postProcess.getEffect(Laya.GrayscaleEffect2D);
+                        if (!effect)
+                            effect = obj.postProcess.addEffect(new Laya.GrayscaleEffect2D());
+                    }
+                    else {
+                        if (obj.postProcess) {
+                            let effect = obj.postProcess.getEffect(Laya.GrayscaleEffect2D);
+                            if (effect) {
+                                obj.postProcess.removeEffect(effect);
+                            }
+                        }
+                    }
+                }
+                else {
+                    if (color) {
+                        if (!obj.postProcess)
+                            obj.postProcess = new Laya.PostProcess2D();
+                        let effect = obj.postProcess.getEffect(Laya.ColorEffect2D);
+                        if (!effect)
+                            effect = obj.postProcess.addEffect(new Laya.ColorEffect2D());
+                        if (Array.isArray(color))
+                            effect.setByMatrix(getColorMatrix(color[0], color[1], color[2], color[3]));
+                        else
+                            effect.setColor(color);
+                    }
+                    else {
+                        if (obj.postProcess) {
+                            let effect = obj.postProcess.getEffect(Laya.ColorEffect2D);
+                            if (effect) {
+                                obj.postProcess.removeEffect(effect);
+                            }
+                        }
+                    }
+                }
+                return;
+            }
             var filters = obj.filters;
             var index = filters ? filters.findIndex(f => f instanceof Laya.ColorFilter) : -1;
             var filter = index !== -1 ? filters[index] : null;
@@ -17036,7 +17078,7 @@ const labelPadding = [2, 2, 2, 2];
                 }
                 return;
             }
-            if (!filter) {
+            if (!filter || (filter.getEffect && filter.getEffect().destroyed)) {
                 filter = new Laya.ColorFilter();
             }
             if (!filters)
