@@ -306,6 +306,8 @@ namespace fgui {
         }
 
         private __getResCompleted(tex: Laya.Texture): void {
+            if(this.isDisposed)
+                return;
             if (tex != null)
                 this.onExternalLoadSuccess(tex);
             else
