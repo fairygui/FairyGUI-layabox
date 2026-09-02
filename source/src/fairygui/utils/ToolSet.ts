@@ -126,6 +126,10 @@ namespace fgui {
 
         public static setColorFilter(obj: Laya.Sprite, color?: string | number[] | boolean): void {
             if (Laya.PostProcess2D) {
+                if (typeof (color) === "string") {
+                    if (Laya.Color.stringToHex(color) === 0xFFFFFF)
+                        color = null;
+                }
                 if (typeof (color) === "boolean") {
                     if (color) {
                         if (!obj.postProcess)

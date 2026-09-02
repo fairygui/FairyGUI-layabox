@@ -17005,6 +17005,10 @@ const labelPadding = [2, 2, 2, 2];
         }
         static setColorFilter(obj, color) {
             if (Laya.PostProcess2D) {
+                if (typeof (color) === "string") {
+                    if (Laya.Color.stringToHex(color) === 0xFFFFFF)
+                        color = null;
+                }
                 if (typeof (color) === "boolean") {
                     if (color) {
                         if (!obj.postProcess)
