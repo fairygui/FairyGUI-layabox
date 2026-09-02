@@ -4,11 +4,35 @@ declare global {
      * Namespaces containing various scene-related classes and functions.
      * 
      * All classes and functions in this namespace are running in the Scene process.
+     *
+     * @remarks In documentation examples, the full-width character `＠` represents the
+     * TypeScript decorator character `@`. Replace `＠` with `@` when copying an example.
+     * The substitution prevents TypeScript's JSDoc parser from treating decorators inside
+     * fenced `@example` blocks as new JSDoc tags.
      */
     export namespace IEditorEnv {
+        /** GPU-assisted helper for snapping a screen-space pointer to the nearest mesh vertex. */
+        export interface IVertexPicker {
+            /**
+             * Find the world-space coordinates of the nearest mesh vertex within a screen-space range.
+             * @param camera Camera used to project the mesh and pointer coordinates.
+             * @param sprite The model to be checked
+             * @param x The pixel coordinate X to be detected
+             * @param y The pixel coordinate y to be detected
+             * @param range The detection range (pixels)
+             * @param out Global coordinates
+             * @returns true: vertex detected; false: vertex not detected
+             */
+            pick(camera: Laya.Camera, sprite: Laya.Sprite3D, x: number, y: number, range: number, out: Laya.Vector3): boolean;
+        }
+
+        /** Finds asset references by walking plain data according to an editor type descriptor. */
         export interface ITypedDataAnalyzer {
+            /** Analyze `data` and return every discovered asset link with its data path. */
             analyse(data: any, typeDef: FTypeDescriptor): Array<IAssetLinkInfo>;
         }
+
+        /** Optional cancellation, temporary-directory and progress settings for texture processing. */
         export interface ITextureToolOptions {
             /**
              * Abort token. If you want to abort the tool on some conditions, you can pass an abort token here. Call abortToken.signal() to abort the tool.
@@ -26,6 +50,7 @@ declare global {
             progressCallback?: (progress: number) => void;
         }
 
+        /** One generated texture file and the engine format stored in it. */
         export interface ITextureFileWithFormat {
             /**
              * File name without extension. It could be an empty string, indicating the use of the source file.
@@ -43,6 +68,7 @@ declare global {
             format: Laya.TextureFormat;
         }
 
+        /** Per-platform compression overrides applied on top of the default texture settings. */
         export interface ITexturePlatformSettings {
             /**
              * Texture format. e.g. "R8G8B8", "R8G8B8A8", etc.
@@ -55,6 +81,7 @@ declare global {
             quality?: number;
         }
 
+        /** Import and conversion settings accepted by {@link ITextureTool.run}. */
         export interface ITextureSettings {
             /**
              * 0: default, 1: lightmap, 2: sprite texture
@@ -70,9 +97,7 @@ declare global {
              */
             sRGB?: boolean;
 
-            /**
-             * 
-             */
+            /** Force the output format to preserve an alpha channel even when source inspection does not detect one. */
             alphaChannel?: boolean;
 
             /**
@@ -88,6 +113,12 @@ declare global {
              * However, in most scenarios, it is recommended to keep mipmaps disabled to maintain the visual quality of the textures without any fading or blurring effects.
              */
             fadeOutEnable?: boolean;
+
+            /**
+             * @zh 要生成的mipmap级别数量，如需限制，则值应为正数。例如5，只生成5个层级的MIP纹理（第0级到第4级）。默认值为-1，这意味着将根据纹理大小自动确定mipmap级别数量。
+             * @en The number of mipmap levels to generate. Default is -1, which means the number of mipmap levels will be automatically determined based on the texture size.
+            */
+            maxMipLevels?: number;
 
             /**
              * Anisotropic filtering level. Range is 1-16. Default is 4.
@@ -115,9 +146,7 @@ declare global {
              */
             readWrite?: boolean;
 
-            /**
-             * 
-             */
+            /** HDR encoding: `0` for none, `1` for RGBD, or `2` for RGBM. */
             hdrEncodeFormat?: number;
 
             /**
@@ -153,33 +182,30 @@ declare global {
             npot?: number;
 
             /**
-             * 
+             * Limits the maximum size of the texture. If the texture exceeds this size, it will be scaled down to fit within the specified dimensions. A value of 0 indicates no limit.
              */
+            maxSize?: number;
+
+            /**
+             * Optimize the image by using PNG8 compression. This option reduces the color depth of the image to 8 bits, which can significantly reduce the file size while maintaining acceptable visual quality. It is particularly useful for images with a limited color palette, such as icons or simple graphics.
+             */
+            usePng8?: boolean;
+
+            /** Whether generated cubemap mip levels contain image-based-lighting convolution data. */
             mipmapCoverageIBL?: boolean;
 
-            /**
-             * 
-             */
+            /** Target cubemap face size in pixels. */
             cubemapSize?: number;
 
-            /**
-             * 
-             */
+            /** Native texture-tool format name used when generating a cubemap file. */
             cubemapFileMode?: string;
 
-            /**
-             * 
-             */
+            /** Legacy mipmap fade range. This setting is currently retained for metadata compatibility. */
             fadeOutMipmap?: { x: number, y: number };
-
-            /**
-             * 
-             */
+            /** Native texture-tool filter value used while generating mipmaps. */
             mipmapFilter?: number;
 
-            /**
-             * 
-             */
+            /** Reserved native texture-tool edge-extension filter value. */
             extendFilter?: number;
 
             /**
@@ -213,6 +239,7 @@ declare global {
             platformIOS?: ITexturePlatformSettings;
         }
 
+        /** Normalized texture metadata returned after conversion and written beside the generated files. */
         export interface ITextureConfig {
             /** 
              * 0-default, 1-lightmap, 2-sprite 
@@ -262,9 +289,7 @@ declare global {
              */
             pma: boolean;
 
-            /**
-             *
-             */
+            /** HDR encoding: `0` for none, `1` for RGBD, or `2` for RGBM. */
             hdrEncodeFormat: number;
 
             /**
@@ -297,13 +322,26 @@ declare global {
             /**
              * Process the texture file with the specified settings.
              * @param srcFilePath The source file path. It is an absolute path.
-             * @param destFilePrefix The destination file prefix. The tool will generate multiple files base on this prefix.
+             * @param destFilePrefix The destination file prefix. The tool generates multiple files based on this prefix.
              * @param config The texture settings.
              * @param options The tool options.
              * @returns The texture config.
              */
             function run(srcFilePath: string, destFilePrefix: string, config: ITextureSettings, options?: ITextureToolOptions): Promise<ITextureConfig>;
+
+            /**
+             * Extend the margin of a lightmap or texture to fill empty pixels with neighboring color.
+             * This prevents seam artifacts at UV boundaries.
+             * @param pixelData The pixel data buffer (RGBA).
+             * @param width Width of the texture.
+             * @param height Height of the texture.
+             * @param margin Number of pixels to extend.
+             * @param highFilter Filter quality: 1 for 3x3 kernel, 2 for 5x5 kernel. Default is 1.
+             */
+            function extendMargin(pixelData: Uint8Array | Float32Array, width: number, height: number, margin: number, highFilter?: number): void;
         }
+
+        /** Image preprocessing options combined with the max-rectangles packing options. */
         export interface ITexturePackerOptions extends IMaxRectsPackingOptions {
             /**
              * Whether to trim the blank area of the image.
@@ -314,26 +352,41 @@ declare global {
              * Scale of the image.
              */
             scale?: number;
+
+            /**
+             * Whether to quantize the output as a palette-based PNG-8 image.
+             */
+            usePng8?: boolean;
         }
 
+        /** Placement and original-source geometry for one packed atlas entry. */
         export interface IAtlasFrame {
+            /** Packed rectangle and output-atlas image index. */
             frame: {
+                /** Index into {@link ITexturePackerResult.images}. */
                 idx: number;
+                /** Left coordinate in the atlas image. */
                 x: number;
+                /** Top coordinate in the atlas image. */
                 y: number;
+                /** Packed width. */
                 w: number;
+                /** Packed height. */
                 h: number;
             },
+            /** Original source-image dimensions before trimming and scaling. */
             sourceSize: {
                 w: number;
                 h: number;
             },
+            /** Offset of the trimmed sprite within the original source image. */
             spriteSourceSize: {
                 x: number,
                 y: number
             }
         }
 
+        /** Atlas metadata, per-frame placements and generated atlas image descriptors. */
         export interface ITexturePackerResult {
             /**
              * Metadata of the atlas.
@@ -354,12 +407,14 @@ declare global {
             /**
              * Generate a texture atlas from the source files.
              * @param sourceFiles Image files to pack. They are absolute paths.
-             * @param outTexturePath The path of the output texture. It is a absolute path.
+             * @param outTexturePath The absolute path of the output texture.
              * @param options Packing options.
              * @returns The result of the packing.
              */
             function pack(sourceFiles: string[], outTexturePath: string, options?: ITexturePackerOptions): Promise<ITexturePackerResult>;
         }
+
+        /** Controls type metadata, default-value elimination and node-reference encoding. */
         export interface IEncodeObjOptions {
             /**
              * Write "_$type" field in the object. Default is true.
@@ -383,6 +438,7 @@ declare global {
             forceType?: string;
         }
 
+        /** Controls validation, error collection and node-reference resolution during decoding. */
         export interface IDecodeObjOptions {
             /**
              * An array to receive the errors during deserialization.
@@ -414,9 +470,14 @@ declare global {
             const isDeserializing: boolean;
 
             /**
+             * When a setter is called, this flag can be used to determine whether the call comes from the property panel setting (including undo)
+             */
+            const isSettingProp: boolean;
+
+            /**
              * Serialize an object to a plain object.
-             * @param data Object to serialize.
-             * @param typeDef Type descriptor of the object. 
+             * @param obj Object to serialize.
+             * @param receiver Optional existing object used as serialization context.
              * @param options Serialization options.
              * @returns The serialized object. 
              */
@@ -441,9 +502,11 @@ declare global {
              */
             function decodeObj(data: any, receiver?: any, type?: string, options?: IDecodeObjOptions): any;
         }
+
+        /** Build-time JavaScript minification and compatibility-transformation utilities. */
         export interface IScriptTool {
             /**
-             * Compress a javascript file. Compressed result is cached for future use. Cache path is library/minifiedJsCache.
+             * Compress a JavaScript file. The result is cached in `library/minifiedJsCache` for future use.
              * @param filePath The path of the file to compress.
              * @param mangleOptions The options for mangling.
              * - keep_fnames: Keep the function names.
@@ -458,6 +521,10 @@ declare global {
              */
             babelTransform(filePath: string, presets?: string): Promise<void>;
         }
+
+        export type ParticleActionCommand = "play" | "pause" | "stop" | "restart" | "seek";
+
+        /** Manages the Scene-process scene collection and dispatches registered scene scripts. */
         export interface ISceneManager {
             /**
              * Triggered when the selection is changed.
@@ -470,6 +537,11 @@ declare global {
              * @param previousScene The previous scene.
              */
             readonly onSceneActivated: IDelegate<(currentScene: IMyScene, previousScene: IMyScene) => void>;
+
+            /**
+             * Triggered when the Scene panel sends a particle preview action.
+             */
+            readonly onParticleAction: IDelegate<(command: ParticleActionCommand, value?: number) => void>;
 
             /**
              * Current active scene.
@@ -487,7 +559,7 @@ declare global {
              * @param scene The this object.
              * @param name objectName.methodName
              * @param args The arguments.
-             * @returns The function found. Null if not found.
+             * @returns The registered function's resolved return value. If no function is found, the method logs an error and resolves to `undefined`.
              * @example
              * ```
              * ＠IEditorEnv.regClass
@@ -497,12 +569,13 @@ declare global {
              *   }
              * }
              * 
-             * const func = EditorEnv.scene.runScript("MyTest.sayHello");
-             * func(); // Output: Hello
+             * await EditorEnv.scene.runScript("MyTest.sayHello"); // Output: Hello
              * ```
              */
             runSceneScript(scene: IMyScene, name: string, ...args: any[]): Promise<any>;
         }
+
+        /** Optional Scene-process lifecycle hooks registered through `＠IEditorEnv.sceneHook`. */
         export interface ISceneHook {
             /**
              * Called when a new node is about to be created.
@@ -546,11 +619,12 @@ declare global {
             onWriteRuntime?(scene: IMyScene, info: IWriteRuntimeInfo): void | Promise<void>;
         }
 
+        /** Mutable generated-code context passed to {@link ISceneHook.onWriteRuntime}. */
         export interface IWriteRuntimeInfo {
             /**
              * The generated code. You can replace it with your own code, or set it to null to skip the generation.
              */
-            code: string;
+            code: string | null;
 
             /**
              * The runtime script asset.
@@ -578,6 +652,468 @@ declare global {
             readonly vars: string[];
         }
 
+        /** SVG stroke attributes accepted by gizmo elements. */
+        export interface StrokeData {
+            /** CSS stroke color. */
+            color?: string;
+            /** Stroke width in screen pixels. */
+            width?: number;
+            /** Stroke opacity in the range `[0, 1]`. */
+            opacity?: number;
+            /** SVG `stroke-linecap` value. */
+            linecap?: string;
+            /** SVG `stroke-linejoin` value. */
+            linejoin?: string;
+            /** SVG miter-limit value. */
+            miterlimit?: number;
+            /** SVG dash pattern, such as `"4 2"`. */
+            dasharray?: string;
+            /** Offset into the SVG dash pattern. */
+            dashoffset?: number;
+        }
+
+        /** SVG fill attributes accepted by gizmo elements. */
+        export interface FillData {
+            /** CSS fill color. */
+            color?: string
+            /** Fill opacity in the range `[0, 1]`. */
+            opacity?: number
+            /** SVG fill-rule value, usually `"nonzero"` or `"evenodd"`. */
+            rule?: string
+        }
+
+        /** Factory and coordinate-conversion API for one node's SVG overlay gizmos. */
+        export interface ISVGGizmos {
+            /**
+             * Owner node.
+             */
+            readonly owner: IMyNode;
+            /**
+             * SVG container of the gizmos. 
+             */
+            readonly container: Container;
+
+            /**
+             * Create a rectangle.
+             * @param width Width. 
+             * @param height Height. 
+             */
+            createRect(width: number, height: number): IGizmoRect;
+
+            /**
+             * Create a circle.
+             * @param radius Radius of the circle. 
+             */
+            createCircle(radius: number): IGizmoCircle;
+
+            /**
+             * Create a polygon.
+             * @param easyTouch If the polygon's lines need to be used for interaction, the lines might be too thin for the user to easily select. When set to true, a larger transparent area will be generated around the lines to increase the interaction area.
+             */
+            createPolygon(easyTouch?: boolean): IGizmoPolygon;
+
+            /**
+             * Create an ellipse.
+             * @param rx Radius x.
+             * @param ry Radius y.
+             */
+            createEllipse(rx: number, ry: number): IGizmoEllipse;
+
+            /**
+             * Create a path.
+             * @param easyTouch If the path's lines need to be used for interaction, the lines might be too thin for the user to easily select. When set to true, a larger transparent area will be generated around the lines to increase the interaction area.
+             */
+            createPath(easyTouch?: boolean): IGizmoPath;
+
+            /**
+             * Create a text.
+             * @param text Text content. 
+             */
+            createText(text?: string): IGizmoText;
+
+            /**
+             * Create a handle. A handle is a small graphic that can be dragged by the user.
+             * @param shape Shape of the handle. Can be a rectangle or a circle.
+             * @param size Size of the handle.
+             * @param fill Fill style of the handle. 
+             * @param stroke Stroke style of the handle. Default is no stroke. 
+             * @param cursor Optional cursor style of the handle, e.g. "default", "pointer", "grab", etc. Default is "pointer". 
+             * @param buttonSkin Optional button skin for the handle. If provided, the handle will have different styles for normal, hover, and down states.
+             */
+            createHandle(shape: "rect" | "circle", size: number, fill: FillData | string, stroke?: StrokeData | string, cursor?: string,
+                buttonSkin?: { over?: { fill: FillData | string, stroke?: StrokeData | string }, down?: { fill: FillData | string, stroke?: StrokeData | string } }
+            ): IGizmoHandle;
+
+            /**
+             * Create a handle group. Handle Group uses caching and can be used to retrieve and recycle handles with the same style each frame.
+             * @param shape Shape of the handle. Can be a rectangle or a circle.
+             * @param size Size of the handle.
+             * @param fill Fill style of the handle.
+             * @param stroke Stroke style of the handle. Default is no stroke.
+             * @param cursor Optional cursor style of the handle, e.g. "default", "pointer", "grab", etc. Default is "pointer".
+             * @param offset Optional offset of the handle.
+             * @param buttonSkin Optional button skin for the handle. If provided, the handle will have different styles for normal, hover, and down states. 
+             */
+            createHandleGroup(shape: "rect" | "circle", size: number, fill: FillData | string, stroke?: StrokeData | string, cursor?: string,
+                offset?: gui.Vec2, buttonSkin?: { over?: { fill: FillData | string, stroke?: StrokeData | string }, down?: { fill: FillData | string, stroke?: StrokeData | string } }
+            ): IGizmoHandleGroup;
+
+            /**
+             * Create an icon handle. An icon handle is a handle that uses images for different button states.
+             * @param normal Normal state image URL.
+             * @param over Over state image URL. 
+             * @param down Down state image URL. 
+             * @param cursor Optional cursor style of the handle, e.g. "default", "pointer", "grab", etc. Default is "pointer". 
+             */
+            createIconHandle(normal: string, over?: string, down?: string, cursor?: string): IGizmoIconHandle;
+
+            /**
+             * Add an element to the manager.
+             * @param ele The element to add. 
+             */
+            addElement<T extends IGizmoElement>(ele: T): T;
+
+            /**
+             * Convert local coordinates to global coordinates.
+             * Local coordinates are relative to the owner node. Global coordinates are relative to the screen, which are used to position the gizmos.
+             * @param x Local x.
+             * @param y Local y. 
+             * @param out An optional output vector to receive the result. If not provided, a new vector is created.
+             * @returns The global coordinates.
+             */
+            localToGlobal(x: number, y: number, out?: gui.Vec2): gui.Vec2;
+
+            /**
+             * Convert global coordinates to local coordinates.
+             * Local coordinates are relative to the owner node. Global coordinates are relative to the screen, which are used to position the gizmos.
+             * @param x Global x. 
+             * @param y Global y. 
+             * @param out An optional output vector to receive the result. If not provided, a new vector is created.
+             * @param targetSpace The target space to convert to. If not provided, the owner node will be used.
+             * @returns The local coordinates. 
+             */
+            globalToLocal(x: number, y: number, out?: gui.Vec2, targetSpace?: IMyNode): gui.Vec2;
+        }
+
+        /** Common lifecycle, interaction and styling surface of an SVG gizmo element. */
+        export interface IGizmoElement {
+            /**
+             * Owner manager.
+             */
+            readonly owner: ISVGGizmos;
+
+            /**
+             * SVG element of the gizmo.
+             */
+            readonly element: Element;
+
+            /**
+             * Underlying DOM node owned by {@link element}.
+             */
+            readonly node: SVGElement;
+
+            /**
+             * Custom tag.
+             */
+            tag: string;
+
+            /**
+             * Triggered when the user starts dragging the element.
+             */
+            readonly onDragStart: IDelegate<(evt: MouseEvent) => void>;
+
+            /**
+             * Triggered when the user is dragging the element.
+             */
+            readonly onDragMoving: IDelegate<(evt: MouseEvent, dx: number, dy: number) => void>;
+
+            /**
+             * Triggered when the user stops dragging the element.
+             */
+            readonly onDragEnd: IDelegate<(evt: MouseEvent) => void>;
+
+            /**
+             * Triggered when the user clicks the element.
+             */
+            readonly onClick: IDelegate<(evt: MouseEvent) => void>;
+
+            /**
+             * Triggered when the user double clicks the element.
+             */
+            readonly onDblClick: IDelegate<(evt: MouseEvent) => void>;
+
+            /**
+             * Triggered when the user right clicks the element. Users can pop up their own menu in the callback event. To prevent the default menu from appearing, call evt.preventDefault().
+             */
+            readonly onContextMenu: IDelegate<(evt: MouseEvent) => void>;
+
+            /**
+             * X position of the element. It's in global coordinates.
+             */
+            get x(): number;
+
+            /**
+             * Y position of the element. It's in global coordinates.
+             */
+            get y(): number;
+
+            /**
+             * Visibility of the element.
+             */
+            get visible(): boolean;
+            set visible(value: boolean);
+
+            /**
+             * Interactivity of the element.
+             */
+            get touchable(): boolean;
+            set touchable(value: boolean);
+
+            /**
+             * 可以给Gizmo设置一个方向属性，鼠标指针样式会根据这个方向属性自动调整。数值与方向的关系见下图：
+             * 
+             * 0 - 1 - 2
+             * |       |
+             * 7       3
+             * |       |
+             * 6 - 5 - 4
+             */
+            get direction(): number;
+            set direction(value: number);
+
+            /**
+             * CSS cursor style of the element, for example `"default"`, `"pointer"`, or `"grab"`.
+             */
+            get cursor(): string;
+            set cursor(value: string);
+
+            /**
+             * Set the position of the element by local coordinates.
+             * Local coordinates are relative to the owner node.
+             * @param x Local x.
+             * @param y Local y.
+             */
+            setLocalPos(x: number, y: number): this;
+
+            /**
+             * Set the position of the element by global coordinates.
+             * Global coordinates are relative to the screen.
+             * @param x Global x.
+             * @param y Global y.
+             */
+            setPos(x: number, y: number): this;
+
+            /**
+             * Reposition the element to its stored local coordinates. Useful for group elements that need to reposition after the content changes.
+             */
+            reposition(): this;
+
+            /**
+             * Set the offset of the element. The offset will be added to the position when setting the position.
+             * @param offsetX X offset. 
+             * @param offsetY Y offset. 
+             */
+            setOffset(offsetX: number, offsetY: number): this;
+
+            /**
+             * Set the size of the element.
+             * @param width Width.
+             * @param height Height.
+             */
+            setSize(width: number, height: number): this;
+
+            /**
+             * Set the stroke style of the element.
+             * @param value Stroke style.
+             */
+            stroke(value: StrokeData | string): this;
+
+            /**
+             * Set the fill style of the element.
+             * @param value Fill style.
+             */
+            fill(value: FillData | string): this;
+
+            /**
+             * Set a custom data to the element.
+             * @param name Name of the data.
+             * @param value Value of the data.
+             */
+            setData(name: string, value: any): this;
+
+            /**
+             * Get a custom data from the element.
+             * @param name Name of the data.
+             * @returns The value of the data.
+             */
+            getData(name: string): any;
+
+            /**
+             * Set the button status of the element. Only works when the element is set up as a button.
+             * @param status Button status. Can be "normal", "over", or "down". 
+             */
+            setButtonStatus(status: "normal" | "over" | "down"): void;
+        }
+
+        /** Draggable rectangular or circular SVG handle. */
+        export interface IGizmoHandle extends IGizmoElement {
+        }
+
+        /** Draggable handle rendered from normal/hover/pressed image skins. */
+        export interface IGizmoIconHandle extends IGizmoElement {
+        }
+
+        /** Reusable pool of identically styled handles for dynamic per-frame geometry. */
+        export interface IGizmoHandleGroup extends IGizmoElement {
+            /**
+             * Triggered when the user starts dragging a handle.
+             */
+            readonly onHandleDragStart: IDelegate<(handle: IGizmoHandle, evt: MouseEvent) => void>;
+
+            /**
+             * Triggered when the user is dragging a handle.
+             */
+            readonly onHandleDragMoving: IDelegate<(handle: IGizmoHandle, evt: MouseEvent, dx: number, dy: number) => void>;
+
+            /**
+             * Triggered when the user stops dragging a handle.
+             */
+            readonly onHandleDragEnd: IDelegate<(handle: IGizmoHandle, evt: MouseEvent) => void>;
+
+            /**
+             * Triggered when the user clicks a handle.
+             */
+            readonly onHandleClick: IDelegate<(handle: IGizmoHandle, evt: MouseEvent) => void>;
+
+            /**
+             * Triggered when the user double clicks a handle.
+             */
+            readonly onHandleDblClick: IDelegate<(handle: IGizmoHandle, evt: MouseEvent) => void>;
+
+            /**
+             * Triggered when the user right clicks the handle. Users can pop up their own menu in the callback event. To prevent the default menu from appearing, call evt.preventDefault().
+             */
+            readonly onHandleContextMenu: IDelegate<(handle: IGizmoHandle, evt: MouseEvent) => void>;
+
+            /**
+             * Get all visible handles.
+             */
+            get array(): ReadonlyArray<IGizmoHandle>;
+
+            /**
+             * Add a handle.
+             */
+            add(): IGizmoHandle;
+
+            /**
+             * Remove a handle from screen and return it to the pool.
+             */
+            remove(handle: IGizmoHandle): void;
+
+            /**
+             * Clear all handles and return them to the pool.
+             */
+            clear(): void;
+        }
+
+        /** Rectangle SVG gizmo element. */
+        export interface IGizmoRect extends IGizmoElement {
+        }
+
+        /** Circle SVG gizmo element. */
+        export interface IGizmoCircle extends IGizmoElement {
+            /** Set the radius in owner-node local coordinates. */
+            setLocalRadius(value: number): this;
+            /** Set the radius in screen/global coordinates. */
+            setRadius(value: number): this;
+        }
+
+        /** Ellipse SVG gizmo element. */
+        export interface IGizmoEllipse extends IGizmoElement {
+            /**
+             * Set the radius of the ellipse. The value is in local coordinates.
+             * @param rx Radius x.
+             * @param ry Radius y.
+             */
+            setLocalRadius(rx: number, ry: number): this;
+
+            /**
+             * Set the radius of the ellipse. The value is in global coordinates.
+             * @param rx Radius x.
+             * @param ry Radius y.
+             */
+            setRadius(rx: number, ry: number): this;
+        }
+
+        /** Polygon SVG gizmo backed by a mutable flat point array. */
+        export interface IGizmoPolygon extends IGizmoElement {
+            /**
+             * All points of the polygon. The coordinates of the points are stored in the array in the order of x0, y0, x1, y1, etc.
+             * 
+             * You can directly modify this array. After modification, you need to call refresh to update the graphics.
+             */
+            readonly points: Array<number>;
+
+            /**
+             * Refresh the polygon.
+             */
+            refresh(): void;
+        }
+
+        /** Mutable SVG path gizmo. Call {@link refresh} after changing its commands. */
+        export interface IGizmoPath extends IGizmoElement {
+            /**
+             * If true, the coordinates passed in the subsequent drawing operations are relative to the coordinates of the last drawing operation. 
+             * If false, the coordinates passed are absolute coordinates. Default is false.
+             */
+            relativeCoords: boolean;
+
+            /** Begin a new subpath at `(x, y)`. */
+            moveTo(x: number, y: number): this;
+            /** Add a straight line to `(x, y)`. */
+            lineTo(x: number, y: number): this;
+            /** Add a smooth cubic curve using the previous control-point reflection and the supplied control/end point. */
+            cubicCurveTo(x: number, y: number, x2: number, y2: number): this;
+            /** Add a cubic Bezier curve with two control points and an end point. */
+            cubicCurveTo(x: number, y: number, x1: number, y1: number, x2: number, y2: number): this;
+            /** Add a smooth quadratic curve to `(x, y)`. */
+            quadCurveTo(x: number, y: number): this;
+            /** Add a quadratic Bezier curve using a control point and end point. */
+            quadCurveTo(x: number, y: number, x1: number, y1: number): this;
+            /** Add a quadratic curve; omitting the control point selects the smooth form. */
+            quadCurveTo(x: number, y: number, x1?: number, y1?: number): this;
+
+            /**
+             * Clear the path.
+             */
+            resetPath(): this;
+
+            /**
+             * Refresh the path.
+             */
+            refresh(): void;
+        }
+
+        /** Text SVG gizmo element. */
+        export interface IGizmoText extends IGizmoElement {
+            /**
+             * Set the font style of the text.
+             * @param value Font style.
+             * @example
+             * ```
+             * setFontProp('family', 'Menlo');
+             * setFontProp('size', 12);
+             * setFontProp('weight', 'bold');
+             * ```
+             */
+            setFontProp(prop: string, value: string | number): this;
+
+            /** Replace the displayed text. */
+            setText(text: string): this;
+        }
+
+
+        /** Tracks mutable Scene-process resources and persists their changes. */
         export interface IResourceManager {
             /**
              * Save all resources.
@@ -602,7 +1138,12 @@ declare global {
              * Get a plain object that contains all properties of the specified object.
              */
             getProps(obj: any): any;
+
+            /** Starts tracking a loaded resource so later edits can be detected and saved. */
+            trackResource(resource: any): void;
         }
+
+        /** A localizable prefab string and the object property that stores it. */
         export interface IPrefabI18nString {
             /**
              * Object that contains the property.
@@ -620,6 +1161,7 @@ declare global {
             text: string;
         }
 
+        /** Selects prefab analysis outputs and optional entity visitors. */
         export interface IPrefabAnalyseOptions {
             /**
              * Whether to get the dependencies.
@@ -632,9 +1174,9 @@ declare global {
             getI18nStrings?: boolean;
 
             /**
-             * To clear the unused data of the prefab in release mode.
+             * Whether it's release environment. In release environment, properties marked with stripInBuild in their definitions will be skipped.
              */
-            minify?: boolean;
+            release?: boolean;
 
             /**
              * A callback function that will be called when visiting an entity.
@@ -654,6 +1196,7 @@ declare global {
             errorEntityVisitor?: (data: any, error: PrefabEntityErrorCode, isComponent: boolean, isOverrideEntry: boolean) => void;
         }
 
+        /** Structural error reported while walking serialized prefab entities. */
         export enum PrefabEntityErrorCode {
             /**
              * The type is missing.
@@ -671,18 +1214,20 @@ declare global {
             OverrideTargetMissing = 2
         }
 
-        export interface IPrefabAnalyseResult<ProvidedOptions extends IPrefabAnalyseOptions> {
+        /** Dependency and localization data collected from one prefab. */
+        export interface IPrefabAnalyseResult {
             /**
              * Dependencies.
              */
-            deps: Array<IAssetLinkInfo> | (ProvidedOptions['getDeps'] extends false ? never : undefined);
+            deps: Array<IAssetLinkInfo>;
 
             /**
              * I18n strings.
              */
-            i18nStrings: Array<IPrefabI18nString> | (ProvidedOptions['getI18nStrings'] extends false ? never : undefined);
+            i18nStrings: Array<IPrefabI18nString>;
         }
 
+        /** Reads, validates, traverses and minimizes serialized prefab data. */
         export interface IPrefabDataAnalyzer {
             /**
              * Analyse the prefab data.
@@ -690,7 +1235,7 @@ declare global {
              * @param options The options.
              * @returns The analysis result.
              */
-            analyse<T extends IPrefabAnalyseOptions>(asset: IAssetInfo, options: T): Promise<IPrefabAnalyseResult<T>>;
+            analyse(asset: IAssetInfo, options: IPrefabAnalyseOptions): Promise<IPrefabAnalyseResult>;
 
             /**
              * Analyse the raw data which is in lh format.
@@ -699,19 +1244,107 @@ declare global {
              * @param options The options.
              * @returns The analysis result.
              */
-            analyseRaw<T extends IPrefabAnalyseOptions>(sourceData: any, isWidget: boolean, options: T): Promise<IPrefabAnalyseResult<T>>;
+            analyseRaw(sourceData: any, isWidget: boolean, options: IPrefabAnalyseOptions): Promise<IPrefabAnalyseResult>;
 
             /**
-             * Get the raw data of an prefab asset.
+             * Get the raw serialized data of a prefab asset.
+             * @param asset Prefab asset to read.
+             * @returns Parsed prefab data.
              */
             getContent(asset: IAssetInfo): Promise<any>;
 
             /**
-             * Get the node map of an prefab asset.
+             * Get serialized nodes indexed by node ID for a prefab asset.
+             * @param asset Prefab asset to read.
+             * @returns Node data indexed by ID.
              */
             getNodeMap(asset: IAssetInfo): Promise<Record<string, any>>;
 
+            /**
+             * Delete unused data for release environment.
+             * @param content Prefab content data.
+             * @returns The minimized prefab data.
+             */
+            minifyPrefabData(content: any): any;
         }
+
+        /** GPU-based scene picking for object IDs, nodes and world positions. */
+        export interface IPickManager {
+            /**
+             * Pick object id list through pixel coordinates
+             * @param x pixel coordinate x
+             * @param y pixel coordinate y 
+             * @param range pixel range, objects within the range will be picked 
+             * @param camera camera used for picking, commonly it is EditorEnv.d3Manager.sceneCamera.
+             * @param addCmds commands to render pick buffer.
+             * @returns object id list
+             */
+            pickIds(x: number, y: number, range: number, camera: Laya.Camera, addCmds: (cmdBuffer: Laya.CommandBuffer) => void): Array<number>;
+
+            /**
+             * Pick object id list through pixel coordinates in 2D mode
+             * @param x pixel coordinate x
+             * @param y pixel coordinate y 
+             * @param range pixel range, objects within the range will be picked 
+             * @param size the size of render texture to render pick buffer, commonly it is the size of scene render texture.
+             * @param addCmds commands to render pick buffer.
+             * @returns object id list 
+             */
+            pickIds2D(x: number, y: number, range: number, size: { width: number, height: number }, addCmds: (cmdBuffer: Laya.CommandBuffer2D) => void): Array<number>;
+
+            /**
+             * Pick world position through pixel coordinates
+             * @param x pixel coordinate x 
+             * @param y pixel coordinate y 
+             * @param ignoreSelected whether to ignore selected objects
+             * @returns The picked world position, or null when the coordinates are outside the pick render target.
+             */
+            pickPos(x: number, y: number, ignoreSelected?: boolean): Readonly<Laya.Vector4> | null;
+
+            /**
+             * Pick Sprite3D through pixel coordinates in current scene.
+             * @param x pixel coordinate x 
+             * @param y pixel coordinate y 
+             * @param range pixel range, objects within the range will be picked 
+             * @param ignoreSelected whether to ignore selected objects
+             * @returns The picked sprite, or null when nothing is hit.
+             */
+            pickSprite3D(x: number, y: number, range: number, ignoreSelected?: boolean): Laya.Sprite3D | null;
+
+            /**
+             * Pick Sprite3D through pixel coordinates in specified render commands.
+             * @param x pixel coordinate x
+             * @param y pixel coordinate y 
+             * @param range pixel range, objects within the range will be picked 
+             * @param addCmds commands to render pick buffer.
+             * @returns The picked sprite, or null when nothing is hit.
+             */
+            pickSprite3D(x: number, y: number, range: number, addCmds: (cmdBuffer: Laya.CommandBuffer) => void): Laya.Sprite3D | null;
+
+            /**
+             * Pick Sprite through pixel coordinates in specified render commands.
+             * @param x pixel coordinate x
+             * @param y pixel coordinate y
+             * @param range pixel range, objects within the range will be picked
+             * @param addCmds commands to render pick buffer.
+             * @returns The picked sprite, or null when nothing is hit.
+             */
+            pickSprite(x: number, y: number, range: number, addCmds: (cmdBuffer: Laya.CommandBuffer2D) => void): Laya.Sprite | null;
+
+            /**
+             * Pick a 2D Sprite/Node from the scene using GPU rendering.
+             * Renders the subtree under `root` with pick colors and reads back the pixel at (x, y).
+             * @param x Pixel coordinate x (scaled by pixelRatio).
+             * @param y Pixel coordinate y (scaled by pixelRatio).
+             * @param range pixel range (currently unused for scene pick, pass 0).
+             * @param root The root sprite to pick from.
+             * @returns The picked Node (Sprite or Sprite3D from Bridge3D), or null if nothing was hit.
+             */
+            pickSprite(x: number, y: number, range: number, root: Laya.Sprite): Laya.Node | null;
+
+        }
+
+        /** Renderable target and lifecycle callbacks submitted to an offscreen renderer. */
         export interface IOffscreenRenderSubmit {
             /**
              * This is the target for offscreen rendering, point to a existing sprite or a scene3D.
@@ -736,6 +1369,7 @@ declare global {
             onPostRender(): void;
         }
 
+        /** Queue-based renderer that produces `ImageBitmap` previews outside the visible scene. */
         export interface IOffscreenRenderer {
             /**
              * Width of the rendertexture.
@@ -752,7 +1386,7 @@ declare global {
              * @param target The target passed in the submit method.
              * @param bitmap The rendering result.
              * @param contentWidth The width of the bitmap. 
-             * @param contentHeight THhe height of the bitmap.
+             * @param contentHeight The height of the bitmap.
              */
             onComplete: (target: IOffscreenRenderSubmit, bitmap: ImageBitmap, contentWidth: number, contentHeight: number) => void;
 
@@ -778,6 +1412,7 @@ declare global {
             destroy(): void;
         }
 
+        /** Reusable 3D preview scene used by offscreen asset renderers. */
         export interface IOffscreenRenderScene {
             /**
              * Scene3D object.
@@ -813,6 +1448,11 @@ declare global {
              * Helper object for camera control.
              */
             readonly cameraControls: ICameraControls;
+
+            /**
+             * Current shape of the preview object. Such as "Box", "Sphere", "Cylinder", "Capsule", "Cone", "Plane".
+             */
+            readonly objShape: string;
 
             /**
              * Focus distance ratio. Default is 1.3.
@@ -852,6 +1492,8 @@ declare global {
              */
             changeShape(shape: string): Promise<void>;
         }
+
+        /** Simple class-name keyed pool for reusable editor objects. */
         export interface IObjectPool {
             /**
              * Get an object from the pool.
@@ -871,21 +1513,63 @@ declare global {
              */
             destroy(): void;
         }
+
+        /** Scene-viewport navigation state, tool selection, focus, picking and cursor control. */
         export interface INavigationManager {
-            readonly allGizmos: Array<IGizmosManager>;
+            /**
+             * Whether the mouse is down.
+             */
             readonly isMouseDown: boolean;
-            readonly scroller: gui.IScroller;
-            hideGizmos: boolean;
+            /**
+             * The SVG root element of the navigation view.
+             */
+            readonly svgRoot: any;
+            /**
+             * The view scale of the navigation view.
+             */
             viewScale: number;
+            /**
+             * Get or set whether it is in 2D mode.
+             */
             mode2d: boolean;
 
+            /**
+             * Change the current tool type.
+             * @param toolType The tool type. 
+             * @param notifyHost Whether to notify the ui process. 
+             * @param isTemp Whether it is a temporary change. 
+             */
             changeToolType(toolType: SceneNavToolType, notifyHost?: boolean, isTemp?: boolean): void;
+            /**
+             * Focus on the specified node.
+             * @param node The node to focus on. 
+             */
             focusNode(node: IMyNode): void;
 
-            drawGizmos(): void;
+            /**
+             * Get the sprite under the mouse cursor.
+             * @param x The x coordinate of the mouse cursor. 
+             * @param y The y coordinate of the mouse cursor. 
+             */
+            getSpriteUnderMouse(x: number, y: number): Laya.Node | null;
+
+            /**
+             * Prevent the context menu from appearing. It is usually called when the mouse is down.
+             */
+            preventContextMenu(): void;
+
+            /**
+             * Set the cursor of the navigation view.
+             * @param cursor The cursor css string, e.g. "pointer", "crosshair", "move", etc. Or a custom cursor url, e.g. "url('cursor.png')"、"url('cursor.png') 16 16", etc.
+             * Set null to reset to default cursor.
+             */
+            setCursor(cursor: string | null): void;
         }
+
+        /** Built-in viewport navigation or object-transform tool identifier. */
         export type SceneNavToolType = "move" | "orbit" | "orbit_focus" | "zoom" | "obj_move" | "obj_rotate" | "obj_scale" | "obj_transform";
 
+        /** Optional positioning and duplicate-name handling for newly created nodes. */
         export interface ICreateNodeOptions {
             /**
              * When creating a node, a reasonable position will be set for the node if this option is true. Default is true.
@@ -898,6 +1582,7 @@ declare global {
             fixDupName?: boolean;
         }
 
+        /** Common Scene-process API implemented by 2D, 3D and GUI editing scenes. */
         export interface IMyScene extends gui.EventDispatcher {
             /**
              * A internal unique id of the scene.
@@ -907,7 +1592,7 @@ declare global {
             /**
              * The asset of the scene. It may be null if the scene is new and not saved.
              */
-            readonly asset: IAssetInfo;
+            readonly asset: IAssetInfo | null;
 
             /**
              * Communication port to the UI process.
@@ -953,12 +1638,17 @@ declare global {
             /**
              * Scene3D node. May be null if the scene is a 2D scene.
              */
-            readonly rootNode3D: IMyNode;
+            readonly rootNode3D: IMyNode | null;
+
+            /**
+             * Scene3D node. The difference between this property and rootNode3D is that this property will be a bridge scene3D or a standalone scene3D.
+             */
+            readonly scene3D: IMyNode;
 
             /**
              * Prefab root node. May be null if the scene is not a prefab editing scene.
              */
-            readonly prefabRootNode: IMyNode;
+            readonly prefabRootNode: IMyNode | null;
 
             /**
              * The world type of the scene.
@@ -967,7 +1657,7 @@ declare global {
              * - null: Common scene. 2D and 3D nodes can be mixed.
              * - gui: GUI scene.
              */
-            readonly worldType: WorldType;
+            readonly worldType: WorldType | null;
 
             /**
              * Scene status is used to store temporary data about the scene.
@@ -982,7 +1672,7 @@ declare global {
             /**
              * The last box in the openedBoxChain. Null if no box is opened.
              */
-            readonly openedBox: IMyNode;
+            readonly openedBox: IMyNode | null;
 
             /**
              * Open a box. Only available for box-like sprites, such as Box, Panel, List, etc.
@@ -1002,7 +1692,7 @@ declare global {
              * @param node The node to find.
              * @returns The box that contains the node. Null if the node is not in any box. 
              */
-            findBox(node: IMyNode): IMyNode;
+            findBox(node: IMyNode): IMyNode | null;
 
             /**
              * Check if a node is a box.
@@ -1036,8 +1726,9 @@ declare global {
              * Run these tests to validate the scene:
              * - Check if the file is outdated.
              * - Check all prefabs to see if they are outdated.
+             * @param ignorePrefab If true, the prefab validation will be skipped. Default is false.
              */
-            validateScene(): void;
+            validateScene(ignorePrefab?: boolean): void;
 
             /**
              * Set the scene to modified status.
@@ -1078,7 +1769,7 @@ declare global {
              * @param id The id of the node.
              * @returns The node. Null if not found.
              */
-            getNodeById(id: string): IMyNode;
+            getNodeById(id: string): IMyNode | null;
             /**
              * Find nodes by keyword.
              * @param keyword Keyword to search. 
@@ -1107,9 +1798,9 @@ declare global {
              * @param nodeProps The properties of the node. 
              * @param parentNode The parent node. 
              * @param options Options for creating the node. 
-             * @returns The new created node.
+             * @returns The newly created node, or null if the prefab cannot be instantiated.
              */
-            instantiatePrefab(assetId: string, nodeProps: Record<string, any>, parentNode: IMyNode, options?: ICreateNodeOptions): Promise<IMyNode>;
+            instantiatePrefab(assetId: string, nodeProps: Record<string, any>, parentNode: IMyNode, options?: ICreateNodeOptions): Promise<IMyNode | null>;
 
             /**
              * Unpack a prefab. That means all nodes in the prefab will be converted to normal nodes.
@@ -1163,7 +1854,7 @@ declare global {
              * A className must be registered with ＠IEditorEnv.regClass.
              * @param name objectName.methodName
              * @param args The arguments.
-             * @returns The function found. Null if not found.
+             * @returns The registered function's resolved return value. If no function is found, the method logs an error and resolves to `undefined`.
              * @example
              * ```
              * ＠IEditorEnv.regClass
@@ -1173,8 +1864,7 @@ declare global {
              *   }
              * }
              * 
-             * const func = EditorEnv.scene.runScript("MyTest.sayHello");
-             * func(); // Output: Hello
+             * await EditorEnv.scene.runScript("MyTest.sayHello"); // Output: Hello
              * ```
              */
             runScript(name: string, ...args: any[]): Promise<any>;
@@ -1188,62 +1878,108 @@ declare global {
              */
             runNodeScript(target: IMyNode | IMyComponent, methodName: string, ...args: any[]): Promise<any>;
         }
+
+        /** Editor-only metadata attached to a live Scene-process node. */
         export interface IMyNodeExtra {
+            /** Stable editor node ID. */
             readonly id?: string;
+            /** Registered editor type name. */
             readonly type?: string;
+            /** Whether the node belongs to the current editor selection. */
             readonly selected?: boolean;
+            /** Whether this node is the outermost root of a prefab instance. */
             readonly isTopPrefab?: boolean;
+            /** Whether prefab ownership prevents direct editing. */
             readonly isPrefabReadonly?: boolean;
+            /** Source prefab asset ID when the node belongs to a prefab. */
             readonly prefabId?: string;
+            /** Scene wrapper that owns the node. */
             readonly scene?: IMyScene;
         }
 
+        /** Minimal common surface shared by engine nodes and GUI widgets in the Scene process. */
         export interface IMyNode {
+            /** Editor/engine visibility and serialization bit flags. */
             hideFlags: number;
+            /** User-facing node name. */
             name: string;
-            readonly parent: IMyNode;
+            /** Parent node, or null for a scene root. */
+            readonly parent: IMyNode | null;
+            /** Whether the underlying runtime object has been destroyed. */
             readonly destroyed: boolean;
+            /** Number of direct children. */
             readonly numChildren: number;
 
+            /** Return the child at `index`. */
             getChildAt(index: number): IMyNode;
+            /** Test whether this node is an ancestor of `node`. */
             isAncestorOf(node: IMyNode): boolean;
+            /** Test one `hideFlags` bit. */
             hasHideFlag(flag: number): boolean;
 
+            /** Set an internal engine/editor state bit. Prefer higher-level APIs when available. */
             _setBit(type: number, value: boolean): void;
+            /** Read an internal engine/editor state bit. Prefer higher-level APIs when available. */
             _getBit(type: number): boolean;
 
+            /** Editor metadata associated with this node. */
             _extra: IMyNodeExtra;
         }
 
+        /** Minimal common component surface used by Scene-process editor APIs. */
         export interface IMyComponent {
+            /** Node that owns the component. */
             readonly owner: IMyNode;
+            /** Editor/engine visibility and serialization bit flags. */
             hideFlags: number;
+            /** Whether the component participates in runtime updates. */
             enabled: boolean;
         }
+
+        /** Rectangle accepted by the max-rectangles atlas packer. Output fields are written in place. */
         export interface IRectangle {
+            /** Rectangle width in pixels. */
             width: number;
+            /** Rectangle height in pixels. */
             height: number;
+            /** Packed x-coordinate; assigned by the packer. */
             x: number;
+            /** Packed y-coordinate; assigned by the packer. */
             y: number;
+            /** Whether the packer may rotate this rectangle by 90 degrees. */
             allowRotation?: boolean;
+            /** Caller-defined source index. */
             index?: number;
+            /** Optional grouping tag used with tagged packing. */
             tag?: number;
+            /** Caller-defined payload retained on the rectangle. */
             data?: any;
 
+            /** Whether the rectangle exceeded the configured bin dimensions. */
             oversized?: boolean;
+            /** Whether the packed rectangle was rotated by 90 degrees. */
             rotated?: boolean;
         }
 
+        /** One output bin and its remaining free-space rectangles. */
         export interface IBin<T extends IRectangle> {
+            /** Bin width in pixels. */
             width: number;
+            /** Bin height in pixels. */
             height: number;
+            /** Free rectangles remaining after placement. */
             freeRects: IRectangle[];
+            /** Source rectangles assigned to this bin. */
             rects: T[];
+            /** Optional grouping tag associated with the bin. */
             tag?: number;
         }
 
+        /** Heuristic used to select the next max-rectangles placement. */
         export enum MaxRectsPackingLogic {
+            /** Prefer the placement that minimizes unused area. */
             MaxArea = 0,
+            /** Prefer the placement that minimizes the longest leftover edge. */
             MaxEdge = 1
         }
 
@@ -1261,17 +1997,27 @@ declare global {
          * @interface Option
          */
         export interface IMaxRectsPackingOptions {
+            /** Grow bin dimensions to fit content. Defaults to `true`. */
             smart?: boolean,
+            /** Round bin dimensions up to powers of two. Defaults to `true`. */
             pot?: boolean,
+            /** Force square output bins. Defaults to `false`. */
             square?: boolean,
+            /** Allow rectangles to rotate by 90 degrees. Defaults to `false`. */
             allowRotation?: boolean,
+            /** Group rectangles using their `tag` values. Defaults to `false`. */
             tag?: boolean,
+            /** Put distinct tags in independent bins. Defaults to `true`. */
             exclusiveTag?: boolean,
+            /** Empty spacing reserved at atlas edges, in pixels. Defaults to `0`. */
             border?: number,
+            /** Placement heuristic. Defaults to {@link MaxRectsPackingLogic.MaxEdge}. */
             logic?: MaxRectsPackingLogic
         }
 
+        /** Incremental max-rectangles bin packer used to build texture atlases. */
         export interface IMaxRectsPacker<T extends IRectangle> {
+            /** Output bins produced so far. */
             readonly bins: IBin<T>[];
 
             /**
@@ -1328,6 +2074,8 @@ declare global {
              */
             get rects(): T[];
         }
+
+        /** Local HTTP/HTTPS server used for project preview and plugin-provided file routes. */
         export interface ILiveServer {
             /**
              * Host name.
@@ -1345,7 +2093,7 @@ declare global {
             readonly securePort: number;
 
             /**
-             * URl of the server, it's "http://host:port".
+             * Base URL of the server, in the form `http://host:port`.
              */
             readonly url: string;
 
@@ -1355,18 +2103,27 @@ declare global {
             readonly expressApp: express.Express;
 
             /**
-             * The instance of the express application with web socket support.
+             * Serve a local file at the specified URL path.
+             * @param routePath URL path relative to the live-server root.
+             * @param filePath Absolute path of the local file.
              */
-            readonly expressWsApp: expressWs.Application;
+            addFileRoute(routePath: string, filePath: string): void;
+
+            /**
+             * Remove a previously registered local-file route.
+             * @param routePath URL path relative to the live-server root.
+             */
+            removeFileRoute(routePath: string): void;
 
             /**
              * Start a web server to serve the specified directory.
-             * @param webRootPath The root path of the web server. It is a absolute path.
+             * @param webRootPath The absolute root path served by the web server.
              * @param secure Whether to use secure connection. Default is false.
              * @returns The URL of the server, e.g. "http://192.168.1.1:19090".
              */
             serveAnywhere(webRootPath: string, secure?: boolean): Promise<string>;
         }
+
         export namespace ILineEditor {
             /**
              * Get the distance from a point to a line segment. 
@@ -1394,9 +2151,13 @@ declare global {
              */
             function addPoint(points: number[], x: number, y: number, isLoop?: boolean, tolerance?: number): boolean;
         }
+        /** Laya DCC resource-cache generation helpers used during a build. */
         export namespace ILayaDCC {
+            /** Generate DCC metadata for the built resources under `resourcePath`. */
             function build(task: IBuildTask, resourcePath: string): Promise<void>;
         }
+
+        /** Encodes one or more image buffers into a Windows ICO file buffer. */
         export interface IIcoEncoder {
             /**
              * encode writes the stored image buffers into the internal buffer storage,
@@ -1407,6 +2168,7 @@ declare global {
              */
             encode(imageBuffers: Array<Buffer | ArrayBuffer>): Buffer;
         }
+
         export namespace II18nUtils {
             /**
              * Analyze all prefab files in the folder and sub-folers where the configuration file is located, collect all the text that needs to be translated into the reference file, and convert these texts into an internationalized format. If the reference file is not set, one will be automatically generated.
@@ -1418,6 +2180,7 @@ declare global {
              */
             function syncTranslations(defAssetId: string): Promise<void>;
         }
+        /** Controls node references and output shape during hierarchy serialization. */
         export interface IHierarchyWriterOptions {
             /**
              * Callback function to get the id path of the node.
@@ -1425,7 +2188,7 @@ declare global {
             getNodeRef?: (node: Laya.Node) => string | string[];
 
             /**
-             * Don't product the header like "_$ver: 1" to the output. Default is false.
+             * Omit header fields such as `_$ver`. Defaults to `false`.
              */
             noHeader?: boolean;
 
@@ -1433,6 +2196,11 @@ declare global {
              * If true, additional actions will be performed according to the `forInstanceOnly` flag.
              */
             creatingPrefab?: boolean;
+
+            /**
+             * If true, children nodes will be ignored.
+             */
+            ignoreChildren?: boolean;
         }
 
         export namespace IHierarchyWriter {
@@ -1460,80 +2228,117 @@ declare global {
              */
             function collectResources(node: Laya.Node, out?: Set<any>): Set<any>;
         }
-        export interface IHandle {
-            get valueChanged(): boolean;
+
+        /** One structural or reference error found in serialized hierarchy data. */
+        export interface ValidationError {
+            /**
+             * RFC 6902 JSON Pointer 格式的错误位置路径
+             * 例如: /root/child/items/0/position
+             */
+            path: string;
+            /** Machine-readable validation category. */
+            errorType: 'undefined-property' | 'type-mismatch' | 'invalid-type' | 'prefab-conflict' | 'invalid-prefab-format' | 'invalid-override' | 'override-position-error' | 'prefab-missing' | 'override-node-missing' | 'parent-node-missing';
+            /** Human-readable diagnostic message. */
+            errorMessage: string;
         }
 
-        export interface IBoxHandle extends IHandle {
-            position: Laya.Vector3;
-            size: Laya.Vector3;
+        /** Validates the structure, types, prefab references and overrides in hierarchy data. */
+        export interface IHierarchyValidator {
+            /**
+             * Validate the hierarchy data.
+             * @param data The hierarchy data.
+             * @returns The list of validation errors.
+             */
+            validate(data: any): ValidationError[];
         }
 
-        export interface ICapsuleHandle extends IHandle {
-            position: Laya.Vector3;
-            radius: number;
-            height: number;
+        /** Visual and interaction state of a scene handle. */
+        export enum HandleState {
+            /**
+             * Normal state, the handle is not hovered or active.
+             */
+            Normal,
+            /**
+             * Mouse is hovering over the handle.
+             */
+            Hovered,
+            /**
+             * The handle is being dragged.
+             */
+            Active,
+            /**
+             * When one handle is in the dragging state, other handles will be set to inactive state.
+             */
+            Inactive
         }
 
-        export interface ICylinderHandle extends IHandle {
-            position: Laya.Vector3;
-            upRadius: number;
-            downRadius: number;
-            height: number;
+        /** Pointer/drag event currently being processed by the immediate-mode handle API. */
+        export enum HandleEvent {
+            /** A handle received a pointer-down event. */
+            MouseDown,
+            /** A handle received a pointer-up event. */
+            MouseUp,
+            /** The pointer moved over a handle without dragging it. */
+            MouseMove,
+            /** A handle is being dragged. */
+            Drag,
+            /** A handle received a right-click event. */
+            RightClick
         }
 
-        export namespace IHandles {
+        /** Appearance of an immediate-mode 2D handle. */
+        export type Handle2DStyle = {
             /**
-             * A helper cube mesh.
+             * The shape of the 2D handle, it can be "rect" or "circle", default is "circle".
              */
-            const cubeMesh: Laya.Mesh;
+            shape?: "rect" | "circle",
+            /**
+             * The color of the handle.
+             */
+            color?: Laya.Color | HandleColor;
+            /**
+             * The line color of the handle.
+             */
+            lineColor?: Laya.Color | HandleColor;
+            /**
+             * The size of the handle.
+             */
+            size?: number;
+            /**
+             * The anchor point of the handle.
+             */
+            anchor?: Laya.Vector2;
+        };
+
+        /** Per-item state and custom payload passed when opening a handle context menu. */
+        export interface IHandleContextMenuOptions {
+            /** Visibility overrides indexed by menu item ID. */
+            visible?: Record<string, boolean>;
+            /** Enabled-state overrides indexed by menu item ID. */
+            enabled?: Record<string, boolean>;
+            /** Checked-state overrides indexed by menu item ID. */
+            checked?: Record<string, boolean>;
+            /** Host-defined value returned when a menu item is selected. */
+            data?: any;
+        }
+
+        /** Immediate-mode scene handle API used while drawing custom editor gizmos. */
+        export interface IHandles extends IGizmos3D {
 
             /**
-             * A helper quad mesh.
+             * The current handle event.
              */
-            const quadMesh: Laya.Mesh;
-
-            /**
-             * A helper sphere mesh.
-             */
-            const sphereMesh: Laya.Mesh;
-
-            /**
-             * A helper arrow-z mesh.
-             */
-            const arrowZMesh: Laya.Mesh;
-
-            /**
-             * A helper plane mesh.
-             */
-            const planeMesh: Laya.Mesh;
-
-            /**
-             * A helper material for mesh.
-             */
-            const meshMaterial: Laya.Material;
-
-            /**
-             * A helper material for line.
-             */
-            const lineMaterial: Laya.Material;
-
-            /**
-             * A helper material for dotted line.
-             */
-            const dottedLineMaterial: Laya.Material;
-
-            /**
-             * A helper line sprite.
-             */
-            const line: Laya.PixelLineSprite3D;
+            readonly event: HandleEvent;
 
             /**
              * Create a position move handle.
              * @param position The initial position.
-             * @returns The new position. 
+             * @returns The new position.
              */
-            function positionMoveHandle(position: Laya.Vector3): Laya.Vector3;
+            positionMoveHandle(position: Laya.Vector3): {
+                valueChanged: boolean,
+                result: Laya.Vector3
+            };
 
             /**
              * Create a direction move handle.
@@ -1543,35 +2348,50 @@ declare global {
              * @param color The handle color.
              * @returns The new position.
              */
-            function directionMoveHandle(direction: Laya.Vector3, position: Laya.Vector3, size: number, color?: Laya.Color): Laya.Vector3;
+            directionMoveHandle(direction: Laya.Vector3, position: Laya.Vector3, size: number, color?: Laya.Color): {
+                valueChanged: boolean,
+                result: Laya.Vector3
+            };
 
             /**
              * Create a direction move handle.
-             * @param direction 
-             * @param position 
-             * @param size 
-             * @param color 
+             * @param direction
+             * @param position
+             * @param size
+             * @param color
+             * @returns The new position.
              */
-            function directionMoveQuadHandle(direction: Laya.Vector3, position: Laya.Vector3, size: number, color?: Laya.Color): Laya.Vector3;
+            directionMoveQuadHandle(direction: Laya.Vector3, position: Laya.Vector3, size: number, color?: Laya.Color): {
+                valueChanged: boolean,
+                result: Laya.Vector3
+            };
 
             /**
              * Create a plane move handle.
-             * @param direction1 
-             * @param direction2 
+             * @param direction1
+             * @param direction2
              * @param position
-             * @param size 
-             * @param color 
+             * @param size
+             * @param color
+             * @returns The new position.
              */
-            function planeMoveHandle(direction1: Laya.Vector3, direction2: Laya.Vector3, position: Laya.Vector3, size: number, color?: Laya.Color): Laya.Vector3;
+            planeMoveHandle(direction1: Laya.Vector3, direction2: Laya.Vector3, position: Laya.Vector3, size: number, color?: Laya.Color): {
+                valueChanged: boolean,
+                result: Laya.Vector3
+            };
 
             /**
              * Create a world move handle.
-             * @param position 
-             * @param targetVertex 
-             * @param size 
-             * @param color 
+             * @param position
+             * @param targetVertex
+             * @param size
+             * @param color
+             * @returns The new position.
              */
-            function worldMoveHandle(position: Laya.Vector3, targetVertex: boolean, size: number, color?: Laya.Color): Laya.Vector3;
+            worldMoveHandle(position: Laya.Vector3, targetVertex: boolean, size: number, color?: Laya.Color): {
+                valueChanged: boolean,
+                result: Laya.Vector3
+            };
 
             /**
              * Create a direction scale handle.
@@ -1582,7 +2402,10 @@ declare global {
              * @param color The handle color.
              * @returns The new scale.
              */
-            function directionScaleHandle(scale: number, position: Laya.Vector3, rotation: Laya.Quaternion, size: number, color?: Laya.Color): number;
+            directionScaleHandle(scale: number, position: Laya.Vector3, rotation: Laya.Quaternion, size: number, color?: Laya.Color): {
+                valueChanged: boolean,
+                result: number
+            };
 
             /**
              * Create a radius handle.
@@ -1592,10 +2415,76 @@ declare global {
              * @param color The handle color.
              * @returns The new radius.
              */
-            function radiusHandle(radius: number, position: Laya.Vector3, rotation?: Laya.Quaternion, color?: Laya.Color): number;
+            radiusHandle(radius: number, position: Laya.Vector3, rotation?: Laya.Quaternion, color?: Laya.Color): {
+                valueChanged: boolean,
+                result: number
+            };
 
             /**
-             * Create a cone handle.
+             * Create a 2D move handle, which can be used to move objects in 2D view.
+             * @param matrix The matrix to transform the handle.
+             * @param x The x position of the handle center. Default is 0.
+             * @param y The y position of the handle center. Default is 0.
+             * @param style The handle style.
+             * @param targetSpace The coordinate space used for calculating the handle movement. Default is the same as matrix. If another matrix is passed in, it means the movement will be in the coordinate space defined by that matrix, and the resulting deltaX and deltaY will also be calculated based on that coordinate space.
+             * @returns The delta movement in x and y direction.
+             */
+            move2DHandle(matrix: Laya.Matrix, x?: number, y?: number, style?: Handle2DStyle['shape'] | Handle2DStyle, targetSpace?: Laya.Matrix): {
+                valueChanged: boolean,
+                deltaX: number;
+                deltaY: number;
+            };
+
+            /**
+            * Handles for editing boxes, which can be used to resize boxes in 3D view.
+            * @param center The center of the box.
+            * @param size The size of the box.
+            * @param color The line color.
+            * @param rotation The rotation of the box.
+            * @return The new position and size of the box.
+            */
+            editBox(center: Laya.Vector3, size: Laya.Vector3, color?: Laya.Color, rotation?: Laya.Quaternion, isCenter?: boolean): {
+                valueChanged: boolean,
+                position: Laya.Vector3,
+                size: Laya.Vector3
+            };
+
+            /**
+             * Handles for editing capsules, which can be used to resize capsules in 3D view.
+             * @param center The center of the capsule.
+             * @param radius The radius of the capsule.
+             * @param height The height of the capsule.
+             * @param color The line color.
+             * @param rotation The rotation of the capsule.
+             * @return The new position, radius and height of the capsule.
+             */
+            editCapsule(center: Laya.Vector3, radius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion): {
+                valueChanged: boolean,
+                position: Laya.Vector3;
+                radius: number;
+                height: number;
+            };
+
+            /**
+             * Handles for editing cylinders, which can be used to resize cylinders in 3D view.
+             * @param center The center of the cylinder.
+             * @param upRadius The up radius of the cylinder.
+             * @param downRadius The down radius of the cylinder.
+             * @param height The height of the cylinder.
+             * @param color The line color.
+             * @param rotation The rotation of the cylinder.
+             * @return The new position, radius and height of the cylinder.
+             */
+            editCylinder(center: Laya.Vector3, upRadius: number, downRadius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion): {
+                valueChanged: boolean,
+                position: Laya.Vector3;
+                upRadius: number;
+                downRadius: number;
+                height: number;
+            };
+
+            /**
+             * Handles for editing cones, which can be used to resize cones in 3D view.
              * @param rotation The rotation.
              * @param topPosition The top position of the cone.
              * @param angle The angle of the cone.
@@ -1603,192 +2492,187 @@ declare global {
              * @param color The handle color.
              * @returns The new angle(x) and range(y).
              */
-            function coneHandle(rotation: Laya.Quaternion, topPosition: Laya.Vector3, angle: number, range: number, color?: Laya.Color): Laya.Vector2;
+            editCone(rotation: Laya.Quaternion, topPosition: Laya.Vector3, angle: number, range: number, color?: Laya.Color): {
+                valueChanged: boolean,
+                result: Laya.Vector2
+            };
 
             /**
-             * Draw a line.
-             * @param start Start position.
-             * @param end End position.
-             * @param color Line color.
+             * Handles for editing planes, which can be used to resize planes in 3D view.
+             * @param rotation The rotation.
+             * @param center The center of the plane.
+             * @param width The width of the plane.
+             * @param height The height of the plane.
+             * @param color The handle color.
+             * @param spread The spread of the plane.
+             * @returns The new width(x) and height(y).
              */
-            function drawLine(start: Laya.Vector3, end: Laya.Vector3, color?: Laya.Color): void;
+            editPlane(rotation: Laya.Quaternion, center: Laya.Vector3, width: number, height: number, color?: Laya.Color, spread?: number): {
+                valueChanged: boolean,
+                result: Laya.Vector2
+            };
 
             /**
-             * Draw a dotted line.
-             * @param start Start position. 
-             * @param end End position. 
-             * @param color Line color. 
+             * Handles for editing ellipses, which can be used to resize ellipses in 3D view.
+             * @param rotation The rotation.
+             * @param center The center of the ellipse.
+             * @param width The width of the ellipse.
+             * @param height The height of the ellipse.
+             * @param color The handle color.
+             * @param spread The spread of the ellipse.
+             * @returns The new width(x) and height(y).
              */
-            function drawDottedLine(start: Laya.Vector3, end: Laya.Vector3, color?: Laya.Color): void;
+            editEllipse3D(rotation: Laya.Quaternion, center: Laya.Vector3, width: number, height: number, color?: Laya.Color, spread?: number): {
+                valueChanged: boolean,
+                result: Laya.Vector2
+            };
 
             /**
-             * Draw a arc line.
-             * @param start Start position. 
-             * @param end End position. 
-             * @param height Height. 
-             * @param startAllow  
-             * @param ednAllow 
-             * @param color Line color.
+             * Handles for editing rectangles, which can be used to resize rectangles in 2D view.
+             * @param matrix The matrix to transform the handle.
+             * @param x The x position of the rect center.
+             * @param y The y position of the rect center.
+             * @param width The width of the rect.
+             * @param height The height of the rect.
+             * @param targetSpace The coordinate space used for calculating the handle movement. Default is the same as matrix.
+             * @return The new center position and size of the rect.
              */
-            function drawArcLine(start: Laya.Vector3, end: Laya.Vector3, height: number, startAllow: boolean, ednAllow: boolean, color?: Laya.Color): void;
+            editRectangle(matrix: Laya.Matrix, x: number, y: number, width: number, height: number, targetSpace?: Laya.Matrix): {
+                valueChanged: boolean,
+                center: Laya.Vector2,
+                size: Laya.Vector2
+            };
 
             /**
-             * Draw a wire circle.
-             * @param center The center of the circle.
+             * Handles for editing circles, which can be used to resize circles in 2D view.
+             * @param matrix The matrix to transform the handle. 
+             * @param x The x position of the circle center. 
+             * @param y The y position of the circle center. 
              * @param radius The radius of the circle.
-             * @param normal The normal direction perpendicular to the plane of the circle.
-             * @param color The line color.
+             * @param targetSpace The coordinate space used for calculating the handle movement. Default is the same as matrix.
+             * @returns The new center position and radius of the circle.
              */
-            function drawWireCircle(center: Laya.Vector3, radius: number, normal: Laya.Quaternion | Laya.Vector3, color?: Laya.Color, angle?: number): void;
+            editCircle(matrix: Laya.Matrix, x: number, y: number, radius: number, targetSpace?: Laya.Matrix): {
+                valueChanged: boolean,
+                center: Laya.Vector2,
+                radius: Laya.Vector2
+            };
 
             /**
-            * Draw a wire box.
-            * @param center The center of the box.
-            * @param size The size of the box.
-            * @param color The line color.
-            * @param rotation The rotation of the box.
-            */
-            function drawBox(center: Laya.Vector3, size: Laya.Vector3, color?: Laya.Color, rotation?: Laya.Quaternion): void;
-
-            /**
-            * Draw a wire capsule.
-            * @param center The center of the capsule.
-            * @param size The size of the capsule.
-            * @param color The line color.
-            * @param rotation The rotation of the capsule.
-            */
-            function drawCapsule(center: Laya.Vector3, radius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion): void;
-
-            /**
-             * Draw a wire hemisphere.
-             * @param center The center of the hemisphere.
-             * @param size The size of the hemisphere.
-             * @param color The line color.
-             * @param rotation The rotation of the hemisphere.
+             * Handles for editing ellipses, which can be used to resize ellipses in 2D view.
+             * @param matrix The matrix to transform the handle.
+             * @param x The x position of the ellipse center.
+             * @param y The y position of the ellipse center.
+             * @param radiusX The radiusX of the ellipse.
+             * @param radiusY The radiusY of the ellipse.
+             * @param targetSpace The coordinate space used for calculating the handle movement. Default is the same as matrix.
              */
-            function drawHemiSphere(center: Laya.Vector3, radius: number, color?: Laya.Color, rotation?: Laya.Quaternion): void;
+            editEllipse(matrix: Laya.Matrix, x: number, y: number, radiusX: number, radiusY: number, targetSpace?: Laya.Matrix): {
+                valueChanged: boolean,
+                center: Laya.Vector2,
+                radius: Laya.Vector2
+            };
 
             /**
-            * Draw a wire sphere.
-            * @param center The center of the sphere.
-            * @param size The size of the sphere.
-            * @param color The line color.
-            */
-            function drawSphere(center: Laya.Vector3, radius: number, color?: Laya.Color): void;
-
-            /**
-             * Draw a wire cylinder.
-             * @param center The center of the cylinder.
-             * @param radius The radius of the cylinder.
-             * @param height The height of the cylinder.
-             * @param color The line color.
-             * @param rotation The rotation of the cylinder.
+             * Handles for editing paths, which can be used to edit paths in 2D view.
+             * @param matrix The matrix to transform the handle.
+             * @param x The x position of the path handle.
+             * @param y The y position of the path handle.
+             * @param points The points of the path, in the format of [x1, y1, x2, y2, ...].
+             * @param closed Whether the path is closed, if closed is true, there will be an additional line segment between the last point and the first point.
+             * @param lineWidth The line width of the handle. Default is 1.
+             * @param lineColor The line color of the handle. Default is Color.CLEAR(transparent).
+             * @param fixedLength If true, the handle will not allow adding new points or removing points. Default is false.
+             * @param targetSpace The coordinate space used for calculating the handle movement. Default is the same as matrix.
              */
-            function drawCylinder(center: Laya.Vector3, upRadius: number, downRadius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion): void;
+            editPath(matrix: Laya.Matrix, x: number, y: number, points: number[], closed: boolean, lineWidth?: number, lineColor?: Laya.Color, fixedLength?: boolean, targetSpace?: Laya.Matrix): {
+                valueChanged: boolean,
+                points: number[],
+            };
 
             /**
-             * Draw a wire plane.
-             * @param rotation The plane rotation.
-             * @param center The plane center.
-             * @param width The plane width.
-             * @param height The plane height.
-             * @param color The line color.
+             * Handles for editing curve paths (Bezier, CubicBezier, Straight, CRSpline).
+             * Draws the curve, anchor point handles, and bezier control point handles.
+             * Ctrl+click on the curve to add a point, Alt+click on a point to delete it.
+             * Right-click a point handle to open the context menu.
+             * @param matrix The matrix to transform the handle.
+             * @param x The x offset of the path.
+             * @param y The y offset of the path.
+             * @param points The path points.
+             * @param lineWidth The line width. Default is 1.
+             * @param lineColor The line color. Default is Color.CLEAR(transparent).
+             * @param fixedLength If true, the handle will not allow adding new points or removing points. Default is false.
+             * @param targetSpace The coordinate space used for calculating the handle movement. Default is the same as matrix.
              */
-            function drawWirePlane(rotation: Laya.Quaternion, center: Laya.Vector3, width: number, height: number, color?: Laya.Color, spread?: number): void;
+            editCurvePath(matrix: Laya.Matrix, x: number, y: number, points: Laya.PathPoint[], lineWidth?: number, lineColor?: Laya.Color, fixedLength?: boolean, targetSpace?: Laya.Matrix): {
+                valueChanged: boolean,
+                points: Laya.PathPoint[],
+            };
 
             /**
-            * Draw a wire ellipse.
-            * @param rotation The ellipse rotation.
-            * @param center The ellipse center.
-            * @param width The ellipse width.
-            * @param height The ellipse height.
-            * @param color The line color.
-            */
-            function drawEllipse(rotation: Laya.Quaternion, center: Laya.Vector3, width: number, height: number, color?: Laya.Color, spread?: number): Laya.Vector2;
-
-            /**
-             * Draw billboard.
-             * @param position Position.
-             * @param size Size.
-             * @param color Color.
+             * Handles for editing 3D curve paths (Bezier, CubicBezier, Straight, CRSpline) in 3D view.
+             * Draws the curve, anchor point handles, and bezier control point handles.
+             * Ctrl+click on the curve to add a point, Alt+click on a point to delete it.
+             * Right-click a point handle to open the context menu.
+             * @param worldMatrix The world matrix of the path owner.
+             * @param points The path points.
+             * @param lineColor The line color. Default is Color.CLEAR(transparent).
+             * @param localOffset The local offset applied to all points.
+             * @param fixedLength If true, the handle will not allow adding new points or removing points. Default is false.
+             * @param targetSpace The coordinate space used for snapping. Default is the same as worldMatrix.
              */
-            function drawBillboard(position: Laya.Vector3, size: number, color?: Laya.Color): void;
+            editCurvePath3D(worldMatrix: Laya.Matrix4x4, points: Laya.PathPoint[], lineColor?: Laya.Color, localOffset?: Laya.Vector3, fixedLength?: boolean, targetSpace?: Laya.Matrix4x4): {
+                valueChanged: boolean,
+                points: Laya.PathPoint[],
+            };
 
             /**
-             * Draw a cube.
-             * @param position Position.
-             * @param rotation Rotation.
-             * @param size Size.
-             * @param color Color.
+             * Show a handle.
+             * @param handleClass The handle class.
+             * @param args The arguments for start method.
+             * @returns The handle instance.
              */
-            function drawCube(position: Laya.Vector3, rotation: Laya.Quaternion, size: number, color?: Laya.Color): void;
+            showHandle<T extends HandleBase>(handleClass: (new () => T) | T, ...args: Parameters<T['execute']>): T;
 
             /**
-             * Draw a mesh.
-             * @param mesh Mesh. 
-             * @param position Position. 
-             * @param rotation Rotation. 
-             * @param scale Scale. 
-             * @param color Color. 
+             * Set the cursor when hovering or dragging handles.
+             * @param cursor The cursor css string, e.g. "pointer", "crosshair", "move", etc. Or a custom cursor url, e.g. "url('cursor.png')"、"url('cursor.png') 16 16", etc.
              */
-            function drawMesh(mesh: Laya.Mesh, position?: Laya.Vector3, rotation?: Laya.Quaternion, scale?: Laya.Vector3, color?: Laya.Color): void;
+            setCursor(cursor: string): void;
 
             /**
-             * Draw a mesh line.
-             * @param mesh Mesh. 
-             * @param position Position. 
-             * @param rotation Rotation. 
-             * @param scale Scale. 
-             * @param color Color. 
+             * Set the context menu callback when right click on last added handle.
+             * @returns An object with showMenu function, when right click on the handle, the showMenu function will be returned and caller is responsible for calling this function with proper menuId and options to show the context menu. If clicked is returned, it means the context menu has been clicked, and the menuId and a custom data will be returned.
              */
-            function drawMeshLine(mesh: Laya.Mesh, position?: Laya.Vector3, rotation?: Laya.Quaternion, scale?: Laya.Vector3, color?: Laya.Color): void;
+            setMenu(): { showMenu?: (menuId: string, options?: IHandleContextMenuOptions) => void, clicked?: string, data?: any };
 
             /**
-             * Draw a custom handle.
-             * @param factory The factory function. 
-             * @param args The arguments passed to the factory function. 
+             * Set the pointer capture for the last added handle. When no other handle is hovered or active, the pointer events will be captured by this handle, and the handle will receive all pointer events.
              */
-            function drawCustom<T extends any[]>(factory: (...args: T) => HandleDrawBase, ...args: T): void;
-
-            /**
-            * Edit a wire box.
-            * @param center The center of the box.
-            * @param size The size of the box.
-            * @param color The line color.
-            * @param rotation The rotation of the box.
-            * @return The box handle.
-            */
-            function editBox(center: Laya.Vector3, size: Laya.Vector3, color?: Laya.Color, rotation?: Laya.Quaternion, isCenter?: boolean): IBoxHandle;
-
-            /**
-             * Edit a capsule.
-             * @param center The center of the capsule.
-             * @param radius The radius of the capsule.
-             * @param height The height of the capsule.
-             * @param color The line color.
-             * @param rotation The rotation of the capsule.
-             * @return The capsule handle.
-             */
-            function editCapsule(center: Laya.Vector3, radius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion): ICapsuleHandle;
-
-            /**
-             * Edit a cylinder.
-             * @param center The center of the cylinder.
-             * @param radius The radius of the cylinder.
-             * @param height The height of the cylinder.
-             * @param color The line color.
-             * @param rotation The rotation of the cylinder.
-             * @return The cylinder handle.
-             */
-            function editCylinder(center: Laya.Vector3, upRadius: number, downRadius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion, editorConfig?: any): ICylinderHandle;
-
+            setPointerCapture(): void;
         }
+
         export namespace IHandleUtils {
 
             /**
-             * Get current mouse position.
+             * Get current mouse position. It is the result of the screen mouse position multiplied by EditorEnv.hostPixelRatio.
              */
             const mousePosition: Readonly<Laya.Vector2>;
+
+            /**
+             * Get last mouse position. It is the result of the screen mouse position multiplied by EditorEnv.hostPixelRatio.
+             */
+            const lastMousePosition: Readonly<Laya.Vector2>;
+
+            /**
+             * Get current mouse position in screen coordinates.
+             */
+            const screenMousePosition: Readonly<Laya.Vector2>;
+
+            /**
+             * Get last mouse position in screen coordinates.
+             */
+            const lastScreenMousePosition: Readonly<Laya.Vector2>;
 
             /**
              * Get the appropriate handle size for the specified coordinates.
@@ -1796,33 +2680,182 @@ declare global {
              * @returns The handle size.
              */
             function getHandleSize(position: Laya.Vector3): number;
-        }
-        export namespace IGizmos3D {
 
             /**
-             * Draw icon.
-             * @param position Position.
-             * @param url Icon URL.
-             * @param color The color of icon. Default is white.
+             * Get the world-space length of one screen pixel at the specified position.
+             * @param position The world-space position.
+             * @returns The world-space length corresponding to one screen pixel.
              */
-            function drawIcon(position: Laya.Vector3, url: string, color?: Laya.Color): void;
+            function getWorldUnitsPerPixel(position: Laya.Vector3): number;
+
+            /**
+             * Get the transformation matrix for a handle in the local space of a sprite. 
+             * @param sprite The target sprite.
+             * @param localX The local x coordinate of the handle in the sprite's local space. 
+             * @param localY The local y coordinate of the handle in the sprite's local space. 
+             * @param out The output matrix. Can be null, if null is passed in, a temporary matrix will be used.
+             * @return The output matrix.
+             */
+            function getWorldMatrix(sprite: Laya.Node, localX?: number, localY?: number, out?: Laya.Matrix): Laya.Matrix;
+        }
+
+        /** Built-in transform tool displayed for the current scene selection. */
+        export enum TransformCtrlMode {
+            /** Translation controls. */
+            Move,
+            /** Rotation controls. */
+            Rotate,
+            /** Scale controls. */
+            Scale,
+            /** Combined translation, rotation and scale controls. */
+            Transform,
+        }
+
+        /** Coordinate space used by transform controls. */
+        export enum TransformSpaceMode {
+            /** Orient controls in the selected object's local space. */
+            Local,
+            /** Orient controls in world space. */
+            World
+        }
+
+        /** Constraint used while moving transform controls. */
+        export enum TransformMoveMode {
+            /** Move along the active view or axis plane. */
+            Plane,
+            /** Snap movement to a picked world position. */
+            WorldPos
+        }
+
+        /** Mutable snapping state of the built-in move control. */
+        export interface IMoveCtrl {
+            /** Current movement constraint. */
+            moveMode: TransformMoveMode;
+            /** Whether the selected object's mesh position participates in snapping. */
+            selectMeshPos: boolean;
+            /** Whether a target mesh position is used for snapping. */
+            targetMeshPos: boolean;
+        }
+
+        /** Scene-process manager for transform controls, custom gizmos and interactive handles. */
+        export interface IGizmosManager {
+            /** Scale multiplier applied to scene gizmo icons. */
+            iconScale: number;
+            /** Whether scene gizmo icons are visible. */
+            showIcon: boolean;
+            /** Whether the built-in transform controls are visible. The misspelling is retained for API compatibility. */
+            showTranformTools: boolean;
+
+            /** Index of the hovered or active handle, or `-1` when no handle is active. */
+            get activeHandle(): number;
+            /** Mutable state of the built-in move control. */
+            get moveCtrl(): IMoveCtrl;
+            /** Active transform control mode. */
+            transformCtrlMode: TransformCtrlMode;
+            /** Active local/world coordinate-space mode. */
+            spaceMode: TransformSpaceMode;
+
+            /** Switch built-in controls between 2D and 3D behavior. */
+            setMode2d(is2d: boolean): void;
+
+            /** Get a cached 3D mesh used to draw a standard gizmo shape. */
+            getMesh(type: GizmoMeshKey): Laya.Mesh;
+            /** Get a cached 2D mesh used to draw a standard gizmo shape. */
+            getMesh2D(type: GizmoMeshKey): Laya.Mesh2D;
+
+            /** Instantiate and register a gizmo, forwarding arguments to its `create` method. */
+            addGizmo<T extends GizmoBase>(gizmoClass: new () => T, ...args: Parameters<T['create']>): T;
+            /** Register a handle class or instance and execute it with the supplied arguments. */
+            addHandle<T extends HandleBase>(handleClass: (new () => T) | T, ...args: Parameters<T['execute']>): T;
+            /** Pick a gizmo node at screen coordinates, or return `null` when nothing is hit. */
+            pickGizmo(x: number, y: number): Laya.Node | null;
+            /** Append selectable scene nodes inside a screen-selection frustum to `result`. */
+            getSprite3DsInRect(frustum: Laya.BoundFrustum, result: Laya.Node[]): void;
+        }
+
+        /** Identifier of a cached primitive mesh supplied for 3D gizmo drawing. */
+        export type GizmoMeshKey = "quad" | "cube" | "sphere" | "cone" | "plane";
+
+        /** Immediate-mode drawing and editing API for custom 3D scene gizmos. */
+        export interface IGizmos3D {
+
+            /** The graphics object currently being edited in either the 2D or 3D scene. */
+            readonly editingGraphics: Readonly<IGraphicsEditingInfo>;
+
+            /**
+             * Switches the single graphics object being edited by scene gizmos.
+             * @param node Graphics owner node. Pass `null` to leave graphics-editing mode.
+             * @param comp Optional component that owns the edited property.
+             * @param propPath Optional data path of the edited property.
+             * @param hideStageGrid Whether to hide the stage grid while editing. Default is false.
+             */
+            switchEditingGraphics(node: Laya.Node | null, comp?: Laya.Component, propPath?: ReadonlyArray<string>, hideStageGrid?: boolean): void;
+
+            /**
+             * Get a built-in mesh for gizmos.
+             * @param type The type of the mesh.
+             * @returns The mesh of the specified type.
+             */
+            getMesh(type: GizmoMeshKey): Laya.Mesh;
+
 
             /**
              * Draw line.
-             * @param from Start point.
-             * @param to End point.
+             * @param start Start point.
+             * @param end End point.
              * @param color The line color. Default is white.
+             * @param color2 The line end color. If not set, the start color will be used.
+             * @param pickable Whether the line is pickable. Default is false.
              */
-            function drawLine(from: Laya.Vector3, to: Laya.Vector3, color?: Laya.Color): void;
+            drawLine(start: Laya.Vector3, end: Laya.Vector3, color?: Laya.Color, color2?: Laya.Color, pickable?: boolean): void;
+
+            /**
+             * Draw dotted line.
+             * @param start Start point. 
+             * @param end End point.
+             * @param color The line color. Default is white. 
+             */
+            drawDottedLine(start: Laya.Vector3, end: Laya.Vector3, color?: Laya.Color): void;
+
+            /**
+             * Draw arc line.
+             * @param start Start point. 
+             * @param end End point. 
+             * @param height The height of the arc. 
+             * @param startAllow Whether to allow drawing the start point.
+             * @param endAllow Whether to allow drawing the end point.
+             * @param color The line color. Default is white. 
+             */
+            drawArcLine(start: Laya.Vector3, end: Laya.Vector3, height: number, startAllow: boolean, endAllow: boolean, color?: Laya.Color): void;
 
             /**
              * Draw a wire box.
              * @param center The center of the box.
              * @param size The size of the box.
              * @param color The line color. Default is white.
-             * @param rotation The rotation of the box. Default is null.
+             * @param rotation The rotation of the box. Default is identity.
              */
-            function drawWireBox(center: Laya.Vector3, size: Laya.Vector3, color?: Laya.Color, rotation?: Laya.Quaternion): void;
+            drawWireBox(center: Laya.Vector3, size: Laya.Vector3, color?: Laya.Color, rotation?: Laya.Quaternion): void;
+
+            /**
+             * Draw a wire cone.
+             * @param rotation The rotation of the cone.
+             * @param topPosition The top position of the cone. 
+             * @param angle The angle of the cone in degrees. 
+             * @param range The range of the cone. 
+             * @param color The line color. Default is white. 
+             */
+            drawWireCone(rotation: Laya.Quaternion, topPosition: Laya.Vector3, angle: number, range: number, color?: Laya.Color): void;
+
+            /**
+             * Draw a wire capsule. 
+             * @param center The center of the capsule. 
+             * @param radius The radius of the capsule. 
+             * @param height The height of the capsule. 
+             * @param color The line color. Default is white.
+             * @param rotation The rotation of the capsule. Default is identity.
+             */
+            drawWireCapsule(center: Laya.Vector3, radius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion): void;
 
             /**
              * Draw wire sphere.
@@ -1830,490 +2863,335 @@ declare global {
              * @param radius The radius of the sphere.
              * @param color The line color. Default is white.
              */
-            function drawWireSphere(center: Laya.Vector3, radius: number, color?: Laya.Color): void;
+            drawWireSphere(center: Laya.Vector3, radius: number, color?: Laya.Color): void;
 
             /**
-             * Draw a cylinder.
+             * Draw a wire hemisphere.
+             * @param center The center of the hemisphere. 
+             * @param radius The radius of the hemisphere. 
+             * @param color The line color. Default is white.
+             * @param rotation The rotation of the hemisphere. Default is identity.
+             */
+            drawWireHemiSphere(center: Laya.Vector3, radius: number, color?: Laya.Color, rotation?: Laya.Quaternion): void;
+
+            /**
+             * Draw a wire cylinder.
              * @param center The center of the cylinder. 
              * @param upRadius The radius of the top of the cylinder. 
              * @param downRadius The radius of the bottom of the cylinder. 
              * @param height The height of the cylinder. 
-             * @param color The line color. Default is white. 
-             * @param rotation The rotation of the cylinder. Default is null. 
-             * @param scale The scale of the cylinder. Default is null. 
+             * @param color The line color. Default is white.
+             * @param rotation The rotation of the cylinder. Default is identity.
+             * @param scale The scale of the cylinder. Default is (1,1,1).
              */
-            function drawCylinder(center: Laya.Vector3, upRadius: number, downRadius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion, scale?: Laya.Vector3): void;
+            drawWireCylinder(center: Laya.Vector3, upRadius: number, downRadius: number, height: number, color?: Laya.Color, rotation?: Laya.Quaternion, scale?: Laya.Vector3): void;
+
+            /**
+             * Draw a wire plane. 
+             * @param center The center of the plane. 
+             * @param width The width of the plane. 
+             * @param height The height of the plane.
+             * @param color The line color. Default is white. 
+             * @param spread The spread angle of the plane in degrees. Default is 0, which means no spread. 
+             * @param rotation The rotation of the plane. 
+             */
+            drawWirePlane(center: Laya.Vector3, width: number, height: number, color?: Laya.Color, spread?: number, rotation?: Laya.Quaternion): void;
+
+            /**
+             * Draw a wire circle or arc. 
+             * @param center The center of the circle. 
+             * @param radius The radius of the circle. 
+             * @param rotation The rotation of the circle. 
+             * @param color The line color. Default is white. 
+             * @param angle The angle of the circle in degrees. Default is 360, which means a full circle. 
+             */
+            drawWireCircle(center: Laya.Vector3, radius: number, rotation?: Laya.Quaternion, color?: Laya.Color, angle?: number): void;
+
+            /**
+             * Draw a wire ellipse.
+             * @param center The center of the ellipse.
+             * @param width The width of the ellipse.
+             * @param height The height of the ellipse.
+             * @param color The line color. Default is white.
+             * @param spread The spread angle of the ellipse in degrees. Default is 0, which means no spread.
+             * @param rotation The rotation of the ellipse.
+             */
+            drawWireEllipse(center: Laya.Vector3, width: number, height: number, color?: Laya.Color, spread?: number, rotation?: Laya.Quaternion): void;
 
             /**
              * Draw a bound frustum.
              * @param frustum The bound frustum.
              * @param color The line color. Default is white.
              */
-            function drawBoundFrustum(frustum: Laya.BoundFrustum, color?: Laya.Color): void;
+            drawBoundFrustum(frustum: Laya.BoundFrustum, color?: Laya.Color): void;
 
             /**
              * Draw a bound box.
              * @param bBox The bound box. 
              * @param color The line color. Default is white. 
              */
-            function drawBoundBox(bBox: Laya.BoundBox, color?: Laya.Color): void;
+            drawBoundBox(bBox: Laya.BoundBox, color?: Laya.Color): void;
 
             /**
              * Draw Mesh.
-             * @param mesh A Mesh object.
+             * @param mesh A Mesh object or a URL string to a mesh asset.
              * @param subMeshIndex Sub mesh index, -1 means draw all sub meshes.
-             * @param position Position.
-             * @param rotation Rotation.
-             * @param scale Scale.
-             * @param color Color.
+             * @param position The position. Default is (0,0,0).
+             * @param rotation The rotation. Default is identity.
+             * @param scale The scale. Accepts a Vector3 or a uniform number. Default is (1,1,1).
+             * @param color The color. Default is white.
              */
-            function drawMesh(mesh: Laya.Mesh, subMeshIndex: number, position?: Laya.Vector3, rotation?: Laya.Quaternion, scale?: Laya.Vector3, color?: Laya.Color): void;
+            drawMesh(mesh: Laya.Mesh | string, subMeshIndex: number, position?: Laya.Vector3, rotation?: Laya.Quaternion, scale?: Laya.Vector3 | number, color?: Laya.Color): void;
 
             /**
              * Draw Mesh Line.
-             * @param mesh The Mesh object. 
-             * @param subMeshIndex The sub mesh index, -1 means draw all sub meshes. 
-             * @param position The position. 
-             * @param rotation The rotation. 
-             * @param scale The scale. 
-             * @param color The color. 
+             * @param mesh A Mesh object or a URL string to a mesh asset.
+             * @param subMeshIndex Sub mesh index, -1 means draw all sub meshes.
+             * @param position The position. Default is (0,0,0).
+             * @param rotation The rotation. Default is identity.
+             * @param scale The scale. Accepts a Vector3 or a uniform number. Default is (1,1,1).
+             * @param color The color. Default is white.
              */
-            function drawMeshLine(mesh: Laya.Mesh, subMeshIndex: number, position?: Laya.Vector3, rotation?: Laya.Quaternion, scale?: Laya.Vector3, color?: Laya.Color): void;
-        }
-        export interface IGraphicsEditingInfo {
-            node: IMyNode;
-            comp: IMyComponent;
-            propPath: Array<string>;
+            drawMeshLine(mesh: Laya.Mesh | string, subMeshIndex: number, position?: Laya.Vector3, rotation?: Laya.Quaternion, scale?: Laya.Vector3 | number, color?: Laya.Color): void;
+
+            /**
+             * Draw billboard.
+             * @param position Position.
+             * @param size Size of the billboard.
+             * @param color The color of billboard. Default is white.
+             */
+            drawBillboard(position: Laya.Vector3, size: number, color?: Laya.Color): void;
+
+            /**
+             * Draw icon.
+             * @param position Position.
+             * @param url Icon URL.
+             * @param color The color of icon. Default is white.
+             */
+            drawIcon(position: Laya.Vector3, url: string, color?: Laya.Color): void;
+
+            /**
+             * Draw text.
+             * @param position Text position.
+             * @param text The text content.
+             * @param color The text color. Default is white.
+             * @param fontSize The font size in screen pixels. Default is 16.
+             * @param scaleX Text X-axis display scale multiplier. Default is 1.0.
+             * @param scaleY Text Y-axis display scale multiplier. Default is 1.0.
+             * @param fontWeight Font weight. Default is "normal". Accepts "normal", "bold", "bolder", "lighter", or numeric strings like "100", "200", etc.
+             * @param fontFamily Font family. Default is "Arial". Accepts values like "Arial", "Times New Roman", etc.
+             */
+            drawText(position: Laya.Vector3, text: string, color?: Laya.Color, fontSize?: number, scaleX?: number, scaleY?: number, fontWeight?: string, fontFamily?: string): void;
+
+            /**
+             * Draw a renderer with a material. If the material is not provided, the renderer's shared material will be used.
+             * @param renderer The renderer to draw.
+             * @param material The material to use. If not provided, the renderer's shared material will be used.
+             */
+            drawRender(renderer: Laya.BaseRender, material?: Laya.Material): void;
+
+            /**
+             * Draw a rectangle in 3D space. The rectangle is drawn on a plane parallel to the camera's near plane, with the center at (x, y) and the specified width and height.
+             * @param x The x-coordinate of the top-left corner of the rectangle in screen pixels.
+             * @param y The y-coordinate of the top-left corner of the rectangle in screen pixels.
+             * @param width The width of the rectangle. 
+             * @param height The height of the rectangle. 
+             * @param fillColor The fill color of the rectangle. Default is white. 
+             * @param lineWidth The width of the rectangle's outline. Default is 0, which means no outline. 
+             * @param lineColor The color of the rectangle's outline. Default is black. 
+             */
+            drawRect(x: number, y: number, width: number, height: number, fillColor?: Laya.Color, lineWidth?: number, lineColor?: Laya.Color): void;
+
+            /**
+             * Draw a 3D curve path.
+             * @param worldMatrix The world transform matrix of the path.
+             * @param points The path points.
+             * @param lineColor The line color. Default is white.
+             * @param localOffset An optional local offset applied to all points.
+             */
+            drawCurvePath3D(worldMatrix: Laya.Matrix4x4, points: ReadonlyArray<Laya.PathPoint>, lineColor?: Laya.Color, localOffset?: Laya.Vector3): void;
+
+            /**
+             * Draw a custom gizmo.
+             * @param gizmoClass The class of the gizmo, which must extend from Gizmo and implement the create method.
+             * @param args The arguments for initializing the gizmo, which will be passed to the create method of the gizmo.
+             */
+            drawGizmo<T extends GizmoBase>(gizmoClass: new () => T, ...args: Parameters<T['create']>): T;
         }
 
-        export namespace IGizmos2D {
+        /** Identifier of a cached primitive mesh supplied for 2D gizmo drawing. */
+        export type Gizmo2DMeshKey = "quad";
+
+        /** Identifies the single node property currently being edited by scene gizmos. */
+        export interface IGraphicsEditingInfo {
+            /** Node that owns the edited graphics, or `null` when graphics editing is inactive. */
+            node: Laya.Node | null;
+            /** Component that owns the property, or `null` when the property is on the node or editing is inactive. */
+            comp: Laya.Component | null;
+            /** Data path of the edited property. */
+            readonly propPath: Array<string>;
+        }
+
+        /** Immediate-mode drawing and editing API for custom 2D scene gizmos. */
+        export interface IGizmos2D {
             /**
              * There can only be one graphic being edited in the scene at a time. Use `switchEditingGraphics` to switch the editing graphic.
              */
-            const editingGraphics: Readonly<IGraphicsEditingInfo>;
+            readonly editingGraphics: Readonly<IGraphicsEditingInfo>;
 
             /**
-             * Allow to perform object actions, such as resizing, rotating, draggin anchor, etc.
+             * Suggested color for line drawing in 2D gizmos.
              */
-            const allowObjectAction: boolean;
+            readonly lineColor: Laya.Color;
 
             /**
-             * Get a vector graphics manager for drawing gizmos. Only available in onDrawGizmosSelected callback.
+             * Get a built-in mesh for gizmos.
+             * @param type The type of the mesh.
+             * @returns The mesh of the specified type.
+             */
+            getMesh(type: Gizmo2DMeshKey): Laya.Mesh2D;
+
+            /**
+             * @deprecated Do not use vector graphics in 2D gizmos anymore.
              * @param node The node.
              * @returns The gizmos manager.
              */
-            function getManager(node: IMyNode): IGizmosManager;
+            getManager(node: Laya.Node): ISVGGizmos;
 
             /**
              * There can only be one graphic being edited in the scene at a time, so use this function to switch the editing graphic.
-             * @param node Graphics owner node. 
+             * @param node Graphics owner node. Pass `null` to leave graphics-editing mode.
              * @param comp Graphics owner component. Can be null.
              * @param propPath Property path of the graphics. Can be null. 
+             * @param hideStageGrid Whether to hide the stage grid while editing. Default is false.
              */
-            function switchEditingGraphics(node: IMyNode, comp?: IMyComponent, propPath?: Array<string>): void;
+            switchEditingGraphics(node: Laya.Node | null, comp?: Laya.Component, propPath?: ReadonlyArray<string>, hideStageGrid?: boolean): void;
 
             /**
              * Draw mesh.
+             * @param matrix The matrix to transform the mesh.
              * @param mesh The mesh to draw.
-             * @param mat The matrix to transform the mesh. 
-             * @param meshTexture The texture of the mesh. Default is a white texture.
-             * @param color The color of the mesh. Default is white. 
-             * @param material The material of the mesh. Default is a built-in material. 
+             * @param texture The texture of the mesh. Default is a white texture.
+             * @param scale The scale of the mesh. If not set, the size of the texture will be used.
+             * @param color The color of the mesh. Default is white.
+             * @param tillingOffset The tilling and offset of the texture. Default is (0,0,1,1).
+             * @param material The material of the mesh. Default is a built-in material.
+             * @param screenSpace If true, the scale is in screen pixels, unaffected by the matrix's scale. Default is false.
              */
-            function drawMesh(mesh: Laya.Mesh2D, mat: Laya.Matrix, meshTexture?: Laya.BaseTexture, color?: Laya.Color, material?: Laya.Material): void;
+            drawMesh(matrix: Laya.Matrix, mesh: string | Laya.Mesh2D, texture?: string | Laya.BaseTexture, scale?: Laya.Vector2, color?: Laya.Color, tillingOffset?: Laya.Vector4, material?: Laya.Material, screenSpace?: boolean): void;
 
             /**
-             *  Draw lines
-             * @param pintNums line points,4 number show one line
-             * @param mat The matrix to transform the lines
-             * @param color The color of the lines. Default is white. 
-             * @param lineWidth The pixel width of the lines. Default is 3. 
+             * Draw lines.
+             * @param matrix The matrix to transform the lines.
+             * @param points Line points; every 4 numbers represent one line (x1,y1,x2,y2).
+             * @param color The color of the lines. Default is white.
+             * @param lineWidth The pixel width of the lines. Default is 3.
+             * @param screenSpace If true, the lineWidth is in screen pixels, unaffected by the matrix's scale. Default is true.
              */
-            function drawLines(pintNums: number[], mat?: Laya.Matrix, color?: Laya.Color, lineWidth?: number): void;
-            /**
-             * Draw quad of texture
-             * @param texture texutre resource 
-             * @param scale the scale of the quad mesh.defalut 1 pixel;
-             * @param offsettilling uv transform value.xy is offset of texture(0-1),zw is scale of uv
-             * @param mat The matrix to transform the quad
-             * @param material The material to the quad
-             * @param color The color of the quad. Default is white.
-             */
-            function draw2DQuad(texture: Laya.BaseTexture, scale?: Laya.Vector2, offsettilling?: Laya.Vector4, mat?: Laya.Matrix, material?: Laya.Material, color?: Laya.Color): void;
+            drawLines(matrix: Laya.Matrix, points: number[], color?: Laya.Color, lineWidth?: number, screenSpace?: boolean): void;
 
             /**
-             * Add a cache command.
-             * @param cmd The command to add. 
+             * Draw icon at given matrix.
+             * @param matrix The matrix to transform the icon.
+             * @param iconUrl Icon url 
+             * @param width The width of the quad. If not set, the width of the texture will be used. 
+             * @param height The height of the quad. If not set, the height of the texture will be used.
+             * @param color The color of the icon. Default is white. 
              */
-            function addCacheCommand(cmd: Laya.Command2D): void;
+            drawIcon(matrix: Laya.Matrix, iconUrl: string, width?: number, height?: number, color?: Laya.Color): void;
+
+            /**
+             * Draw rectangle at given matrix.
+             * @param matrix The matrix to transform the rectangle.
+             * @param width The width of the rectangle.
+             * @param height The height of the rectangle.
+             * @param color The color of the rectangle. Default is white.
+             * @param lineWidth The pixel width of the rectangle border. Default is 0.
+             * @param lineColor The color of the rectangle border. Default is black.
+             * @param screenSpace If true, the width, height are in screen pixels, unaffected by the matrix's scale. Default is false.
+             */
+            drawRect(matrix: Laya.Matrix, width: number, height: number, color?: Laya.Color, lineWidth?: number, lineColor?: Laya.Color, screenSpace?: boolean): void;
+
+            /**
+             * Draw circle at given matrix.
+             * @param matrix The matrix to transform the circle.
+             * @param radius The radius of the circle.
+             * @param color The color of the circle. Default is white.
+             * @param lineWidth The pixel width of the circle border. Default is 0.
+             * @param lineColor The color of the circle border. Default is black.
+             * @param screenSpace If true, the radius is in screen pixels, unaffected by the matrix's scale. Default is false.
+             */
+            drawCircle(matrix: Laya.Matrix, radius: number, color?: Laya.Color, lineWidth?: number, lineColor?: Laya.Color, screenSpace?: boolean): void;
+
+            /**
+             * Draw ellipse at given matrix.
+             * @param matrix The matrix to transform the ellipse.
+             * @param radiusX The radius of the ellipse on x axis.
+             * @param radiusY The radius of the ellipse on y axis.
+             * @param color The color of the ellipse. Default is white.
+             * @param lineWidth The pixel width of the ellipse border. Default is 0.
+             * @param lineColor The color of the ellipse border. Default is black.
+             * @param screenSpace If true, the radiusX, radiusY is in screen pixels, unaffected by the matrix's scale. Default is false.
+             */
+            drawEllipse(matrix: Laya.Matrix, radiusX: number, radiusY: number, color?: Laya.Color, lineWidth?: number, lineColor?: Laya.Color, screenSpace?: boolean): void;
+
+            /**
+             * Draw sector (fan shape) at given matrix.
+             * @param matrix The matrix to transform the sector.
+             * @param radius The radius of the sector.
+             * @param startAngle The start angle of the sector in radians.
+             * @param endAngle The end angle of the sector in radians.
+             * @param color The fill color of the sector. Default is white.
+             * @param lineWidth The pixel width of the sector border. Default is 0.
+             * @param lineColor The color of the sector border. Default is black.
+             * @param drawRadius If true, draw the two radius lines from center to arc endpoints. Default is false.
+             * @param screenSpace If true, the radius is in screen pixels, unaffected by the matrix's scale. Default is false.
+             */
+            drawSector(matrix: Laya.Matrix, radius: number, startAngle: number, endAngle: number, color?: Laya.Color, lineWidth?: number, lineColor?: Laya.Color, drawRadius?: boolean, screenSpace?: boolean): void;
+
+            /**
+             * Draw path at given matrix.
+             * @param matrix The matrix to transform the path.
+             * @param x The x position of the path in local coordinates.
+             * @param y The y position of the path in local coordinates.
+             * @param points Path points formatted as [x1,y1,x2,y2,...].
+             * @param closed If true, a line will be drawn between the last point and the first point. Default is false.
+             * @param lineWidth The pixel width of the path. Default is 1.
+             * @param lineColor The color of the path. Default is white.
+             */
+            drawPath(matrix: Laya.Matrix, x: number, y: number, points: ReadonlyArray<number>, closed?: boolean, lineWidth?: number, lineColor?: Laya.Color): void;
+
+            /**
+             * Draw curve path at given matrix.
+             * @param matrix The matrix to transform the path.
+             * @param x The x position of the path in local coordinates.
+             * @param y The y position of the path in local coordinates.
+             * @param points The path points.
+             * @param lineWidth The pixel width of the path. Default is 1.
+             * @param lineColor The color of the path. Default is white.
+             */
+            drawCurvePath(matrix: Laya.Matrix, x: number, y: number, points: ReadonlyArray<Laya.PathPoint>, lineWidth?: number, lineColor?: Laya.Color): void;
+
+            /**
+             * Draw polygon at given matrix.
+             * @param matrix The matrix to transform the polygon.
+             * @param x The x position of the polygon in local coordinates.
+             * @param y The y position of the polygon in local coordinates.
+             * @param points Polygon points; every 2 numbers represent one point (x,y).
+             * @param color The fill color of the polygon. Default is white.
+             * @param lineWidth The pixel width of the polygon border. Default is 1.
+             * @param lineColor The color of the polygon border. Default is white.
+             */
+            drawPolygon(matrix: Laya.Matrix, x: number, y: number, points: number[], color?: Laya.Color, lineWidth?: number, lineColor?: Laya.Color): void;
         }
 
-        export interface StrokeData {
-            color?: string;
-            width?: number;
-            opacity?: number;
-            linecap?: string;
-            linejoin?: string;
-            miterlimit?: number;
-            dasharray?: string;
-            dashoffset?: number;
-        }
-
-        export interface FillData {
-            color?: string
-            opacity?: number
-            rule?: string
-        }
-
-        export interface IGizmosManager {
-            /**
-             * Owner node.
-             */
-            readonly owner: IMyNode;
-
-            /**
-             * Create a rectangle.
-             * @param width Width. 
-             * @param height Height. 
-             */
-            createRect(width: number, height: number): IGizmoRect;
-
-            /**
-             * Create a circle.
-             * @param radius Radius of the circle. 
-             */
-            createCircle(radius: number): IGizmoCircle;
-
-            /**
-             * Create a polygon.
-             * @param easyTouch If the polygon's lines need to be used for interaction, the lines might be too thin for the user to easily select. When set to true, a larger transparent area will be generated around the lines to increase the interaction area.
-             */
-            createPolygon(easyTouch?: boolean): IGizmoPolygon;
-
-            /**
-             * Create en ellipse.
-             * @param rx Radius x.
-             * @param ry Radius y.
-             */
-            createEllipse(rx: number, ry: number): IGizmoEllipse;
-
-            /**
-             * Create a path.
-             * @param easyTouch If the path's lines need to be used for interaction, the lines might be too thin for the user to easily select. When set to true, a larger transparent area will be generated around the lines to increase the interaction area.
-             */
-            createPath(easyTouch?: boolean): IGizmoPath;
-
-            /**
-             * Create a text.
-             * @param text Text content. 
-             */
-            createText(text?: string): IGizmoText;
-
-            /**
-             * Create a handle. A handle is a small graphic that can be dragged by the user.
-             * @param shape Shape of the handle. Can be a rectangle or a circle.
-             * @param size Size of the handle.
-             * @param fill Fill style of the handle. 
-             * @param stroke Stroke style of the handle. Default is no stroke. 
-             * @param cursor Optional cursor style of the handle, e.g. "default", "pointer", "grab", etc. Default is "pointer". 
-             */
-            createHandle(shape: "rect" | "circle", size: number, fill: FillData | string, stroke?: StrokeData | string, cursor?: string): IGizmoHandle;
-
-            /**
-             * Create a handle group. Handle Group uses caching and can be used to retrieve and recycle handles with the same style each frame.
-             * @param shape Shape of the handle. Can be a rectangle or a circle.
-             * @param size Size of the handle.
-             * @param fill Fill style of the handle.
-             * @param stroke Stroke style of the handle. Default is no stroke.
-             * @param cursor Optional cursor style of the handle, e.g. "default", "pointer", "grab", etc. Default is "pointer". 
-             */
-            createHandleGroup(shape: "rect" | "circle", size: number, fill: FillData | string, stroke?: StrokeData | string, cursor?: string): IGizmoHandleGroup;
-
-            /**
-             * Convert local coordinates to global coordinates.
-             * Local coordinates are relative to the owner node. Global coordinates are relative to the screen, which are used to position the gizmos.
-             * @param x Local x.
-             * @param y Local y. 
-             * @param out A optional output vector to receive the result. If not provided, a new vector will be created. 
-             * @returns The global coordinates.
-             */
-            localToGlobal(x: number, y: number, out?: gui.Vec2): gui.Vec2;
-
-            /**
-             * Convert global coordinates to local coordinates.
-             * Local coordinates are relative to the owner node. Global coordinates are relative to the screen, which are used to position the gizmos.
-             * @param x Global x. 
-             * @param y Global y. 
-             * @param out A optional output vector to receive the result. If not provided, a new vector will be created. 
-             * @param targetSpace The target space to convert to. If not provided, the owner node will be used.
-             * @returns The local coordinates. 
-             */
-            globalToLocal(x: number, y: number, out?: gui.Vec2, targetSpace?: IMyNode): gui.Vec2;
-        }
-
-        export interface IGizmoElement {
-            /**
-             * Owner manager.
-             */
-            readonly owner: IGizmosManager;
-
-            /**
-             * Owner node.
-             */
-            readonly node: SVGElement;
-
-            /**
-             * Custom tag.
-             */
-            tag: string;
-
-            /**
-             * Triggered when the user starts dragging the element.
-             */
-            readonly onDragStart: IDelegate<(evt: MouseEvent) => void>;
-
-            /**
-             * Triggered when the user is dragging the element.
-             */
-            readonly onDragMoving: IDelegate<(evt: MouseEvent, dx: number, dy: number) => void>;
-
-            /**
-             * Triggered when the user stops dragging the element.
-             */
-            readonly onDragEnd: IDelegate<(evt: MouseEvent) => void>;
-
-            /**
-             * Triggered when the user clicks the element.
-             */
-            readonly onClick: IDelegate<(evt: MouseEvent) => void>;
-
-            /**
-             * Triggered when the user double clicks the element.
-             */
-            readonly onDblClick: IDelegate<(evt: MouseEvent) => void>;
-
-            /**
-             * X position of the element. It's in global coordinates.
-             */
-            get x(): number;
-
-            /**
-             * Y position of the element. It's in global coordinates.
-             */
-            get y(): number;
-
-            /**
-             * Visibility of the element.
-             */
-            get visible(): boolean;
-            set visible(value: boolean);
-
-            /**
-             * Interactivity of the element.
-             */
-            get touchable(): boolean;
-            set touchable(value: boolean);
-
-            /**
-             * 可以给Gizmo设置一个方向属性，鼠标指针样式会根据这个方向属性自动调整。数值与方向的关系见下图：
-             * 
-             * 0 - 1 - 2
-             * |       |
-             * 7       3
-             * |       |
-             * 6 - 5 - 4
-             */
-            get direction(): number;
-            set direction(value: number);
-
-            /**
-             * Cusor style of the element. e.g. "default", "pointer", "grab".
-             */
-            get cursor(): string;
-            set cursor(value: string);
-
-            /**
-             * Set the position of the element by local coordinates.
-             * Local coordinates are relative to the owner node.
-             * @param x Local x.
-             * @param y Local y.
-             */
-            setLocalPos(x: number, y: number): this;
-
-            /**
-             * Set the position of the element by global coordinates.
-             * Global coordinates are relative to the screen.
-             * @param x Global x.
-             * @param y Global y.
-             */
-            setPos(x: number, y: number): this;
-
-            /**
-             * Set the size of the element.
-             * @param width Width.
-             * @param height Height.
-             */
-            setSize(width: number, height: number): this;
-
-            /**
-             * Set the stroke style of the element.
-             * @param value Stroke style.
-             */
-            stroke(value: StrokeData | string): this;
-
-            /**
-             * Set the fill style of the element.
-             * @param value Fill style.
-             */
-            fill(value: FillData | string): this;
-
-            /**
-             * Set a custom data to the element.
-             * @param name Name of the data.
-             * @param value Value of the data.
-             */
-            setData(name: string, value: any): this;
-
-            /**
-             * Get a custom data from the element.
-             * @param name Name of the data.
-             * @returns The value of the data.
-             */
-            getData(name: string): any;
-        }
-
-        export interface IGizmoHandle extends IGizmoElement {
-        }
-
-        export interface IGizmoHandleGroup extends IGizmoElement {
-            /**
-             * Triggered when the user starts dragging a handle.
-             */
-            readonly onHandleDragStart: IDelegate<(handle: IGizmoHandle, evt: MouseEvent) => void>;
-
-            /**
-             * Triggered when the user is dragging a handle.
-             */
-            readonly onHandleDragMoving: IDelegate<(handle: IGizmoHandle, evt: MouseEvent, dx: number, dy: number) => void>;
-
-            /**
-             * Triggered when the user stops dragging a handle.
-             */
-            readonly onHandleDragEnd: IDelegate<(handle: IGizmoHandle, evt: MouseEvent) => void>;
-
-            /**
-             * Triggered when the user clicks a handle.
-             */
-            readonly onHandleClick: IDelegate<(handle: IGizmoHandle, evt: MouseEvent) => void>;
-
-            /**
-             * Triggered when the user double clicks a handle.
-             */
-            readonly onHandleDblClick: IDelegate<(handle: IGizmoHandle, evt: MouseEvent) => void>;
-
-            /**
-             * Get all visible handles.
-             */
-            get array(): ReadonlyArray<IGizmoHandle>;
-
-            /**
-             * Add a handle.
-             */
-            add(): IGizmoHandle;
-
-            /**
-             * Remove a handle from screen and return it to the pool.
-             */
-            remove(handle: IGizmoHandle): void;
-
-            /**
-             * Clear all handles and return them to the pool.
-             */
-            clear(): void;
-        }
-
-        export interface IGizmoRect extends IGizmoElement {
-        }
-
-        export interface IGizmoCircle extends IGizmoElement {
-            setLocalRadius(value: number): this;
-            setRadius(value: number): this;
-        }
-
-        export interface IGizmoEllipse extends IGizmoElement {
-            /**
-             * Set the radius of the ellipse. The value is in local coordinates.
-             * @param rx Radius x.
-             * @param ry Radius y.
-             */
-            setLocalRadius(rx: number, ry: number): this;
-
-            /**
-             * Set the radius of the ellipse. The value is in global coordinates.
-             * @param rx Radius x.
-             * @param ry Radius y.
-             */
-            setRadius(rx: number, ry: number): this;
-        }
-
-        export interface IGizmoPolygon extends IGizmoElement {
-            /**
-             * All points of the polygon. The coordinates of the points are stored in the array in the order of x0, y0, x1, y1, etc.
-             * 
-             * You can directly modify this array. After modification, you need to call refresh to update the graphics.
-             */
-            readonly points: Array<number>;
-
-            /**
-             * Refresh the polygon.
-             */
-            refresh(): void;
-        }
-
-        export interface IGizmoPath extends IGizmoElement {
-            /**
-             * If true, the coordinates passed in the subsequent drawing operations are relative to the coordinates of the last drawing operation. 
-             * If false, the coordinates passed are absolute coordinates. Default is false.
-             */
-            relativeCoords: boolean;
-
-            moveTo(x: number, y: number): this;
-            lineTo(x: number, y: number): this;
-            cubicCurveTo(x: number, y: number, x2: number, y2: number): this;
-            cubicCurveTo(x: number, y: number, x1: number, y1: number, x2: number, y2: number): this;
-            quadCurveTo(x: number, y: number): this;
-            quadCurveTo(x: number, y: number, x1: number, y1: number): this;
-            quadCurveTo(x: number, y: number, x1?: number, y1?: number): this;
-
-            /**
-             * Clear the path.
-             */
-            resetPath(): this;
-
-            /**
-             * Refresh the path.
-             */
-            refresh(): void;
-        }
-
-        export interface IGizmoText extends IGizmoElement {
-            /**
-             * Set the font style of the text.
-             * @param value Font style.
-             * @example
-             * ```
-             * setFontProp('family', 'Menlo');
-             * setFontProp('size', 12);
-             * setFontProp('weight', 'bold');
-             * ```
-             */
-            setFontProp(prop: string, value: string | number): this;
-
-            setText(text: string): this;
-        }
+        /** Live 2D/3D engine scene exposed to Scene-process plugins. */
         export interface IGameScene extends IMyScene {
+            /** Complete current selection in selection order. */
             readonly selection: ReadonlyArray<Laya.Node>;
+            /** Weak node lookup indexed by editor node ID. */
             readonly allNodes: Map<string, WeakRef<Laya.Node>>;
+            /** Selected nodes whose ancestors are not also selected. */
             readonly topLevelSelection: ReadonlyArray<Laya.Node>;
 
             /**
@@ -2326,45 +3204,112 @@ declare global {
              */
             readonly nodesSet_cameras: Set<Laya.Camera>;
 
+            /** Editor-owned root for 2D content. */
             readonly rootNode2D: Laya.Scene;
+            /** Editor-owned root for 3D content. */
             readonly rootNode3D: Laya.Scene3D;
-            readonly prefabRootNode: Laya.Sprite | Laya.Sprite3D;
+            /** Active engine 3D scene. */
+            readonly scene3D: Laya.Scene3D;
+            /** Bridge that displays 3D content inside a 2D scene. */
+            readonly bridge3DSprite: Laya.Bridge3DSprite;
+            /** Root of the prefab currently being edited. */
+            readonly prefabRootNode: Laya.Sprite | Laya.Sprite3D | null;
 
+            /** Nested box-editing chain from outermost to innermost. */
             readonly openedBoxChain: ReadonlyArray<Laya.Sprite>;
-            readonly openedBox: Laya.Sprite;
+            /** Innermost box currently opened for isolated editing. */
+            readonly openedBox: Laya.Sprite | null;
 
-            getNodeById(id: string): Laya.Node;
+            /** Get a live scene node by ID, or null if it is missing or has been destroyed. */
+            getNodeById(id: string): Laya.Node | null;
+            /** Mark the live scene dirty so the editor schedules refresh and persistence work. */
+            setDirty(): void;
         }
+
+        /** Options controlling GUI-widget serialization. */
         export interface IGUIPrefabWriterOptions {
+            /** Convert a referenced widget into its serialized reference value. */
             getNodeRef?: (node: gui.Widget) => string | string[];
+            /** Omit the standard prefab/scene header from the returned data. */
             noHeader?: boolean;
+            /** Apply prefab-creation serialization rules. */
             creatingPrefab?: boolean;
+            /** Serialize only `node`, without its child hierarchy. */
+            ignoreChildren?: boolean;
         }
 
+        /** GUI-prefab serialization helpers for the Scene process. */
         export namespace IGUIPrefabWriter {
+            /** Serialize a widget hierarchy into editor prefab data. */
             function write(node: gui.Widget, options?: IGUIPrefabWriterOptions): any;
+            /** Collect resource references used by a widget hierarchy into `out` or a new set. */
             function collectResources(node: gui.Widget, out?: Set<any>): Set<any>;
         }
+
+        /** Bitmask describing which extension inputs triggered a hot reload. */
         export enum ReloadReason {
+            /** User TypeScript/JavaScript code changed. */
             Code = 1,
+            /** A configured script bundle changed. */
             ScriptBundles = 2,
+            /** A JavaScript plugin changed. */
             JsPlugins = 4,
+            /** Blueprint assets changed. */
             Blueprints = 8,
         }
 
+        /** Metadata and runtime state of one JavaScript plugin asset. */
         export interface IJsPluginInfo {
+            /**
+             * The asset info of the js plugin.
+             */
             asset: IAssetInfo;
+            /**
+             * The type of the js plugin.
+             * 0 - Runtime only
+             * 1 - Editor extension only
+             * 2 - Both runtime and editor extension
+             */
             type: number;
+            /**
+             * Whether to allow loading in editor environment. Only applies to runtime js plugins. Default is false.
+             */
             allowLoadInEditor: boolean;
+            /**
+             * Whether to allow loading in runtime environment. Only applies to runtime js plugins. Default is true.
+             */
             allowLoadInRuntime: boolean;
+            /**
+             * Whether to auto load the js plugin. Only meansful when allowLoadInRuntime is true. Default is true.
+             */
             autoLoad: boolean;
-            scriptElement: HTMLElement;
-            loadOrder: number;
+            /**
+             * Whether to preserve the asset path when publishing instead of placing the plugin in the default script directory. Default is false.
+             */
+            preservePath: boolean;
+            /**
+             * Whether to minify the js plugin on publish. Only applies to runtime js plugins. Default is false.
+             */
             minifyOnPublish: boolean;
+            /**
+             * Whether to keep class and function names when minifying.
+             */
             keepNames: boolean;
+            /**
+             * Whether to keep unused functions and variables when minifying.
+             */
             keepUnused: boolean;
+            /**
+             * References to other js plugins.
+             */
+            references: string[];
+            /**
+             * The limited platforms for the js plugin. Empty means all platforms.
+             */
+            limitedPlatforms: string[];
         }
 
+        /** Loads extension code, resolves registered functions and coordinates hot reload. */
         export interface IExtensionManager {
             /**
              * Whether a reload is in progress.
@@ -2386,7 +3331,7 @@ declare global {
              * @param name objectName.methodName
              * @returns The function found. Null if not found.
              */
-            findFunction(name: string): Function;
+            findFunction(name: string): Function | null;
 
             /**
              * Get all js plugins.
@@ -2411,6 +3356,7 @@ declare global {
              */
             flushScriptChanges(): Promise<void>;
         }
+
         export type IFileContent = {
             /**
              * If set, the file name will have its extension removed and the nameSuffix appended to the file name upon output.
@@ -2427,6 +3373,14 @@ declare global {
              * How many tasks can be executed in parallel. Default is 100.
              */
             numParallelTasks?: number;
+
+            /**
+             * Called when the file is being written. Return that actual file content.
+             * @param owner Current asset export info.
+             * @param data Custom data. 
+             * @returns The actual file content. 
+             */
+            transformer?: (owner: IAssetExportInfo, data: any) => IFileContent;
         } & ({
             type: "text";
             data: string;
@@ -2457,20 +3411,16 @@ declare global {
              * Custom data to transfer to the transformer as the second parameter.
              */
             data?: any;
-            /**
-             * Called when the file is being written. Return that actual file content.
-             * @param owner Current asset export info.
-             * @param data Custom data. 
-             * @returns The actual file content. 
-             */
-            transformer: (owner: IAssetExportInfo, data: any) => IFileContent;
         });
 
         export enum AssetExportConfigType {
             Texture = 0,
             Atlas = 1,
             Shader = 2,
-            RenderTexture = 3
+            /** @deprecated */
+            RenderTexture = 3,
+            PreloadedData = 3,
+            URLMapping = 4,
         }
 
         export interface IAssetLinkInfo {
@@ -2543,17 +3493,22 @@ declare global {
             deps?: Array<IAssetExportDepInfo>;
 
             /**
+             * Broken links found during the export process.
+             */
+            brokenLinks?: Array<IAssetLinkInfo>;
+
+            /**
              * Configuration. e.g. Texture export configuration.
              */
             config?: Record<string, any>;
-
-            /**
-             * Whether to output to a remote package.
-             */
-            remote?: boolean;
         }
 
         export interface IAutoAtlasConfig {
+            /**
+             * Image asset references excluded from this automatic atlas configuration.
+             */
+            excludedImages?: Array<string>;
+
             /**
              * Whether to trim the blank area of the image.
              */
@@ -2583,6 +3538,11 @@ declare global {
              * Scale of the image.
              */
             scale: number;
+
+            /**
+             * 0: nearest, 1: linear, 2: cubic
+             */
+            filterMode: number;
         }
 
         export interface ITextureInAutoAtlasInfo {
@@ -2602,9 +3562,9 @@ declare global {
             config: any;
 
             /**
-             * Output path.
+             * The frame key name will be used in description file.
              */
-            outPath: string;
+            frameKey: string;
         }
 
         export interface IAutoAtlasInfo {
@@ -2654,6 +3614,17 @@ declare global {
              * Whether to load the subpackage on startup.
              */
             autoLoad?: boolean;
+
+            /**
+             * If true, add all assets in the specified folder to this subpackage.
+             */
+            packAllAssets?: boolean;
+
+            /**
+             * Output paths of JavaScript plugins that should be loaded by the subpackage entry.
+             * This list is populated during the build in plugin load order.
+             */
+            autoLoadPlugins?: Array<string>;
         }
 
         export interface IExportAssetToolOptions {
@@ -2715,6 +3686,11 @@ declare global {
              * A logger for writing logs.
              */
             logger?: ILogger;
+
+            /**
+             * If true, indicates that the export process is part of a build.
+             */
+            isBuilding?: boolean;
         }
 
         export interface IOutFileInfo {
@@ -2799,6 +3775,25 @@ declare global {
             get items(): Map<IAssetInfo, IAssetExportInfo>;
 
             /**
+             * Get the broken links found during the export process.
+             * @return A map where the key is the missing asset URL and the value is a set of assets that reference the missing asset.
+             */
+            getBrokenLinks(): Map<string, Set<IAssetInfo>>;
+
+            /**
+             * Get conflicts found while generating asset output paths.
+             * The map key is the conflicting output file path, and the value contains the different source file paths mapped to it.
+             */
+            getOutputPathConflicts(): ReadonlyMap<string, ReadonlySet<string>>;
+
+            /**
+             * Generate the output path of the asset.
+             * @param asset The asset to generate the output path for.
+             * @returns The output path of the asset.
+             */
+            generateAssetOutputPath(asset: IAssetInfo): string;
+
+            /**
              * Write the output files to the specified folder.
              * @param outputPath The output folder.
              * @param outFiles Receive the out files information if provided.
@@ -2807,6 +3802,7 @@ declare global {
              */
             write(outputPath: string, outFiles?: Map<string, IOutFileInfo>, progressCallback?: (value: number) => void, abortToken?: IAbortToken): Promise<void>;
         }
+
 
         export interface IEngineLib {
             /**
@@ -2856,7 +3852,7 @@ declare global {
             /**
              * All the addons of the engine library. Null if no addons.
              */
-            addons: Array<IEngineLibAddOn>;
+            addons: Array<IEngineLibAddOn> | null;
         }
 
         export interface IEngineLibAddOn {
@@ -2888,6 +3884,16 @@ declare global {
              * Whether this addon will not include the files defines in it's owner. Default is false.
              */
             ignoreEntryFiles: boolean;
+
+            /**
+             * Whether this addon is only for native platform. Default is false.
+             */
+            forNativeOnly?: boolean;
+
+            /**
+             * If this addon is only for native platform, the fallback addon name for other platforms. Default is null.
+             */
+            fallback?: string | null;
         }
 
         export interface IEngineLibsManager {
@@ -2905,10 +3911,11 @@ declare global {
              * @param options
              * - renderDevice: The render device. Default is "webgl".
              * - debug: Whether to load the debug files. Default is false.
+             * - native: Whether to allow the native only libraries. Default is false.
              * - disableWebAssembly: Whether to disable the web assembly. Default is false.
              * @returns The files. 
              */
-            getFiles(options?: { renderDevice?: string, debug?: boolean, disableWebAssembly?: boolean }): { files: Array<string>, otherFiles: Array<string>, workerFiles: Array<string>, wasmFallbackLog: Array<string> };
+            getFiles(options?: { renderDevice?: string, debug?: boolean, native?: boolean, disableWebAssembly?: boolean }): { files: Array<string>, otherFiles: Array<string>, workerFiles: Array<string>, wasmFallbackLog: Array<string> };
 
             /**
              * Get the full path of the lib.
@@ -2922,6 +3929,7 @@ declare global {
              */
             getFullPath(libName: string): Promise<string>;
         }
+
         export interface IEditorEnvSingleton {
             /**
              * The path of the project
@@ -2942,6 +3950,11 @@ declare global {
              * The current application directory.
              */
             readonly appPath: string;
+
+            /**
+             * The version of the editor. It is in the form of "x.y.z".
+             */
+            readonly appVersion: string;
 
             /**
              * The path of the user data. 
@@ -2983,7 +3996,7 @@ declare global {
             /**
              * Whether the app is in the cli mode. A cli mode is a mode that runs the app in the command line.
              */
-            readonly cliMode: boolean;
+            readonly cliMode: IRendererInfo["cliMode"];
 
             /**
              * Whether the app is in the foreground.
@@ -2999,6 +4012,11 @@ declare global {
              * Whether the module is started and ready to communicate with the UI process.
              */
             readonly started: boolean;
+
+            /**
+             * The pixel ratio of the host. 
+             */
+            readonly hostPixelRatio: number;
 
             /**
              * The electron ipc service.
@@ -3046,6 +4064,21 @@ declare global {
             readonly d3Manager: ID3Manager;
 
             /**
+             * The gizmos manager.
+             */
+            readonly gizmosManager: IGizmosManager;
+
+            /**
+             * The pick manager.
+             */
+            readonly pickManager: IPickManager;
+
+            /**
+             * The vertex picker.
+             */
+            readonly vertexPicker: IVertexPicker;
+
+            /**
              * Communication port between the scene process and the UI process.
              */
             readonly port: IMyMessagePort;
@@ -3084,7 +4117,6 @@ declare global {
              * Application activate event.
              */
             readonly onAppActivate: IDelegate<() => void>;
-
             /**
              * Player settings.
              */
@@ -3187,8 +4219,29 @@ declare global {
              * Synchronize data with the UI process and refresh gizmos/handles immediately in the next frame.
              */
             invalidateFrame(): void;
+
+            /**
+             * Refresh gizmos/handles immediately in the next frame.
+             */
+            invalidateGizmos(): void;
         }
+
         export interface ID3Manager {
+            /**
+             * Whether to show the grid line in the scene.
+             */
+            showGridLine: boolean;
+
+            /**
+             * Whether to show the selection outline in the scene.
+             */
+            showSelectionOutline: boolean;
+
+            /**
+             * Whether to show the axis coordinate in the scene.
+             */
+            showAxisCoord: boolean;
+
             /**
              * Camera used for scene editing.
              */
@@ -3205,9 +4258,34 @@ declare global {
             readonly sceneRT: Laya.RenderTexture;
 
             /**
-             * Immediately refresh gizmos/handles in the next frame
+             * Render texture for 2D elements in the scene, such as gizmos and handles. 
+             */
+            readonly sceneRT2D: Laya.RenderTexture2D;
+
+            /**
+             * Command buffer for rendering the scene.
+             */
+            readonly cmdBuffer: Laya.CommandBuffer;
+
+            /**
+             * Command buffer for rendering 2D elements in the scene, such as gizmos and handles.
+             */
+            readonly cmdBuffer2D: Laya.CommandBuffer2D;
+
+            /**
+             * Render textures that are deferred for release. These textures will be released in the next frame to avoid affecting the current rendering process.
+             */
+            readonly deferredReleaseRT: Set<Laya.RenderTexture>;
+
+            /**
+             * @deprecated Use `refresh()` instead.
              */
             invalidateGizmos(): void;
+
+            /**
+             * Immediately refresh the view in the next frame. 
+             */
+            refresh(): void;
 
             /**
              * Set refresh rate of the view.
@@ -3221,36 +4299,64 @@ declare global {
              * Temporarily switch the refresh rate to 'realtime' and maintain it for one second.
              */
             requestTempRealtimeRefresh(): void;
-
-            /**
-             * Change the transform component operation mode.
-             * @param mode The new mode.
-             */
-            transformCtrlMode(mode: SceneNavToolType): void;
-
-            /**
-             * Pick 3D objects within the scene.
-             * @param x The x coordinate of the mouse.
-             * @param y The y coordinate of the mouse.
-             * @returns The picked object.
-             */
-            getSpriteUnderMouse(x: number, y: number): Laya.Sprite3D;
-
-            /**
-             * Find 3D objects within the specified rectangle.
-             * @param x The x coordinate of the rectangle.
-             * @param y The y coordinate of the rectangle.
-             * @param width The width of the rectangle.
-             * @param height The height of the rectangle.
-             * @param result The result array to store the found objects.
-             */
-            getSpritesInRect(x: number, y: number, width: number, height: number, result: Laya.Node[]): void;
-
-            /**
-             * 
-             */
-            getLookDirectionPos(pos: Laya.Vector3, dir: Laya.Vector3): Readonly<Laya.Vector4>;
         }
+
+        export namespace ICubemapTool {
+            /**
+             * Convert a raw pixel buffer to KTX format.
+             * @param buffer The raw pixel data.
+             * @param w Width of the texture.
+             * @param h Height of the texture.
+             * @param tempPath Temporary directory for intermediate files.
+             * @param outputPath Output KTX file path.
+             * @param textureFormat Pixel format string, default is "RGBA32".
+             * @returns Whether the conversion was successful.
+             */
+            function textureToKTX(buffer: ArrayBufferView, w: number, h: number, tempPath: string, outputPath: string, textureFormat?: string): Promise<boolean>;
+
+            /**
+             * Convert a raw pixel buffer to HDR format.
+             * @param buffer The raw pixel data.
+             * @param w Width of the texture.
+             * @param h Height of the texture.
+             * @param tempPath Temporary directory for intermediate files.
+             * @param outputPath Output HDR file path.
+             * @param textureFormat Pixel format string, default is "RGBA32".
+             * @returns Whether the conversion was successful.
+             */
+            function textureToHDR(buffer: ArrayBufferView, w: number, h: number, tempPath: string, outputPath: string, textureFormat?: string): Promise<boolean>;
+
+            /**
+             * Generate an IBL cubemap from a panorama pixel buffer. This runs the full pipeline:
+             * raw pixels → KTX → HDR → cmgen (IBL + SH) → RGBD compressed KTX.
+             * @param buffer The raw panorama pixel data.
+             * @param w Width of the panorama.
+             * @param h Height of the panorama.
+             * @param abortToken Token to cancel the operation.
+             * @param iblSamples Number of IBL samples, default is 1024.
+             * @param outputDirName Output directory name relative to assets path. Defaults to scene directory.
+             * @param outputName Output file name (without extension). Defaults to scene name.
+             * @param textureFormat Pixel format string, default is "RGBA32".
+             * @param progressName IPC progress event name, default is "createCube-progress".
+             * @returns An object with `sh` (spherical harmonics text) and `path` (asset relative path), or null if cancelled.
+             */
+            function textureToCubeCommand(buffer: ArrayBufferView, w: number, h: number, abortToken: IAbortToken, iblSamples?: number, outputDirName?: string, outputName?: string, textureFormat?: string, progressName?: string): Promise<{ sh: string, path: string } | null>;
+
+            /**
+             * Convert 6 face images into a cubemap KTX file.
+             * @param inputPath Array of 6 file paths for the cube faces.
+             * @param tempPath Temporary directory for intermediate files.
+             * @param outPath Output KTX file path.
+             * @param mipmapCoverageIBL Whether to generate IBL mipmaps.
+             * @param cubemapSize Size of each cubemap face.
+             * @param filterMode Filter mode for resizing.
+             * @param cubemapFilterMode Texture format for the cubemap.
+             * @param generateMipmap Whether to generate mipmaps.
+             * @param sRGB Whether to use sRGB color space.
+             */
+            function trans2DArrayToTextureCube(inputPath: string[], tempPath: string, outPath: string, mipmapCoverageIBL: boolean, cubemapSize: number, filterMode: number, cubemapFilterMode: number, generateMipmap: boolean, sRGB: boolean): Promise<void>;
+        }
+
         export namespace ICreateAssetUtil {
             /**
              * Create a prefab asset from the specified node object.
@@ -3279,6 +4385,12 @@ declare global {
              */
             function createMaterial(mat: Laya.Material, path: string, textureImporter?: Record<string, any>): Promise<IAssetInfo>;
 
+            /**
+             * Create a mesh asset from the specified mesh object.
+             * @param mesh The mesh object. 
+             * @param path Save path of the mesh asset. The path is relative to the assets folder.
+             * @returns The new created asset. 
+             */
             function createMesh2D(mesh: Laya.Mesh2D, path: string): Promise<IAssetInfo>;
 
             /**
@@ -3334,12 +4446,60 @@ declare global {
             function writeMesh(mesh: Laya.Mesh): ArrayBuffer;
 
             /**
+             * Serialize a 2D mesh object to a binary buffer.
+             * @param mesh 2D Mesh object. 
+             */
+            function writeMesh2D(mesh: Laya.Mesh2D): ArrayBuffer;
+
+            /**
              * Write a texture object to a binary buffer.
              * @param tex Texture object. 
              * @param extend Extend the non-transparent area of the image by a certain number of pixels before saving. The image size remains unchanged.
              * @returns The binary buffer. 
              */
             function writeTexture(tex: Laya.Texture | Laya.BaseTexture, extend?: number): ArrayBuffer;
+
+            /**
+             * Convert a 3D mesh object to a 2D mesh object. The 3D mesh must have isReadable set to true.
+             * @param mesh The 3D mesh object. 
+             * @param options Conversion options. 
+             */
+            function convertMeshToMesh2D(mesh: Laya.Mesh, options?: IMeshToMesh2DOptions): Laya.Mesh2D;
+        }
+
+
+        /**
+         * Options for Mesh to Mesh2D conversion.
+         */
+        export interface IMeshToMesh2DOptions {
+            /**
+             * Projection plane to map 3D positions to 2D. Default is XY.
+             */
+            projectionPlane?: "XY" | "XZ" | "YZ";
+            /**
+             * Whether to include vertex colors. Default is true (if available).
+             */
+            includeColors?: boolean;
+            /**
+             * Whether to include UV coordinates. Default is true (if available).
+             */
+            includeUVs?: boolean;
+            /**
+             * UV channel to use (0 or 1). Default is 0.
+             */
+            uvChannel?: number;
+            /**
+             * Uniform scale applied to vertex positions. Default is 1.
+             */
+            scale?: number;
+            /**
+             * Whether the resulting Mesh2D data should be readable. Default is false.
+             */
+            canRead?: boolean;
+            /**
+             * Whether to flip Y axis (useful for 2D coordinate system). Default is false.
+             */
+            flipY?: boolean;
         }
         export interface IScriptBundleDefinition {
             /**
@@ -3468,6 +4628,335 @@ declare global {
              */
             buildScriptBundle(defAsset: IAssetInfo, outDir: string, options?: ICodeBuildOptions): Promise<Array<string>>;
         }
+        /**
+         * Public types for the built-in Clipper2 polygon library.
+         *
+         * Coordinates are double-precision numbers. Boolean operations return newly allocated
+         * paths and do not mutate their input paths. `precision` parameters control decimal
+         * rounding inside an operation; omit them to use the library default.
+         */
+        export namespace Clipper2 {
+            /** Two-dimensional point in the caller's coordinate system. */
+            export interface PointD {
+                /** Horizontal coordinate. */
+                x: number;
+                /** Vertical coordinate. */
+                y: number;
+            }
+
+            /** Polygon filling rule: 0 EvenOdd, 1 NonZero, 2 Positive, 3 Negative. */
+            export type FillRule = 0 | 1 | 2 | 3;
+            /** Boolean operation: 0 None, 1 Intersection, 2 Union, 3 Difference, 4 Xor. */
+            export type ClipType = 0 | 1 | 2 | 3 | 4;
+            /** Input-path role: 1 Subject, 2 Clip. */
+            export type PathType = 1 | 2;
+            /** Offset join: 0 Square, 1 Round, 2 Miter, 3 Bevel. */
+            export type JoinType = 0 | 1 | 2 | 3;
+            /** Offset end: 0 Polygon, 1 Joined, 2 Butt, 3 Square, 4 Round. */
+            export type EndType = 0 | 1 | 2 | 3 | 4;
+            /** Point classification: 0 on boundary, 1 inside, 2 outside. */
+            export type PointInPolygonResult = 0 | 1 | 2;
+
+            /** Mutable, typed path of points. Use `IEditorEnv.Clipper2.PathD` to construct one. */
+            export interface IPathD extends Iterable<PointD> {
+                /** Append points and return the new length. */
+                push(...points: PointD[]): number;
+                /** Append all points from an iterable and return the new length. */
+                pushRange(points: Iterable<PointD>): number;
+                /** Remove every point. */
+                clear(): void;
+                /** Return a deep copy whose point storage is independent. */
+                clone(): IPathD;
+                /** Remove and return the last point, or undefined when empty. */
+                pop(): PointD | undefined;
+                /** Return the point view at `index`. Mutating it may mutate the path. */
+                get(index: number): PointD;
+                /** Return an independent copy of the point at `index`. */
+                getClone(index: number): PointD;
+                /** Return the X coordinate at `index`. */
+                getX(index: number): number;
+                /** Return the Y coordinate at `index`. */
+                getY(index: number): number;
+                /** Replace the point coordinates at `index`. */
+                set(index: number, x: number, y: number): void;
+                /** Number of points in the path. */
+                readonly length: number;
+            }
+
+            /** Runtime constructor signatures for a mutable path. */
+            export interface PathDConstructor {
+                /** Create an empty path. */
+                new(): IPathD;
+                /** Create storage with the requested initial length. */
+                new(arrayLength: number): IPathD;
+                /** Create a path containing copies of the supplied points. */
+                new(...points: PointD[]): IPathD;
+            }
+
+            /** Mutable collection of paths. */
+            export interface PathsD extends Array<IPathD> {
+                /** Remove every path. */
+                clear(): void;
+                /** Append an existing `IPathD` without converting its point storage. */
+                directPush(path: IPathD): void;
+                /** Convert and append path iterables; return the new collection length. */
+                push(...paths: Iterable<PointD>[]): number;
+                /** Convert and append all path iterables; return the new collection length. */
+                pushRange(paths: Iterable<Iterable<PointD>>): number;
+            }
+
+            /** Runtime constructor and clone signatures for a path collection. */
+            export interface PathsDConstructor {
+                /** Create an empty path collection. */
+                new(): PathsD;
+                /** Create a collection with the requested initial length. */
+                new(arrayLength: number): PathsD;
+                /** Create a collection containing the supplied paths. */
+                new(...paths: IPathD[]): PathsD;
+                /** Deep-copy all paths and their points. */
+                clone(paths: Iterable<Iterable<PointD>>): PathsD;
+            }
+
+            /** Mutable axis-aligned rectangle. */
+            export interface RectD {
+                /** Minimum X coordinate. */
+                left: number;
+                /** Minimum Y coordinate. */
+                top: number;
+                /** Maximum X coordinate. */
+                right: number;
+                /** Maximum Y coordinate. */
+                bottom: number;
+                /** Current width (`right - left`). */
+                width: number;
+                /** Current height (`bottom - top`). */
+                height: number;
+                /** Return the center point. */
+                midPoint(): PointD;
+                /** Return the rectangle boundary as a closed polygon path. */
+                asPath(): IPathD;
+                /** Test whether the point lies within the rectangle bounds. */
+                contains(point: PointD): boolean;
+                /** Test whether the complete rectangle lies within these bounds. */
+                contains(rect: RectD): boolean;
+                /** Multiply all rectangle coordinates by `scale` in place. */
+                scale(scale: number): void;
+                /** Test whether the rectangle has no valid area. */
+                isEmpty(): boolean;
+                /** Test whether two rectangles overlap. */
+                intersects(rect: RectD): boolean;
+            }
+
+            /** Runtime constructor signatures for rectangles. */
+            export interface RectDConstructor {
+                /** Create an empty rectangle. */
+                new(): RectD;
+                /** Create a rectangle from explicit bounds. */
+                new(left: number, top: number, right: number, bottom: number): RectD;
+                /** Create initialized-valid or invalid sentinel bounds. */
+                new(isValid: boolean): RectD;
+                /** Copy a rectangle. */
+                new(rect: RectD): RectD;
+            }
+
+            /** Base node in a polygon containment tree. */
+            export interface PolyPathBase extends Iterable<PolyPathBase> {
+                /** Number of direct child polygons. */
+                readonly length: number;
+                /** Return nesting depth, where top-level output is level 0. */
+                getLevel(): number;
+                /** Return whether this polygon represents a hole by nesting parity. */
+                getIsHole(): boolean;
+                /** Remove this node's children. */
+                clear(): void;
+            }
+
+            /** Floating-point polygon-tree node. */
+            export interface PolyPathD extends PolyPathBase {
+                /** Coordinate scale used while converting from the integer clipping core. */
+                scale: number;
+                /** Polygon at this node; the tree root may not have one. */
+                polygon?: IPathD;
+                /** Signed area of this node's polygon. */
+                area(): number;
+                /** Iterate direct child nodes. */
+                [Symbol.iterator](): Generator<PolyPathD, void, unknown>;
+            }
+
+            /** Root or node type for hierarchical polygon output. */
+            export interface PolyTreeD extends PolyPathD {
+            }
+
+            /** Runtime constructor for polygon trees. */
+            export interface PolyTreeDConstructor {
+                /** Create a tree root or a child associated with `parent`. */
+                new(parent?: PolyPathBase): PolyTreeD;
+            }
+
+            /** Stateful clipping engine for incremental input and reusable output buffers. */
+            export interface ClipperD {
+                /** Remove all subject and clip inputs so the instance can be reused. */
+                clear(): void;
+                /** Add one subject or clip path. Set `isOpen` for an open polyline. */
+                addPath(path: Iterable<PointD>, pathType: PathType, isOpen?: boolean): void;
+                /** Add one or more subject or clip paths. */
+                addPaths(paths: Iterable<PointD> | Iterable<Iterable<PointD>>, pathType: PathType, isOpen?: boolean): void;
+                /** Add one or more closed subject paths. */
+                addSubject(paths: Iterable<PointD> | Iterable<Iterable<PointD>>): void;
+                /** Add one or more open subject polylines. */
+                addOpenSubject(paths: Iterable<PointD> | Iterable<Iterable<PointD>>): void;
+                /** Add one or more closed clip paths. */
+                addClip(paths: Iterable<PointD> | Iterable<Iterable<PointD>>): void;
+                /** Execute into separate caller-owned closed and open output collections. */
+                execute(clipType: ClipType, fillRule: FillRule, solutionClosed: PathsD, solutionOpen: PathsD): boolean;
+                /** Execute closed-path output into a caller-owned collection. */
+                execute(clipType: ClipType, fillRule: FillRule, solutionClosed: PathsD): boolean;
+                /** Execute hierarchical output and collect open paths separately. */
+                execute(clipType: ClipType, fillRule: FillRule, polyTree: PolyTreeD, openPaths: PathsD): boolean;
+                /** Execute closed paths into a hierarchical containment tree. */
+                execute(clipType: ClipType, fillRule: FillRule, polyTree: PolyTreeD): boolean;
+            }
+
+            /** Runtime constructor for a stateful clipping engine. */
+            export interface ClipperDConstructor {
+                /** Create an engine using the optional number of decimal places for input rounding. */
+                new(roundingDecimalPrecision?: number): ClipperD;
+            }
+
+            /** Stateless polygon operations. Returned paths are newly allocated. */
+            export interface ClipperApi {
+                /** Return the intersection of subject and clip polygons. */
+                intersect(subject: PathsD, clip: PathsD, fillRule: FillRule, precision?: number): PathsD;
+                /** Union all subject polygons. */
+                union(subject: PathsD, fillRule: FillRule, precision?: number): PathsD;
+                /** Union subject and clip polygon sets. */
+                union(subject: PathsD, clip: PathsD, fillRule: FillRule, precision?: number): PathsD;
+                /** Subtract clip polygons from subject polygons. */
+                difference(subject: PathsD, clip: PathsD, fillRule: FillRule, precision?: number): PathsD;
+                /** Return regions contained by exactly one of the two polygon sets. */
+                xor(subject: PathsD, clip: PathsD, fillRule: FillRule, precision?: number): PathsD;
+                /** Execute an arbitrary boolean operation and return flat closed paths. */
+                booleanOp(clipType: ClipType, subject: PathsD, clip: PathsD | undefined, fillRule: FillRule, precision?: number): PathsD;
+                /** Execute an arbitrary boolean operation into a caller-owned polygon tree. */
+                booleanOp(clipType: ClipType, subject: PathsD, clip: PathsD | undefined, polyTree: PolyTreeD, fillRule: FillRule, precision?: number): void;
+                /** Offset paths by `delta`; positive and negative meanings depend on winding and end type. */
+                inflatePaths(paths: PathsD, delta: number, joinType: JoinType, endType: EndType, miterLimit?: number, precision?: number, arcTolerance?: number): PathsD;
+                /** Clip closed polygons to an axis-aligned rectangle. */
+                rectClip(rect: RectD, paths: IPathD | PathsD, precision?: number): PathsD;
+                /** Clip open polylines to an axis-aligned rectangle. */
+                rectClipLines(rect: RectD, paths: IPathD | PathsD, precision?: number): PathsD;
+                /** Compute the Minkowski sum of a pattern and a path. */
+                minkowskiSum(pattern: IPathD, path: IPathD, isClosed: boolean): PathsD;
+                /** Compute the Minkowski difference of a pattern and a path. */
+                minkowskiDiff(pattern: IPathD, path: IPathD, isClosed: boolean): PathsD;
+                /** Return signed area for one path, or the sum for a collection. */
+                area(path: IPathD | PathsD): number;
+                /** Test path orientation using the sign convention of `area`. */
+                isPositive(path: IPathD): boolean;
+                /** Format a path for diagnostics. The format is not a persistence contract. */
+                pathDToString(path: IPathD): string;
+                /** Format multiple paths for diagnostics. The format is not a persistence contract. */
+                pathsDToString(paths: PathsD): string;
+                /** Return a new path with every coordinate multiplied by `scale`. */
+                scalePath(path: IPathD, scale: number): IPathD;
+                /** Return new paths with every coordinate multiplied by `scale`. */
+                scalePaths(paths: PathsD, scale: number): PathsD;
+                /** Return a new path translated by the supplied delta. */
+                translatePath(path: IPathD, dx: number, dy: number): IPathD;
+                /** Return new paths translated by the supplied delta. */
+                translatePaths(paths: PathsD, dx: number, dy: number): PathsD;
+                /** Return a new path with point order reversed. */
+                reversePath(path: IPathD): IPathD;
+                /** Return new paths with every point order reversed. */
+                reversePaths(paths: PathsD): PathsD;
+                /** Calculate axis-aligned bounds for one path or a path collection. */
+                getBounds(path: IPathD | PathsD): RectD;
+                /** Build a path from alternating X/Y numbers: `[x0, y0, x1, y1, ...]`. */
+                makePathD(points: ArrayLike<number>): IPathD;
+                /** Remove adjacent points closer than the supplied squared distance. */
+                stripNearDuplicates(path: IPathD, minEdgeLengthSquared: number, isClosedPath: boolean): IPathD;
+                /** Simplify one path with the Ramer-Douglas-Peucker algorithm. */
+                ramerDouglasPeucker(path: IPathD, epsilon: number): IPathD;
+                /** Simplify multiple paths with the Ramer-Douglas-Peucker algorithm. */
+                ramerDouglasPeucker(paths: PathsD, epsilon: number): PathsD;
+                /** Remove insignificant vertices from one path. */
+                simplifyPath(path: IPathD, epsilon: number, isClosedPath?: boolean): IPathD;
+                /** Remove insignificant vertices from multiple paths. */
+                simplifyPaths(paths: PathsD, epsilon: number, isClosedPaths?: boolean): PathsD;
+                /** Remove collinear vertices after rounding to `precision` decimal places. */
+                trimCollinear(path: IPathD, precision: number, isOpen?: boolean): IPathD;
+                /** Classify a point as on, inside, or outside a polygon. */
+                pointInPolygon(point: PointD, polygon: IPathD, precision?: number): PointInPolygonResult;
+                /** Create a polygonal ellipse; omit `radiusY` for a circle and `steps` for automatic detail. */
+                ellipse(center: PointD, radiusX: number, radiusY?: number, steps?: number): IPathD;
+            }
+        }
+
+        /** Runtime exports of the built-in Clipper2 polygon library. */
+        export interface IClipper2 {
+            /** Fill-rule constants used by boolean operations. */
+            readonly FillRule: {
+                readonly EvenOdd: 0;
+                readonly NonZero: 1;
+                readonly Positive: 2;
+                readonly Negative: 3;
+            };
+            /** Boolean-operation constants. */
+            readonly ClipType: {
+                readonly None: 0;
+                readonly Intersection: 1;
+                readonly Union: 2;
+                readonly Difference: 3;
+                readonly Xor: 4;
+            };
+            /** Input-path role constants for `ClipperD`. */
+            readonly PathType: {
+                readonly Subject: 1;
+                readonly Clip: 2;
+            };
+            /** Offset join-style constants. */
+            readonly JoinType: {
+                readonly Square: 0;
+                readonly Round: 1;
+                readonly Miter: 2;
+                readonly Bevel: 3;
+            };
+            /** Offset end-style constants. */
+            readonly EndType: {
+                readonly Polygon: 0;
+                readonly Joined: 1;
+                readonly Butt: 2;
+                readonly Square: 3;
+                readonly Round: 4;
+            };
+            /** Point-in-polygon result constants. */
+            readonly PointInPolygonResult: {
+                readonly IsOn: 0;
+                readonly IsInside: 1;
+                readonly IsOutside: 2;
+            };
+            /** Mutable path constructor. */
+            readonly PathD: Clipper2.PathDConstructor;
+            /** Mutable path-collection constructor. */
+            readonly PathsD: Clipper2.PathsDConstructor;
+            /** Mutable rectangle constructor. */
+            readonly RectD: Clipper2.RectDConstructor;
+            /** Stateful clipping-engine constructor. */
+            readonly ClipperD: Clipper2.ClipperDConstructor;
+            /** Polygon containment-tree constructor. */
+            readonly PolyTreeD: Clipper2.PolyTreeDConstructor;
+            /** Stateless polygon operations. */
+            readonly Clipper: Clipper2.ClipperApi;
+            /** Test whether a runtime value is a Clipper2 path. */
+            readonly isPathD: (value: unknown) => value is Clipper2.IPathD;
+            /** Test whether a runtime value is a Clipper2 path collection. */
+            readonly isPathsD: (value: unknown) => value is Clipper2.PathsD;
+            /** Test whether a runtime value is a point-like Clipper2 value. */
+            readonly isPointD: (value: unknown) => value is Clipper2.PointD;
+            /** Test whether a runtime value is a Clipper2 rectangle. */
+            readonly isRectD: (value: unknown) => value is Clipper2.RectD;
+        }
+
         export enum OrthographicMode {
             Orthographic_XZ,
             Orthographic_XY,
@@ -3476,16 +4965,6 @@ declare global {
         }
 
         export interface ICameraControls {
-            /**
-             * Zoom scale factor
-             */
-            zoomScale: number;
-
-            /**
-             * Transform scale factor
-             */
-            transformScale: number;
-
             /**
              * Get the camera instance
              */
@@ -3560,9 +5039,9 @@ declare global {
              * Set the focus position of the camera
              * @param pos The focus position
              * @param distance Optional distance
-             * @param isanim Optional animation flag
+             * @param anim Optional animation flag. Default is true.
              */
-            setFocusPosition(pos: Laya.Vector3, distance?: number, isanim?: boolean): void;
+            setFocusPosition(pos: Laya.Vector3, distance?: number, anim?: boolean): void;
 
             /**
              * Look at a direction
@@ -3587,9 +5066,9 @@ declare global {
             /**
              * Set the serialized data of the focus
              * @param data The serialized data
-             * @param isanim Optional animation flag
+             * @param anim Optional animation flag. Default is true.
              */
-            setFocusData(data: any, isanim?: boolean): void;
+            setFocusData(data: any, anim?: boolean): void;
 
             /**
              * Get a ray from screen space coordinates
@@ -3632,9 +5111,8 @@ declare global {
              * @param distanceX The distance to move along the X axis
              * @param distanceY The distance to move along the Y axis
              * @param distanceZ The distance to move along the Z axis
-             * @param isshift Whether the shift key is pressed
              */
-            flyMove(distanceX: number, distanceY: number, distanceZ: number, isshift: boolean): void;
+            flyMove(distanceX: number, distanceY: number, distanceZ: number): void;
 
             /**
              * Reset the camera motion
@@ -3679,8 +5157,9 @@ declare global {
             /**
              * Focus on a node
              * @param node The node to focus on
+             * @param anim Optional animation flag. Default is true.
              */
-            focusNode(node: Laya.Sprite3D): void;
+            focusNode(node: Laya.Sprite3D, anim?: boolean): void;
 
             /**
              * Preview focus on a node
@@ -3692,8 +5171,9 @@ declare global {
             /**
              * Set the camera transform
              * @param data The transform data
+             * @param anim Optional animation flag. Default is true.
              */
-            setCameraTransform(data: any): void;
+            setCameraTransform(data: any, anim?: boolean): void;
 
             /**
              * Get the camera transform
@@ -3786,6 +5266,16 @@ declare global {
             readonly status: BuildTaskStatus;
 
             /**
+             * Whether the build task is in recompile mode. In this mode, only scripts are built, and assets are not exported. 
+             */
+            readonly recompileMode: boolean;
+
+            /**
+             * Run in a special mode where only scripts are built, and assets are not exported. This mode is useful when you only want to build scripts without exporting assets, which can significantly speed up the build process. In this mode, the onCollectAssets, onBeforeExportAssets, onAfterExportAssets events will be skipped, but the onExportScripts event will still be triggered.
+             */
+            setRecompileMode(): this;
+
+            /**
              * Wait for the completion of the build task.
              */
             waitForCompletion(): Promise<BuildTaskStatus>;
@@ -3818,9 +5308,9 @@ declare global {
              * - If it is a built-in build target of the IDE, it is in the built-in release template folder of the IDE; if it is a custom build target added by a plugin, it is in the template folder specified by the plugin.
              * 
              * @param filePath A relative path.
-             * @returns The absolute path of the file.
+             * @returns The absolute path of the file, or null if it does not exist in any build-template location.
              */
-            findFileInBuildTemplate(filePath: string): string;
+            findFileInBuildTemplate(filePath: string): string | null;
 
             /**
              * Load the index.html template file. This method is used to load the index.html template file for web platforms.
@@ -4012,6 +5502,7 @@ declare global {
              */
             function start(platform: string, destPath: string, ...tempPlugins: Array<IBuildPlugin>): IBuildTask;
         }
+
         export interface IBuildManager {
             /**
              * Get the target information of the specified platform.
@@ -4100,6 +5591,12 @@ declare global {
             enableVersion: boolean;
 
             /**
+             * When enableVersion is true, whether to append the hash value to the fileconfig file name.
+             * If false, fileconfig keeps its original file name and uses a query parameter to avoid caching. Default is false.
+             */
+            enableFileConfigHash: boolean;
+
+            /**
              * When enableVersion is true, ignore these files in the version management. They are asset ids in 'res://uuid' format.
              */
             ignoreFilesInVersion: Array<string>;
@@ -4179,6 +5676,11 @@ declare global {
             keepTextureSourceFile: boolean;
 
             /**
+             * Modules that need to be installed for this build. If any module listed here is not installed, the build will try to install it after onSetup and before onStart. 
+             */
+            requireModules: Array<string>;
+
+            /**
              * Additional engine js files can be added to the build.
              */
             engineLibs: Array<string>;
@@ -4191,6 +5693,11 @@ declare global {
              * If you set it to "alternative", the engine will still export WebAssembly libraries, but will set task.exports.libs to pure JavaScript libraries and set task.exports.alternativeLibs to WebAssembly libraries.
              */
             disableWebAssembly: boolean | "alternative";
+
+            /**
+             * If true, the WebAssembly libraries will be compressed with Brotli. 
+             */
+            compressWasm: boolean;
 
             /**
              * Chose the rendering device.
@@ -4221,6 +5728,12 @@ declare global {
             subpackageGameJsName: string;
 
             /**
+             * Template content used to generate a subpackage entry. The template receives a `libs` array whose `name` values are paths relative to the entry file.
+             * If the subpackage defines a main script, the rendered content is prepended to the compiled script when there are auto-loaded JavaScript plugins in the subpackage.
+             */
+            subpackageGameJsTemplate: string;
+
+            /**
              * Overide the default exporter of certain assets.
              */
             customAssetExporters: Map<IAssetInfo, new () => IAssetExporter>;
@@ -4243,17 +5756,18 @@ declare global {
              */
             runHandler: { serve?: string, open?: string, QRCode?: string, secure?: boolean, runInTerminal?: string };
         }
+
         export interface IAssetThumbnail {
             /**
              * Generate a thumbnail for the asset.
              * @param asset The asset to generate thumbnail for.
              * @returns The thumbnail data.
              * - String type: It is the absolute path of a png/jpg/svg file.
-             * - Buffer type: It is data encoded as png. The recommended size for the image is IEditorEnv.AssetThumbmail.imageSize
+             * - Buffer type: It is data encoded as PNG. The recommended size is `IEditorEnv.AssetThumbnail.imageSize`.
              * - "source": Use the source image directly.
              * - null: No thumbnail is generated.
              */
-            generate(asset: IAssetInfo): Promise<Buffer | string>;
+            generate(asset: IAssetInfo): Promise<Buffer | string | "source" | null>;
 
             /**
              * Destroy the thumbnail generator.
@@ -4302,7 +5816,7 @@ declare global {
              * Json files may have various usage, this method is used to recognize the real type of a json file, and return the type name as sub type. Return null if no special type is recognized.
              * @param headText The first 200 characters of the json file.
              * @param asset The json asset.
-             * @returns The type name as sub type.
+             * @returns The subtype name, or null when the JSON does not match a recognized subtype.
              * @example
              * ```
              * onRecognizeJson(headText: string, asset: IAssetInfo): AssetType | string {
@@ -4313,8 +5827,9 @@ declare global {
              * }
              * ```
              */
-            onRecognizeJson?(headText: string, asset: IAssetInfo): AssetType | string;
+            onRecognizeJson?(headText: string, asset: IAssetInfo): AssetType | string | null;
         }
+
         export interface IAssetPreview extends IOffscreenRenderSubmit {
             /**
              * A helper scene for rendering.
@@ -4331,7 +5846,7 @@ declare global {
              * @param asset The asset to be previewed.
              * @returns Any data that can be used by the caller.
              */
-            setAsset(asset: IAssetInfo): Promise<any>;
+            setAsset(asset: IAssetInfo, ...args: any[]): Promise<any>;
 
             /**
              * Objects of this class are cached and reused, this method is called when a object is returned to the pool.
@@ -4362,6 +5877,9 @@ declare global {
              */
             destroy(): void;
         }
+        export const resourcesDirName = "resources";
+        export const editorResourcesDirName = "editorresources";
+
         export interface IPackageInfo {
             version: string;
             displayName?: string;
@@ -4385,7 +5903,7 @@ declare global {
              * Custom asset filters.
              * @example
              * ```
-             * IEditorEnv.assetManager.customAssetFilters["myFilter"] = (asset: IAssetInfo)=> {
+             * EditorEnv.assetMgr.customAssetFilters["myFilter"] = (asset: IEditorEnv.IAssetInfo) => {
              *    return asset.name.startsWith("my");
              * };
              * ```
@@ -4411,7 +5929,7 @@ declare global {
              * Get all assets in the specified folder.
              * @param folderAsset The folder asset.
              * @param types The types of assets to get. If not specified, all types of assets will be returned.
-             * @param customFilter The custom filter to use. The filter should have been registered through the `IEditorEnv.assetMgr.customAssetFilters` method.
+             * @param customFilter The custom filter name registered through `EditorEnv.assetMgr.customAssetFilters`.
              * @returns The assets.
              */
             getAllAssetsInDir(folderAsset: IAssetInfo, types?: ReadonlyArray<AssetType>, customFilter?: string): Array<IAssetInfo>;
@@ -4424,17 +5942,29 @@ declare global {
             /**
              * Get all assets in all `resources` folder.
              * @param types The types of assets to get. If not specified, all types of assets will be returned.
-             * @param customFilter The custom filter to use. The filter should have been registered through the `IEditorEnv.assetMgr.customAssetFilters` method.
+             * @param customFilter The custom filter name registered through `EditorEnv.assetMgr.customAssetFilters`.
              * @returns The assets.
              */
             getAllAssetsInResourceDir(types?: ReadonlyArray<AssetType>, customFilter?: string): Array<IAssetInfo>;
+
+            /**
+             * Get all possible `resources` or `editorResources` folders that may contain the specified path.
+             * @param path A folder path relative to the assets folder.
+             * @returns The folders.
+             */
+            getPossibleResourceDirs(path: string): Array<IAssetInfo>;
+
+            /**
+             * Get all user assets in the project. User assets are assets in the `assets`, `src`, `packages` folders.
+             */
+            getUserAssets(): Array<IAssetInfo>;
 
             /**
              * Get children assets of the specified folder.
              * @param folderAsset The folder asset.
              * @param types The types of assets to get. If not specified, all types of assets will be returned.
              * @param matchSubType Whether to return assets whose subtypes match the types parameter.
-             * @param customFilter The custom filter to use. The filter should have been registered through the `IEditorEnv.assetMgr.customAssetFilters` method.
+             * @param customFilter The custom filter name registered through `EditorEnv.assetMgr.customAssetFilters`.
              * @returns The assets.
              */
             getChildrenAssets(folderAsset: IAssetInfo, types: ReadonlyArray<AssetType>, matchSubType?: boolean, customFilter?: string): Array<IAssetInfo>;
@@ -4444,7 +5974,7 @@ declare global {
              * @param keyword The keyword to search.
              * @param types The types of assets to get. If not specified, all types of assets will be returned.
              * @param matchSubType Whether to return assets whose subtypes match the types parameter.
-             * @param customFilter The custom filter to use. The filter should have been registered through the `IEditorEnv.assetMgr.customAssetFilters` method.
+             * @param customFilter The custom filter name registered through `EditorEnv.assetMgr.customAssetFilters`.
              * @param limit The maximum number of assets to return. Default is 5000.
              * @returns The assets.
              */
@@ -4464,7 +5994,7 @@ declare global {
              * @param assetIds The asset ids to filter.
              * @param types The types of assets to get. If not specified, all types of assets will be returned.
              * @param matchSubType Whether to return assets whose subtypes match the types parameter.
-             * @param customFilter The custom filter to use. The filter should have been registered through the `IEditorEnv.assetMgr.customAssetFilters` method.
+             * @param customFilter The custom filter name registered through `EditorEnv.assetMgr.customAssetFilters`.
              * @returns The assets.
              */
             filterAssets(assetIds: ReadonlyArray<string>, types?: ReadonlyArray<AssetType>, matchSubType?: boolean, customFilter?: string): Array<IAssetInfo>;
@@ -4473,15 +6003,15 @@ declare global {
              * Get an asset by its id or path.
              * @param idOrPath The id or path of the asset.
              * @param allowResourcesSearch Whether to follow the resources search rules.
-             * @returns The asset.
+             * @returns The asset, or null if no matching asset is found.
              * @example
              * ```
-             * IEditorEnv.assetManager.getAsset("12345678-1234-1234-1234-1234567890ab");
-             * IEditorEnv.assetManager.getAsset("textures/texture.png"); //path is relative to the assets folder
-             * IEditorEnv.assetManager.getAsset("resources/textures/texture.png", true); //search in all resources folders
+             * EditorEnv.assetMgr.getAsset("12345678-1234-1234-1234-1234567890ab");
+             * EditorEnv.assetMgr.getAsset("textures/texture.png"); // path is relative to the assets folder
+             * EditorEnv.assetMgr.getAsset("resources/textures/texture.png", true); // search in all resources folders
              * ```
              */
-            getAsset(idOrPath: string, allowResourcesSearch?: boolean): IAssetInfo;
+            getAsset(idOrPath: string, allowResourcesSearch?: boolean): IAssetInfo | null;
 
             /**
              * Get all assets of the specified types.
@@ -4489,7 +6019,7 @@ declare global {
              * @param matchSubType Whether to return assets whose subtypes match the types parameter.
              * @returns The assets.
              */
-            getAssetsByType(types?: ReadonlyArray<AssetType>, matchSubType?: boolean): Array<IAssetInfo>;
+            getAssetsByType(types?: ReadonlyArray<AssetType>, matchSubType?: boolean): ReadonlyArray<IAssetInfo>;
 
             /**
              * Create a new asset with the specified path. If the asset already exists, throw an error when allowOverwrite is false. When allowOverwrite is true or null, return the existing resource.
@@ -4498,12 +6028,22 @@ declare global {
              * @param allowOverwrite Whether to allow overwriting the existing asset. Default is true.
              * @returns The asset.
              */
-            createFileAsset(filePath: string, metaData?: any, allowOverwrite?: boolean): IAssetInfo;
+            createFile(filePath: string, metaData?: any, allowOverwrite?: boolean): Promise<IAssetInfo>;
 
             /**
              * Create a new folder asset with the specified path. If the folder already exists, the existing folder asset will be returned.
              * @param folderPath The path of the folder. The path is relative to the assets folder.
              * @returns The asset.
+             */
+            createFolder(folderPath: string, checkLetterCase?: boolean): Promise<IAssetInfo>;
+
+            /**
+             * @deprecated Use 'createFile' instead.
+             */
+            createFileAsset(filePath: string, metaData?: any, allowOverwrite?: boolean): IAssetInfo;
+
+            /**
+             * @deprecated Use 'createFolder' instead.
              */
             createFolderAsset(folderPath: string): IAssetInfo;
 
@@ -4539,7 +6079,7 @@ declare global {
              * @returns The asset type.
              * @example
              * ```
-             * IEditorEnv.assetManager.getAssetTypeByFileExt("png");
+             * EditorEnv.assetMgr.getAssetTypeByFileExt("png");
              * //=> AssetType.Texture
              * ```
              */
@@ -4551,7 +6091,7 @@ declare global {
              * @returns The file extensions.
              * @example
              * ```
-             * IEditorEnv.assetManager.getFileExtByAssetType(AssetType.Texture);
+             * EditorEnv.assetMgr.getFileExtByAssetType(IEditorEnv.AssetType.Texture);
              * //=> ["png", "jpg", "jpeg", "astc", "ktx", "ktx2", "dds", "pvr", "hdr", "tif", "tiff", "tga", "rendertexture"]
              * ```
              */
@@ -4574,7 +6114,7 @@ declare global {
             getFullPath(asset: IAssetInfo): string;
 
             /**
-             * Convert a relative path to a absolute path.
+             * Convert a path relative to the assets folder to an absolute path.
              * @param path The relative path to the assets folder.
              * @returns The absolute path.
              */
@@ -4593,7 +6133,7 @@ declare global {
              * @returns The absolute path of the scene file.
              * @example
              * ```
-             * IEditorEnv.assetManager.getPrefabSourcePath(aFbxAsset);
+             * EditorEnv.assetMgr.getPrefabSourcePath(aFbxAsset);
              * //=> "/path/to/project/library/0a/0a0a0a0a-0a0a-0a0a-0a0a-0a0a0a0a0a0a.lh"
              * ```
              */
@@ -4650,10 +6190,17 @@ declare global {
             get busy(): boolean;
 
             /**
+             * Wait until the specified assets are ready (imported). An error will be thrown if any of the assets fail to import.
+             * @param paths The paths of the assets to wait. The paths are relative to the assets folder.
+             */
+            waitForAssetsReady(paths: string[]): Promise<void>;
+
+            /**
              * If there is an ongoing import task, wait for the import task to complete.
              */
             flushChanges(): Promise<void>;
         }
+
         export interface IAssetImporterOptions {
             /**
              * Importer version. This is used to handle the compatibility of the importer.
@@ -4732,7 +6279,7 @@ declare global {
             readonly importArgs: ReadonlyArray<string>;
 
             /**
-             * Get a absolute path of which the sub-asset is saved.
+             * Absolute directory where sub-assets are saved.
              */
             readonly subAssetLocation: string;
 
@@ -4751,13 +6298,13 @@ declare global {
             /**
              * Create a sub-asset.
              * @param fileName File name of the sub-asset. e.g. "texture.png"
-             * @param id ID of the sub-asset. The ID is unique within the sub-assets of the asset. Commonly you dont need to provide this value, it will be generated automatically.
+             * @param id ID of the sub-asset. The ID is unique within the asset's sub-assets. Usually you do not need to provide it because one is generated automatically.
              * @returns The sub-asset info.
              */
             createSubAsset(fileName: string, id?: string): ISubAssetInfo;
 
             /**
-             * Create a asset in the asset library.
+             * Create an asset in the asset library.
              * @param filePath A path relative to the assets folder.
              * @param metaData Metadata of the asset.
              * @returns The asset info.
@@ -4790,21 +6337,21 @@ declare global {
             /**
              * Get the path relative to the assets folder by the asset ID.
              * @param assetId 
-             * @returns The path relative to the assets folder.
+             * @returns The path relative to the assets folder, or null if the asset ID cannot be resolved.
              */
-            getAssetPathById(assetId: string): string;
+            getAssetPathById(assetId: string): string | null;
 
             /**
              * Find an asset by a relative path, starting from the folder where the current asset is located. Null if not found.
              * @param filePath A relative path.
              * @param predicate An optional filter function.
-             * @returns The asset info. 
+             * @returns The asset info, or null if no matching asset is found.
              * @example
              * ```
              * let asset = this.findAsset("textures/texture.png");
              * ```
              */
-            findAsset(filePath: string, predicate?: (asset: IAssetInfo) => boolean): IAssetInfo;
+            findAsset(filePath: string, predicate?: (asset: IAssetInfo) => boolean): IAssetInfo | null;
 
             /**
              * Report the progress of the importer. The value should be between 0 and 100.
@@ -4819,6 +6366,7 @@ declare global {
              */
             readonly settings: ITextureSettings;
         }
+
         export interface IAssetExporterOptions {
             /**
              * If a exporter has this flag set to true, assets handled by this exporter will not be exported, and the handleExport method will not be called.
@@ -4872,6 +6420,31 @@ declare global {
              */
             handleExport(): Promise<void>;
         }
+        export interface IAssetDependencyTool {
+            /**
+             * Query the dependencies of the given assets.
+             * @param assets The assets to query. 
+             * @param includeIndirectLinks Whether to include indirect dependencies.
+             * @returns A promise that resolves to a tuple containing an array of asset info objects representing the dependencies and an array of asset IDs or paths that were not found.
+             */
+            queryDependency(assets: ReadonlyArray<IAssetInfo>, includeIndirectLinks?: boolean): Promise<[Array<IAssetInfo>, Array<string>]>;
+
+            /**
+             * Query the assets that reference the given asset IDs or paths.
+             * @param assets The asset IDs or paths to query.
+             * @returns A promise that resolves to an array of asset info objects representing the referencing assets. 
+             */
+            queryReference(assets: ReadonlyArray<string>): Promise<Array<IAssetInfo>>;
+
+            /**
+             * Replace references in assets based on the given replacements mapping.
+             * @param replacements A mapping of original asset IDs or paths to new asset IDs or paths. 
+             * @param targetAssets An optional set of assets to limit the replacement operation to.
+             * @returns A promise that resolves to an array of asset info objects representing the assets that were modified.
+             */
+            replaceReference(replacements: Record<string, string>, targetAssets?: ReadonlySet<IAssetInfo>): Promise<Array<IAssetInfo>>;
+        }
+
         export type FEnumDescriptor = {
             name: string,
             value: any,
@@ -5022,14 +6595,22 @@ declare global {
 
             /**
              * Whether the property is serializable. If false, the property will not be serialized. Default is true.
+             * 
+             * boolean: False means not serializable, true means serializable.
+             * 
+             * string: For example, "!!data.a". If !!data.a is true, it indicates that this property is serializable.
              */
-            serializable?: boolean;
+            serializable?: boolean | string;
             /**
              * When the property does not participate in serialization, if its data may be affected by another serializable property, fill in the name of other property here.
              * 
              * This is usually used to determine whether the prefab property is overridden.
              */
             affectBy?: string;
+            /**
+             * The property is only effective in the editor and will be stripped in the build.
+             */
+            stripInBuild?: boolean;
 
             /**
              * Whether the text input is multiline. Default is false.
@@ -5213,6 +6794,15 @@ declare global {
              * - move: Move an element to a specified position.
              */
             arrayActions?: Array<"append" | "insert" | "delete" | "move">;
+
+            /**
+             * Applicable to array type properties. Defines an optional header and proportional width for each column
+             * rendered by a compound array-element inspector. Width values are percentages and are normalized when
+             * their total is not exactly 100.
+             *
+             * Use "i18n:<key>" or "i18n:<file-id>:<key>" for localized captions.
+             */
+            arrayColumns?: Array<{ caption: string; width: number }>;
 
             /**
              * Applicable to array or dictionary type properties. Here you can define the properties of array/dictionary elements.
@@ -5456,6 +7046,11 @@ declare global {
             newNodeName?: string;
 
             /**
+             * Default file name without extension when this asset type is created from the Project/Create menu.
+             */
+            newAssetName?: string;
+
+            /**
              * Icon of the type.  Images are generally placed in the editorResources directory or its subdirectories, and then referenced using a path starting from editorResources, such as "editorResources/my-plugin/icon.png".
              */
             icon?: string;
@@ -5620,9 +7215,24 @@ declare global {
             caption?: string;
 
             /**
+             * Button caption when the bound toggle property is true.
+             *
+             * Use "i18n:&lt;key&gt;" or "i18n:&lt;file-id&gt;:&lt;key&gt;" to specify the key of the internationalization string.
+             */
+            selectCaption?: string;
+
+            /**
              * Button tips.
              */
             tips?: string;
+
+            /**
+             * Makes this button toggle a boolean property.
+             *
+             * Set to true to toggle the field's own property, or provide a property name
+             * to toggle another property on the same object.
+             */
+            toggleProperty?: true | string;
 
             /**
              * If this is defined, a event with this name will be emitted when the button is clicked.
@@ -5646,10 +7256,16 @@ declare global {
             runNodeScript?: string;
 
             /**
+             * If this is defined, a panel will be focused when the button is clicked.
+             */
+            focusPanel?: string;
+
+            /**
              * Bind a hotkey to the button.
              */
             sceneHotkey?: string;
         }
+
         /**
          * Asset type
          */
@@ -5703,6 +7319,9 @@ declare global {
             I18nSettings,
 
             Dll,
+            CSS,
+            ComputeShader,
+            ScriptableObject
         }
 
         /**
@@ -5753,15 +7372,28 @@ declare global {
              * The asset is a built-in asset.
              */
             BuiltIn = 0x10000,
+            /**
+             * The asset is a feature pack asset.
+             */
+            FeaturePack = 0x20000,
+
+            /**
+             * The asset is a package or feature pack asset.
+             */
+            PackageLike = Packages | FeaturePack,
         }
 
         /**
          * Asset changed flag
          */
         export enum AssetChangedFlag {
+            /** Existing asset contents or metadata changed. */
             Modified = 0,
+            /** A new asset was added to the database. */
             New = 1,
+            /** An asset was removed from the database. */
             Deleted = 2,
+            /** An asset moved or was renamed. */
             Moved = 3
         }
 
@@ -5786,13 +7418,13 @@ declare global {
              */
             Editor = 4,
             /**
-             * A script is a javascript file.
+             * A JavaScript file.
              */
             Javascript = 8
         }
 
         /**
-         * Asset Infomation
+         * Asset information stored by the asset database.
          */
         export interface IAssetInfo {
             /**
@@ -5835,10 +7467,8 @@ declare global {
              * If the asset has children, only meaningful for folders and some special assets like fbx.
              */
             hasChild: boolean;
-            /**
-             * Asset flags
-             */
-            flags: number;
+            /** Bitmask composed from {@link AssetFlags}. */
+            flags: AssetFlags;
             /**
              * Asset script type
              */
@@ -5868,7 +7498,7 @@ declare global {
         }
 
         /**
-         * Custom asset filter. Can be used to register custom asset filters through the `IEditorEnv.assetMgr.customAssetFilters` method.
+         * Custom asset filter registered through `EditorEnv.assetMgr.customAssetFilters` in the Scene process.
          */
         export interface IAssetFilter {
             /**
@@ -5879,6 +7509,7 @@ declare global {
             (asset: IAssetInfo): boolean;
         }
 
+        /** Filters and result limits used by asset-search APIs. */
         export interface IFindAssetsOptions {
             /**
              * Whether to match the sub type. Some assets have a type and a sub type. Such as a json asset has a type of `Json` and a sub type of `Spine` if it is a description file of spine.
@@ -5886,7 +7517,7 @@ declare global {
             matchSubType?: boolean;
 
             /**
-             * The custom filter. Developers can register custom filters by calling the `IEditorEnv.assetMgr.customAssetFilters` method in scene process.
+             * The custom filter name registered through `EditorEnv.assetMgr.customAssetFilters` in the Scene process.
              */
             customFilter?: string;
 
@@ -5905,6 +7536,7 @@ declare global {
              */
             limit?: number;
         }
+
         /**
          * Interface for the configuration file.
          */
@@ -6629,6 +8261,12 @@ declare global {
             deepCloneObj(obj: any): any;
 
             /**
+             * Creates a cycle-free snapshot containing only primitives, arrays and plain objects.
+             * Throws when the value contains cycles or unsupported runtime objects.
+             */
+            clonePlainData<T>(value: T): T;
+
+            /**
              * Merge two objects. 
              * 
              * If a property with the same name exists in both objects, and the value of it is an object, the two objects will be merged recursively.
@@ -6698,7 +8336,14 @@ declare global {
             getDataByPath(obj: any, datapath: ReadonlyArray<string>, pathLen?: number): any;
 
             /**
-             * Whether an object is empty. A empty object has no properties.
+             * Whether a value has enumerable string-keyed properties.
+             * @param value The value to inspect.
+             * @param ignoreEditorInternal Whether properties prefixed with `_$` should be ignored.
+             */
+            hasEnumerableProperties(value: unknown, ignoreEditorInternal?: boolean): boolean;
+
+            /**
+             * Whether an object has no enumerable properties other than editor-internal properties prefixed with `_$`.
              * @param obj The object to check.
              * @returns True if the object is empty, otherwise false. 
              */
@@ -6734,6 +8379,7 @@ declare global {
              */
             assignObject(target: any, source: any): any;
         }
+
         export type SettingsLocation = "application" | "project" | "local" | "memory";
 
         export interface ISettings {
@@ -6757,11 +8403,43 @@ declare global {
              * @param keys The keys of the settings to push. If not specified, all settings are pushed.
              */
             push?(keys?: ReadonlyArray<string>): Promise<void>;
+
+            /**
+             * Flush the changes to the storage immediately. Only meaningful for settings with delayed saving.
+             */
+            flush?(): void;
+        }
+
+        export interface ICreateSettingsOptions {
+            /**
+             * The location of the configuration file. The default is "project".
+             * - application: Saved to the user data directory of the application. On Windows, it is generally C:\Users\{user}\AppData\Local\{appname}, and on Mac, it is generally ~/Library/Application Support/{appname}. This means that this configuration needs to be shared across different projects.
+             * - project: Saved to the `settings` directory of the project. This means that this configuration is specific to the current project.
+             * - local: Saved to the `local` directory of the project. This means that this configuration is specific to the current project but does not need to be tracked by the version control system.
+             * - memory: Maintained only in memory and not saved to a file.
+             * - other value: specify the storage path of the configuration file by yourself. It is a relative path to the assets directory.
+             */
+            location?: SettingsLocation | string;
+
+            /**
+             * The data type corresponding to the configuration. If it is a string, it means that this type has been registered through typeRegistry. If it is FTypeDescriptor, it will be automatically registered when created. If it is a Function, it means that this is a class decorated with ＠IEditor.regClass.
+             */
+            type?: string | FTypeDescriptor | Function;
+
+            /**
+             * In general, custom configuration files are only used in the editor environment. If the configuration data also needs to be read at runtime, this parameter can be set to true, and then accessed at runtime through `Laya.PlayerConfig.XXX`, where `XXX` is the name of the configuration file.
+             */
+            contributeToPlayerConfig?: boolean;
+
+            /**
+             * The file name of the configuration file will be `{prefix}{name}.json`, where `prefix` is "Plugin-" by default, and `name` is the name passed in by the user. For example, if the name is "TestConfig", then the file name will be "Plugin-TestConfig.json". If you want to customize the file name, you can set this property. The file name should use characters that conform to file name specifications and should not contain the extension, as the extension will be automatically added. For example, if the file name is set to "MyConfig", then the actual file name will be "MyConfig.json". 
+             */
+            fileName?: string;
         }
 
         export interface ISettingsService {
             /**
-             * Create a built-in configuration file. This method is only available in the UI process. User should call this method directly.
+             * Enable a built-in settings definition. This method is only available in the UI process and is intended for IDE modules; plugins should use `Editor.extensionManager.createSettings`.
              * @param name The name of the settings.
              * @param location The location of the configuration file. The default is "project".
              * - application: Saved to the user data directory of the application. On Windows, it is generally C:\Users\{user}\AppData\Local\{appname}, and on Mac, it is generally ~/Library/Application Support/{appname}. This means that this configuration needs to be shared across different projects.
@@ -6773,37 +8451,56 @@ declare global {
             enableSettings(name: string, location?: SettingsLocation, typeName?: string): void;
 
             /**
-             * Create a built-in configuration file. This method is only available in the UI process. User should call this method directly.
+             * Enable a built-in asset-backed settings definition. This method is only available in the UI process and is intended for IDE modules; plugins should use `Editor.extensionManager.createSettings`.
              * @param name The name of the configuration. It should be unique within the editor and use characters that conform to file name specifications.
              * @param pathToAsset The path to the configuration file. It is a relative path to the assets directory.
              * @param typeName The data type corresponding to the configuration.
              */
             enableSettings(name: string, pathToAsset: string, typeName?: string): void;
+
+            /**
+             * Enable a built-in settings definition. This method is only available in the UI process and is intended for IDE modules; plugins should use `Editor.extensionManager.createSettings`.
+             * @param name The name of the configuration. It should be unique within the editor and use characters that conform to file name specifications.
+             * @param options Options to create the settings.
+             */
+            enableSettings(name: string, options?: ICreateSettingsOptions): void;
             /**
              * Query the settings by name.
              * @param name The name of the settings.
-             * @returns The settings.
+             * @returns The settings, or null when the name has not been registered.
              */
-            getSettings(name: string): ISettings;
+            getSettings(name: string): ISettings | null;
 
             /**
              * Query the settings type name.
              * @param name The name of the settings.
-             * @returns The type name of the settings.
+             * @returns The type name of the settings, or null when the name has not been registered.
              */
-            getSettingsType(name: string): string;
+            getSettingsType(name: string): string | null;
+
+            /**
+             * Flush the changes of all settings to the storage immediately. Only meaningful for settings with delayed saving.
+             */
+            flushChanges(): void;
         }
+
+        /** Prefix used by reflected shader type names. */
         export const ShaderTypePrefix = "Shader.";
         /**
          * A callback function that is used to determine whether a value is equal to the default value.
          * @param value The value to compare.
          * @param overridedDefaultValue By default, the `default` property of the property descriptor is used as the default value. You can override it by passing in this parameter.
+         * @param looseMode In loose mode, empty data (i.e. {}) is allowed to match non-empty default values.
          */
-        export type DefaultValueComparator = (value: any, overridedDefaultValue?: any) => boolean;
+        export type DefaultValueComparator = (value: any, overridedDefaultValue?: any, looseMode?: boolean) => boolean;
+        /** One reflected type prepared for a node/component creation menu. */
         export type TypeMenuItem = { type: FTypeDescriptor, label: string, icon: string, order: number };
+        /** Ordered menu items with the localized category label attached to the array. */
         export type TypeMenuItems = Array<TypeMenuItem> & { menuLabel: string };
+        /** Compiled dynamic expressions controlling an inspector property's state and validation. */
         export type PropertyTestFunctions = { hiddenTest: Function, readonlyTest: Function, validator: Function, requiredTest: Function };
 
+        /** Runtime registry for reflected engine, editor and user-script type descriptors. */
         export interface ITypeRegistry {
             /**
              * All types. Key is the name of the type.
@@ -6902,10 +8599,19 @@ declare global {
             getComponentMenuItems(type: WorldType): Readonly<Record<string, TypeMenuItems>>;
 
             /**
+             * Get creation-menu items for registered types derived from an asset base type.
+             * The descriptor's menu value is the path relative to Project/Create. An empty path places the type at the root.
+             * @param baseType The asset base type name.
+             * @returns Asset creation menu items. Key is the menu path, value is the menu items.
+             */
+            getAssetMenuItems(baseType: string): Readonly<Record<string, TypeMenuItems>>;
+
+            /**
              * Find a type defined in the typescript code by its path.
              * @param path A path relative to the assets folder. 
+             * @returns The type descriptor, or null if no registered script uses the path.
              */
-            findScriptByPath(path: string): FTypeDescriptor;
+            findScriptByPath(path: string): FTypeDescriptor | null;
 
             /**
              * Whether a type is a 3D type.
@@ -6934,10 +8640,18 @@ declare global {
              * @param type The type name.
              * @returns The base type name or null.
              */
-            getNodeBaseType(type: string): string;
+            getNodeBaseType(type: string): string | null;
 
             /**
-             * Whether a type is deprecated. If an new type descriptor is registered with the same name, the original type descriptor will be marked as deprecated.
+             * Check whether two types share the same base type.
+             * @param type1 The first type name.
+             * @param type2 The second type name.
+             * @returns Whether the two types share the same base type. 
+             */
+            hasSameBase(type1: string, type2: string): boolean
+
+            /**
+             * Whether a type is deprecated. If a new type descriptor is registered with the same name, the original descriptor is marked as deprecated.
              * @param type The type descriptor.
              * @returns Whether the type is deprecated.
              */
@@ -6961,15 +8675,15 @@ declare global {
 
             /**
              * @en Get property of a type, if the property is not found, look for it in the base types.
-             * @param type The type descriptor.
+             * @param typeDef The type descriptor.
              * @param propName The property name.
-             * @returns The property value.
+             * @returns The property value, or `null` if neither the type nor any of its base types defines the property.
              * @zh 获取类型的属性，如果属性未找到，则在基类中查找。
-             * @param type 类型描述符。
+             * @param typeDef 类型描述符。
              * @param propName 属性名称。
-             * @returns 属性值。
+             * @returns 属性值；如果当前类型及其所有基类都未定义该属性，则返回 `null`。
              */
-            findTypePropertyInChain(typeDef: FTypeDescriptor, propName: string): string;
+            findTypePropertyInChain<T = any>(typeDef: FTypeDescriptor, propName: string): T | null;
 
             /**
              * Get caption of a property.
@@ -6985,10 +8699,9 @@ declare global {
              * Get tips of a property.
              * @param type The type descriptor. 
              * @param prop The property descriptor. 
-             * @param showPropertyName Whether to add a banner to the tips to indicate the property name. The default is false.
-             * @returns The tips of the property.
+             * @returns The localized tips of the property.
              */
-            getPropTips(type: FTypeDescriptor, prop: FPropertyDescriptor, showPropertyName?: boolean): string;
+            getPropTips(type: FTypeDescriptor, prop: FPropertyDescriptor): string;
 
             /**
              * Get the caption of the catalog.
@@ -7043,9 +8756,16 @@ declare global {
             /**
              * Get the test functions of a property.
              * @param prop The property descriptor.
-             * @returns The test functions of the property.
+             * @returns The test functions of the property, or null when the property has no dynamic tests.
              */
-            getPropTestFunctions(prop: FPropertyDescriptor): PropertyTestFunctions;
+            getPropTestFunctions(prop: FPropertyDescriptor): PropertyTestFunctions | null;
+
+            /**
+             * Get the test function of a property to determine whether it is serializable.
+             * @param prop The property descriptor.
+             * @returns The test function, or null when `serializable` is not an expression string.
+             */
+            getPropSerializableTestFunction(prop: FPropertyDescriptor): Function | null;
 
             /**
              * Get all default value comparator functions of a type. This function is used to determine whether a value is equal to the default value. The key is the property name.
@@ -7059,23 +8779,30 @@ declare global {
              * @param type The type descriptor. 
              * @param datapath The path of the property. 
              * @param out The result array. If it is not null, the result will be added to this array, otherwise a new array will be created.
-             * @returns The result array.
+             * @returns The result array, or null if any segment in `datapath` cannot be resolved.
              */
-            getPropertyByPath(type: FTypeDescriptor, datapath: ReadonlyArray<string>, out?: FPropertyDescriptor[]): FPropertyDescriptor[];
+            getPropertyByPath(type: FTypeDescriptor, datapath: ReadonlyArray<string>, out?: FPropertyDescriptor[]): FPropertyDescriptor[] | null;
 
             /**
              * Get the type descriptor of an object. Null will be returned if the prototype of the object is not registered.
              * @param obj The object.
              * @returns The type descriptor of the object. 
              */
-            getTypeOfObj(obj: any): FTypeDescriptor;
+            getTypeOfObj(obj: any): FTypeDescriptor | null;
 
             /**
              * Get the type descriptor of a class. Null will be returned if the class is not registered.
              * @param cls The class.
              * @returns The type descriptor of the class. 
              */
-            getTypeOfClass(cls: Function): FTypeDescriptor;
+            getTypeOfClass(cls: Function): FTypeDescriptor | null;
+
+            /**
+             * Get the type descriptor of a class without looking for its base types. Null will be returned if the class is not registered.
+             * @param cls The class.
+             * @return The type descriptor of the class.
+             */
+            getOwnTypeOfClass(cls: Function): FTypeDescriptor | null;
 
             /**
              * Sort properties. The order is determined by the position property and the catalog property of the property descriptor.
@@ -7084,6 +8811,52 @@ declare global {
              */
             sortProps(props: Array<FPropertyDescriptor>, considerCatalog?: boolean): void;
         }
+
+        /**
+         * Determines how a delayed call handles another schedule request while one is pending.
+         *
+         * - `debounce`: restart the delay and keep the latest arguments.
+         * - `throttle`: keep the original deadline and update to the latest arguments.
+         */
+        export type DelayedCallMode = "debounce" | "throttle";
+
+        /** Configuration for an independently managed delayed callback. */
+        export interface IDelayedCallOptions {
+            /**
+             * The scheduling strategy. The default is `debounce`.
+             */
+            mode?: DelayedCallMode;
+        }
+
+        /** A reusable debounce/throttle handle created by {@link IUtils.createDelayedCall}. */
+        export interface IDelayedCall<TArgs extends unknown[]> {
+            /**
+             * Whether a call is currently pending.
+             */
+            readonly pending: boolean;
+
+            /**
+             * Schedule the callback.
+             * @param delay Delay in milliseconds. A value less than or equal to zero clears
+             * the pending call and returns false so the caller can execute synchronously.
+             * @param args Arguments passed to the callback.
+             * @returns True if the callback was scheduled; false if it should execute synchronously.
+             */
+            schedule(delay: number, ...args: TArgs): boolean;
+
+            /**
+             * Cancel the pending call.
+             */
+            clear(): void;
+
+            /**
+             * Cancel and immediately execute the pending call.
+             * @returns Whether a pending call was executed.
+             */
+            flush(): boolean;
+        }
+
+        /** General file-system, path, timing, string and process helpers exposed by the editor. */
         export interface IUtils {
             /**
              * Parse string content from a file to a JSON object.
@@ -7140,6 +8913,21 @@ declare global {
             writeJsonAsync(filePath: string, content: any, space?: string | number): Promise<void>;
 
             /**
+             * Debounce writes to a file while preserving serial write order for that path.
+             * @param filePath The destination file path.
+             * @param contents The complete contents for the next write.
+             * @param delay The debounce delay in milliseconds. The default is 100.
+             */
+            scheduleFileWrite(filePath: string, contents: string | Uint8Array, delay?: number): void;
+
+            /**
+             * Flush one file's delayed and queued writes, or all managed writes when no
+             * path is supplied.
+             * @param filePath The destination file path. Omit it to flush every file.
+             */
+            flushFileWrites(filePath?: string): Promise<void>;
+
+            /**
              * Read the first N bytes of a file. This is useful for reading the file signature.
              * @param filePath The path of the file. 
              * @param bytesCount The number of bytes to read.
@@ -7186,17 +8974,32 @@ declare global {
             splitCamelCase(str: string): string;
 
             /**
+             * @deprecated Use `getTempBaseDirAsync` instead.
              * Get the base directory for temporary files. It is the `library/temp` folder in the project. The API ensures that this folder exists.
              * @returns The base directory for temporary files.
              */
             getTempBaseDir(): string;
 
             /**
+             * Asynchronously get the base directory for temporary files and ensure it exists.
+             * @returns The base directory for temporary files.
+             */
+            getTempBaseDirAsync(): Promise<string>;
+
+            /**
+             * @deprecated Use `mkTempDirAsync` instead.
              * Create a subdirectory in the temporary directory. The temporary directory is returned by `getTempBaseDir`.
              * @param subDir The name of the subdirectory. If not specified, a subdirectory with a random name is created.
              * @returns The absolute path of the subdirectory.
              */
             mkTempDir(subDir?: string): string;
+
+            /**
+             * Asynchronously create a subdirectory in the temporary directory.
+             * @param subDir The name of the subdirectory. If not specified, a subdirectory with a random name is created.
+             * @returns The absolute path of the subdirectory.
+             */
+            mkTempDirAsync(subDir?: string): Promise<string>;
 
             /**
              * It is equivalent to `path.join`. Only for the purpose of without importing `path`.
@@ -7226,7 +9029,7 @@ declare global {
 
             /**
              * Copy all files and subfolders recursively from a folder to another folder.
-             * @param src The source folder path.
+             * @param source The source folder path.
              * @param destDir The destination folder path.
              * @param options The options.
              * - autoRename: Whether to automatically rename the file when a file with the same name exists in the destination folder. The default is false, meaning the file will be overwritten.
@@ -7234,9 +9037,9 @@ declare global {
              */
             copyDir(source: string, destDir: string, options?: { autoRename?: boolean, regenerateUUID?: boolean }): Promise<void>;
 
-            /*
+            /**
              * Move all files and subfolders recursively from a folder to another folder.
-             * @param src The source folder path.
+             * @param source The source folder path.
              * @param destDir The destination folder path.
              * @param options The options.
              * - autoRename: Whether to automatically rename the file when a file with the same name exists in the destination folder. The default is false, meaning the file will be overwritten.
@@ -7278,17 +9081,12 @@ declare global {
             fileExists(filePath: string): Promise<boolean>;
 
             /**
-             * Check if a filename conflicts in the specified folder. If there is a conflict, add a numeric suffix to the filename and continue checking until there is no conflict.
-             * @param path The folder path. 
-             * @param name The filename.
-             * @returns The new filename. 
+             * @deprecated Use `resolveConflictFileName` instead.
              */
             getNewFilePath(path: string, name: string): string;
 
             /**
              * Check if a filename conflicts in the specified folder. If there is a conflict, add a numeric suffix to the filename and continue checking until there is no conflict.
-             * 
-             * The difference with `getNewFilePath` is that it allows specifying a delimiter to connect the filename and the numeric suffix.
              * @param path The folder path.
              * @param name The filename. 
              * @param connectorSymbol The delimiter to connect the filename and the numeric suffix. The default is "_".
@@ -7297,15 +9095,7 @@ declare global {
             resolveConflictFileName(path: string, name: string, connectorSymbol?: string): Promise<string>;
 
             /**
-             * Check if a filename conflicts in the specified folder. If there is a conflict, add a numeric suffix to the filename and continue checking until there is no conflict.
-             * 
-             * The difference with `getNewFilePath` is that it allows specifying a delimiter to connect the filename and the numeric suffix.
-             * 
-             * This is the synchronous version of `resolveConflictFileName`.
-             * @param path The folder path. 
-             * @param name The filename. 
-             * @param connectorSymbol The delimiter to connect the filename and the numeric suffix. The default is "_".
-             * @returns The new filename. 
+             * @deprecated Use `resolveConflictFileName` instead. 
              */
             resolveConflictFileNameSync(path: string, name: string, connectorSymbol?: string): string;
 
@@ -7348,6 +9138,19 @@ declare global {
             sleep(ms: number): Promise<void>;
 
             /**
+             * Create an independently managed delayed callback.
+             *
+             * Use `debounce` to restart the delay on every request. Use `throttle` to keep
+             * the first request's deadline while updating the callback arguments.
+             * @param callback The callback to execute.
+             * @param options Scheduling options.
+             */
+            createDelayedCall<TArgs extends unknown[]>(
+                callback: (...args: TArgs) => void,
+                options?: IDelayedCallOptions,
+            ): IDelayedCall<TArgs>;
+
+            /**
              * Create a promise that resolves until the predicate returns true, or the timeout is reached.
              * @param predicate The predicate function. 
              * @param timeoutInMs The timeout in milliseconds. If not specified, there is no timeout. 
@@ -7377,6 +9180,14 @@ declare global {
              * @returns The script element.
              */
             loadLib(src: string, async?: boolean, onScriptError?: (err: ErrorEvent) => void): Promise<HTMLScriptElement>;
+
+            /**
+             * Load an ES module and return its module namespace object.
+             * HTTP(S) and custom-protocol responses are imported through a Blob URL so
+             * the request can pass through the editor's fetch transport.
+             * @param src The absolute or document-relative URL of the module.
+             */
+            loadModule<T = unknown>(src: string): Promise<T>;
 
             /**
              * Execute arithmetic expressions.
@@ -7517,7 +9328,7 @@ declare global {
             /**
              * Print the results of a promise.
              * @param rets The results of the promises.
-             * @param group The optinal group name of console messages. 
+             * @param group The optional group name for console messages.
              */
             printPromiseResult(rets: Iterable<PromiseSettledResult<any>>, group?: string): void;
 
@@ -7550,7 +9361,16 @@ declare global {
              * @returns The filtered list of top-level items. 
              */
             filterTopLevels<T extends { parent: any }>(items: ReadonlyArray<T>): ReadonlyArray<T>;
+
+            /**
+             * Get the file path from a web file.
+             * @param file The web file, usually from the drag-and-drop event.
+             * @returns The file path.
+             */
+            getPathForWebFile(file: File): string;
         }
+
+        /** UUID generation, validation and compact-string conversion helpers. */
         export interface IUUIDUtils {
             /**
              * Generate a UUID. UUID is a 36-character string with 4 dashes.
@@ -7606,6 +9426,7 @@ declare global {
              */
             decompressUUID(str: string): string;
         }
+
         /**
          * Zip file writer.
          */
@@ -7620,6 +9441,11 @@ declare global {
              * ```
              */
             excludeNames: Array<string>;
+
+            /**
+             * Additional command line options for the zip tool.
+             */
+            additionalOptions: Array<string>;
 
             /**
              * Add a file to the zip file.
@@ -7764,7 +9590,7 @@ declare global {
              * @example
              * ```
              * //The settings panel id is "TestBuildSettings", which can be used in this field.
-             * @IEditor.panel("TestBuildSettings", { usage: "build-settings", title: "My Test" })
+             * ＠IEditor.panel("TestBuildSettings", { usage: "build-settings", title: "My Test" })
              * export class TestBuildSettings extends IEditor.EditorPanel {
              * }
              * ```
@@ -7772,7 +9598,7 @@ declare global {
             inspector?: string;
 
             /**
-             * The build template path. It is a absolute path to the directory that contains the build template files.
+             * Absolute path to the directory containing the build-template files.
              * Contents in the directory will be copied to the build output directory during the build process.
              */
             templatePath?: string;
@@ -7799,6 +9625,11 @@ declare global {
             isMiniGame?: boolean;
 
             /**
+             * Whether the build target is a native platform, e.g. Android, iOS, Windows, Mac, etc.
+             */
+            isNative?: boolean;
+
+            /**
              * Sets the position of the build target in the build settings panel. 
              * 
              * Supported syntax: "first" / "last" / "before id" / "after id". e.g. "before web" or "after android".
@@ -7814,6 +9645,7 @@ declare global {
             Android = 1,
             IOS = 2,
         }
+
         /**
          * Interface for logging messages
          */
@@ -7886,6 +9718,7 @@ declare global {
             renderTemplate(content: string, templateArgs?: Record<string, any>, options?: RenderTemplateOptions): string;
 
             /**
+             * @deprecated Use `renderTemplateFileAsync` instead.
              * Render a template string read from a file and write the result back to the file.
              * @param filePath Path to the template file. 
              * @param templateArgs Template arguments. 
@@ -7910,17 +9743,17 @@ declare global {
             /**
              * An array of supported formats for the clipboard `type`.
              */
-            availableFormats(type?: 'selection' | 'clipboard'): string[];
+            availableFormats(type?: 'selection' | 'clipboard'): Promise<string[]>;
             /**
              * Clears the clipboard content.
              */
-            clear(type?: 'selection' | 'clipboard'): void;
+            clear(type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Whether the clipboard supports the specified `format`.
              *
              * @experimental
              */
-            has(format: string, type?: 'selection' | 'clipboard'): boolean;
+            has(format: string, type?: 'selection' | 'clipboard'): Promise<boolean>;
             /**
              * Reads `format` type from the clipboard.
              *
@@ -7929,7 +9762,7 @@ declare global {
              *
              * @experimental
              */
-            read(format: string): string;
+            read(format: string): Promise<string>;
             /**
              * * `title` string
              * * `url` string
@@ -7940,13 +9773,13 @@ declare global {
              *
              * @platform darwin,win32
              */
-            readBookmark(): any;
+            readBookmark(): Promise<any>;
             /**
              * Reads `format` type from the clipboard.
              *
              * @experimental
              */
-            readBuffer(format: string): Buffer;
+            readBuffer(format: string): Promise<Buffer>;
             /**
              * The text on the find pasteboard, which is the pasteboard that holds information
              * about the current state of the active application’s find panel.
@@ -7957,27 +9790,27 @@ declare global {
              *
              * @platform darwin
              */
-            readFindText(): string;
+            readFindText(): Promise<string>;
             /**
              * The content in the clipboard as markup.
              */
-            readHTML(type?: 'selection' | 'clipboard'): string;
+            readHTML(type?: 'selection' | 'clipboard'): Promise<string>;
             /**
              * The image content in the clipboard.
              */
-            readImage(type?: 'selection' | 'clipboard'): any;
+            readImage(type?: 'selection' | 'clipboard'): Promise<any>;
             /**
              * The content in the clipboard as RTF.
              */
-            readRTF(type?: 'selection' | 'clipboard'): string;
+            readRTF(type?: 'selection' | 'clipboard'): Promise<string>;
             /**
              * The content in the clipboard as plain text.
              */
-            readText(type?: 'selection' | 'clipboard'): string;
+            readText(type?: 'selection' | 'clipboard'): Promise<string>;
             /**
              * Writes `data` to the clipboard.
              */
-            write(data: any, type?: 'selection' | 'clipboard'): void;
+            write(data: any, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `title` (macOS only) and `url` into the clipboard as a bookmark.
              *
@@ -7987,13 +9820,13 @@ declare global {
              *
              * @platform darwin,win32
              */
-            writeBookmark(title: string, url: string, type?: 'selection' | 'clipboard'): void;
+            writeBookmark(title: string, url: string, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `buffer` into the clipboard as `format`.
              *
              * @experimental
              */
-            writeBuffer(format: string, buffer: Buffer, type?: 'selection' | 'clipboard'): void;
+            writeBuffer(format: string, buffer: Buffer, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `text` into the find pasteboard (the pasteboard that holds
              * information about the current state of the active application’s find panel) as
@@ -8002,24 +9835,25 @@ declare global {
              *
              * @platform darwin
              */
-            writeFindText(text: string): void;
+            writeFindText(text: string): Promise<void>;
             /**
              * Writes `markup` to the clipboard.
              */
-            writeHTML(markup: string, type?: 'selection' | 'clipboard'): void;
+            writeHTML(markup: string, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes `image` to the clipboard.
              */
-            writeImage(image: any, type?: 'selection' | 'clipboard'): void;
+            writeImage(image: any, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `text` into the clipboard in RTF.
              */
-            writeRTF(text: string, type?: 'selection' | 'clipboard'): void;
+            writeRTF(text: string, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `text` into the clipboard as plain text.
              */
-            writeText(text: string, type?: 'selection' | 'clipboard'): void;
+            writeText(text: string, type?: 'selection' | 'clipboard'): Promise<void>;
         }
+
         export interface IPlist {
             /**
              * Parse a plist format string to an object.
@@ -8293,10 +10127,14 @@ declare global {
              */
             notifyAll(channel: string, ...args: any[]): void;
         }
+        /** Converts decorator/runtime type metadata into editor property descriptors. */
         export interface ITypeParser {
+            /** Get class metadata, optionally creating an empty metadata record when absent. */
             getClassMeta(constructor: Function, forceCreate?: boolean): any;
+            /** Parse a constructor, enum, array, record, or property-options value into descriptor fields. */
             parsePropType(ptype: any): Partial<FPropertyDescriptor>;
         }
+
         export namespace IReflectUtils {
             /**
              * Define metadata for a target.
@@ -8385,15 +10223,15 @@ declare global {
              */
             onCloseBox?(): void;
             /**
-             * Called when the node is selected in the stage. Available for both 2D and 3D nodes.
+             * Called when the node is selected in the stage.
              */
             onSelected?(): void;
             /**
-             * Called when the node is unselected in the stage. Available for both 2D and 3D nodes.
+             * Called when the node is unselected in the stage.
              */
             onUnSelected?(): void;
             /**
-             * In this callback, you can draw elements or create handles in the scene view. Only available for 3D nodes.
+             * In this callback, you can draw elements or create handles in the scene view.
              * @example
              * ```
              * // Draw a hemisphere at the node's position.
@@ -8404,8 +10242,7 @@ declare global {
              */
             onSceneGUI?(): void;
             /**
-             * In this callback, you can draw gizmos that are always drawn. Available for both 2D and 3D nodes.
-             * If owner is a 2D node, no vector graphics manager is available in this callback.
+             * In this callback, you can draw gizmos that are always drawn.
              * @example
              * ```
              * // Draw a gizmo icon at the node's position.
@@ -8416,57 +10253,213 @@ declare global {
              */
             onDrawGizmos?(): void;
             /**
-             * In this callback, you can draw gizmos only when the object is selected. Available for both 2D and 3D nodes.
-             * IEditorEnv.Gizmos2D.getManager can be used to get a vector graphics manager for drawing gizmos.
-             * @example
-             * ```
-             * //Demo for drawing a circle gizmo when a 2D sprite is selected.
-             * private _circle: IEditorEnv.IGizmoCircle;
-             * onDrawGizmosSelected() {
-             *     if (!this._circle) {
-             *          let manager = IEditorEnv.Gizmos2D.getManager(this.owner);
-             *          this._circle = manager.createCircle(10);
-             *          this._circle.fill("#ff0");
-             *     }
-             *     this._circle.setLocalPos(10, 10);
-             * }
-             * ```
+             * In this callback, you can draw gizmos only when the object is selected.
              */
             onDrawGizmosSelected?(): void;
         }
 
-        export class HandleDrawBase {
+        /**
+         * Handle base class. Handles are used for scene editing operations, such as translation, rotation, scaling, etc.
+         * Handles are reused, each time they are used they go through the process of execute->(onClick/onDrag/onMouseUp)->recover.
+         */
+        export class HandleBase {
             /**
-             * A color-like structure for picking support internally.
+             * The owner of this handle, usually a Node in the scene.
              */
-            pickColor: Laya.Vector4;
+            owner: Laya.Node;
+            /**
+             * Indicates whether the handle's value has changed.
+             */
+            valueChanged: boolean;
+            /**
+             * The current state of the handle. Readonly.
+             */
+            state: HandleState;
             constructor();
             /**
-             * Implement the drawing logic.
-             * @param cmdBuffer The command buffer to manage the drawing commands.
+             * Run the handle.
+             * @param args Arguments for this run.
              */
-            execute(cmdBuffer: Laya.CommandBuffer): void;
+            execute(...args: any[]): void;
             /**
-             * Recover any resources here.
+             * Invoked when the mouse button is pressed down on the handle.
              */
-            recover(): void;
+            onMouseDown(): void;
             /**
-             * Destroy the object.
+             * Invoked when the handle is dragged.
              */
-            destroy(): void;
+            onDrag(): void;
+            /**
+             * Invoked when the mouse button is released after interacting with the handle.
+             */
+            onMouseUp(): void;
+            /**
+             * Invoked when the handle is right-clicked.
+             */
+            onRightClick(): void;
         }
 
-        export class HandleBaseLine extends HandleDrawBase {
+        export class HandleColor {
+            normalColor: Laya.Color;
+            hoveredColor: Laya.Color;
+            activeColor: Laya.Color;
+            inactiveColor: Laya.Color;
+            /**
+             * Creates an instance of HandleColor.
+             * @param normal Color for the normal state.
+             * @param hovered Color for the hovered state. If not provided, it will be the same as the normal color.
+             * @param active Color for the active state. If not provided, it will be the same as the hovered color.
+             * @param inactive Color for the inactive state. If not provided, it will be the same as the normal color.
+             */
+            constructor(normal?: Laya.Color, hovered?: Laya.Color, active?: Laya.Color, inactive?: Laya.Color);
+            /**
+             * Sets the colors for different states of the handle.
+             * @param normal Color for the normal state.
+             * @param hovered Color for the hovered state. If not provided, it will be the same as the normal color.
+             * @param active Color for the active state. If not provided, it will be the same as the hovered color.
+             * @param inactive Color for the inactive state. If not provided, it will be the same as the normal color.
+             */
+            setColors(normal: Laya.Color, hovered?: Laya.Color, active?: Laya.Color, inactive?: Laya.Color): void;
+            /**
+             * Gets the color for the specified handle state.
+             * @param state The state of the handle for which to get the color.
+             * @returns The color corresponding to the specified handle state.
+             */
+            getColor(state: HandleState): Laya.Color;
+            /**
+             * Clones the colors from this HandleColor instance to another HandleColor instance.
+             * @param dest The HandleColor instance to which the colors will be cloned.
+             */
+            cloneTo(dest: HandleColor): void;
+            /**
+             * Creates a new HandleColor instance that is a clone of this instance.
+             * @returns A new HandleColor instance with the same colors as this instance.
+             */
+            clone(): HandleColor;
+        }
+
+        export class DirectionMoveHandleBase extends HandleBase {
+            readonly result: Laya.Vector3;
+            readonly direction: Laya.Vector3;
+            readonly position: Laya.Vector3;
+            protected plane: Laya.Plane;
+            protected hitPosition: Laya.Vector3;
+            protected lastHitPosition: Laya.Vector3;
+            constructor();
+            protected setPosition(position: Laya.Vector3, direction: Laya.Vector3): void;
+            onDrag(): void;
+        }
+
+        export class PlanMoveHandleBase extends HandleBase {
+            readonly result: Laya.Vector3;
+            readonly position: Laya.Vector3;
+            protected plane: Laya.Plane;
+            protected centerOffset: Laya.Vector3;
+            protected hitPosition: Laya.Vector3;
+            constructor();
+            protected setPosition(position: Laya.Vector3, direction1: Laya.Vector3, direction2: Laya.Vector3): void;
+            onMouseDown(): void;
+            onDrag(): void;
+        }
+
+        export class WorldMoveHandleBase extends HandleBase {
+            readonly result: Laya.Vector3;
+            targetVertex: boolean;
+            readonly position: Laya.Vector3;
+            constructor();
+            protected setPosition(position: Laya.Vector3, targetVertex?: boolean): void;
+            protected freeMove(): void;
+            protected worldPositionMove(): void;
+            protected vertexPositionMove(): void;
+            onDrag(): void;
+        }
+
+        export class Move2DHandleBase extends HandleBase {
+            deltaX: number;
+            deltaY: number;
+            protected transform: Laya.Matrix;
+            constructor();
+            onMouseDown(): void;
+            onDrag(): void;
+        }
+
+        /**
+         * The base class for all gizmos. A gizmo is a visual representation of an object in the editor, such as a wireframe, a mesh, a line, etc. Gizmos are used to provide visual feedback to the user when they are interacting with objects in the editor, such as when they are selecting, moving, rotating, or scaling objects. Gizmos can also be used to provide additional information about an object.
+         */
+        export class GizmoBase {
+            isIcon: boolean;
+            constructor();
+            /**
+             * Enable picking for specific shader data. This will set the necessary shader data for picking to work.
+             * @param cmdBuffer The command buffer to set the shader data on.
+             * @param shaderData The shader data to set the picking information on.
+             * @param pickable Whether to enable picking. If false, the picking color will be set to zero, which means the object will not be pickable. Default is true.
+             */
+            protected setPickable(cmdBuffer: Laya.CommandBuffer | Laya.CommandBuffer2D, shaderData: Laya.ShaderData, pickable?: boolean): void;
+            /**
+             * Called when the gizmo is created. This can be used to initialize the gizmo with specific parameters. The parameters can be defined by the specific gizmo implementation, and can be used to set up the gizmo's appearance, behavior, etc.
+             * @param args The arguments to initialize the gizmo with. The specific arguments depend on the gizmo implementation, and can be used to set up the gizmo's appearance, behavior, etc.
+             */
+            create(...args: any[]): void;
+            /**
+             * Called when the gizmo is rendered. This can be used to add custom rendering commands to the command buffer, for example, to render custom shapes, lines, etc. The command buffer can be used to set shader data, draw meshes, etc.
+             * @param cmdBuffer The command buffer to add rendering commands to.
+             * @param enableOcclusion Whether it is needed to render with occlusion.
+             */
+            execute(cmdBuffer: Laya.CommandBuffer, enableOcclusion: boolean): void;
+            /**
+             * Called when the gizmo is rendered in 2D context. This can be used to add custom rendering commands to the command buffer, for example, to render custom shapes, lines, etc. The command buffer can be used to set shader data, draw meshes, etc.
+             * @param cmdBuffer
+             */
+            execute2D(cmdBuffer: Laya.CommandBuffer2D): void;
+            /**
+             * Called when the gizmo is recovered. This can be used to clean up any resources used by the gizmo.
+             */
+            recover(): void;
+        }
+
+        /**
+         * The base class for gizmos that render lines. This class provides a common implementation for gizmos that render lines, such as GizmoLine and GizmoFrustum. It provides a method to add lines to a PixelLineSprite3D, and handles the rendering of the lines in the execute method.
+         */
+        export class GizmoLineBase extends GizmoBase {
             protected _isDotted: boolean;
             protected _dotScale: number;
             protected _dotTotalSize: number;
             protected _dotSize: number;
+            protected _pickable: boolean;
+            static line: Laya.PixelLineSprite3D;
+            static lineMaterial: Laya.Material;
+            static lineWithOcclusionMaterial: Laya.Material;
+            static dottedLineMaterial: Laya.Material;
             constructor(dotted?: boolean);
-            addLine(line: Laya.PixelLineSprite3D): void;
-            execute(cmdBuffer: Laya.CommandBuffer): void;
+            /**
+             * Add lines to the given PixelLineSprite3D. This method should be implemented by subclasses to add the specific lines that they want to render. The PixelLineSprite3D can be used to add lines with specific start and end points, colors, etc.
+             * @param line
+             */
+            protected addLine(line: Laya.PixelLineSprite3D): void;
+            execute(cmdBuffer: Laya.CommandBuffer, enableOcclusion: boolean): void;
+        }
+
+        /**
+         * The base class for handle that render meshes. This class provides a common implementation for handle that render meshes. It provides a method to set material data, which can be overridden by subclasses to set specific shader data for the material. It also handles the rendering of the mesh in the execute method.
+         */
+        export class GizmoMeshBase extends GizmoBase {
+            mesh: Laya.Mesh;
+            subMeshIndex: number;
+            transform: Laya.Matrix4x4;
+            color: Laya.Color;
+            material: Laya.Material;
+            static meshMaterial: Laya.Material;
+            static meshWithOcclusionPassMaterial: Laya.Material;
+            static transparentMeshMaterial: Laya.Material;
+            static transparentMeshWithOcclusionPassMaterial: Laya.Material;
+            constructor();
+            protected setMaterialData(cmdBuffer: Laya.CommandBuffer, shaderData: Laya.ShaderData): void;
+            execute(cmdBuffer: Laya.CommandBuffer, enableOcclusion: boolean): void;
         }
 
         export class AssetPreview implements IAssetPreview {
+            static bgColor: Laya.Color;
             readonly scene: IOffscreenRenderScene;
             readonly sprite: Laya.Sprite;
             renderTarget: Laya.Sprite | Laya.Scene3D | null;
@@ -8478,8 +10471,8 @@ declare global {
              * @param assetId The id of the asset.
              * @returns Any data that can be used by the caller.
              */
-            setAssetById(assetId: string): Promise<any>;
-            setAsset(asset: IAssetInfo): Promise<any>;
+            setAssetById(assetId: string, ...args: any[]): Promise<any>;
+            setAsset(asset: IAssetInfo, ...args: any[]): Promise<any>;
             onReset(): void;
             onPreRender(): void;
             onPostRender(): void;
@@ -8489,18 +10482,19 @@ declare global {
             destroy(): void;
         }
 
-        /// <reference types="node" />
-        /// <reference types="node" />
-
         export class AssetThumbnail implements IAssetThumbnail {
             /**
              * Suggestions for the size of the thumbnail.
              */
             static readonly imageSize = 112;
             /**
+             * Suggestions for the size of the border.
+             */
+            static readonly borderSize = 5;
+            /**
              * Background color of the thumbnail.
              */
-            static readonly bgColor: Laya.Color;
+            static bgColor: Laya.Color;
             private static _border;
             private static _renderer;
             generate(asset: IAssetInfo): Promise<string | Buffer | null | "source">;
@@ -8553,7 +10547,7 @@ declare global {
             get parentAsset(): IAssetInfo;
             handleExport(): Promise<void>;
             /**
-             * Pase the links, add referenced assets to the export queue, and then return the export dependency information.
+             * Parse the links, add referenced assets to the export queue, and then return the export dependency information.
              * @param links The links to be parsed.
              * @param basePath The base path of the links.
              * @returns The export dependency information.
@@ -8566,6 +10560,11 @@ declare global {
              */
             protected addQueue(asset: IAssetInfo): IAssetExportInfo;
             /**
+             * Add a missing link record.
+             * @param link The link information.
+             */
+            protected addBrokenLink(link: IAssetLinkInfo): void;
+            /**
              * If you want to share data between different exporters, you can use this method.
              * @param key The key of the shared data.
              * @returns The shared data.
@@ -8577,126 +10576,6 @@ declare global {
              * @param value The shared data.
              */
             protected setSharedData<T extends any>(key: string, value: T): void;
-        }
-
-        export class NumericInput extends gui.Label {
-            /**
-             * Minimum value. Default is -Infinity.
-             */
-            min: number;
-            /**
-             * Maximum value. Default is Infinity.
-             */
-            max: number;
-            private _value;
-            private _holder;
-            private _lastHolderPos;
-            private _textField;
-            private _lastScroll;
-            private _fractionDigits;
-            private _step;
-            private _suffix;
-            private _prevTabStop;
-            private _savedText;
-            constructor();
-            /**
-             * Number of decimal places. Default is 3;
-             */
-            get fractionDigits(): number;
-            set fractionDigits(value: number);
-            /**
-             * The amount by which the value changes each time when changing the value by dragging. Default is 0.01.
-             *
-             * If fractionDigits is set, the step will be adjusted to 1 / 10 ^ fractionDigits if it is less than that value.
-             */
-            get step(): number;
-            set step(value: number);
-            /**
-             * Whether the input is editable. Default is true.
-             */
-            get editable(): boolean;
-            set editable(value: boolean);
-            /**
-             * The suffix of the number. Default is "". For example, if the suffix is "%", the displayed value will be "100%".
-             */
-            get suffix(): string;
-            set suffix(value: string);
-            get value(): number;
-            set value(val: number);
-            get text(): string;
-            set text(value: string);
-            onConstruct(): void;
-            private __onKeydown;
-            private _holderDragStart;
-            private _holderDragEnd;
-            private _holderDragMove;
-            private __click;
-            private __focusIn;
-            private __focusOut;
-            private __onSubmit;
-            private __mouseWheel;
-        }
-
-        export class NumericInputWithSlider extends gui.Label {
-            private _slider;
-            private _input;
-            constructor();
-            get min(): number;
-            set min(value: number);
-            get max(): number;
-            set max(value: number);
-            get fractionDigits(): number;
-            set fractionDigits(value: number);
-            get step(): number;
-            set step(value: number);
-            get editable(): boolean;
-            set editable(value: boolean);
-            get suffix(): string;
-            set suffix(value: string);
-            get value(): number;
-            set value(value: number);
-            get text(): string;
-            set text(value: string);
-            onConstruct(): void;
-        }
-
-        export class TextInput extends gui.Label {
-            protected _savedText: string;
-            protected _textField: gui.TextInput;
-            protected _clear: gui.Widget;
-            protected _lang: gui.Widget;
-            protected _key: gui.TextField;
-            protected _textInfo: gui.I18nTextInfo;
-            get text(): string;
-            set text(value: string);
-            get editable(): boolean;
-            set editable(value: boolean);
-            onConstruct(): void;
-            private __keyDown;
-            private __focusIn;
-            private __focusOut;
-            private __textChanged;
-            private __clickClear;
-            private __clickLang;
-            private __clickLangRemove;
-        }
-
-        export class TextArea extends gui.Label {
-            private _savedText;
-            private _textField;
-            private _lang;
-            private _key;
-            private _textInfo;
-            get editable(): boolean;
-            set editable(value: boolean);
-            get text(): string;
-            set text(value: string);
-            onConstruct(): void;
-            private __keyDown;
-            private __focusIn;
-            private __focusOut;
-            private __clickLang;
-            private __clickLangRemove;
         }
 
         export class ServiceProvider implements IServiceProvider {
@@ -8757,20 +10636,23 @@ declare global {
          * @see MyMessagePortStatic
          */
         const MyMessagePort: (new (port: MessagePort, queueTask?: boolean) => IMyMessagePort) & typeof MyMessagePortStatic;
+        /** Built-in polygon clipping, offsetting, and path utility library. */
+        const Clipper2: IClipper2;
+
         /**
          * `Gizmos2D` is a helper class for drawing 2D gizmos.
          */
-        const Gizmos2D: typeof IGizmos2D;
+        const Gizmos2D: IGizmos2D;
 
         /**
          * `Gizmos` is a helper class for drawing 3D gizmos.
          */
-        const Gizmos: typeof IGizmos3D;
+        const Gizmos: IGizmos3D;
 
         /**
          * `Handles` is a helper class for drawing handles.
          */
-        const Handles: typeof IHandles;
+        const Handles: IHandles;
 
         /**
          * `HandleUtils` is a helper class for manupulating handles.
@@ -8818,6 +10700,11 @@ declare global {
         const HierarchyWriter: typeof IHierarchyWriter;
 
         /**
+         * `HierarchyValidator` is a helper class for validating hierarchy data.
+         */
+        const HierarchyValidator: new () => IHierarchyValidator;
+
+        /**
          * `SerializeUtil` is a helper class for serializing and deserializing objects.
          */
         const SerializeUtil: typeof ISerializeUtil;
@@ -8855,6 +10742,11 @@ declare global {
          * `TextureTool` is a helper class for manipulating textures.
          */
         const TextureTool: typeof ITextureTool;
+
+        /**
+         * `CubemapTool` is a helper class for cubemap baking and conversion.
+         */
+        const CubemapTool: typeof ICubemapTool;
 
         /**
          * `OffscreenRenderer` is a helper class for rendering offscreen.
@@ -8912,6 +10804,11 @@ declare global {
          * The `JsonBin` object is used to serialize and deserialize objects into binary data.
          */
         const JsonBin: IJsonBin;
+
+        /**
+         * The `AssetDependencyTool` object is used to query asset dependencies and references.
+         */
+        const AssetDependencyTool: IAssetDependencyTool;
         /**
          * References a commonjs module. You can import built-in Node.js modules such as: path, fs, child_process, etc. 
          * The IDE also includes some third-party modules, including: electron, @svgdotjs, sharp, glob, qrcode, typescript, etc.
@@ -8968,7 +10865,7 @@ declare global {
         function onPreload(target: Object, propertyName: string): void;
 
         /**
-         * Decorator function for registering a class. The registered class can be visited by it's name in UI process.
+         * Decorator function for registering a class. The registered class can be accessed by its name from the UI process.
          * @returns The class decorator function.
          * @example
          * ```
@@ -9006,14 +10903,14 @@ declare global {
         function regBuildPlugin(platform: string, piority?: number): (func: new () => IBuildPlugin) => void;
 
         /**
-         * Decorator function for registering a class as a asset processor.
+         * Decorator function for registering a class as an asset processor.
          * @returns The class decorator function.
          * @see IAssetProcessor
          * @example
          * ```
          * ＠IEditorEnv.regAssetProcessor()
-         * class MyAssetProcessor extends IEditorEnv.IAssetProcessor {
-         *    async onPostprocessAsset(assetImporter: IAssetImporter) {
+         * class MyAssetProcessor implements IEditorEnv.IAssetProcessor {
+         *    async onPostprocessAsset(assetImporter: IEditorEnv.IAssetImporter) {
          *   }
          * }
          * ```
@@ -9021,14 +10918,14 @@ declare global {
         function regAssetProcessor(): (func: new () => IAssetProcessor) => void;
 
         /**
-         * Decorator function for registering a class as a asset importer.
+         * Decorator function for registering a class as an asset importer.
          * @param assetTypeOrFileExts The asset type or file extensions that the importer can handle.
          * @param options The options for the importer.
          * @returns The class decorator function.
          * @see IAssetImporter
          * @example
          * ```
-         * @IEditorEnv.regAssetImporter(["abc"])
+         * ＠IEditorEnv.regAssetImporter(["abc"])
          * export class DemoAssetImporter extends IEditorEnv.AssetImporter {
          *     async handleImport(): Promise<any> {
          *         console.log("importing asset", this.assetFullPath);
@@ -9039,14 +10936,14 @@ declare global {
         function regAssetImporter(assetTypeOrFileExts: ReadonlyArray<AssetType | string>, options?: IAssetImporterOptions): (func: new () => AssetImporter) => void;
 
         /**
-         * Decorator function for registering a class as a asset exporter.
+         * Decorator function for registering a class as an asset exporter.
          * @param assetTypeOrFileExts The asset type or file extensions that the exporter can handle.
          * @param options The options for the exporter.
          * @returns The class decorator function.
          * @see IAssetExporter
          * @example
          * ```
-         * @IEditorEnv.regAssetExporter(["abc"])
+         * ＠IEditorEnv.regAssetExporter(["abc"])
          * export class DemoAssetExporter extends IEditorEnv.AssetExporter {
          *     async handleExport(): Promise<any> {
          *         console.log("exporting asset", this.asset.file);
@@ -9059,15 +10956,15 @@ declare global {
         function regAssetExporter(assetTypeOrFileExts: ReadonlyArray<AssetType | string>, options?: IAssetExporterOptions): (func: new () => AssetExporter) => void;
 
         /**
-         * Decorator function for registering a class as a asset saver.
+         * Decorator function for registering a class as an asset saver.
          * @param assetTypeOrFileExts The asset type or file extensions that the saver can handle.
          * @returns The class decorator function.
          * @see IAssetSaver
          * @example
          * ```
-         * @IEditorEnv.regAssetSaver(["abc"])
-         * export class DemoAssetSaver extends IEditorEnv.IAssetSaver {
-         *    async onSave(asset: IEditorEnv.IAssetInfo, res: ABCResource): Promise<any> {
+         * ＠IEditorEnv.regAssetSaver(["abc"])
+         * export class DemoAssetSaver implements IEditorEnv.IAssetSaver {
+         *    async onSave(asset: IEditorEnv.IAssetInfo, res: ABCResource): Promise<void> {
          *       let data = IEditorEnv.SerializeUtil.encodeObj(res, null, { writeType: false });
          *       await IEditorEnv.utils.writeJsonAsync(EditorEnv.assetMgr.getFullPath(asset), data);
          *   }
@@ -9083,7 +10980,7 @@ declare global {
          * @example
          * ```
          * ＠IEditorEnv.regSceneHook()
-         * class MySceneHook extends IEditorEnv.ISceneHook {
+         * class MySceneHook implements IEditorEnv.ISceneHook {
          *   onCreateNode(scene: IEditorEnv.IGameScene, node: Laya.Node) {
          *      if (node instanceof Laya.Sprite)
          *          node.anchorX = node.anchorY = 0.5;

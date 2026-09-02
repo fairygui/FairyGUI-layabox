@@ -2263,7 +2263,7 @@
         }
         setMask(value, reversed) {
             if (this._mask && this._mask != value) {
-                if (this._mask.blendMode == "destination-out")
+                if (this._mask.blendMode == "destination-out" || this._mask.blendMode == "destinationOut")
                     this._mask.blendMode = null;
             }
             this._mask = value;
@@ -7235,6 +7235,9 @@
         }
         setSkeleton(skeleton, anchor) {
             this.url = null;
+            let comp = skeleton.getComponent(Laya.Spine2DRenderNode);
+            if (comp)
+                comp.autoAdjust = true;
             this._content = skeleton;
             this._container.addChild(this._content);
             this._content.pos(anchor.x, anchor.y);
@@ -17078,7 +17081,7 @@ const labelPadding = [2, 2, 2, 2];
                 }
                 return;
             }
-            if (!filter || (filter.getEffect && filter.getEffect().destroyed)) {
+            if (!filter) {
                 filter = new Laya.ColorFilter();
             }
             if (!filters)

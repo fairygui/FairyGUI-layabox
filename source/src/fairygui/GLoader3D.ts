@@ -243,6 +243,9 @@ namespace fgui {
         public setSkeleton(skeleton: Laya.Skeleton | Laya.SpineSkeleton, anchor?: Laya.Point): void {
             this.url = null;
 
+            let comp = skeleton.getComponent(Laya.Spine2DRenderNode);
+            if (comp)
+                comp.autoAdjust = true;
             this._content = skeleton;
             this._container.addChild(this._content);
             this._content.pos(anchor.x, anchor.y);

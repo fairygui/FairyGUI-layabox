@@ -4,6 +4,11 @@ declare global {
      * Namespace containing various editor-related classes and functions.
      * 
      * All classes and functions in this namespace are running in the UI process.
+     *
+     * @remarks In documentation examples, the full-width character `＠` represents the
+     * TypeScript decorator character `@`. Replace `＠` with `@` when copying an example.
+     * The substitution prevents TypeScript's JSDoc parser from treating decorators inside
+     * fenced `@example` blocks as new JSDoc tags.
      */
     export namespace IEditor {
         /**
@@ -20,6 +25,11 @@ declare global {
              * ```
              */
             excludeNames: Array<string>;
+
+            /**
+             * Additional command line options for the zip tool.
+             */
+            additionalOptions: Array<string>;
 
             /**
              * Add a file to the zip file.
@@ -120,7 +130,16 @@ declare global {
              */
             close(): void;
         }
+        /**
+         * An Electron `<webview>` managed by the editor. Use this for isolated content
+         * that needs its own renderer process and message port.
+         */
         export interface IWebview extends IWebFrameBase {
+            /**
+             * HTML element of the webview.
+             */
+            readonly element: WebviewTag;
+
             /**
              * Communication port to the process running in the webview.
              */
@@ -150,6 +169,24 @@ declare global {
              */
             reload(): void;
         }
+
+        /** Options used when creating an editor-managed iframe. */
+        export interface IWebIFrameOptions {
+            /** Whether rendering is throttled while the frame target is inactive. Defaults to true. */
+            backgroundThrottling?: boolean;
+
+            /**
+             * Restrict the frame to passive content. Script execution, forms, popups,
+             * downloads and top-level navigation are disabled while editor-side DOM
+             * access remains available for theme, focus and drag/drop integration.
+             */
+            sandbox?: boolean;
+        }
+
+        /**
+         * A DOM iframe managed by the editor and hosted in the current renderer process.
+         * Use {@link loaded} or await {@link loadUntilReady} before accessing its document.
+         */
         export interface IWebIFrame extends IWebFrameBase {
             /**
              * HTML element of the iframe.
@@ -194,6 +231,8 @@ declare global {
              */
             setContent(html: string): void;
         }
+
+        /** Shared lifecycle and geometry operations for editor-managed web frames. */
         export interface IWebFrameBase {
             /**
             * HTML element of the frame.
@@ -212,6 +251,24 @@ declare global {
 
             /**
              * Attach the frame to a placeholder widget. The frame will be visible when attached.
+             * 
+             * When using this method, the panel where the frame is located needs special settings, that is:
+             * ```
+             * ＠IEditor.panel("XXX", { transparent: true })
+             * class XXXPanel extends IEditor.EditorPanel {
+             *     async create() {
+             *        ...
+             *         this._panel.touchThrough = true;
+             *    }
+             * }
+             * ```
+             * 
+             * If the frame is a WebIFrame, this method is optional. You can directly add the element to the DOM. For example:
+             * ```
+             * anyWidget.element.appendChild(anInstance.element);
+             * ```
+             * In this case, the iframe will not be managed by WebFrameBase. It will usually refresh when the panel is switched, which is suitable for general display purposes. The advantage is that there is no need to set the panel to be transparent.
+             * 
              * @param placeHolder The placeholder widget to attach the frame to.
              */
             show(placeHolder: gui.Widget): void;
@@ -242,6 +299,52 @@ declare global {
              */
             dispose(): void;
         }
+
+        /**
+         * Determines how a delayed call handles another schedule request while one is pending.
+         *
+         * - `debounce`: restart the delay and keep the latest arguments.
+         * - `throttle`: keep the original deadline and update to the latest arguments.
+         */
+        export type DelayedCallMode = "debounce" | "throttle";
+
+        /** Configuration for an independently managed delayed callback. */
+        export interface IDelayedCallOptions {
+            /**
+             * The scheduling strategy. The default is `debounce`.
+             */
+            mode?: DelayedCallMode;
+        }
+
+        /** A reusable debounce/throttle handle created by {@link IUtils.createDelayedCall}. */
+        export interface IDelayedCall<TArgs extends unknown[]> {
+            /**
+             * Whether a call is currently pending.
+             */
+            readonly pending: boolean;
+
+            /**
+             * Schedule the callback.
+             * @param delay Delay in milliseconds. A value less than or equal to zero clears
+             * the pending call and returns false so the caller can execute synchronously.
+             * @param args Arguments passed to the callback.
+             * @returns True if the callback was scheduled; false if it should execute synchronously.
+             */
+            schedule(delay: number, ...args: TArgs): boolean;
+
+            /**
+             * Cancel the pending call.
+             */
+            clear(): void;
+
+            /**
+             * Cancel and immediately execute the pending call.
+             * @returns Whether a pending call was executed.
+             */
+            flush(): boolean;
+        }
+
+        /** General file-system, path, timing, string and process helpers exposed by the editor. */
         export interface IUtils {
             /**
              * Parse string content from a file to a JSON object.
@@ -298,6 +401,21 @@ declare global {
             writeJsonAsync(filePath: string, content: any, space?: string | number): Promise<void>;
 
             /**
+             * Debounce writes to a file while preserving serial write order for that path.
+             * @param filePath The destination file path.
+             * @param contents The complete contents for the next write.
+             * @param delay The debounce delay in milliseconds. The default is 100.
+             */
+            scheduleFileWrite(filePath: string, contents: string | Uint8Array, delay?: number): void;
+
+            /**
+             * Flush one file's delayed and queued writes, or all managed writes when no
+             * path is supplied.
+             * @param filePath The destination file path. Omit it to flush every file.
+             */
+            flushFileWrites(filePath?: string): Promise<void>;
+
+            /**
              * Read the first N bytes of a file. This is useful for reading the file signature.
              * @param filePath The path of the file. 
              * @param bytesCount The number of bytes to read.
@@ -344,17 +462,32 @@ declare global {
             splitCamelCase(str: string): string;
 
             /**
+             * @deprecated Use `getTempBaseDirAsync` instead.
              * Get the base directory for temporary files. It is the `library/temp` folder in the project. The API ensures that this folder exists.
              * @returns The base directory for temporary files.
              */
             getTempBaseDir(): string;
 
             /**
+             * Asynchronously get the base directory for temporary files and ensure it exists.
+             * @returns The base directory for temporary files.
+             */
+            getTempBaseDirAsync(): Promise<string>;
+
+            /**
+             * @deprecated Use `mkTempDirAsync` instead.
              * Create a subdirectory in the temporary directory. The temporary directory is returned by `getTempBaseDir`.
              * @param subDir The name of the subdirectory. If not specified, a subdirectory with a random name is created.
              * @returns The absolute path of the subdirectory.
              */
             mkTempDir(subDir?: string): string;
+
+            /**
+             * Asynchronously create a subdirectory in the temporary directory.
+             * @param subDir The name of the subdirectory. If not specified, a subdirectory with a random name is created.
+             * @returns The absolute path of the subdirectory.
+             */
+            mkTempDirAsync(subDir?: string): Promise<string>;
 
             /**
              * It is equivalent to `path.join`. Only for the purpose of without importing `path`.
@@ -384,7 +517,7 @@ declare global {
 
             /**
              * Copy all files and subfolders recursively from a folder to another folder.
-             * @param src The source folder path.
+             * @param source The source folder path.
              * @param destDir The destination folder path.
              * @param options The options.
              * - autoRename: Whether to automatically rename the file when a file with the same name exists in the destination folder. The default is false, meaning the file will be overwritten.
@@ -392,9 +525,9 @@ declare global {
              */
             copyDir(source: string, destDir: string, options?: { autoRename?: boolean, regenerateUUID?: boolean }): Promise<void>;
 
-            /*
+            /**
              * Move all files and subfolders recursively from a folder to another folder.
-             * @param src The source folder path.
+             * @param source The source folder path.
              * @param destDir The destination folder path.
              * @param options The options.
              * - autoRename: Whether to automatically rename the file when a file with the same name exists in the destination folder. The default is false, meaning the file will be overwritten.
@@ -436,17 +569,12 @@ declare global {
             fileExists(filePath: string): Promise<boolean>;
 
             /**
-             * Check if a filename conflicts in the specified folder. If there is a conflict, add a numeric suffix to the filename and continue checking until there is no conflict.
-             * @param path The folder path. 
-             * @param name The filename.
-             * @returns The new filename. 
+             * @deprecated Use `resolveConflictFileName` instead.
              */
             getNewFilePath(path: string, name: string): string;
 
             /**
              * Check if a filename conflicts in the specified folder. If there is a conflict, add a numeric suffix to the filename and continue checking until there is no conflict.
-             * 
-             * The difference with `getNewFilePath` is that it allows specifying a delimiter to connect the filename and the numeric suffix.
              * @param path The folder path.
              * @param name The filename. 
              * @param connectorSymbol The delimiter to connect the filename and the numeric suffix. The default is "_".
@@ -455,15 +583,7 @@ declare global {
             resolveConflictFileName(path: string, name: string, connectorSymbol?: string): Promise<string>;
 
             /**
-             * Check if a filename conflicts in the specified folder. If there is a conflict, add a numeric suffix to the filename and continue checking until there is no conflict.
-             * 
-             * The difference with `getNewFilePath` is that it allows specifying a delimiter to connect the filename and the numeric suffix.
-             * 
-             * This is the synchronous version of `resolveConflictFileName`.
-             * @param path The folder path. 
-             * @param name The filename. 
-             * @param connectorSymbol The delimiter to connect the filename and the numeric suffix. The default is "_".
-             * @returns The new filename. 
+             * @deprecated Use `resolveConflictFileName` instead. 
              */
             resolveConflictFileNameSync(path: string, name: string, connectorSymbol?: string): string;
 
@@ -506,6 +626,19 @@ declare global {
             sleep(ms: number): Promise<void>;
 
             /**
+             * Create an independently managed delayed callback.
+             *
+             * Use `debounce` to restart the delay on every request. Use `throttle` to keep
+             * the first request's deadline while updating the callback arguments.
+             * @param callback The callback to execute.
+             * @param options Scheduling options.
+             */
+            createDelayedCall<TArgs extends unknown[]>(
+                callback: (...args: TArgs) => void,
+                options?: IDelayedCallOptions,
+            ): IDelayedCall<TArgs>;
+
+            /**
              * Create a promise that resolves until the predicate returns true, or the timeout is reached.
              * @param predicate The predicate function. 
              * @param timeoutInMs The timeout in milliseconds. If not specified, there is no timeout. 
@@ -535,6 +668,14 @@ declare global {
              * @returns The script element.
              */
             loadLib(src: string, async?: boolean, onScriptError?: (err: ErrorEvent) => void): Promise<HTMLScriptElement>;
+
+            /**
+             * Load an ES module and return its module namespace object.
+             * HTTP(S) and custom-protocol responses are imported through a Blob URL so
+             * the request can pass through the editor's fetch transport.
+             * @param src The absolute or document-relative URL of the module.
+             */
+            loadModule<T = unknown>(src: string): Promise<T>;
 
             /**
              * Execute arithmetic expressions.
@@ -675,7 +816,7 @@ declare global {
             /**
              * Print the results of a promise.
              * @param rets The results of the promises.
-             * @param group The optinal group name of console messages. 
+             * @param group The optional group name for console messages.
              */
             printPromiseResult(rets: Iterable<PromiseSettledResult<any>>, group?: string): void;
 
@@ -708,7 +849,16 @@ declare global {
              * @returns The filtered list of top-level items. 
              */
             filterTopLevels<T extends { parent: any }>(items: ReadonlyArray<T>): ReadonlyArray<T>;
+
+            /**
+             * Get the file path from a web file.
+             * @param file The web file, usually from the drag-and-drop event.
+             * @returns The file path.
+             */
+            getPathForWebFile(file: File): string;
         }
+
+        /** UUID generation, validation and compact-string conversion helpers. */
         export interface IUUIDUtils {
             /**
              * Generate a UUID. UUID is a 36-character string with 4 dashes.
@@ -764,17 +914,24 @@ declare global {
              */
             decompressUUID(str: string): string;
         }
+
+        /** Prefix used by reflected shader type names. */
         export const ShaderTypePrefix = "Shader.";
         /**
          * A callback function that is used to determine whether a value is equal to the default value.
          * @param value The value to compare.
          * @param overridedDefaultValue By default, the `default` property of the property descriptor is used as the default value. You can override it by passing in this parameter.
+         * @param looseMode In loose mode, empty data (i.e. {}) is allowed to match non-empty default values.
          */
-        export type DefaultValueComparator = (value: any, overridedDefaultValue?: any) => boolean;
+        export type DefaultValueComparator = (value: any, overridedDefaultValue?: any, looseMode?: boolean) => boolean;
+        /** One reflected type prepared for a node/component creation menu. */
         export type TypeMenuItem = { type: FTypeDescriptor, label: string, icon: string, order: number };
+        /** Ordered menu items with the localized category label attached to the array. */
         export type TypeMenuItems = Array<TypeMenuItem> & { menuLabel: string };
+        /** Compiled dynamic expressions controlling an inspector property's state and validation. */
         export type PropertyTestFunctions = { hiddenTest: Function, readonlyTest: Function, validator: Function, requiredTest: Function };
 
+        /** Runtime registry for reflected engine, editor and user-script type descriptors. */
         export interface ITypeRegistry {
             /**
              * All types. Key is the name of the type.
@@ -873,10 +1030,19 @@ declare global {
             getComponentMenuItems(type: WorldType): Readonly<Record<string, TypeMenuItems>>;
 
             /**
+             * Get creation-menu items for registered types derived from an asset base type.
+             * The descriptor's menu value is the path relative to Project/Create. An empty path places the type at the root.
+             * @param baseType The asset base type name.
+             * @returns Asset creation menu items. Key is the menu path, value is the menu items.
+             */
+            getAssetMenuItems(baseType: string): Readonly<Record<string, TypeMenuItems>>;
+
+            /**
              * Find a type defined in the typescript code by its path.
              * @param path A path relative to the assets folder. 
+             * @returns The type descriptor, or null if no registered script uses the path.
              */
-            findScriptByPath(path: string): FTypeDescriptor;
+            findScriptByPath(path: string): FTypeDescriptor | null;
 
             /**
              * Whether a type is a 3D type.
@@ -905,10 +1071,18 @@ declare global {
              * @param type The type name.
              * @returns The base type name or null.
              */
-            getNodeBaseType(type: string): string;
+            getNodeBaseType(type: string): string | null;
 
             /**
-             * Whether a type is deprecated. If an new type descriptor is registered with the same name, the original type descriptor will be marked as deprecated.
+             * Check whether two types share the same base type.
+             * @param type1 The first type name.
+             * @param type2 The second type name.
+             * @returns Whether the two types share the same base type. 
+             */
+            hasSameBase(type1: string, type2: string): boolean
+
+            /**
+             * Whether a type is deprecated. If a new type descriptor is registered with the same name, the original descriptor is marked as deprecated.
              * @param type The type descriptor.
              * @returns Whether the type is deprecated.
              */
@@ -932,15 +1106,15 @@ declare global {
 
             /**
              * @en Get property of a type, if the property is not found, look for it in the base types.
-             * @param type The type descriptor.
+             * @param typeDef The type descriptor.
              * @param propName The property name.
-             * @returns The property value.
+             * @returns The property value, or `null` if neither the type nor any of its base types defines the property.
              * @zh 获取类型的属性，如果属性未找到，则在基类中查找。
-             * @param type 类型描述符。
+             * @param typeDef 类型描述符。
              * @param propName 属性名称。
-             * @returns 属性值。
+             * @returns 属性值；如果当前类型及其所有基类都未定义该属性，则返回 `null`。
              */
-            findTypePropertyInChain(typeDef: FTypeDescriptor, propName: string): string;
+            findTypePropertyInChain<T = any>(typeDef: FTypeDescriptor, propName: string): T | null;
 
             /**
              * Get caption of a property.
@@ -956,10 +1130,9 @@ declare global {
              * Get tips of a property.
              * @param type The type descriptor. 
              * @param prop The property descriptor. 
-             * @param showPropertyName Whether to add a banner to the tips to indicate the property name. The default is false.
-             * @returns The tips of the property.
+             * @returns The localized tips of the property.
              */
-            getPropTips(type: FTypeDescriptor, prop: FPropertyDescriptor, showPropertyName?: boolean): string;
+            getPropTips(type: FTypeDescriptor, prop: FPropertyDescriptor): string;
 
             /**
              * Get the caption of the catalog.
@@ -1014,9 +1187,16 @@ declare global {
             /**
              * Get the test functions of a property.
              * @param prop The property descriptor.
-             * @returns The test functions of the property.
+             * @returns The test functions of the property, or null when the property has no dynamic tests.
              */
-            getPropTestFunctions(prop: FPropertyDescriptor): PropertyTestFunctions;
+            getPropTestFunctions(prop: FPropertyDescriptor): PropertyTestFunctions | null;
+
+            /**
+             * Get the test function of a property to determine whether it is serializable.
+             * @param prop The property descriptor.
+             * @returns The test function, or null when `serializable` is not an expression string.
+             */
+            getPropSerializableTestFunction(prop: FPropertyDescriptor): Function | null;
 
             /**
              * Get all default value comparator functions of a type. This function is used to determine whether a value is equal to the default value. The key is the property name.
@@ -1030,23 +1210,30 @@ declare global {
              * @param type The type descriptor. 
              * @param datapath The path of the property. 
              * @param out The result array. If it is not null, the result will be added to this array, otherwise a new array will be created.
-             * @returns The result array.
+             * @returns The result array, or null if any segment in `datapath` cannot be resolved.
              */
-            getPropertyByPath(type: FTypeDescriptor, datapath: ReadonlyArray<string>, out?: FPropertyDescriptor[]): FPropertyDescriptor[];
+            getPropertyByPath(type: FTypeDescriptor, datapath: ReadonlyArray<string>, out?: FPropertyDescriptor[]): FPropertyDescriptor[] | null;
 
             /**
              * Get the type descriptor of an object. Null will be returned if the prototype of the object is not registered.
              * @param obj The object.
              * @returns The type descriptor of the object. 
              */
-            getTypeOfObj(obj: any): FTypeDescriptor;
+            getTypeOfObj(obj: any): FTypeDescriptor | null;
 
             /**
              * Get the type descriptor of a class. Null will be returned if the class is not registered.
              * @param cls The class.
              * @returns The type descriptor of the class. 
              */
-            getTypeOfClass(cls: Function): FTypeDescriptor;
+            getTypeOfClass(cls: Function): FTypeDescriptor | null;
+
+            /**
+             * Get the type descriptor of a class without looking for its base types. Null will be returned if the class is not registered.
+             * @param cls The class.
+             * @return The type descriptor of the class.
+             */
+            getOwnTypeOfClass(cls: Function): FTypeDescriptor | null;
 
             /**
              * Sort properties. The order is determined by the position property and the catalog property of the property descriptor.
@@ -1055,10 +1242,1024 @@ declare global {
              */
             sortProps(props: Array<FPropertyDescriptor>, considerCatalog?: boolean): void;
         }
+
+        /** Converts decorator/runtime type metadata into editor property descriptors. */
         export interface ITypeParser {
+            /** Get class metadata, optionally creating an empty metadata record when absent. */
             getClassMeta(constructor: Function, forceCreate?: boolean): any;
+            /** Parse a constructor, enum, array, record, or property-options value into descriptor fields. */
             parsePropType(ptype: any): Partial<FPropertyDescriptor>;
         }
+
+        /**
+         * Public contract for the editor title bar.
+         */
+        export interface ITitleBar {
+            /**
+             * Reserved title bar height in pixels.
+             * Consumers usually use this value to set top margin/inset.
+             */
+            readonly height: number;
+        }
+
+        /**
+         * Public types and runtime values exposed through `IEditor.Timeline`.
+         *
+         * @example
+         * ```tsx
+         * const data = {
+         *   fps: 30,
+         *   aniData: { name: "", prop: [{ name: "opacity", keys: [{ f: 0, val: 1 }] }] }
+         * };
+         * reactDOM.render(<IEditor.Timeline.TimelineEditor data={data} />);
+         * ```
+         */
+        export namespace ITimeline {
+            /** Visual editing mode used by the Timeline component. */
+            type TimelineMode = "frame" | "curves";
+
+            /** Opaque structured value stored by a host application. */
+            interface TimelinePropertyObject {
+                [key: string]: unknown;
+            }
+
+            /**
+             * Values supported by the Timeline data model.
+             *
+             * Numeric values can be displayed and interpolated in Curve mode. Strings
+             * and booleans are discrete. Objects and arrays remain opaque unless a
+             * {@link TimelineCustomValueAdapter} supplies additional semantics.
+             */
+            type TimelinePropertyValue = number | string | boolean | TimelinePropertyObject | unknown[] | null | undefined;
+
+            /** Host-defined metadata attached to a keyframe. */
+            interface TimelineKeyExtension {
+                /** Optional numeric error or tolerance associated with the key. */
+                error?: number;
+                [key: string]: unknown;
+            }
+
+            /** An event marker displayed in the Timeline event lane. */
+            interface TimelineEvent {
+                /** Trigger time in seconds. */
+                time?: number;
+                /** Trigger position in frames. Takes precedence when supplied. */
+                f?: number;
+                /** Host-defined event name. */
+                eventName: string;
+                /** Event arguments preserved by the Timeline without conversion. */
+                params: TimelineValue[];
+            }
+
+            /** Mutable viewport and interaction state, kept separately from Timeline data. */
+            interface TimelineViewState {
+                /** Horizontal content offset in CSS pixels. */
+                scrollX: number;
+                /** Horizontal time-axis scale. */
+                scaleX: number;
+                /** Vertical scale used by Curve mode. */
+                scaleY: number;
+                /** Frame-mode row offset in CSS pixels. */
+                scrollY: number;
+                /** Optional Curve-mode vertical offset in CSS pixels. */
+                curvesScrollY?: number;
+                /** Current playhead position in frames. */
+                currFrame: number;
+                /** Canonical paths of selected tracks. */
+                selectLayers: string[];
+                /** Expanded state indexed by canonical track path. */
+                isOpen: Record<string, boolean>;
+                /** Selected key paths indexed by frame number. */
+                selectKeys: Record<number, string[]>;
+                /** Selected event objects. */
+                selectEvent: TimelineEvent[];
+                /** Selected interval items. */
+                selectRanges?: TimelineRangeSelection[];
+            }
+
+            /**
+             * Mutable document consumed directly by the Timeline component.
+             *
+             * The component intentionally edits this object in place. A host can therefore
+             * expose its native animation data without constructing a second render
+             * document or converting all keyframes on every update.
+             */
+            interface TimelineDocument {
+                /** Frames per second used for time conversion and ruler labels. */
+                fps?: number;
+                /** Whether playback wraps at the end of the document. */
+                loop?: boolean;
+                /** Event markers displayed in the event lane. */
+                event?: TimelineEvent[];
+                /** Root track/layer node. */
+                aniData?: TimelineLayer;
+                /** Explicit document length in frames. */
+                totalFrame?: number;
+                /** Whether the playhead is drawn. */
+                showCursor?: boolean;
+                /** Global keyframe editing capability. Individual layers can further disable editing. */
+                keyEditable?: boolean;
+                /** Whether event markers can be selected, added, moved or removed. The event lane remains visible. */
+                eventEditable?: boolean;
+                /** Global interval/range editing capability. Individual ranges can still be locked. */
+                rangeEditable?: boolean;
+                /** Edge-to-edge range snapping distance in CSS pixels. Zero or omitted disables snapping. */
+                rangeSnapThreshold?: number;
+                /** Whether the built-in horizontal scrollbar is visible. */
+                showScrollbar?: boolean;
+                /**
+                 * Gesture used when dragging empty frame content. The default performs
+                 * key marquee selection; `"pan"` moves the viewport horizontally.
+                 */
+                frameBackgroundDrag?: "select" | "pan";
+            }
+
+            /** A hierarchical Timeline track or property layer. */
+            interface TimelineLayer {
+                /** Stable name used to construct the canonical track path. */
+                name: string;
+                /** Optional display label independent of {@link name}. */
+                label?: string;
+                /** Set to `false` for a grouping node that should not render its own row. */
+                showRow?: boolean;
+                /** Child track nodes. */
+                child?: TimelineLayer[];
+                /** Keyframes stored directly on this layer. */
+                keys?: TimelineKey[];
+                /** Host-neutral interval items rendered on this row. */
+                ranges?: TimelineRange[];
+                /** Whether keys on this layer are editable. Defaults to `true`. */
+                keyEditable?: boolean;
+                /** Property layers associated with the track. */
+                prop?: TimelineLayer[];
+                /** Additional host metadata is preserved by the Timeline. */
+                [key: string]: unknown;
+            }
+
+            /**
+             * A host-neutral interval item such as an animation clip, audio segment,
+             * or state span. Timeline only interprets time bounds and edit flags;
+             * {@link payload} remains opaque.
+             */
+            interface TimelineRange {
+                /** Stable identity within its track. */
+                id: string;
+                /** Visual start position in frames. */
+                start: number;
+                /** Visual end position in frames. */
+                end: number;
+                /** Optional label drawn inside the interval. */
+                label?: string;
+                /** Allows the label to extend past the interval's right edge. Defaults to `false`. */
+                labelOverflow?: boolean;
+                /** Optional solid CSS fill. Omit it to use the themed Timeline clip gradient. */
+                color?: string;
+                /** Optional CSS color used for the interval label. */
+                textColor?: string;
+                /** Whether the interval can be moved horizontally. Defaults to `true`. */
+                movable?: boolean;
+                /** Allows a horizontal move gesture to retarget this range to another visible track. */
+                trackMovable?: boolean;
+                /** Whether the start edge can be trimmed. */
+                trimStart?: boolean;
+                /** Whether the end edge can be trimmed. */
+                trimEnd?: boolean;
+                /** Prevents all interval editing when `true`. */
+                locked?: boolean;
+                /** Set to `false` for visual/reference ranges that must not consume pointer input. */
+                interactive?: boolean;
+                /** Set to `false` when a host overlay draws the range itself. */
+                draw?: boolean;
+                /** Arbitrary host data ignored by the Timeline core. */
+                payload?: unknown;
+            }
+
+            /** Stable selection reference for a range on a track. */
+            interface TimelineRangeSelection {
+                /** Canonical source-track path. */
+                path: string;
+                /** Range ID within the track. */
+                id: string;
+            }
+
+            /** Stable reference to a selected keyframe. */
+            interface TimelineKeySelection {
+                /** Canonical keyframe path. */
+                path: string;
+                /** Key position in frames. */
+                frame: number;
+            }
+
+            /** Range operation currently being previewed or committed. */
+            type TimelineRangeEditKind = "move" | "trimStart" | "trimEnd";
+
+            /** Description of one range move or trim operation. */
+            interface TimelineRangeChange {
+                /** Canonical source-track path. */
+                path: string;
+                /** Destination track during an opt-in cross-track move. Defaults to path. */
+                targetPath?: string;
+                /** Mutable source range object. */
+                range: TimelineRange;
+                /** Type of edit being performed. */
+                kind: TimelineRangeEditKind;
+                /** Range start before the gesture began. */
+                previousStart: number;
+                /** Range end before the gesture began. */
+                previousEnd: number;
+                /** Proposed or committed start position in frames. */
+                start: number;
+                /** Proposed or committed end position in frames. */
+                end: number;
+            }
+
+            /** Canvas geometry produced for a visible range during the current render. */
+            interface TimelineRangeRenderInfo {
+                /** Canonical track path used for this render. */
+                path: string;
+                range: TimelineRange;
+                /** Rendered start position in frames. */
+                start: number;
+                /** Rendered end position in frames. */
+                end: number;
+                /** Left coordinate in Canvas CSS pixels. */
+                left: number;
+                /** Top coordinate in Canvas CSS pixels. */
+                top: number;
+                /** Rendered width in Canvas CSS pixels. */
+                width: number;
+                /** Rendered height in Canvas CSS pixels. */
+                height: number;
+                /** Whether the range is selected. */
+                selected: boolean;
+            }
+
+            /** Drawing context supplied to host-owned Canvas overlays. */
+            interface TimelineFrameOverlayContext {
+                /** Canvas 2D context already scaled for the device pixel ratio. */
+                context: CanvasRenderingContext2D;
+                /** Full Canvas bounds in CSS pixels. */
+                canvasRect: { x: number; y: number; width: number; height: number };
+                /** Track-content bounds in CSS pixels. */
+                contentRect: { x: number; y: number; width: number; height: number };
+                /** Uniform visible-row height in CSS pixels. */
+                rowHeight: number;
+                /** Range geometry generated by the built-in range renderer. */
+                ranges: readonly TimelineRangeRenderInfo[];
+                /** Converts a frame position to a Canvas x-coordinate. */
+                frameToX(frame: number): number;
+                /** Converts a Canvas x-coordinate to a frame position. */
+                xToFrame(x: number): number;
+            }
+
+            /** Pointer position resolved into Timeline frame and track coordinates. */
+            interface TimelineFramePointerContext {
+                /** Canvas-local x-coordinate in CSS pixels. */
+                x: number;
+                /** Canvas-local y-coordinate in CSS pixels. */
+                y: number;
+                /** Frame nearest the pointer. */
+                frame: number;
+                /** Canonical track path under the pointer, when any. */
+                path?: string;
+                /** Track-content bounds in CSS pixels. */
+                contentRect: { x: number; y: number; width: number; height: number };
+                /** Uniform row height in CSS pixels. */
+                rowHeight: number;
+            }
+
+            /** Context passed to a host-owned range context menu. */
+            interface TimelineRangeContextMenuContext extends TimelineFramePointerContext {
+                /** Canonical path of the clicked range. */
+                path: string;
+                /** Range that received the context-menu click. */
+                range: TimelineRange;
+                /** Complete range selection after the clicked range is selected. */
+                selection: readonly TimelineRangeSelection[];
+            }
+
+            /** Host context for applying a range payload from the system clipboard. */
+            interface TimelineRangePasteContext {
+                /** Raw system clipboard text. */
+                text: string;
+                /** Current playhead frame used as the paste origin. */
+                frame: number;
+                /** Preferred destination track, when one is selected. */
+                path?: string;
+                /** Range selection at the time of the paste command. */
+                selection: readonly TimelineRangeSelection[];
+            }
+
+            /** External drag-and-drop context resolved into Timeline coordinates. */
+            interface TimelineFrameDropContext {
+                /** Canvas-local x-coordinate in CSS pixels. */
+                x: number;
+                /** Canvas-local y-coordinate in CSS pixels. */
+                y: number;
+                /** Frame nearest the pointer. */
+                frame: number;
+                /** Canonical track path under the pointer, when any. */
+                path?: string;
+                /** Browser client x-coordinate. */
+                clientX: number;
+                /** Browser client y-coordinate. */
+                clientY: number;
+                /** Native drag payload supplied by the browser. */
+                dataTransfer: DataTransfer;
+            }
+
+            /** Pointer session returned by a host overlay that captures a gesture. */
+            interface TimelineFramePointerSession {
+                /** Called for each captured pointer move. */
+                move(context: TimelineFramePointerContext): void;
+                /** Called once when the pointer is released. */
+                end(context: TimelineFramePointerContext): void;
+                /** Called when the gesture is aborted or the Timeline is disposed. */
+                cancel?(): void;
+            }
+
+            /** Mutable keyframe stored directly in a Timeline layer. */
+            interface TimelineKey {
+                /** Key position in frames. */
+                f: number;
+                /** Key value. */
+                val: TimelinePropertyValue;
+                /** Interpolation identifier, such as a built-in easing name. */
+                tweenType?: string;
+                /** Optional host-defined key metadata. */
+                extend?: TimelineKeyExtension;
+                /** Bezier tangent and weight information used by Curve mode. */
+                tweenInfo?: TimelineTweenInfo;
+                /** Optional source frame retained by copy, paste, or offset operations. */
+                srcF?: number;
+                /** Additional host fields are preserved by the Timeline. */
+                [key: string]: unknown;
+            }
+
+            /** Host-neutral evaluation result for one Timeline position. */
+            interface TimelineEvaluatedFrame {
+                /** Name of the evaluated root layer. */
+                rootName: string;
+                /** Evaluated values indexed by canonical Timeline path. */
+                values: Record<string, TimelineKey["val"] | null | undefined>;
+            }
+
+            /** Callback used to visit evaluated path/value pairs without allocating a new host document. */
+            type TimelineFrameValueVisitor = (
+                path: string,
+                value: TimelineKey["val"] | null | undefined,
+            ) => void;
+
+            /** Legacy hierarchical frame-value shape preserved for host integrations. */
+            interface TimelineFrameData {
+                /** Property values for this node. */
+                prop?: TimelinePropertyObject;
+                /** Child-node values indexed by name. */
+                child?: Record<string, TimelineFrameData>;
+            }
+
+            /** Bezier tangent and weight settings for a numeric key. */
+            interface TimelineTweenInfo {
+                /** Outgoing tangent slope. */
+                outTangent?: number;
+                /** Outgoing tangent weight. */
+                outWeight?: number;
+                /** Incoming tangent slope. */
+                inTangent?: number;
+                /** Incoming tangent weight. */
+                inWeight?: number;
+                /** Whether the incoming tangent weight is locked. */
+                inWeightLock?: boolean;
+                /** Whether the outgoing tangent weight is locked. */
+                outWeightLock?: boolean;
+                /** Whether incoming and outgoing tangents may be edited independently. */
+                broken?: boolean;
+            }
+
+            /** Alias used by event parameters and generic Timeline value APIs. */
+            type TimelineValue = TimelinePropertyValue;
+
+            /** Rendered Curve-mode key and its neighboring keys. */
+            interface TimelineDisplayedKey {
+                /** Key hit bounds and center coordinates in Canvas CSS pixels. */
+                x: number;
+                y: number;
+                x2: number;
+                y2: number;
+                cx: number;
+                cy: number;
+                key: TimelineKey;
+                path: string;
+                next?: TimelineKey;
+                prev?: TimelineKey;
+            }
+
+            /** Cached Canvas geometry and display flags for one key. */
+            interface TimelineDisplayedKeyPosition {
+                /** Key position in frames. */
+                f: number;
+                /** Key hit bounds and center coordinates in Canvas CSS pixels. */
+                x: number;
+                y: number;
+                x2: number;
+                y2: number;
+                cx: number;
+                cy: number;
+                col: string;
+                isSelect?: boolean;
+                isOffset?: boolean;
+                noIn?: boolean;
+            }
+
+            /** Cached display description for a visible Timeline layer. */
+            interface TimelineDisplayedLayer {
+                /** Mutable source layer. */
+                data: TimelineLayer;
+                /** Canonical layer path. */
+                path: string;
+                /** Display label. */
+                label: string;
+                /** Whether this row represents a directory/group. */
+                isDir: boolean;
+                /** Horizontal label offset in CSS pixels. */
+                x: number;
+                /** Whether this is a property row rather than a node track. */
+                isProperty: boolean | undefined;
+                /** Optional row y-coordinate in CSS pixels. */
+                y?: number;
+                /** Optional visible-row index. */
+                index?: number;
+                /** Cached key geometry. */
+                keys: TimelineDisplayedKeyPosition[];
+                /** Key at the current playhead, when any. */
+                currKey?: TimelineKey | null;
+            }
+
+            /** Request issued when the Timeline needs the host to create a property layer. */
+            interface TimelineCreateLayerRequest {
+                /** Canonical node path that will own the property. */
+                namePath: string;
+                /** Property path segments. */
+                prop: string[];
+                /** Layer data prepared by the Timeline. */
+                data: TimelineLayer;
+            }
+
+            /** Context for creating a key whose value requires host-defined semantics. */
+            interface TimelineCustomKeyContext {
+                /** Existing keys on the target layer. */
+                keys: TimelineKey[];
+                /** Requested key position in frames. */
+                frame: number;
+                /** Canonical target path. */
+                path: string;
+                /** Sorted insertion index for the new key. */
+                insertIndex: number;
+                /** Previous adjacent key, when any. */
+                previousKey: TimelineKey | null;
+                /** Next adjacent key, when any. */
+                nextKey: TimelineKey | null;
+                /** Current value supplied by the host. */
+                currentValue: TimelineKey["val"] | null;
+            }
+
+            /** Value returned by a custom evaluator or formatter. */
+            interface TimelineCustomValueResult {
+                value: TimelinePropertyValue;
+                /** Whether the Timeline may cache this result. Defaults to `true`. */
+                cacheable?: boolean;
+            }
+
+            /** Context for interpolating an opaque host value between two keys. */
+            interface TimelineCustomInterpolationContext {
+                /** Canonical path being evaluated, when available. */
+                path?: string;
+                /** Start key of the segment. */
+                start: TimelineKey;
+                /** End key of the segment. */
+                end: TimelineKey;
+                /** Normalized segment position in the range `[0, 1]`. */
+                timeScale: number;
+            }
+
+            /** Context for converting an evaluated value into a display value. */
+            interface TimelineCustomFormatContext {
+                path: string;
+                value: TimelinePropertyValue;
+                /** Source key when formatting an exact-key result. */
+                key?: TimelineKey;
+            }
+
+            /** Restricted mutation surface available to a custom add-key hook. */
+            interface TimelineCustomAddKeyOperations {
+                /** Returns adjacent keys around a frame. */
+                getStartAndEndKey(path: string, frame: number): StartEndKeys | null;
+                /** Invalidates cached evaluation results for a path. */
+                removeCache(path: string): void;
+                /** Adds a key through the built-in direct insertion path. */
+                addKeyDirect(path: string, frame: number): TimelineKey[] | null;
+                /** Whether a track currently exists at the path. */
+                hasTrack(path: string): boolean;
+                /** Removes a track created during the current operation. */
+                removeTrack(path: string): void;
+                /** Marks the Timeline document as modified. */
+                markModified(): void;
+                /** Cancels a pending modification scheduled by the built-in path. */
+                cancelPendingModification(): void;
+                /** Notifies the host that a key value changed. */
+                notifyKeyChanged(key: TimelineKey): void;
+            }
+
+            /** Context passed before the Timeline performs its built-in add-key operation. */
+            interface TimelineCustomAddKeyContext {
+                path: string;
+                frame: number;
+                /** Optional value explicitly supplied by the caller. */
+                value?: TimelinePropertyValue;
+                operations: TimelineCustomAddKeyOperations;
+            }
+
+            /** Result returned when a custom add-key hook handled the operation. */
+            interface TimelineCustomAddKeyResult {
+                /** Keys created or updated by the custom operation. */
+                keys: TimelineKey[];
+            }
+
+            /** Context emitted after keys are removed from a layer. */
+            interface TimelineCustomKeysRemovedContext {
+                path: string;
+                layer: TimelineLayer;
+                /** Keys removed by the operation. */
+                keys: TimelineKey[];
+            }
+
+            /**
+             * Optional host semantics for opaque values and specialized key creation.
+             * Numeric, string, and boolean data do not require an adapter.
+             */
+            interface TimelineCustomValueAdapter {
+                /** Creates a key value for an opaque host type. Return `null` to use the built-in path. */
+                createKey?(context: TimelineCustomKeyContext): TimelineKey | null;
+                /** Interpolates an opaque value. Return `null` when the segment is unsupported. */
+                interpolate?(context: TimelineCustomInterpolationContext): TimelineCustomValueResult | null;
+                /** Converts an evaluated value to a host-defined display representation. */
+                formatEvaluatedValue?(context: TimelineCustomFormatContext): TimelineCustomValueResult | null;
+                /** Handles add-key behavior before the built-in implementation. */
+                beforeAddKey?(context: TimelineCustomAddKeyContext): TimelineCustomAddKeyResult | null;
+                /** Receives removed keys after the built-in removal operation. */
+                afterRemoveKeys?(context: TimelineCustomKeysRemovedContext): void;
+                /** Whether a track may update a key from the host's current property value. */
+                canUpdateFromCurrentValue?(path: string, layer: TimelineLayer): boolean;
+                /** Whether evaluation must use an exact key instead of interpolation. */
+                useExactKey?(path: string): boolean;
+                /** Whether adjacent keys at an exact frame participate in matching. */
+                matchAdjacentKeysAtExactFrame?(path: string): boolean;
+            }
+
+            /**
+             * Host boundary for notifications, menus, value access, and
+             * extension drawing. Every hook is optional.
+             */
+            interface TimelineActions {
+                /** Called with the new playhead position. */
+                onCurrentFrameChange?(frame: number): void;
+                /** Called after Timeline data is modified; `key` identifies the changed key when available. */
+                onDataModified?(key?: TimelineKey): void;
+                /** Called when a grouped document edit begins or ends. */
+                onEditTransactionChange?(active: boolean): void;
+                /** Called after a scheduled Timeline render completes. */
+                onRenderFinished?(): void;
+                /** Called with the new playback state. */
+                onPlaybackChange?(playing: boolean): void;
+                /** Called with the new document frame rate. */
+                onFpsChange?(fps: number): void;
+                /** Called after switching between Frame and Curve modes. */
+                onModeChange?(mode: TimelineMode): void;
+                /** Called with the complete event-marker selection. */
+                onEventSelectionChange?(selection: readonly TimelineEvent[]): void;
+                /** Called with the complete selected track-path list. */
+                onLayerSelectionChange?(paths: readonly string[]): void;
+                /** Called with the complete selected keyframe list. */
+                onKeySelectionChange?(selection: readonly TimelineKeySelection[]): void;
+                /** Called once after a range move or trim is committed. */
+                onRangeModified?(change: TimelineRangeChange): void;
+                /**
+                 * Called for each accepted range preview during a pointer gesture and
+                 * once with the original values when a rejected drop is restored.
+                 */
+                onRangeChanging?(change: TimelineRangeChange): void;
+                /** Called after the selected range IDs change. */
+                onRangeSelectionModified?(selection: readonly TimelineRangeSelection[]): void;
+                /**
+                 * Adjusts or validates a range preview. Return corrected `start` and
+                 * `end` values to accept it, or `null` to reject the drop. A rejected
+                 * cross-track preview still follows the pointer and is restored when
+                 * the pointer is released.
+                 */
+                constrainRangeEdit?(change: TimelineRangeChange): Pick<TimelineRangeChange, "start" | "end"> | null;
+                /** Draws host-specific track content. The renderer clips it to contentRect. */
+                drawFrameOverlay?(context: TimelineFrameOverlayContext): void;
+                /** Draws host-specific ruler content. The renderer clips it to the ruler area. */
+                drawFrameRulerOverlay?(context: TimelineFrameOverlayContext): void;
+                /**
+                 * Begins a host-owned pointer gesture over frame or ruler content.
+                 * Return `null` to let the built-in Timeline interaction continue.
+                 */
+                beginFrameOverlayPointer?(context: TimelineFramePointerContext): TimelineFramePointerSession | null;
+                /** Shows a host-owned context menu for a range. */
+                onRangeContextMenu?(context: TimelineRangeContextMenuContext): void;
+                /** Shows a host-owned context menu for frame content not handled by a range. */
+                onFrameContextMenu?(context: TimelineFramePointerContext): void;
+                /** Serializes selected host ranges for the system clipboard. */
+                getRangeClipboardText?(selection: readonly TimelineRangeSelection[]): string | null;
+                /** Applies a host-owned range clipboard payload. Return `true` when handled. */
+                onPasteRanges?(context: TimelineRangePasteContext): boolean;
+                /** Removes selected host ranges. Timeline clears its range selection afterward. */
+                onRemoveRanges?(selection: readonly TimelineRangeSelection[]): void;
+                /** Returns `true` to accept an external drag over the time area. */
+                onFrameDragOver?(context: TimelineFrameDropContext): boolean;
+                /** Applies an accepted external drop. */
+                onFrameDrop?(context: TimelineFrameDropContext): void;
+                /** Returns the host's current property value for a canonical path. */
+                getCurrentValue?(path: string): TimelineKey["val"] | null;
+                /**
+                 * Called after Timeline finishes removing selected property tracks.
+                 * The host should restore source values that preview evaluation may
+                 * have applied to live objects. Timeline treats this as a notification
+                 * and does not await asynchronous restoration.
+                 */
+                onRestoreSourcePropertyValues?(): void;
+                /** Returns whether a property track may be removed. */
+                confirmRemovePropertyTrack?(property: string): boolean | Promise<boolean>;
+                /** Creates a host property layer requested by the Timeline. */
+                onCreateLayer?(data: TimelineCreateLayerRequest): void;
+                /** Returns property-key names available below a canonical path. */
+                getAllPropertyKeys?(path: string): string[] | null;
+                /** Optional semantics for opaque host values such as spatial paths. */
+                customValueAdapter?: TimelineCustomValueAdapter;
+            }
+
+            /** Adjacent keys surrounding an evaluated frame. */
+            interface StartEndKeys {
+                start: TimelineKey | null;
+                end: TimelineKey | null;
+            }
+
+            /** Current editor state returned without exposing the Canvas implementation. */
+            interface TimelineEditorSnapshot {
+                /** Current playhead position in frames. */
+                position: number;
+                /** Current visual editing mode. */
+                mode: TimelineMode;
+                /** Computed document length in frames. */
+                totalFrame: number;
+                /** Uniform track-row height in CSS pixels. */
+                rowHeight: number;
+                /** Whether data editing is disabled. */
+                readOnly: boolean;
+                /** Whether the document has uncommitted changes. */
+                modified: boolean;
+                /** Whether playback is active. */
+                playing: boolean;
+                /** Current document frame rate. */
+                fps: number;
+            }
+
+            /** Generic mutable-document operations owned by Timeline. */
+            interface TimelineDocumentHandle {
+                /** Returns the mutable document supplied through {@link TimelineEditorProps.data}. */
+                getData(): TimelineDocument;
+                /** Returns the document prepared for persistence, including derived duration/event times. */
+                getSaveData(): TimelineDocument;
+                /** Resolves an existing track by canonical path. */
+                getLayer(path: string): TimelineLayer | null;
+                /** Resolves an existing key at an exact frame. */
+                getKey(path: string, frame: number): TimelineKey | null;
+                /** Performs the normal Timeline add-key operation, including history and rendering. */
+                addKey(path: string, frame?: number, value?: TimelinePropertyValue): TimelineKey[] | null;
+                /** Writes through Timeline's key mutation rules without forcing an immediate render. */
+                writeKey(path: string, frame?: number, value?: TimelinePropertyValue): TimelineKey[] | null;
+                /** Removes a complete track. */
+                removeTrack(path: string): boolean;
+                /** Returns the keys surrounding an evaluated frame. */
+                getAdjacentKeys(path: string, frame?: number): StartEndKeys | null;
+                /** Replaces a canonical path. */
+                renamePath(path: string, newPath: string): boolean;
+                /** Renames one path segment and updates descendants. */
+                renameSegment(path: string, newName: string): boolean;
+                /** Evaluates all Timeline values at a frame. */
+                evaluate(frame?: number): TimelineEvaluatedFrame | null;
+                /** Evaluates one canonical path at a frame. */
+                evaluatePath(path: string, frame?: number): TimelineValue;
+                /** Visits evaluated values without allocating a value map. */
+                visitValues(visitor: TimelineFrameValueVisitor, frame?: number): string | null;
+                /** Updates the document frame rate. */
+                setFps(fps: number): void;
+            }
+
+            /** Generic track/key/event selection operations owned by Timeline. */
+            interface TimelineSelectionHandle {
+                isTrackSelected(path: string): boolean;
+                getTracks(includeDirectoryTracks?: boolean): string[];
+                setTracks(paths: readonly string[]): void;
+                clearTracks(path?: string): boolean;
+                selectTrackKeys(): void;
+                removeSelectedTracks(): void;
+                clearEventSelection(): void;
+            }
+
+            /** Host-facing description of one visible Timeline row. */
+            interface TimelineTrackRow {
+                /** Stable row identity. It currently matches {@link path}. */
+                id: string;
+                /** Canonical path used for data lookup and selection. */
+                path: string;
+                /** Display label. */
+                label: string;
+                /** Suggested horizontal label indentation in CSS pixels. */
+                labelIndent: number;
+                /** Hierarchy depth. */
+                depth: number;
+                /** Whether the row owns expandable children. */
+                directory: boolean;
+                /** Whether a directory row is expanded. */
+                opened: boolean;
+                /** Whether the track is selected. */
+                selected: boolean;
+            }
+
+            /** Geometry shared between Timeline time content and a host-owned row list. */
+            interface TimelineTrackLayout {
+                /** Visible rows in render order. */
+                rows: readonly TimelineTrackRow[];
+                /** Uniform row height in CSS pixels. */
+                rowHeight: number;
+                /** Canvas y-coordinate where track content begins. */
+                contentTop: number;
+                /** Visible track-content height in CSS pixels. */
+                viewportHeight: number;
+                /** Positive vertical scroll offset in CSS pixels. */
+                scrollTop: number;
+                /** Total scrollable row-content height in CSS pixels. */
+                contentHeight: number;
+            }
+
+            /** Imperative operations exposed by the React {@link TimelineEditor}. */
+            interface TimelineEditorHandle {
+                readonly document: TimelineDocumentHandle;
+                readonly selection: TimelineSelectionHandle;
+                /** Returns a host-neutral editor snapshot. */
+                getSnapshot(): TimelineEditorSnapshot;
+                /** Sets the persistence dirty flag without changing the document. */
+                setModified(modified: boolean): void;
+                /** Moves the playhead to an absolute frame position. */
+                setPosition(position: number): void;
+                /** Switches the visual editing mode. */
+                setMode(mode: TimelineMode): void;
+                /** Centers or reveals one frame position. */
+                focusPosition(position: number): void;
+                /** Fits a frame interval into the viewport. */
+                focusRange(start: number, end: number): void;
+                /** Scrolls vertically to a canonical track path. */
+                focusTrack(path: string): void;
+                /** Fits the complete Timeline document into the viewport. */
+                fitView(): void;
+                /** Returns a detached viewport and selection snapshot. */
+                getViewState(): TimelineViewState;
+                /** Replaces viewport and selection state. */
+                setViewState(viewState: TimelineViewState): void;
+                /** Executes a semantic command independently of physical keyboard shortcuts. */
+                executeCommand(command: TimelineCommand): Promise<boolean>;
+                /** Starts playback from the current frame. */
+                play(loop?: boolean): void;
+                /** Stops playback without changing the current frame. */
+                stop(): void;
+                /** Converts browser client coordinates to Timeline frame and track coordinates. */
+                clientToTimeline(clientX: number, clientY: number): { position: number; path?: string };
+                /** Resolves a track from a Timeline-local vertical coordinate. */
+                getTrackAt(y: number): string | null;
+                /** Returns visible track rows and their shared geometry. */
+                getTrackLayout(): TimelineTrackLayout;
+                /** Synchronizes a host-owned track list's vertical scroll position. */
+                setTrackScrollTop(scrollTop: number): boolean;
+                /** Expands or collapses a directory track. */
+                setTrackOpen(path: string, open: boolean): void;
+                /** Tests whether a track contains a key at an exact frame. */
+                hasTrackKeyAt(path: string, frame: number): boolean;
+                /** Returns the computed Timeline key color for a track. */
+                getTrackKeyColor(path: string): string;
+                /** Converts a frame position to seconds or a formatted time label. */
+                positionToTime(position: number, formatted?: boolean): number | string;
+            }
+
+            /** Props accepted by the reusable React Timeline editor. */
+            interface TimelineEditorProps {
+                /**
+                 * Native mutable Timeline document. The component reads and edits this
+                 * object directly; no normalized render document is created.
+                 */
+                data?: TimelineDocument | null;
+                /** Change this token after mutating data in place to invalidate caches and render. */
+                dataVersion?: unknown;
+                /** Optional host boundaries for menus, values, and notifications. */
+                actions?: TimelineActions;
+                /** Editor history instance used to record and execute Timeline undo/redo operations. */
+                history?: IDataHistory | null;
+                /** Initial or controlled visual mode. Defaults to `"frame"`. */
+                mode?: TimelineMode;
+                /** Uniform height used by every visible track row, in CSS pixels. */
+                rowHeight?: number;
+                /** Extra scrollable space after the final track row. Defaults to 6 CSS pixels. */
+                trackEndPadding?: number;
+                /** State snapshot restored separately from data. The value is cloned; null resets it. */
+                viewState?: TimelineViewState | null;
+                /** Additional class applied to the Timeline root element. */
+                className?: string;
+                /** Disables data editing while preserving navigation and rendering. */
+                readOnly?: boolean;
+                /** Whether Timeline currently uses live-recording interaction behavior. */
+                recordMode?: boolean;
+                /** Enables built-in tween editing. */
+                tweenEditable?: boolean;
+                /** Enables refreshing keys from {@link TimelineActions.getCurrentValue}. */
+                currentValueUpdate?: boolean;
+                /** Additional class applied to the underlying `<canvas>` element. */
+                canvasClassName?: string;
+            }
+
+            /** Semantic operations understood by Timeline independently of physical keys. */
+            type TimelineCommand = "copy" | "paste" | "undo" | "redo" | "selectAll" | "deleteSelection" | "togglePlayback" | "previousFrame" | "nextFrame" | "insertFrame" | "removeFrame" | "focusSelection";
+
+            /** Reusable React component that owns a Timeline Canvas lifecycle. */
+            const TimelineEditor: React.ForwardRefExoticComponent<TimelineEditorProps & React.RefAttributes<TimelineEditorHandle>>;
+            /** Creates an empty, valid viewport and selection state. */
+            const createTimelineViewState: () => TimelineViewState;
+            /**
+             * Encodes a single track-name segment for use in a canonical Timeline path.
+             * Canonical paths use `.` between hierarchy segments and `::` before the
+             * property hierarchy. Literal dots in names must be encoded with this function.
+             */
+            const encodeTimelinePathSegment: (name: string) => string;
+            /** Decodes a track name returned as one segment of a canonical Timeline path. */
+            const decodeTimelinePathSegment: (name: string) => string;
+            /** Returns the hierarchy portion before a canonical path's `::` property separator. */
+            const getTimelineNamePath: (path: string) => string;
+            /** Bundled component CSS. TimelineEditor registers it automatically. */
+            const styles: string;
+        }
+
+        /** Supported editor color modes. */
+        export type ThemeMode = "dark" | "light";
+
+        /** User preference for a fixed color mode or the operating-system mode. */
+        export type ThemePreference = ThemeMode | "system";
+
+        /** Called after the active mode or compiled theme palette changes. */
+        export type ThemeChangeListener = (theme: ThemeMode) => void;
+
+        /** Compact inputs used to generate a complete semantic theme palette. */
+        export interface ThemeRecipe {
+            /** Primary accent color as a six-digit hexadecimal color. */
+            accent: string;
+            /** Accent and foreground contrast from 0 to 100. Defaults to 50. */
+            contrast?: number;
+            /** Neutral surface lightness adjustment from -0.15 to 0.15. Defaults to 0. */
+            surfaceOffset?: number;
+            /** Border lightness adjustment. Defaults to 72% of surfaceOffset. */
+            borderOffset?: number;
+            /** Root window surface lightness adjustment. Defaults to surfaceOffset. */
+            bodyOffset?: number;
+            /** Strength of the accent tint applied to neutral surfaces. Defaults to 1. */
+            surfaceTint?: number;
+        }
+
+        /** Serializable definition stored in a `.layatheme.json` file. */
+        export interface ThemeDefinition {
+            /** Theme schema version. Version 1 is currently supported. */
+            schemaVersion: 1;
+            /** Stable identifier unique within one color mode. */
+            id: string;
+            /** Display name, or an `i18n:` key used by built-in themes. */
+            name: string;
+            /** Optional human-readable description. */
+            description?: string;
+            /** Optional theme author. */
+            author?: string;
+            /** Color mode to which this definition belongs. */
+            mode: ThemeMode;
+            /** Inputs used by the deterministic theme compiler. */
+            recipe: ThemeRecipe;
+            /** Optional values for registered semantic color tokens. */
+            overrides?: Readonly<Record<string, string>>;
+        }
+
+        /** Theme definition registered with its source classification. */
+        export interface RegisteredThemeDefinition extends ThemeDefinition {
+            /** Whether the definition ships with the editor. */
+            readonly builtin: boolean;
+        }
+
+        /** Severity reported while validating or installing a theme. */
+        export type ThemeDiagnosticSeverity = "warning" | "error";
+
+        /** One actionable theme validation or file-operation diagnostic. */
+        export interface ThemeDiagnostic {
+            /** Whether the issue permits installation. */
+            severity: ThemeDiagnosticSeverity;
+            /** Stable machine-readable diagnostic code. */
+            code: string;
+            /** Human-readable explanation of the issue. */
+            message: string;
+            /** Optional JSON path associated with the issue. */
+            path?: string;
+        }
+
+        /** Result of validating and normalizing an in-memory theme definition. */
+        export interface ThemeValidationResult {
+            /** Normalized definition when validation succeeds. */
+            definition?: ThemeDefinition;
+            /** Validation errors and non-blocking warnings. */
+            diagnostics: ThemeDiagnostic[];
+        }
+
+        /** Result returned by a desktop theme file operation. */
+        export interface ThemeOperationResult {
+            /** Whether the requested operation completed successfully. */
+            ok: boolean;
+            /** Validated definition associated with the operation, when available. */
+            definition?: ThemeDefinition;
+            /** Validation or file-system diagnostics. */
+            diagnostics: ThemeDiagnostic[];
+            /** Whether installation would replace an existing custom theme. */
+            replacing?: boolean;
+        }
+
+        /** Compiled CSS custom-property names and values. */
+        export type ThemePaletteTokens = Record<string, string>;
+
+        /** Compact colors used to render a theme selection swatch. */
+        export interface ThemePresetPreview {
+            /** Representative editor surface color. */
+            surface: string;
+            /** Compiled primary accent color. */
+            accent: string;
+        }
+
+        /**
+         * Unified access to theme definitions, compilation, and desktop theme files.
+         * Plugins should use the shared instance exposed as `IEditor.React.themeManager`.
+         */
+        export interface IThemeManager {
+            /** Current theme-definition schema version. */
+            readonly schemaVersion: 1;
+            /** JSON Schema suitable for constrained AI output and external validation. */
+            readonly jsonSchema: Readonly<Record<string, unknown>>;
+            /** Activates a color mode without changing the stored mode preference. */
+            setTheme(theme: ThemeMode): void;
+            /** Returns the currently resolved color mode. */
+            getTheme(): ThemeMode;
+            /** Activates and saves a fixed or system-controlled color-mode preference. */
+            setThemePreference(preference: ThemePreference): void;
+            /** Returns the active color-mode preference. */
+            getThemePreference(): ThemePreference;
+            /** Activates and saves a registered theme in the current color mode. */
+            setAccentPreset(id: string): void;
+            /** Returns the active theme identifier in the current color mode. */
+            getAccentPreset(): string;
+            /** Subscribes to active mode and compiled-palette changes. */
+            subscribeThemeChange(listener: ThemeChangeListener): () => void;
+
+            /** Returns whether a value is a supported color mode. */
+            isThemeMode(value: unknown): value is ThemeMode;
+            /** Returns whether a value is a supported appearance preference. */
+            isThemePreference(value: unknown): value is ThemePreference;
+            /** Resolves a fixed or system preference to a concrete color mode. */
+            resolveThemePreference(preference: ThemePreference, systemDark: boolean): ThemeMode;
+            /** Returns the requested definition, or the default definition for its mode. */
+            getThemeDefinition(mode: ThemeMode, id: string): RegisteredThemeDefinition;
+            /** Returns registered built-in and custom definitions, optionally filtered by mode. */
+            getThemeDefinitions(mode?: ThemeMode): ReadonlyArray<RegisteredThemeDefinition>;
+
+            /** Validates and normalizes one custom definition without installing it. */
+            validateThemeDefinition(value: unknown): ThemeValidationResult;
+            /** Subscribes to installed-definition registry changes. */
+            subscribeDefinitionsChanged(listener: () => void): () => void;
+
+            /** Deterministically compiles a definition against dark or light base CSS. */
+            generateThemePaletteTokens(definition: ThemeDefinition, baseCss: string): ThemePaletteTokens;
+            /** Returns representative surface and accent colors for theme selection UI. */
+            getThemePresetPreview(definition: ThemeDefinition): ThemePresetPreview;
+
+            /** Validates, compiles, and audits a JSON theme value without installing it. */
+            validateThemeForInstall(value: unknown): ThemeOperationResult;
+            /** Validates and installs a JSON theme value into the editor theme directory. */
+            installTheme(value: unknown, replace: boolean): ThemeOperationResult;
+            /** Deletes an installed custom theme. Built-in themes cannot be deleted. */
+            deleteTheme(mode: ThemeMode, id: string): ThemeOperationResult;
+            /** Writes a registered theme definition to a `.layatheme.json` file. */
+            exportTheme(mode: ThemeMode, id: string, targetPath: string): ThemeOperationResult;
+        }
+
         export type RenderTemplateOptions = {
             /**
              * Whether to escape html characters. Default is false.
@@ -1098,6 +2299,7 @@ declare global {
             renderTemplate(content: string, templateArgs?: Record<string, any>, options?: RenderTemplateOptions): string;
 
             /**
+             * @deprecated Use `renderTemplateFileAsync` instead.
              * Render a template string read from a file and write the result back to the file.
              * @param filePath Path to the template file. 
              * @param templateArgs Template arguments. 
@@ -1115,6 +2317,188 @@ declare global {
              */
             renderTemplateFileAsync(filePath: string, templateArgs?: Record<string, any>, options?: RenderTemplateOptions): Promise<void>;
         }
+        /**
+         * `IEditor.StateGraph` — an editor-agnostic *state-machine* graph editor:
+         * pinless nodes connected center-to-center, straight links with a mid-line
+         * direction arrow, sibling fan-out and self-loops. Used by the animator
+         * controller panel and available to plugins.
+         *
+         * Unlike `IEditor.Flow` (port-based data-flow graphs), connections here are a
+         * plain directed `sourceId -> targetId` with no ports. The runtime lives in
+         * `src/editor/react/stategraph` and is mounted onto `IEditor.StateGraph` in `Mount.ts`.
+         *
+         * Typical usage from a panel:
+         * ```tsx
+         * reactDOM.render(
+         *   <IEditor.StateGraph.StateGraphEditor
+         *     nodes={nodes} edges={edges}
+         *     selectedNodeIds={sel}
+         *     onSelectionChange={...} onConnect={...} onNodeDoubleClick={...}
+         *   />
+         * );
+         * ```
+         */
+        export namespace IStateGraph {
+            /** A point in graph coordinates, before viewport pan and zoom are applied. */
+            interface XY {
+                /** Horizontal graph coordinate. */
+                x: number;
+                /** Vertical graph coordinate. */
+                y: number;
+            }
+
+            /** Serializable state-machine node. Positions use graph coordinates. */
+            interface StateGraphNode {
+                /** Stable ID referenced by edges and selection state. */
+                id: string;
+                /** User-facing node label. */
+                name: string;
+                /** Left position in graph coordinates. */
+                x: number;
+                /** Top position in graph coordinates. */
+                y: number;
+                /** Host-defined node category used to select an entry from `nodeStyles`. */
+                kind?: string;
+                /** Host-owned serializable payload; the editor does not interpret it. */
+                data?: any;
+            }
+
+            /** Serializable directed transition between two state nodes. */
+            interface StateGraphEdge {
+                /** Stable edge ID used by selection state. */
+                id: string;
+                /** ID of the source node. Self-links are allowed. */
+                sourceId: string;
+                /** ID of the target node. */
+                targetId: string;
+                /** Optional label drawn on the transition. */
+                label?: string;
+                /** Whether pointer interaction may select the edge. Defaults to true. */
+                selectable?: boolean;
+                /** Host-owned serializable payload; the editor does not interpret it. */
+                data?: any;
+            }
+
+            /** Visual overrides applied to all nodes with the corresponding `kind`. */
+            interface StateGraphNodeStyle {
+                /** CSS color used for the node accent. */
+                color?: string;
+                /** Extra CSS class placed on the node element. */
+                className?: string;
+                /** Render the node as a folder/container node. */
+                folder?: boolean;
+            }
+
+            /** Controlled viewport transform in graph coordinates. */
+            interface StateGraphViewport {
+                /** Horizontal pan in client pixels. */
+                x: number;
+                /** Vertical pan in client pixels. */
+                y: number;
+                /** Zoom multiplier. A value of 1 means 100%. */
+                zoom: number;
+            }
+
+            /** Modifier-key snapshot supplied with selection callbacks. */
+            interface StateGraphPointerModifiers {
+                /** True when Ctrl or the platform command-selection modifier is active. */
+                ctrlKey: boolean;
+                /** True when Shift is active. */
+                shiftKey: boolean;
+            }
+
+            /** Imperative operations exposed through `StateGraphEditorProps.apiRef`. */
+            interface StateGraphEditorApi {
+                /** Pan the viewport to reveal the node and select it. */
+                focusNode(id: string): void;
+                /** Fit all nodes inside the current editor viewport. */
+                fitView(): void;
+                /** Begin interactive link creation from `sourceId`. */
+                beginLink(sourceId: string): void;
+                /** Cancel the current interactive link operation, if any. */
+                cancelLink(): void;
+                /** Convert browser client coordinates to graph coordinates. */
+                clientToGraph(clientX: number, clientY: number): XY;
+            }
+
+            /** Props for the controlled state-machine graph editor. */
+            interface StateGraphEditorProps {
+                /** Nodes to render. The component does not mutate this array. */
+                nodes: readonly StateGraphNode[];
+                /** Directed transitions to render. The component does not mutate this array. */
+                edges: readonly StateGraphEdge[];
+                /** Styles indexed by `StateGraphNode.kind`. */
+                nodeStyles?: Record<string, StateGraphNodeStyle>;
+                /** ID of the default/entry node, or null when there is none. */
+                defaultNodeId?: string | null;
+                /** Controlled selected node IDs. */
+                selectedNodeIds?: ReadonlySet<string> | readonly string[];
+                /** Controlled selected edge IDs. */
+                selectedEdgeIds?: ReadonlySet<string> | readonly string[];
+                /** Controlled viewport. Omit it to let the component hold transient viewport state. */
+                viewport?: StateGraphViewport;
+                /** Called after the user pans or zooms. Persist the value when `viewport` is controlled. */
+                onViewportChange?(viewport: StateGraphViewport): void;
+                /** Node width in graph units. Defaults to `NODE_WIDTH`. */
+                nodeWidth?: number;
+                /** Node height in graph units. Defaults to `NODE_HEIGHT`. */
+                nodeHeight?: number;
+                /** Minimum viewport zoom multiplier. */
+                minZoom?: number;
+                /** Maximum viewport zoom multiplier. */
+                maxZoom?: number;
+                /** Show the built-in zoom and fit controls. */
+                showControls?: boolean;
+                /** Called with the complete next selection after a pointer selection gesture. */
+                onSelectionChange?(nodeIds: string[], edgeIds: string[], mods: StateGraphPointerModifiers): void;
+                /** Called continuously while nodes are dragged. The host must apply the delta to its data. */
+                onNodesMove?(ids: string[], dx: number, dy: number): void;
+                /** Called once after a node drag ends, after the final `onNodesMove`. */
+                onNodeMoveEnd?(ids: string[]): void;
+                /** Return false to reject an attempted directed connection. */
+                canConnect?(sourceId: string, targetId: string): boolean;
+                /** Called when `beginLink` cannot find its source or `canConnect` rejects a clicked target. */
+                onConnectRejected?(sourceId: string, targetId: string | null): void;
+                /** Called for an accepted connection. The host must create and persist the edge. */
+                onConnect?(sourceId: string, targetId: string): void;
+                /** Called when a node is double-clicked. */
+                onNodeDoubleClick?(id: string): void;
+                /** Called when empty canvas is double-clicked, with graph coordinates. */
+                onPaneDoubleClick?(at: XY): void;
+                /** Called instead of the default node context menu when provided. */
+                onNodeContextMenu?(id: string, ev: React.MouseEvent): void;
+                /** Called instead of the default edge context menu when provided. */
+                onEdgeContextMenu?(id: string, ev: React.MouseEvent): void;
+                /** Called for an empty-canvas context menu, with graph coordinates. */
+                onPaneContextMenu?(ev: React.MouseEvent, at: XY): void;
+                /** Called when the user requests deletion of the current controlled selection. */
+                onDeleteSelection?(): void;
+                /** Receives the imperative API after mount. */
+                apiRef?: React.RefObject<StateGraphEditorApi | null>;
+                /** Additional CSS class for the editor root. */
+                className?: string;
+            }
+
+            // --- runtime values ---
+            /** Controlled React component for editing pinless state-machine graphs. */
+            const StateGraphEditor: (props: StateGraphEditorProps) => React.ReactElement;
+            /** Bundled component CSS. StateGraphEditor registers it automatically. */
+            const styles: string;
+            /** Default node width in graph units. */
+            const NODE_WIDTH: number;
+            /** Default node height in graph units. */
+            const NODE_HEIGHT: number;
+            /** Calculate a viewport that fits all nodes inside the supplied client size. */
+            const fitNodesToView: (
+                nodes: readonly StateGraphNode[],
+                viewW: number,
+                viewH: number,
+                nodeWidth?: number,
+                nodeHeight?: number,
+                padding?: number,
+            ) => StateGraphViewport;
+        }
+
 
         export interface IShell {
             // Docs: https://electronjs.org/docs/api/shell
@@ -1282,11 +2666,43 @@ declare global {
              * @param keys The keys of the settings to push. If not specified, all settings are pushed.
              */
             push?(keys?: ReadonlyArray<string>): Promise<void>;
+
+            /**
+             * Flush the changes to the storage immediately. Only meaningful for settings with delayed saving.
+             */
+            flush?(): void;
+        }
+
+        export interface ICreateSettingsOptions {
+            /**
+             * The location of the configuration file. The default is "project".
+             * - application: Saved to the user data directory of the application. On Windows, it is generally C:\Users\{user}\AppData\Local\{appname}, and on Mac, it is generally ~/Library/Application Support/{appname}. This means that this configuration needs to be shared across different projects.
+             * - project: Saved to the `settings` directory of the project. This means that this configuration is specific to the current project.
+             * - local: Saved to the `local` directory of the project. This means that this configuration is specific to the current project but does not need to be tracked by the version control system.
+             * - memory: Maintained only in memory and not saved to a file.
+             * - other value: specify the storage path of the configuration file by yourself. It is a relative path to the assets directory.
+             */
+            location?: SettingsLocation | string;
+
+            /**
+             * The data type corresponding to the configuration. If it is a string, it means that this type has been registered through typeRegistry. If it is FTypeDescriptor, it will be automatically registered when created. If it is a Function, it means that this is a class decorated with ＠IEditor.regClass.
+             */
+            type?: string | FTypeDescriptor | Function;
+
+            /**
+             * In general, custom configuration files are only used in the editor environment. If the configuration data also needs to be read at runtime, this parameter can be set to true, and then accessed at runtime through `Laya.PlayerConfig.XXX`, where `XXX` is the name of the configuration file.
+             */
+            contributeToPlayerConfig?: boolean;
+
+            /**
+             * The file name of the configuration file will be `{prefix}{name}.json`, where `prefix` is "Plugin-" by default, and `name` is the name passed in by the user. For example, if the name is "TestConfig", then the file name will be "Plugin-TestConfig.json". If you want to customize the file name, you can set this property. The file name should use characters that conform to file name specifications and should not contain the extension, as the extension will be automatically added. For example, if the file name is set to "MyConfig", then the actual file name will be "MyConfig.json". 
+             */
+            fileName?: string;
         }
 
         export interface ISettingsService {
             /**
-             * Create a built-in configuration file. This method is only available in the UI process. User should call this method directly.
+             * Enable a built-in settings definition. This method is only available in the UI process and is intended for IDE modules; plugins should use `Editor.extensionManager.createSettings`.
              * @param name The name of the settings.
              * @param location The location of the configuration file. The default is "project".
              * - application: Saved to the user data directory of the application. On Windows, it is generally C:\Users\{user}\AppData\Local\{appname}, and on Mac, it is generally ~/Library/Application Support/{appname}. This means that this configuration needs to be shared across different projects.
@@ -1298,26 +2714,39 @@ declare global {
             enableSettings(name: string, location?: SettingsLocation, typeName?: string): void;
 
             /**
-             * Create a built-in configuration file. This method is only available in the UI process. User should call this method directly.
+             * Enable a built-in asset-backed settings definition. This method is only available in the UI process and is intended for IDE modules; plugins should use `Editor.extensionManager.createSettings`.
              * @param name The name of the configuration. It should be unique within the editor and use characters that conform to file name specifications.
              * @param pathToAsset The path to the configuration file. It is a relative path to the assets directory.
              * @param typeName The data type corresponding to the configuration.
              */
             enableSettings(name: string, pathToAsset: string, typeName?: string): void;
+
+            /**
+             * Enable a built-in settings definition. This method is only available in the UI process and is intended for IDE modules; plugins should use `Editor.extensionManager.createSettings`.
+             * @param name The name of the configuration. It should be unique within the editor and use characters that conform to file name specifications.
+             * @param options Options to create the settings.
+             */
+            enableSettings(name: string, options?: ICreateSettingsOptions): void;
             /**
              * Query the settings by name.
              * @param name The name of the settings.
-             * @returns The settings.
+             * @returns The settings, or null when the name has not been registered.
              */
-            getSettings(name: string): ISettings;
+            getSettings(name: string): ISettings | null;
 
             /**
              * Query the settings type name.
              * @param name The name of the settings.
-             * @returns The type name of the settings.
+             * @returns The type name of the settings, or null when the name has not been registered.
              */
-            getSettingsType(name: string): string;
+            getSettingsType(name: string): string | null;
+
+            /**
+             * Flush the changes of all settings to the storage immediately. Only meaningful for settings with delayed saving.
+             */
+            flushChanges(): void;
         }
+
         export interface IServiceProvider {
             /**
              * Start the service.
@@ -1355,6 +2784,7 @@ declare global {
              */
             notifyAll(channel: string, ...args: any[]): void;
         }
+        /** Controls type metadata and default-value elimination during serialization. */
         export interface IEncodeObjOptions {
             /**
              * Write "_$type" field in the object. Default is false.
@@ -1366,6 +2796,7 @@ declare global {
             eliminateDefaults?: boolean;
         }
 
+        /** Controls validation and error collection during deserialization. */
         export interface IDecodeObjOptions {
             /**
              * An array to receive the errors during deserialization.
@@ -1387,6 +2818,11 @@ declare global {
             const isDeserializing: boolean;
 
             /**
+             * When a setter is called, this flag can be used to determine whether the call comes from the property panel setting (including undo)
+             */
+            const isSettingProp: boolean;
+
+            /**
              * Serialize an object to a plain object.
              * @param data Object to serialize.
              * @param typeDef Type descriptor of the object. 
@@ -1406,6 +2842,7 @@ declare global {
             function decodeObj(data: any, receiver?: any, type?: string, options?: IDecodeObjOptions): any;
         }
 
+        /** Optional lifecycle callback implemented by objects that need post-deserialization setup. */
         export interface ISerializeNotification {
             /**
              * This method is called after the object is deserialized.
@@ -1421,6 +2858,9 @@ declare global {
             onAfterDeserialize(): void;
         }
 
+        /**
+         * Dialog for choosing an asset. `getResult()` resolves to the selected asset, or `null` when cancelled.
+         */
         export interface ISelectResourceDialog extends IDialog {
             /**
              * Show the dialog.
@@ -1428,25 +2868,33 @@ declare global {
              * @param initialValue The id of the asset to select initially.
              * @param assetTypeFilter The asset type filter. Default is null, which means all types.
              * @param allowInternalAssets Whether to allow internal assets. Default is false.
-             * @param customFilter The custom filter. Developers can register custom filters by calling the `IEditorEnv.assetMgr.customAssetFilters` method in scene process.
+             * @param customFilter The custom filter. Register it through `EditorEnv.assetMgr.customAssetFilters` in the Scene process.
              * @param allowInternalGUIAssets Whether to allow internal GUI assets. Default is false.
              * @param needConfirm Whether to need confirm button. Default is false.
              */
-            show(popupOwner?: gui.Widget, initialValue?: string, assetTypeFilter?: AssetType[], allowInternalAssets?: boolean, customFilter?: string, allowInternalGUIAssets?: boolean, needConfirm?: boolean): Promise<void>;
+            show(popupOwner?: DialogPopupOwner, initialValue?: string, assetTypeFilter?: AssetType[], allowInternalAssets?: boolean, customFilter?: string, allowInternalGUIAssets?: boolean, needConfirm?: boolean): Promise<void>;
         }
+
         export interface ISelectNodeDialog extends IDialog {
             /**
              * Show the dialog.
              * @param popupOwner If the dialog is a popup window, it is used to calculate the popup position.
              * @param typeName The type name of the node. Default is "Node".
              */
-            show(popupOwner: gui.Widget, typeName?: string): Promise<void>;
+            show(popupOwner: DialogPopupOwner, typeName?: string): Promise<void>;
         }
+
+        /** Main-process facade for opening, saving, activating and playing Scene-process scenes. */
         export interface ISceneManager extends gui.EventDispatcher {
             /**
              * Scene process is running in a webview. This is the webview instance.
              */
             readonly sceneView: IWebview;
+
+            /**
+             * Preview process is running in a webview. This is the webview instance.
+             */
+            readonly gameView: IWebview;
 
             /**
              * Triggered when properties of a node is changed.
@@ -1507,9 +2955,12 @@ declare global {
             /**
              * Start playing the scene. 
              * 
-             * Dont call this method directly, use the play button in the editor or `Editor.panelManager.postMessage("GamePanel", "startGame")`
+             * Do not call this method directly; use the play button in the editor or `SceneEditor.playControls.play()`.
+             * 
+             * @param playing Whether to start or stop playing.
+             * @return Whether the operation is successful.
              */
-            setPlaying(playing: boolean): boolean;
+            setPlaying(playing: boolean): Promise<boolean>;
 
             /**
              * Whether any scene is playing.
@@ -1524,20 +2975,28 @@ declare global {
              */
             runSceneScript(command: string, ...params: any[]): Promise<any>;
         }
+
+        /** Synchronizes editable resource properties between the main and Scene processes. */
         export interface IResourceManager {
             /**
-             * Get the cached resource properties. 只有曾经对相同ID调用过getResourceProps，这个方法才会返回上次的结果。
-             * @param resId The resource id.
-             * @returns The resource data.
+             * Whether to allow saving resource changes in preview mode. If false, changes to resources in preview mode will not be saved to disk, and will be reverted when exiting preview mode. If true, changes to resources in preview mode will be saved to disk, and will persist after exiting preview mode. Default is true.
              */
-            getCachedResourceProps(resId: string): any;
+            allowSaveResourceChangesInPreview: boolean;
 
             /**
-             * Get the resource properties. 这个方法会在场景查询资源对象，如果资源已载入，则返回资源的属性，否则返回null。
+             * Get cached resource properties without loading them. The returned object is watched; property changes are saved and reflected in the editor.
              * @param resId The resource id.
+             * @returns The cached resource data, or `undefined` if the resource has not been loaded.
+             */
+            getCachedResourceProps<T = any>(resId: string): T | undefined;
+
+            /**
+             * Get the resource properties. This method will return the resource properties if the resource is already loaded, otherwise it will load the resource properties from disk. The returned object is a watched object, and changes to its properties will be automatically saved to disk and reflected in the editor.
+             * @param resId The resource id.
+             * @param inline Whether the properties are used for rendering the inspector inline within a node inspector.
              * @returns The resource data.
              */
-            getResourceProps(resId: string): Promise<any>;
+            getResourceProps<T = any>(resId: string, inline?: boolean): Promise<T>;
 
             /**
              * Save all dirty resources.
@@ -1550,6 +3009,7 @@ declare global {
              */
             cloneMaterial(asset: IAssetInfo): Promise<IAssetInfo>;
         }
+
 
         export interface IRendererInfo {
             /**
@@ -1571,6 +3031,11 @@ declare global {
              * The current application directory.
              */
             appPath: string;
+
+            /**
+             * The version of the application.
+             */
+            appVersion: string;
 
             /**
              * The path of the user data. 
@@ -1634,8 +3099,28 @@ declare global {
 
             /**
              * If the app is in the cli mode. A cli mode is a mode that runs the app in the command line.
+             * - watch: The app is running in the watch mode, which watches the file changes and compiles scripts.
+             * - run: The app is running in the run mode, which runs the script and exits.
              */
-            cliMode: boolean;
+            cliMode: false | "watch" | "run";
+
+            /**
+             * Extra TypeScript files passed by CLI run mode. These files are compiled
+             * into the scene script bundle without being imported as assets.
+             */
+            cliScriptFiles?: string[];
+
+            /**
+             * CLI-only option. When true, user scripts and package scripts are neither
+             * compiled nor loaded. Feature-pack scripts are still compiled and loaded.
+             */
+            disablePlugins?: boolean;
+
+            /**
+             * CLI-only option. When true, the package lock is loaded but package
+             * installation, updates, and pending package transactions are skipped.
+             */
+            skipPackageInstall?: boolean;
         }
 
         export interface IRendererStartupAction {
@@ -1665,14 +3150,35 @@ declare global {
             [index: string]: any;
         }
 
+
         export interface IRender3DCanvas extends gui.Widget {
+            /**
+             * Continuously request rendered frames (approximately 30 fps). Continuous
+             * rendering pauses while the widget is not visible or the editor window is
+             * not in the foreground. The default is false.
+             */
+            continuousRendering: boolean;
+
+            /**
+             * Continuous rendering rate in frames per second. Set to 0 for on-demand
+             * rendering. Values above 60 are clamped. `continuousRendering = true` is
+             * equivalent to setting this to 30.
+             */
+            continuousFrameRate: number;
+
+            /**
+             * Optional scene-process render target size. A stable size smaller than the
+             * default 800x600 reduces GPU readback and ImageBitmap transfer cost.
+             */
+            renderSize: { width: number; height: number } | null;
+
             /**
              * Whether createObject has been called.
              */
             readonly ready: boolean;
 
             /**
-             * Create an 3D object.
+             * Create a 3D object.
              * @param scriptName The script name of the object. The script must be registered in the scene process by using `＠IEditorEnv.regClass`.
              * @param initMethod The method to initialize the object.
              * @param initMethodArgs The arguments of the init method.
@@ -1702,6 +3208,7 @@ declare global {
              */
             refresh(): void;
         }
+
         export namespace IReflectUtils {
             /**
              * Define metadata for a target.
@@ -1731,24 +3238,850 @@ declare global {
             function getOwnMetadata(key: string, target: any, propertyName?: string): any;
         }
 
+        /**
+         * A gui.Widget subclass that hosts React content.
+         *
+         * Integrates into the FairyGUI hierarchy via `parent.addChild(reactDOM)`.
+         * `IEditor.ReactDOM` uses Shadow DOM by default for plugin style isolation;
+         * pass `{ shadow: false }` to opt out.
+         *
+         * @example Panel usage:
+         * ```tsx
+         * import styles from './MyPlugin.css';
+         *
+         * class MyPanel extends IEditor.EditorPanel {
+         *     private _react: IEditor.ReactDOM;
+         *     async create() {
+         *         this._panel = new gui.Widget();
+         *         this._react = new IEditor.ReactDOM();
+         *         this._react.adoptStyles(styles);
+         *         this._react.makeFullSize(this._panel, true);
+         *         this._panel.addChild(this._react);
+         *         this._react.render(<App />);
+         *     }
+         *     onDestroy() { this._react.dispose(); }
+         * }
+         * ```
+         *
+         * @example Dialog usage:
+         * ```tsx
+         * let reactDOM = new IEditor.ReactDOM();
+         * reactDOM.setSize(320, 200);
+         * dialog.contentPane = reactDOM;
+         * reactDOM.render(<MyForm />);
+         * ```
+         */
+        export interface IReactDOM extends gui.Widget {
+            /**
+             * The Shadow Root inside the widget's element.
+             * Use as a container for React Portals (dropdowns, modals, tooltips)
+             * that need to stay within the style-isolated boundary.
+             */
+            readonly shadowRoot: ShadowRoot | null;
+
+            /**
+             * The mount point div inside the Shadow DOM where React content is rendered.
+             */
+            readonly mountPoint: HTMLDivElement;
+
+            /**
+             * Render or update React content.
+             *
+             * Call once after setup, and again whenever you need to re-render
+             * (e.g. in response to editor events like `onSelectionChanged`).
+             *
+             * @param element A React element (JSX expression).
+             *
+             * @example
+             * ```tsx
+             * reactDOM.render(<App data={myData} />);
+             * ```
+             */
+            render(element: any): void;
+
+            /**
+             * Inject additional CSS into this container's Shadow DOM.
+             *
+             * Use with `.css` files imported as text strings. The IDE build pipeline
+             * includes a built-in css-text esbuild plugin that converts
+             * `import styles from './Foo.css'` into a string automatically.
+             *
+             * @param css CSS text to inject.
+             *
+             * @example
+             * ```ts
+             * import styles from './MyPlugin.css';
+             * reactDOM.adoptStyles(styles);
+             * ```
+             */
+            adoptStyles(css: string): void;
+
+            /**
+             * Unmount React tree and clean up resources.
+             * Call in `onDestroy()` of your panel or when the host widget is removed.
+             */
+            dispose(): void;
+        }
+
+        /** Displays an editor image or icon resolved from an editor URL, asset URL, or file URL. */
+        export interface EditorImageProps {
+            /** Image source. Supports editor resource URLs, asset URLs, file/data/blob/http URLs, and thumbnail URLs. */
+            src?: string;
+            /** Additional CSS class for the image wrapper. Defaults to the small icon style. */
+            className?: string;
+            /** Name written to the wrapper's data-icon attribute. Inferred from src when omitted. */
+            iconName?: string;
+            /** Set true to render an empty icon slot when the image source is missing or unresolved. */
+            placeholder?: boolean;
+        }
+
+        /** Renders translated editor text, optionally parsed as UBB or HTML. */
+        export interface LocalizedTextProps {
+            /** Translation key or literal text. */
+            value: string;
+            /** Variables passed to the translation formatter. */
+            options?: Record<string, unknown>;
+            /** Parse the translated text as UBB markup before rendering. */
+            ubb?: boolean;
+            /** Render the translated text as HTML. */
+            html?: boolean;
+        }
+
+        /** Input for selecting, displaying, dragging, and clearing a scene node reference. */
+        export interface NodeRefInputProps {
+            /** A resolved node, or serialized reference data containing _$ref and optional _$missing. */
+            value?: IMyNode | Record<string, unknown> | null;
+            /** Disables selection, drag/drop, and keyboard clearing. */
+            disabled?: boolean;
+            /** Allowed node or component type names. Component filters commit the matched component type. */
+            typeFilter?: string[];
+            /** CSS class for the root element. Defaults to the standard node reference input style. */
+            className?: string;
+            /** Called after the selected node is validated. compType is set when a component filter matched. */
+            onCommit(node: IMyNode | null, compType?: string): void | Promise<void>;
+            /** Called when serialized reference data has been resolved to a node, or failed to resolve. */
+            onNodeResolved?(node: IMyNode | null): void;
+        }
+
+        /** Input for selecting, displaying, dragging, copying, pasting, and clearing an asset reference. */
+        export interface ResourceInputProps {
+            /** Asset id/text, a resolved asset, or null for an empty value. */
+            value?: string | IAssetInfo | null;
+            /** Disables selection, drag/drop, keyboard editing, and menu actions that change the value. */
+            disabled?: boolean;
+            /** Allowed asset types. Values may be AssetType enum members or their string names. */
+            typeFilter?: Array<AssetType | string>;
+            /** Whether built-in editor assets can be selected. Defaults to true. */
+            allowInternalAssets?: boolean;
+            /** Whether built-in GUI assets can be selected. Defaults to false. */
+            allowInternalGUIAssets?: boolean;
+            /** Extra filter expression forwarded to the resource selection dialog. */
+            customFilter?: string;
+            /** Text shown in the empty state instead of the type-derived prompt. */
+            placeholder?: string;
+            /** CSS class for the root element. */
+            className?: string;
+            /** Commits both the serialized text value and the resolved asset, when available. */
+            onCommit(text: string, asset: IAssetInfo | null): void;
+            /** Called when the empty input is double-clicked to create or choose a new resource. */
+            onCreate?(): void | Promise<void>;
+        }
+
+        /** Input for selecting project font assets or system/custom fonts. */
+        export interface FontInputProps {
+            /** Font text, asset reference, resolved asset, or null for an empty value. */
+            value?: string | IAssetInfo | null;
+            /** Disables selection, drag/drop, keyboard clearing, and paste. */
+            disabled?: boolean;
+            /** Whether built-in editor font assets can be selected. Defaults to true. */
+            allowInternalAssets?: boolean;
+            /** Whether built-in GUI font assets can be selected. Defaults to false. */
+            allowInternalGUIAssets?: boolean;
+            /** Text shown as the font type in the empty state. Defaults to Font. */
+            placeholder?: string;
+            /** CSS class for the root element. */
+            className?: string;
+            /** Commits custom text, or a selected font asset when asset is non-null. */
+            onCommit(text: string | null, asset: IAssetInfo | null): void | Promise<void>;
+        }
+
+        /** Input for typing, dropping, and browsing for a filesystem path. */
+        export interface FileInputProps {
+            /** Current path. Null and undefined are displayed as an empty string. */
+            value?: string | null;
+            /** Disables typing, drag/drop, and browsing. */
+            disabled?: boolean;
+            /** Keeps selected and dropped paths absolute. Defaults to project-relative paths. */
+            absolutePath?: boolean;
+            /** Opens an open-file dialog by default, or a save dialog when set to save. */
+            action?: "open" | "save";
+            /** Options forwarded to the native open/save dialog. */
+            dialogOptions?: OpenDialogOptions | SaveDialogOptions;
+            /** Placeholder text or translation key. */
+            placeholder?: string;
+            /** CSS class for the root element. */
+            className?: string;
+            /** Commits the normalized path. Return false to reject the change. */
+            onCommit(value: string): boolean | void;
+        }
+
+        /** Color picker input. Color serialization and format conversion are handled by the caller. */
+        export interface ColorInputProps {
+            /** Current color, or null when a checkable input is unchecked. */
+            value?: gui.Color | null;
+            /** Color used when value is null but the input needs a preview or restored checked value. */
+            defaultValue?: gui.Color;
+            /** Disables toggling, editing, and paste. */
+            readonly?: boolean;
+            /** Forces committed colors to have alpha 1 and hides alpha editing. */
+            hideAlpha?: boolean;
+            /** Shows a checkbox that allows committing null. */
+            checkable?: boolean;
+            /** Commits the selected color, or null when unchecked. */
+            onCommit(value: gui.Color | null): void;
+        }
+
+        /** Shared options for gradient editing. */
+        export interface GradientInputOptions {
+            /** Locks the gradient interpolation mode when provided. Omit it to allow mode editing. */
+            lockMode?: number;
+            /** Maximum number of alpha stops. Zero or undefined means editor default. */
+            maxAlphaNum?: number;
+            /** Maximum number of color stops. Zero or undefined means editor default. */
+            maxColorNum?: number;
+        }
+
+        /** Editable gradient value used by the React gradient input. */
+        export interface GradientInputValue {
+            /** Gradient interpolation mode. */
+            mode: number;
+            /** Color stops. */
+            rgbElements: Array<{
+                /** Stop position normalized to 0..1. */
+                pos: number;
+                /** Stop color. */
+                color: gui.Color;
+            }>;
+            /** Alpha stops. */
+            alphaElements: Array<{
+                /** Stop position normalized to 0..1. */
+                pos: number;
+                /** Alpha value normalized to 0..1. */
+                alpha: number;
+            }>;
+        }
+
+        /** Gradient picker input. Data serialization is handled by the caller. */
+        export interface GradientInputProps extends GradientInputOptions {
+            /** Current gradient, or null when a checkable input is unchecked. */
+            value?: GradientInputValue | null;
+            /** Gradient used when value is null and a checked value needs to be created. */
+            defaultValue?: GradientInputValue;
+            /** Disables toggling, editing, and paste. */
+            readonly?: boolean;
+            /** Shows a checkbox that allows committing null. */
+            checkable?: boolean;
+            /** Hides alpha editing in the gradient editor. */
+            hideAlpha?: boolean;
+            /** Commits the edited gradient, or null when unchecked. */
+            onCommit(value: GradientInputValue | null): void;
+        }
+
+        /** Shared options that shape curve editing and preview behavior. */
+        export interface CurveInputOptions {
+            /** Minimum allowed key value. */
+            min?: number;
+            /** Maximum allowed key value. */
+            max?: number;
+            /** Maximum number of keyframes allowed in the editor. */
+            maxKeyFrame?: number;
+            /** Whether tangent-based curve interpolation is enabled. Defaults to true. */
+            isCurve?: boolean;
+            /** Enables weighted tangent editing. Defaults to false. */
+            isWeight?: boolean;
+            /** Forces start and end keys to exist. */
+            forceStartEndKeys?: boolean;
+            /** Normalizes displayed curve values into the curve range. */
+            isNormalization?: boolean;
+            /** Lower preview/editor range for the curve graph. */
+            curveMin?: number;
+            /** Upper preview/editor range for the curve graph. */
+            curveMax?: number;
+        }
+
+        /** One curve keyframe. Tangent and weight fields use the same numeric conventions as the curve editor. */
+        export interface CurveInputKey {
+            /** Key time. */
+            time: number;
+            /** Key value. */
+            value: number;
+            /** Outgoing tangent. */
+            outTangent?: number;
+            /** Outgoing tangent weight. */
+            outWeight?: number;
+            /** Incoming tangent. */
+            inTangent?: number;
+            /** Incoming tangent weight. */
+            inWeight?: number;
+            /** Weighted tangent mode. */
+            weightedMode?: number;
+        }
+
+        /** Editable curve value used by the React curve input. */
+        export interface CurveInputValue {
+            /** Ordered curve keys. */
+            keys: CurveInputKey[];
+            /** Lower preview/editor range for this value. */
+            curveMin: number;
+            /** Upper preview/editor range for this value. */
+            curveMax: number;
+        }
+
+        /** Curve editor input. Data serialization is handled by the caller. */
+        export interface CurveInputProps extends CurveInputOptions {
+            /** Current curve, or null when a checkable input is unchecked. */
+            value?: CurveInputValue | null;
+            /** Curve used when value is null and a checked value needs to be created. */
+            defaultValue?: CurveInputValue;
+            /** Disables toggling and editing. */
+            readonly?: boolean;
+            /** Shows a checkbox that allows committing null. */
+            checkable?: boolean;
+            /** Commits the edited curve, or null when unchecked. */
+            onCommit(value: CurveInputValue | null): void;
+        }
+
+        /** Shared options for polygon preview and editing. */
+        export interface PolygonInputOptions {
+            /** Optional image displayed behind the polygon. */
+            background?: ImageData | null;
+            /** Coordinate-space width used when no background image is supplied. */
+            sourceWidth?: number;
+            /** Coordinate-space height used when no background image is supplied. */
+            sourceHeight?: number;
+            /** Minimum number of polygon vertices. Defaults to 3. */
+            minPoints?: number;
+            /** Maximum number of polygon vertices. Zero or undefined means unlimited. */
+            maxPoints?: number;
+            /** Preview height in pixels. Defaults to 80. */
+            previewHeight?: number;
+        }
+
+        /** Polygon editor input. Coordinates are stored as x/y pairs in a flat array. */
+        export interface PolygonInputProps extends PolygonInputOptions {
+            /** Current polygon, or null when a checkable input is unchecked. */
+            value?: ReadonlyArray<number> | null;
+            /** Polygon used when value is null and a checked value needs to be created. */
+            defaultValue?: ReadonlyArray<number>;
+            /** Disables toggling and editing. */
+            readonly?: boolean;
+            /** Shows a checkbox that allows committing null. */
+            checkable?: boolean;
+            /** Commits the edited polygon, or null when unchecked. */
+            onCommit(value: number[] | null): void;
+        }
+
+        /** Text input with optional multiline, password, and editor i18n support. */
+        export interface TextInputProps {
+            /** Current text. Null and undefined are displayed as an empty string. */
+            value?: string | null;
+            /** Disables text editing and i18n actions. */
+            readonly?: boolean;
+            /** Placeholder text or translation key. */
+            placeholder?: string;
+            /** Renders a textarea that grows to fit its content. */
+            multiline?: boolean;
+            /** Renders a password input. Ignored for multiline inputs. */
+            password?: boolean;
+            /** Commits on every keystroke instead of only blur or Enter. */
+            submitOnTyping?: boolean;
+            /** Enables editor translation-key editing for the value. */
+            multiLanguage?: boolean;
+            /** Commits the text. Return false to reject and reset the displayed text. */
+            onCommit(value: string): boolean;
+        }
+
+        /** Search box with a leading search icon and clear button. */
+        export interface SearchInputProps {
+            /** Current search text. */
+            value: string;
+            /** Called whenever the search text changes. */
+            onChange(value: string): void;
+            /** Placeholder text. */
+            placeholder?: string;
+            /** Focuses the input after mount. */
+            autoFocus?: boolean;
+            /** CSS class for the root element. */
+            className?: string;
+            /** Optional key handler for the underlying input. */
+            onKeyDown?(event: React.KeyboardEvent<HTMLInputElement>): void;
+        }
+
+        /** Numeric input that supports typing, mouse drag stepping, and mouse wheel stepping while focused. */
+        export interface NumericInputProps {
+            /** Current numeric value. */
+            value: number;
+            /** Disables editing and stepping. */
+            disabled?: boolean;
+            /** Minimum allowed value. */
+            min?: number;
+            /** Maximum allowed value. */
+            max?: number;
+            /** Step used by drag, wheel, and slider controls. Defaults to the component step. */
+            step?: number;
+            /** Number of digits kept after the decimal point. */
+            fractionDigits?: number;
+            /** React content displayed before the input text. */
+            prefix?: React.ReactNode;
+            /** Text displayed after the input and ignored when parsing typed input. */
+            suffix?: string;
+            /** CSS class for the root element. */
+            className?: string;
+            /** Commits the number. Return false to reject and reset the displayed value. */
+            onCommit(value: number): boolean | void;
+        }
+
+        /** Numeric input paired with a range slider. */
+        export interface NumericInputWithSliderProps extends NumericInputProps {
+            /** Minimum slider value. Falls back to min or 0. */
+            sliderMin?: number;
+            /** Maximum slider value. Falls back to max or 100. */
+            sliderMax?: number;
+            /** Uses a symmetric slider mapping around value 1 for scale-like values. */
+            centeredAtOne?: boolean;
+        }
+
+        /** Numeric input pair with a dual-handle slider for editing a bounded range. */
+        export interface RangeInputProps {
+            /** Current range as an inclusive start/end pair. */
+            value: readonly [number, number];
+            /** Minimum allowed value and lower slider boundary. */
+            min: number;
+            /** Maximum allowed value and upper slider boundary. */
+            max: number;
+            /** Step used by the slider handles and keyboard controls. Defaults to 0.01. */
+            step?: number;
+            /** Number of digits kept after the decimal point. */
+            fractionDigits?: number;
+            /** Disables both numeric inputs and slider handles. */
+            disabled?: boolean;
+            /** Additional CSS class for the root element. */
+            className?: string;
+            /** Commits the updated start/end pair. */
+            onCommit(value: [number, number]): void;
+        }
+
+        /** One option in SelectInput. */
+        export interface SelectInputOption {
+            /** Serialized option value. */
+            value: string;
+            /** Display label. Defaults to value. */
+            label?: string;
+            /** Prevents this option from being selected. */
+            disabled?: boolean;
+            /** Tooltip text or translation key. */
+            title?: string;
+        }
+
+        /** Button-style select input backed by a Popup list. */
+        export interface SelectInputProps {
+            /** Current selected value. */
+            value?: string;
+            /** Static option list. */
+            items?: SelectInputOption[];
+            /** Disables opening and selection. */
+            disabled?: boolean;
+            /** CSS class for the trigger button. */
+            className?: string;
+            /** Inline style for the trigger button. */
+            style?: React.CSSProperties;
+            /** Extra CSS class for the popup list container. */
+            popupClassName?: string;
+            /** Text shown when no item matches the current value. */
+            placeholder?: string;
+            /** Maximum number of visible items before scrolling. Defaults to 20. */
+            visibleItemCount?: number;
+            /** Shows a filter input above the option list. */
+            searchable?: boolean;
+            /** Placeholder shown by the optional filter input. */
+            searchPlaceholder?: string;
+            /** Optionally provides or refreshes the item list before the popup opens. */
+            onBeforeOpen?(): SelectInputOption[] | void | Promise<SelectInputOption[] | void>;
+            /** Called when an enabled option is selected. */
+            onChange(value: string, item: SelectInputOption): void;
+        }
+
+        /** Wraps children with the editor tooltip behavior. */
+        export interface TooltipTargetProps {
+            /** Tooltip text. Null, undefined, and empty values disable the tooltip. */
+            tips?: string | null;
+            /** Delay before showing the tooltip, in milliseconds. Defaults to 800. */
+            delay?: number;
+            /** Tooltips in the same group skip the delay while moving continuously between targets. */
+            instantGroup?: string;
+            /** Element that should receive the tooltip. */
+            children: React.ReactNode;
+        }
+
+        /** Native button props with title handled by the editor tooltip system. */
+        export type ToolButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "title"> & {
+            /** Tooltip text. It is not forwarded as a native DOM title. */
+            title?: string | null;
+        };
+
+        /** Render props passed to Popup trigger renderers. */
+        export interface PopupTriggerProps {
+            /** Ref that must be attached to the trigger or anchor element. */
+            ref: React.RefObject<HTMLElement>;
+            /** Whether the popup is currently open. */
+            open: boolean;
+            /** Opens or cancels the popup depending on current state. */
+            toggle(): void;
+            /** Opens the popup. */
+            openPopup(): void;
+            /** Cancels/closes the popup. */
+            closePopup(): void;
+        }
+
+        /** Anchored popup that portals into the owner document or shadow root. */
+        export interface PopupProps {
+            /** Anchor element used for positioning. If omitted, use renderTrigger's ref. */
+            anchorRef?: React.RefObject<HTMLElement>;
+            /** Controlled open state. If omitted, Popup manages its own state. */
+            open?: boolean;
+            /** Requested popup width. The final width is at least the anchor width. */
+            width?: number;
+            /** Maximum popup height before viewport clamping. */
+            maxHeight?: number;
+            /** Gap in pixels between the anchor and the popup. */
+            gap?: number;
+            /** CSS class for the popup element. */
+            className?: string;
+            /** Called when the popup closes normally, such as by outside click. */
+            onClose?: () => void;
+            /** Called when the popup is opened. */
+            onOpen?: () => void;
+            /** Called when the popup is cancelled, such as by Escape or trigger toggle while open. */
+            onCancel?: () => void;
+            /** Renders the trigger and receives helpers for controlling the popup. */
+            renderTrigger?: (props: PopupTriggerProps) => React.ReactNode;
+            /** Popup content. */
+            children: React.ReactNode;
+        }
+
+        /** Direction controlled by a resize separator. Vertical resizes width, horizontal resizes height. */
+        export type ResizeHandleOrientation = "vertical" | "horizontal";
+
+        /** Initial value and optional bounds returned when a resize drag starts. */
+        export interface ResizeHandleStart {
+            /** Starting size or position value. */
+            value: number;
+            /** Minimum allowed value for this drag. Falls back to props.min. */
+            min?: number;
+            /** Maximum allowed value for this drag. Falls back to props.max. */
+            max?: number;
+        }
+
+        /** Keyboard and pointer accessible separator for resizing panels or regions. */
+        export interface ResizeHandleProps {
+            /** Additional CSS class for the handle. */
+            className?: string;
+            /** Inline style for the handle. */
+            style?: React.CSSProperties;
+            /** Resize axis. Vertical handles change width, horizontal handles change height. */
+            orientation: ResizeHandleOrientation;
+            /** Accessible label for the separator. */
+            ariaLabel?: string;
+            /** Current value used by keyboard resizing and aria-valuenow. */
+            value?: number;
+            /** Minimum allowed value. */
+            min?: number;
+            /** Maximum allowed value. */
+            max?: number;
+            /** Keyboard resize step in pixels. Defaults to 10. */
+            keyboardStep?: number;
+            /** Cursor shown during hover and drag. Defaults to the orientation cursor. */
+            cursor?: string;
+            /** Reverses pointer and keyboard delta direction. */
+            reverse?: boolean;
+            /** Disables pointer and keyboard resizing. */
+            disabled?: boolean;
+            /** Optional visual content inside the handle. */
+            children?: React.ReactNode;
+            /** Called before drag starts. Return false to cancel or return custom start bounds. */
+            onResizeStart?(event: React.PointerEvent<HTMLDivElement>): ResizeHandleStart | false | void;
+            /** Called with the resized value during pointer drag or keyboard resizing. */
+            onResize(value: number, event?: PointerEvent): void;
+            /** Called on double-click, or Enter when focused. */
+            onReset?(): void;
+        }
+
+        /** Stable pointer coordinates for a drag, including movement across same-origin frames. */
+        export interface PointerDragPosition {
+            /** Client X coordinate in the starting event's coordinate space. */
+            clientX: number;
+            /** Client Y coordinate in the starting event's coordinate space. */
+            clientY: number;
+            /** Horizontal distance from the drag start. */
+            deltaX: number;
+            /** Vertical distance from the drag start. */
+            deltaY: number;
+        }
+
+        /** Options for tracking a pointer drag beyond the starting editor surface. */
+        export interface PointerDragSessionOptions {
+            /** Pointer event that starts the drag. Native and React pointer events are supported. */
+            startEvent: PointerEvent | React.PointerEvent<Element>;
+            /** Called for pointer movement while the session is active. */
+            onMove(position: PointerDragPosition, event: PointerEvent): void;
+            /** Called once after normal completion, or with null after explicit cancellation. */
+            onEnd?(position: PointerDragPosition, event: PointerEvent | null): void;
+        }
+
+        /** Options for the editor-styled native drag preview. */
+        export interface EditorDragPreviewOptions {
+            /** Text displayed in the drag preview. */
+            label: string;
+            /** Number of dragged items. A badge is shown when greater than one. */
+            count?: number;
+            /** Element whose document and editor theme are used to create the preview. */
+            sourceElement: HTMLElement;
+        }
+
+        /** Props for the reusable React inspector panel view. */
+        export interface InspectorPanelProps {
+            model: IInspectorPanelModel;
+            className?: string;
+            /** Caption column width as a ratio of the panel width. Defaults to 0.34. */
+            captionWidthRatio?: number;
+        }
+
+        /** Props for a code element highlighted after rendering. */
+        export interface HighlightedCodeProps {
+            /** Raw code text. */
+            content: string;
+            /** Language name or alias. Takes precedence over fileName when both are provided. */
+            language?: string;
+            /** File name used to infer the language when language is omitted. */
+            fileName?: string;
+            /** Additional class names applied to the code element. */
+            className?: string;
+            /** Whether long lines wrap. Defaults to false. */
+            lineWrapping?: boolean;
+        }
+
+        /** Props for the lazily loaded CodeMirror editor. */
+        export interface CodeEditorProps {
+            /** Text displayed by the editor. */
+            content: string;
+            /** File name used to select syntax highlighting. */
+            fileName: string;
+            /** Prevents editing and saving when true. */
+            readOnly: boolean;
+            /** Wraps long lines instead of scrolling horizontally. Defaults to false. */
+            lineWrapping?: boolean;
+            /** Number of spaces used for indentation and the display width of tab characters. */
+            tabSize?: number;
+            /** Makes the Tab key indent text instead of moving focus. Defaults to true. */
+            indentWithTab?: boolean;
+            /** Displays the line-number gutter. Defaults to true. */
+            lineNumbers?: boolean;
+            /** Displays code-folding controls. Defaults to true. */
+            foldGutter?: boolean;
+            /** Enables the platform search shortcut. Defaults to false. */
+            search?: boolean;
+            /** Enables CodeMirror autocompletion. Defaults to false. */
+            autocompletion?: boolean;
+            /** Called whenever the editor content changes. */
+            onChange(content: string): void;
+            /** Called when the editor receives the platform save shortcut. */
+            onSave(): void;
+        }
+
+        /** React component exported by the optional code editor bundle. */
+        export type CodeEditorComponent = React.ComponentType<CodeEditorProps>;
+
+        /** Layout used by the read-only diff editor. */
+        export type DiffEditorViewMode = "unified" | "side-by-side";
+
+        /** Props for the lazily loaded, viewport-rendered CodeMirror diff editor. */
+        export interface DiffEditorProps {
+            /** Complete content before the change. */
+            before: string;
+            /** Complete content after the change. */
+            after: string;
+            /** Before filename used for language detection. Defaults to afterFileName. */
+            beforeFileName?: string;
+            /** After filename used for language detection. */
+            afterFileName: string;
+            /** Displays changes inline or in two aligned panes. */
+            viewMode: DiffEditorViewMode;
+            /** Wraps long lines instead of scrolling horizontally. Defaults to false. */
+            lineWrapping?: boolean;
+            /**
+             * Collapses unchanged ranges. Defaults to `{ margin: 3, minSize: 4 }`;
+             * pass false to keep every unchanged line visible.
+             */
+            collapseUnchanged?: false | {
+                /** Unchanged lines kept visible on each side of a change. Defaults to 3. */
+                margin?: number;
+                /** Minimum unchanged range eligible for collapsing. Defaults to 4. */
+                minSize?: number;
+            };
+            /** Additional class names applied to the diff container. */
+            className?: string;
+            /** Accessible label for the diff editor. */
+            ariaLabel?: string;
+        }
+
+        /** React component type for the read-only diff editor. */
+        export type DiffEditorComponent = React.ComponentType<DiffEditorProps>;
+
+        /** React component entry points exposed to editor plugins and external React integrations. */
+        export namespace ReactComponents {
+            /** Shared API for querying, compiling, importing, exporting, and deleting editor themes. */
+            const themeManager: IThemeManager;
+            /** Injects the editor React theme and component styles into a document. */
+            const injectStyles: (doc: Document) => void;
+            /**
+             * Registers component-owned CSS with the nearest IEditor.ReactDOM.
+             * Identical CSS is shared within the same Document or ShadowRoot and is
+             * released after the last mounted consumer unmounts. Call this at the top
+             * level of a React component and keep style arrays identity-stable.
+             *
+             * @example
+             * ```tsx
+             * import styles from "./MyControl.css";
+             * function MyControl() {
+             *     IEditor.React.useStyles(styles);
+             *     return <div className="my-plugin-control" />;
+             * }
+             * ```
+            */
+            const useStyles: (styles: string | readonly string[]) => void;
+            /** Returns the current IEditor.ReactDOM root and updates after cross-window moves. */
+            const useDOMRoot: () => Document | ShadowRoot | null;
+            /**
+             * Permanently registers imperative-module CSS in the target's Document or
+             * ShadowRoot. A stable, namespaced ID prevents repeated CSS processing.
+             * The first registration for an ID wins for the lifetime of that root.
+             */
+            const ensureStyles: (
+                target: Element | Document | ShadowRoot,
+                styleId: string,
+                styles: string | readonly string[],
+            ) => void;
+            /** Returns a version that changes after editor theme or appearance-token changes. */
+            const useThemeVersion: () => number;
+            /** Reads a required CSS px variable from a style, element, document, or the current document when source is null. */
+            const readCssPx: (source: CSSStyleDeclaration | Element | Document | null | undefined, property: string) => number;
+            /** Reads a required CSS string variable from a style, element, document, or the current document when source is null. */
+            const readCssString: (source: CSSStyleDeclaration | Element | Document | null | undefined, property: string) => string;
+            /** Displays an editor image or icon. */
+            const EditorImage: (props: EditorImageProps) => React.ReactNode;
+            /** Shared file tab bar model. */
+            const FileTabBar: new (options?: IFileTabBarOptions) => IFileTabBar;
+            /** Renders shared file tabs with heavy, light, or weak visual variants. */
+            const FileTabBarView: (props: IFileTabBarViewProps) => React.ReactElement;
+            /** Renders translated editor text. */
+            const LocalizedText: (props: LocalizedTextProps) => React.ReactNode;
+            /** Selects and displays a scene node reference. */
+            const NodeRefInput: (props: NodeRefInputProps) => React.ReactNode;
+            /** Selects and displays an asset reference. */
+            const ResourceInput: (props: ResourceInputProps) => React.ReactNode;
+            /** Selects and displays a project font asset or system/custom font. */
+            const FontInput: (props: FontInputProps) => React.ReactNode;
+            /** Edits and browses for a filesystem path. */
+            const FileInput: (props: FileInputProps) => React.ReactNode;
+            /** Edits a gui.Color value. */
+            const ColorInput: (props: ColorInputProps) => React.ReactNode;
+            /** Edits a gradient value. */
+            const GradientInput: (props: GradientInputProps) => React.ReactNode;
+            /** Edits a curve value. */
+            const CurveInput: (props: CurveInputProps) => React.ReactNode;
+            /** Edits a polygon value. */
+            const PolygonInput: (props: PolygonInputProps) => React.ReactNode;
+            /** Edits text. */
+            const TextInput: (props: TextInputProps) => React.ReactNode;
+            /** Edits search text. */
+            const SearchInput: (props: SearchInputProps) => React.ReactNode;
+            /** Edits a number. */
+            const NumericInput: (props: NumericInputProps) => React.ReactNode;
+            /** Edits a number with a slider. */
+            const NumericInputWithSlider: (props: NumericInputWithSliderProps) => React.ReactNode;
+            /** Edits a bounded numeric range with two number inputs and a dual-handle slider. */
+            const RangeInput: (props: RangeInputProps) => React.ReactNode;
+            /** Selects one option from a list. */
+            const SelectInput: (props: SelectInputProps) => React.ReactNode;
+            /** Adds editor tooltip behavior to children. */
+            const TooltipTarget: (props: TooltipTargetProps) => React.ReactNode;
+            /** Renders a native button whose title uses the editor tooltip behavior. */
+            const ToolButton: React.ForwardRefExoticComponent<ToolButtonProps & React.RefAttributes<HTMLButtonElement>>;
+            /** Renders anchored popup content. */
+            const Popup: (props: PopupProps) => React.ReactNode;
+            /** Resizes panels or regions with pointer and keyboard interactions. */
+            const ResizeHandle: (props: ResizeHandleProps) => React.ReactNode;
+            /** Creates the model used by the reusable React inspector panel. */
+            const InspectorPanelModel: new () => IInspectorPanelModel;
+            /** Renders a reusable inspector panel for objects added to its model. */
+            const InspectorPanel: (props: InspectorPanelProps) => React.ReactNode;
+            /** Tracks a pointer drag beyond editor surfaces and returns an idempotent cancellation function. */
+            const beginPointerDragSession: (options: PointerDragSessionOptions) => () => void;
+            /** Sets an editor-styled preview image for a native drag operation. */
+            const setEditorDragPreview: (dataTransfer: DataTransfer, options: EditorDragPreviewOptions) => void;
+            /** CodeMirror editor that loads its implementation on first render. */
+            const CodeEditor: CodeEditorComponent;
+            /**
+             * Read-only CodeMirror diff viewer. It renders only the visible viewport and
+             * is the recommended component for large-file diffs instead of constructing
+             * a complete highlighted Diff HTML tree.
+             *
+             * @example
+             * ```tsx
+             * <IEditor.React.DiffEditor
+             *     before={previousSource}
+             *     after={currentSource}
+             *     beforeFileName="Player.ts"
+             *     afterFileName="Player.ts"
+             *     viewMode="side-by-side"
+             *     ariaLabel="Player changes"
+             * />
+             * ```
+             */
+            const DiffEditor: DiffEditorComponent;
+            /** Highlights a code element and installs its theme into the element's current root. */
+            const highlightElement: (element: HTMLElement) => void;
+            /** Renders a code element and highlights it after each content change. */
+            const HighlightedCode: (props: HighlightedCodeProps) => React.ReactElement;
+        }
+
         export interface IQRCodeDialog extends IDialog {
             /**
              * Show the dialog.
              * @param popupOwner If the dialog is a popup window, it is used to calculate the popup position.
              * @param url The URL to generate the QR code.
              */
-            show(popupOwner: gui.Widget, url: string): Promise<void>;
+            show(popupOwner: DialogPopupOwner, url: string): Promise<void>;
         }
+
+        export type IPropertyFieldConstructor = new () => IPropertyField;
+
         export interface IPropertyFieldCreateResult {
             /**
-             * Display widget of the property field.
+             * Display widget of the property field. Existing FGUI fields return this.
              */
-            ui: gui.Widget;
+            ui?: gui.Widget;
 
             /**
              * Whether the width of the widget should be stretched according to the inspector panel. Default is true.
              */
             stretchWidth?: boolean;
+
+            /**
+             * Whether the React field should fill the remaining vertical space in the Inspector viewport.
+             * The Inspector host observes layout changes and updates the field height automatically.
+             */
+            fillRemainingHeight?: boolean;
 
             /**
              * Caption display option. Default is "normal".
@@ -1767,13 +4100,34 @@ declare global {
              * By default, the widget will have a minimum height. Set this to true to disable the minimum height.
              */
             noMinHeight?: boolean;
+
+            /**
+             * Additional CSS used by a React property field.
+             *
+             * The owning ReactDOM injects these styles once per unique CSS source in
+             * the current Document or ShadowRoot and keeps them alive while at least
+             * one field instance is using them. Plugin styles should still use a
+             * plugin-specific root class because fields share that style root with
+             * other editor UI.
+             */
+            styles?: string;
         }
 
-        export interface IPropertyField extends gui.TreeNode {
+        export interface IPropertyField {
             /**
              * Parent field.
              */
             get parent(): IPropertyField;
+
+            /**
+             * Child fields.
+             */
+            readonly children: ReadonlyArray<IPropertyField>;
+
+            /**
+             * Whether the field has child-like structure.
+             */
+            readonly isFolder: boolean;
 
             /**
              * Owner inspector.
@@ -1816,10 +4170,33 @@ declare global {
             memberProps: Array<FPropertyDescriptor>;
 
             /**
-             * In this method, you should create the widget of the property field.
+             * Tag of the property field. If a field has a tag, you can find it by the tag, and if it is changed, you will be notified.
+             */
+            tag: string;
+
+            /**
+             * In this method, you should create the legacy view and initialize field metadata.
+             * Return `ui` for FGUI fields. React fields should initialize layout/watch/member options here.
+             * Return their React view from `render()`.
              * @return The create result.
              */
             create(): IPropertyFieldCreateResult;
+
+            /**
+             * Add a child field.
+             */
+            addChild(child: IPropertyField): IPropertyField;
+
+            /**
+             * Remove a child field.
+             */
+            removeChild(child: IPropertyField): IPropertyField;
+
+            /**
+             * React renderer for the property field. When provided, the React inspector calls this on the field instance itself.
+             * Use `this.property`, `this.target`, `this.children`, and other field members directly.
+             */
+            render?(): ReactNode;
 
             /**
              * Set the field to be readonly or not.
@@ -1883,14 +4260,14 @@ declare global {
              * @param name The name of the property.
              * @return The field found, or null if not found.
              */
-            findBrotherField(name: string): IPropertyField;
+            findBrotherField(name: string): IPropertyField | null;
 
             /**
              * Find a child field by name. 
              * @param name The name of the property.
              * @return The field found, or null if not found.
              */
-            findChildField(name: string): IPropertyField;
+            findChildField(name: string): IPropertyField | null;
 
             /**
              * Get the status of the field.
@@ -1926,7 +4303,7 @@ declare global {
              * Paste the data to the field. If the data is not compatible with the field, it will do nothing.
              * @param data The data to paste. If not provided, it will try to get the data from the clipboard.
              */
-            pasteData(data?: any): void;
+            pasteData(data?: any): Promise<void>;
 
             /**
              * Reset the data of the field to the default value.
@@ -1936,7 +4313,214 @@ declare global {
             /**
              * Check if any clipboard data that can be pasted.
              */
-            hasClipboardData(): boolean;
+            hasClipboardData(): Promise<boolean>;
+        }
+
+        /**
+         * The numeric `type` value used to mark a template as user-imported local template.
+         * Built-in / cloud templates use small numbers (0 core, 1 sample, 2 learning, 4 purchased);
+         * the local type sits above that range to avoid collisions.
+         */
+        export const LOCAL_TYPE = 100000000;
+
+        /**
+         * Where a template comes from. Used together with the template name to uniquely reference
+         * a template via {@link IProjectTemplateManager.findTemplate}.
+         *
+         * - `builtin` — shipped with the IDE under `unpackedWebRootPath/template/project/`.
+         * - `cloud` — published on the LayaAir template server; may or may not be downloaded locally.
+         * - `local` — imported by the user from a zip, stored under `LocalTemplate/`.
+         * - `purchased` — purchased on the LayaAir asset store.
+         */
+        export type TemplateSource = 'builtin' | 'cloud' | 'local' | 'purchased';
+
+        /**
+         * Describes a single template entry tracked by the project manager.
+         *
+         * A template may be fully local (built-in / downloaded / user-imported), fully remote
+         * (only a cloud listing entry), or a hybrid (local copy of a remote template, possibly outdated).
+         *
+         * The raw bilingual fields in `info` / `netInfo` are kept untouched — callers reading
+         * `info.name` get the Chinese name, `info.en?.name` the English. View code is responsible
+         * for picking the right one based on the current language.
+         */
+        export interface ITemplateData {
+            /**
+             * Where this template comes from. Combined with the template name, this is the stable
+             * coordinate used by {@link IProjectTemplateManager.findTemplate}.
+             */
+            source: TemplateSource;
+
+            /**
+             * Remote metadata fetched from the cloud project list.
+             * Present for templates that exist on the server. When `info` is missing but `netInfo` is set,
+             * the template has not been downloaded yet.
+             *
+             * Common fields: `name`, `desc`, `en.name`, `en.desc`, `id`, `ver`, `type`, `templateURL`, `preview`, `icon`.
+             */
+            netInfo?: any;
+
+            /**
+             * Local metadata parsed from `<dir>/<templateDirName>/info.json`.
+             * Present when the template is available locally. When missing, the template still needs to be downloaded.
+             *
+             * Common fields: `name`, `desc`, `en.name`, `en.desc`, `id`, `ver`, `type`, `ord`.
+             */
+            info?: any;
+
+            /**
+             * Absolute path of the template root directory on disk (parent of `templateDirName`).
+             * Empty / undefined for cloud-only entries.
+             */
+            dir?: string;
+
+            /**
+             * The metadata directory name inside `dir`, either `"templateInfo"` or `".templateInfo"`
+             * depending on how the template was packaged.
+             */
+            templateDirName?: string;
+
+            /**
+             * For purchased templates: the raw store resource object returned by the asset store API.
+             * Contains `resource_name`, `resource_description`, `resource_cover`, `version`, `size`, etc.
+             */
+            resource?: any;
+
+            /**
+             * For purchased templates: the store resource id.
+             */
+            resource_id?: any;
+
+            /**
+             * For purchased templates: the per-user purchase id used to request the download URL.
+             */
+            user_resource_id?: any;
+
+            /**
+             * For purchased templates: human-readable purchase timestamp from the store API.
+             */
+            ['@timestamp_format']?: string;
+        }
+
+        /**
+         * Parameters for {@link IProjectTemplateManager.createProject}.
+         */
+        export interface ICreateProjectOptions {
+            /** Project name. Used both as the `.laya` descriptor filename and (when `subdir` is true) as the leaf directory name. */
+            name: string;
+
+            /** Parent directory the project should be created under. */
+            path: string;
+
+            /** When true, the project is created at `path/name/`. When false, files are written directly into `path`. */
+            subdir?: boolean;
+
+            /** The template to instantiate from. Must already be downloaded (have `info` and `dir`). */
+            template?: ITemplateData;
+        }
+
+        export interface IProjectTemplateManager {
+            /**
+             * Load the full template catalog: built-in templates, downloaded cloud templates,
+             * user-imported local templates, the remote project list, and the purchased list.
+             *
+             * Idempotent and reentrant — concurrent or repeated calls return the same in-flight promise
+             * instead of reloading.
+             */
+            loadTemplates(): Promise<void>;
+
+            /**
+             * Rescan the user's `LocalTemplate/` directory and update {@link templates}.
+             * Use after importing or deleting a local template to reflect the change without a full reload.
+             */
+            refreshLocalTemplates(): void;
+
+            /**
+             * The current template catalog. Mutated in place when templates are downloaded, imported,
+             * renamed, or deleted — readers should re-render after invoking any mutating method.
+             */
+            readonly templates: ReadonlyArray<ITemplateData>;
+
+            /**
+             * Purchased-template entries fetched from the store API during {@link loadTemplates}.
+             * Empty when the user is offline or not signed in.
+             */
+            readonly purchasedList: ReadonlyArray<any>;
+
+            /**
+             * Look up a template by its source and name. Matches against the Chinese name (`info.name`
+             * / `netInfo.name` / `resource.resource_name`) as well as the English name (`info.en.name`
+             * / `netInfo.en.name`), so callers can use whichever they have.
+             *
+             * If multiple templates share the same name within a source (e.g. two user-imported local
+             * templates with the same name), the first match in catalog order is returned.
+             *
+             * @param source - Where to look. See {@link TemplateSource}.
+             * @param name - The Chinese or English display name of the template.
+             * @returns The matching template, or `undefined` if not found.
+             */
+            findTemplate(source: TemplateSource, name: string): ITemplateData | undefined;
+
+            /**
+             * Synthesize an {@link ITemplateData} from a raw entry in {@link purchasedList}.
+             * Purchased templates are kept as raw store-API rows; this turns one into the unified
+             * template shape so the rest of the pipeline (`createProject`, `downloadProjectTemplate`,
+             * view models) can treat it the same as any other template.
+             */
+            buildPurchasedTemplate(entry: any): ITemplateData;
+
+            /**
+             * Download (or re-download) the zip for a template and unpack it into the cache directory.
+             * Updates `data.info` / `data.dir` / `data.templateDirName` on success so the template
+             * becomes usable for {@link createProject}.
+             *
+             * Concurrent calls for the same template URL share a single download — additional callers
+             * piggyback on the in-flight progress.
+             *
+             * @param data - The template entry to download. Must have `netInfo` (built-in/cloud) or `user_resource_id` (purchased).
+             * @param progressCallback - Receives integer progress in `[0, 100]`. Called with `100` after the local data update completes.
+             * @returns `true` if the download/unpack succeeded; `false` if no download URL could be resolved.
+             */
+            downloadProjectTemplate(
+                data: ITemplateData,
+                progressCallback?: (progress: number) => void
+            ): Promise<boolean>;
+
+            /**
+             * Import a user-supplied template zip into `LocalTemplate/`. The zip is unpacked, its
+             * `info.json` is normalized (with `type = LOCAL_TYPE`), and {@link templates} is updated.
+             *
+             * @param zipPath - Absolute path of the zip file to import.
+             */
+            importLocalTemplate(zipPath: string): Promise<void>;
+
+            /**
+             * Delete a user-imported local template from disk and remove it from {@link templates}.
+             * No-op for non-local templates or entries whose `dir` no longer exists.
+             */
+            deleteLocalTemplate(data: ITemplateData): void;
+
+            /**
+             * Rename a user-imported local template. Updates the in-memory `data.info.name` and
+             * writes the change back to the on-disk `info.json`.
+             */
+            setLocalTemplateName(data: ITemplateData, name: string): void;
+
+            /**
+             * Create a new project on disk from a template:
+             * write the `.laya` descriptor, scaffold the standard subdirectories, overlay the `common`
+             * base layer and the chosen template, and copy engine `.d.ts` files.
+             *
+             * @returns The absolute path of the created project root.
+             */
+            createProject(opts: ICreateProjectOptions): Promise<string>;
+
+            /**
+             * Clear the template download cache: remove cached zip / extracted directories and reset
+             * the in-memory dedupe map. Entries in {@link templates} that pointed into the cache are
+             * downgraded back to cloud-only state (their `info` / `dir` are cleared).
+             */
+            clearTemplateCache(): Promise<void>;
         }
 
         export interface IProjectPanel extends IEditorPanel {
@@ -2003,14 +4587,15 @@ declare global {
             /**
              * Create a new asset.
              * @param fileName The file name.
-             * @param templateName The template name. It can be a absolute path or a file name. If it is a file name, the default template path will be used.
+             * @param templateName The template name, an absolute path, or a file name resolved from the default template directory.
              * @param args The template arguments.
+             * @param isContext Whether to create the asset in the current context folder.
              * @example
              * ```
              * this.createAsset("Scene.ls", "Scene.json");
              * ```
              */
-            createAsset(fileName: string, templateName: string, args?: Record<string, string>): Promise<void>;
+            createAsset(fileName: string, templateName: string, args?: Record<string, string>, isContext?: boolean): Promise<void>;
 
             /**
              * Create a new folder.
@@ -2018,11 +4603,28 @@ declare global {
              */
             createFolder(folderName?: string): void;
         }
+
         export interface IPreviewPanel extends IEditorPanel {
             /**
              * Toolbar widget. If provided, it will be added to the toolbar holder.
              */
             toolbar?: gui.Widget;
+
+            /**
+             * React toolbar renderer. If provided, PreviewPanel will render this
+             * instead of the legacy toolbar widget.
+             */
+            renderToolbar?(): ReactNode;
+
+            /**
+             * React renderer for information displayed below the preview canvas.
+             */
+            renderInfo?(): ReactNode;
+
+            /**
+             * Display preview information over the canvas instead of reserving space below it.
+             */
+            infoOverlay?: boolean;
 
             /**
              * Test if the panel can accept the asset.
@@ -2047,6 +4649,7 @@ declare global {
              */
             rotateObject?(x: number, y: number): void;
         }
+
         export interface IPlist {
             /**
              * Parse a plist format string to an object.
@@ -2077,6 +4680,50 @@ declare global {
              */
             buildPlist(obj: Record<string, any>): string;
         }
+        /** Options for converting Chinese text to a pinyin string. */
+        export interface IPinyinOptions {
+            /** Tone output format. The default is `symbol`. */
+            toneType?: "symbol" | "num" | "none";
+            /** Part of each syllable to return. The default is `pinyin`. */
+            pattern?: "pinyin" | "initial" | "final" | "num" | "first" | "finalHead" | "finalBody" | "finalTail";
+            /** Whether to remove non-Chinese characters. */
+            removeNonZh?: boolean;
+            /** How non-Chinese characters are separated or removed. */
+            nonZh?: "spaced" | "consecutive" | "removed";
+            /** Limits which non-Chinese characters are affected by `nonZh`. */
+            nonZhScope?: RegExp;
+            /** Converts `ü` to `v`, or to a custom string, when tones are disabled. */
+            v?: boolean | string;
+            /** Whether `y` and `w` are treated as initials. */
+            initialPattern?: "yw" | "standard";
+            /** Enables traditional Chinese character recognition. */
+            traditional?: boolean;
+            /** Returns all pronunciations for a single polyphonic character. */
+            multiple?: boolean;
+            /** Prioritizes normal pronunciation or surname pronunciation. */
+            mode?: "normal" | "surname";
+            /** Controls where surname pronunciation mode is applied. */
+            surname?: "all" | "head" | "off";
+            /** Enables tone sandhi for 一 and 不. */
+            toneSandhi?: boolean;
+            /** Selects the tokenization algorithm. */
+            segmentit?: 1 | 2 | 3;
+            /** String output is the only format supported by this API. */
+            type?: "string";
+            /** Separator inserted between pinyin syllables. */
+            separator?: string;
+        }
+
+        /** Pinyin conversion utilities exposed by the editor. */
+        export interface IPinyinUtils {
+            /**
+             * Convert Chinese text to pinyin. In CLI mode, the original string is returned unchanged.
+             * @param word The text to convert.
+             * @param options Pinyin conversion options.
+             */
+            pinyin(word: string, options?: IPinyinOptions): string;
+        }
+
         export interface IPanelManagerOptions {
             /**
              * Layout file path.
@@ -2087,7 +4734,6 @@ declare global {
              * Create a Panel menu in the main menu bar.
              */
             createMenu?: boolean,
-
             /**
              * Manager can have multiple groups of panels. The group with name 'default' is the default group, and it is required.
              * 
@@ -2143,7 +4789,7 @@ declare global {
 
             /**
              * Set the title of a panel.
-             * @param panel The panel.
+             * @param panelId The panel id.
              * @param title The title.
              */
             setPanelTitle(panelId: string, title: string): void;
@@ -2180,11 +4826,19 @@ declare global {
             isPanelShowing(panelId: string): boolean;
 
             /**
-             * Get the active panel in a grid wich contains the sepecified panel.
+             * Whether a panel is currently the only tab in the only grid of a popup
+             * window.
              * @param panelId The panel id.
-             * @return The active panel id.
+             * @returns True if the panel is alone in a single-grid popup, otherwise false.
              */
-            getActivePanelInGroup(panelId: string): string;
+            isPanelAloneInSingleGridPopup(panelId: string): boolean;
+
+            /**
+             * Get the active panel in the grid that contains the specified panel.
+             * @param panelId The panel id.
+             * @return The active panel id, or null if the panel does not exist or is not in a grid.
+             */
+            getActivePanelInGroup(panelId: string): string | null;
 
             /**
              * Start the panel manager.
@@ -2237,6 +4891,58 @@ declare global {
             postMessage(panelId: string, cmd: string, ...args: Array<any>): void;
         }
 
+        export type PackageOperationPhase = "collectDependencies" | "precompile" | "compress" | "download" | "extract";
+
+        export interface IPackageOperationProgress {
+            phase: PackageOperationPhase;
+            detail?: string;
+            value?: number;
+            max?: number;
+        }
+
+        export interface IPackageOperationOptions {
+            abortToken?: IAbortToken;
+            onProgress?: (progress: IPackageOperationProgress) => void;
+        }
+
+        export interface IExportPackageOptions extends IPackageOperationOptions {
+            includeDependencies?: boolean;
+        }
+
+        export type IExportInstallablePackageOptions = IPackageOperationOptions;
+
+        export interface IPackageImportSession {
+            /** File entries contained in the package. */
+            readonly entries: ReadonlyArray<string>;
+
+            /** Extract selected entries and their metadata files into the project assets directory. */
+            importEntries(entries: ReadonlyArray<string>, options?: IPackageOperationOptions): Promise<boolean>;
+
+            /** Extract selected entries into a specified directory, preserving their paths in the package. */
+            extractEntriesTo(entries: ReadonlyArray<string>, destination: string, options?: IPackageOperationOptions): Promise<boolean>;
+
+            /** Close the package and delete temporary downloads. */
+            dispose(): void;
+        }
+
+        export namespace IPackageTool {
+            /**
+             * Export assets to a Laya resource package.
+             * Precompilation is enabled only when assetIdsOrPaths contains exactly one folder. Only package.json directly inside that folder is checked.
+             */
+            function exportPackage(assetIdsOrPaths: ReadonlyArray<string>, outputPath: string, options?: IExportPackageOptions): Promise<boolean>;
+
+            /**
+             * Export one package folder as an installable .layapkg file with package.json at the archive root.
+             * The folder may be identified by an asset id or by an absolute/project-relative path inside the current project.
+             * It must contain a valid package.json directly inside it.
+             */
+            function exportInstallablePackage(packageFolderIdOrPath: string, outputPath: string, options?: IExportInstallablePackageOptions): Promise<boolean>;
+
+            /** Open a local or remote Laya resource package for inspection and selective import. */
+            function openPackage(source: string, options?: IPackageOperationOptions): Promise<IPackageImportSession>;
+        }
+
         export interface IObjectUtils {
 
             /**
@@ -2253,6 +4959,12 @@ declare global {
              * @returns The cloned object.
              */
             deepCloneObj(obj: any): any;
+
+            /**
+             * Creates a cycle-free snapshot containing only primitives, arrays and plain objects.
+             * Throws when the value contains cycles or unsupported runtime objects.
+             */
+            clonePlainData<T>(value: T): T;
 
             /**
              * Merge two objects. 
@@ -2324,7 +5036,14 @@ declare global {
             getDataByPath(obj: any, datapath: ReadonlyArray<string>, pathLen?: number): any;
 
             /**
-             * Whether an object is empty. A empty object has no properties.
+             * Whether a value has enumerable string-keyed properties.
+             * @param value The value to inspect.
+             * @param ignoreEditorInternal Whether properties prefixed with `_$` should be ignored.
+             */
+            hasEnumerableProperties(value: unknown, ignoreEditorInternal?: boolean): boolean;
+
+            /**
+             * Whether an object has no enumerable properties other than editor-internal properties prefixed with `_$`.
              * @param obj The object to check.
              * @returns True if the object is empty, otherwise false. 
              */
@@ -2360,6 +5079,7 @@ declare global {
              */
             assignObject(target: any, source: any): any;
         }
+
         export interface IFetchResponseTypeMap {
             "text": string;
             "json": any;
@@ -2742,28 +5462,28 @@ declare global {
              * @param id The id of the node.
              * @return The node if found; otherwise, null. 
              */
-            getNode(id: string): IMyNode;
+            getNode(id: string): IMyNode | null;
 
             /**
              * Get a node by id asynchronously.
              * @param id The id of the node.
              * @return The node if found; otherwise, null.
              */
-            getNodeAsync(id: string): Promise<IMyNode>;
+            getNodeAsync(id: string): Promise<IMyNode | null>;
 
             /**
              * Get top prefab of a node. Top prefab is the prefab which is not nested in another prefab.
              * @param node The node.
              * @return The top prefab if found; otherwise, null. 
              */
-            getTopPrefab(node: IMyNode): Promise<IMyNode>;
+            getTopPrefab(node: IMyNode): Promise<IMyNode | null>;
 
             /**
              * Get prefab id of a node.
              * @param node The node.
              * @return The prefab id if found; otherwise, null. 
              */
-            getPrefabId(node: IMyNode): Promise<string>;
+            getPrefabId(node: IMyNode): Promise<string | null>;
 
             /**
              * Create a new node. 
@@ -2775,7 +5495,7 @@ declare global {
              * @param options Options for creating the node.
              * @return The new node if created successfully; otherwise, null.
              */
-            createNode(nodeType: string, props?: Record<string, any>, parentNode?: IMyNode, options?: ICreateNodeOptions): Promise<IMyNode>;
+            createNode(nodeType: string, props?: Record<string, any>, parentNode?: IMyNode, options?: ICreateNodeOptions): Promise<IMyNode | null>;
 
             /**
              * Create a new node by asset. 
@@ -2786,7 +5506,7 @@ declare global {
              * @param parentNode The parent node of the new node. If not specified, the new node will be a root node. Be aware that the new node will not be added to this node. 
              * @param options Options for creating the node. 
              */
-            createNodeByAsset(assetId: string, props?: Record<string, any>, parentNode?: IMyNode, options?: ICreateNodeOptions): Promise<IMyNode>;
+            createNodeByAsset(assetId: string, props?: Record<string, any>, parentNode?: IMyNode, options?: ICreateNodeOptions): Promise<IMyNode | null>;
 
             /**
              * Instantiate a prefab.
@@ -2796,7 +5516,7 @@ declare global {
              * @param options Options for creating the node.
              * @return The new node if instantiated successfully; otherwise, null. 
              */
-            instantiatePrefab(assetId: string, props?: Record<string, any>, parentNode?: IMyNode, options?: ICreateNodeOptions): Promise<IMyNode>;
+            instantiatePrefab(assetId: string, props?: Record<string, any>, parentNode?: IMyNode, options?: ICreateNodeOptions): Promise<IMyNode | null>;
 
             /**
              * Delete a node.
@@ -2864,7 +5584,7 @@ declare global {
              * @param props Initial properties of the component.
              * @return The new component if added successfully; otherwise, null. 
              */
-            addComponent(node: IMyNode, componentType: string, props?: Record<string, any>): Promise<IMyComponent>;
+            addComponent(node: IMyNode, componentType: string, props?: Record<string, any>): Promise<IMyComponent | null>;
 
             /**
              * Remove a component from a node.
@@ -2936,9 +5656,10 @@ declare global {
             /**
              * Paste the copied nodes.
              * @param inPlace If true, the nodes will be pasted in place, which means the position of the nodes will not change. Default is false.
+             * @param asChild If true, the nodes will be pasted as children of the first selected node. Default is false.
              * @return The new nodes.
              */
-            pasteNodes(inPlace?: boolean): Promise<Array<IMyNode>>;
+            pasteNodes(inPlace?: boolean, asChild?: boolean): Promise<Array<IMyNode>>;
 
             /**
              * Duplicate the selected nodes.
@@ -2977,7 +5698,7 @@ declare global {
              * @param resId The id of the resource.
              * @return The properties of the resource. 
              */
-            getResourceProps(resId: string): Promise<any>;
+            getResourceProps<T = any>(resId: string): Promise<T>;
 
             /**
              * Send a message to the scene process.
@@ -2993,7 +5714,15 @@ declare global {
              * @return The response of the message. 
              */
             invoke(channel: string, ...args: any[]): Promise<any>;
+
+            /**
+             * Check if the object is a node in the scene.
+             * @param node The object to check.
+             * @return True if the object is a node in the scene; otherwise, false.
+             */
+            isNode(node: any): boolean;
         }
+
         export var PrefabOverridesKey: symbol;
 
         export enum NodeFeatures {
@@ -3009,6 +5738,7 @@ declare global {
             HideByEditor = 1024,
             LockByEditor = 2048,
             PrefabMissing = 4096,
+            HasScript = 8192,
         }
 
         export interface IMyNode {
@@ -3137,10 +5867,10 @@ declare global {
             /**
              * Get the component by type.
              * @param type The type of the component. If finding a script component, the type should be the uuid of the script file, or the script class name.
-             * @param allowDerives If true, the returned component type must be exactly the same as the type; otherwise, the returned component type can be a derived class of the type. Default is false.
+             * @param allowDerives If true, components derived from `type` may be returned; if false, the component type must match exactly. Default is false.
              * @returns The component if found; otherwise, null.
              */
-            getComponent(type: string, allowDerives?: boolean): IMyComponent;
+            getComponent(type: string, allowDerives?: boolean): IMyComponent | null;
             /**
              * Prefab overrides of the node.
              */
@@ -3208,6 +5938,7 @@ declare global {
              */
             readonly [PrefabOverridesKey]?: Array<Array<string>>;
         }
+
         export namespace MyMessagePortStatic {
             /**
              * It is used inside the webview or iframe to create a communication channel with the host.
@@ -3376,6 +6107,7 @@ declare global {
              * @returns The module.
              */
             getModule(id: string): Readonly<IModuleInfo>;
+
             /**
              * Show module installation dialog if any of the modules is not installed.
              * @param modules Identifiers of the modules.
@@ -3384,6 +6116,22 @@ declare global {
              * @returns Whether the installation is successful.
              */
             installModules(modules: Array<string>, alert?: boolean, waitForComplete?: boolean): Promise<boolean>;
+
+            /**
+             * Gather modules to install, including the specified modules and their dependencies.
+             * @param ids Identifiers of the modules to install.
+             * @returns The modules to install. 
+             */
+            gatherModulesToInstall(ids: Array<string>): Array<IModuleInfo>;
+
+            /**
+             * Install a module.
+             * @param id The identifier of the module to install.
+             * @param progressCallback Callback function to report the progress of the operation. The name parameter is the name of the current downloading/installing file. The phase value is 0 or 1, 0 for downloading and 1 for installing. The loaded and total values are the loaded and total bytes of the current phase, respectively.
+             * @param abortToken Abort token. If you want to abort the operation on some conditions, you can pass an abort token here. Call abortToken.signal() to abort the operation.
+             * @returns Whether the installation is successful.
+             */
+            installModule(id: string, progressCallback?: (name: string, phase: number, loaded: number, total: number) => void, abortToken?: IAbortToken): Promise<boolean>;
         }
         export interface IMenuItem {
             /**
@@ -3474,6 +6222,10 @@ declare global {
              * Whether the menu item is a checkbox. Same as `type: 'checkbox'`.
              */
             checkbox?: boolean;
+            /**
+             * Whether the menu item is a radio. Same as `type: 'radio'`.
+             */
+            radio?: boolean;
 
             /**
              * Insert a separator before the menu item.
@@ -3602,7 +6354,7 @@ declare global {
              */
             getItemLabel(itemId: string): string;
             /**
-             * Update the menu.
+             * Update the menu. Ownership of the template array is transferred to the menu; do not use it after calling this method.
              * @param template Menu template.
              */
             setItems(template: Array<IMenuItem>): void;
@@ -3611,15 +6363,17 @@ declare global {
              * Display the menu.
              * @param callbackThisObj The `this` object of the callback function.
              * @param popupOptions Popup options.
+             * @param callbackUserData User data that will be passed to the callback function when a menu item is clicked. This is optional and can be used to pass extra information to the callback function.
              */
-            show(callbackThisObj?: any, popupOptions?: IMenuPopupOptions): void;
+            show(callbackThisObj?: any, popupOptions?: IMenuPopupOptions, callbackUserData?: any): void;
 
             /**
              * Simulate a click on a menu item.
              * @param itemId Menu item ID. 
              * @param callbackThisObj The `this` object of the callback function. 
+             * @param callbackUserData User data that will be passed to the callback function when a menu item is clicked. This is optional and can be used to pass extra information to the callback function.
              */
-            simulateClick(itemId: string, callbackThisObj?: any): void;
+            simulateClick(itemId: string, callbackThisObj?: any, callbackUserData?: any): void;
         }
 
         export namespace MenuStatic {
@@ -3644,6 +6398,13 @@ declare global {
              * @returns The menu.
              */
             function create(id: string, template?: Array<IMenuItem>): IMenu;
+
+            /**
+             * Get the position to pop up a menu. By default, the menu will be popped up at the current mouse cursor position.
+             * @param anchor An optional HTML element as the anchor of the popup position. If not specified, the current mouse cursor position will be used.
+             * @return The popup position. If the anchor element is null, null will be returned. Otherwise, the popup position will be calculated based on the anchor element. The x coordinate of the popup position is the left edge of the anchor element, and the y coordinate of the popup position is the bottom edge of the anchor element.
+             */
+            function getPopupPosition(anchor?: HTMLElement): { x: number, y: number } | null;
         }
 
         /**
@@ -3688,8 +6449,9 @@ declare global {
              *  - 'above': Insert above the object.
              *  - 'below': Insert below the object.
              */
-            getInsertPos(): { obj: gui.Widget, pos: 'in' | 'above' | 'below' };
+            getInsertPos(): { obj: gui.Widget | null, pos: 'in' | 'above' | 'below' };
         }
+
 
         export interface IListHelper {
             /**
@@ -3969,26 +6731,11 @@ declare global {
             const version: number;
 
             /**
-             * Register a field class. Should not be called directly but through ＠IEditor.inspectorField instead.
-             * @param name Field name. It should be unique within the registry.
-             * @param cls Field class. 
-             */
-            function registerFieldClass(name: string, cls: new () => IPropertyField): void;
-
-            /**
              * Get a field class by name.
              * @param name Field name.
-             * @returns Field class. 
+             * @returns The field class, or `undefined` if no field is registered under the name.
              */
-            function getFieldClass(name: string): new () => IPropertyField;
-
-            /**
-             * Register a layout class. Should not be called directly but through ＠IEditor.inspectorLayout instead.
-             * @param type 'asset' or 'node' or any other type. 
-             * @param cls Layout class.
-             * @param displayOrder The display order of the layout. The smaller the value, The display position is more forward. Defaults to 10.
-             */
-            function registerLayout(type: string, cls: new () => IInspectorLayout, displayOrder?: number): void;
+            function getFieldClass(name: string): IPropertyFieldConstructor | undefined;
 
             /**
              * Create layout instances for the specified type and targets. Layout instances are cached and reused, so don't forget to call returnLayouts when you are done with them.
@@ -4005,6 +6752,102 @@ declare global {
              */
             function returnLayouts(type: string, items: Array<IInspectorLayout>): void;
         }
+
+        /** Public contract for a reusable inspector panel model. */
+        export interface IInspectorPanelModel {
+            /** Whether edits should be recorded in the model's history. */
+            allowUndo: boolean;
+            /** Whether data-change tracing is temporarily disabled. */
+            stopTrace: boolean;
+            /** Data-change notifications emitted by watched inspector targets. */
+            readonly onDataChanged: IDelegate<(sender: any, datapath: string[], value: any, oldvalue: any) => void>;
+            /** History used for undo and redo. */
+            readonly history: IDataHistory;
+            /** Replaces the history used for subsequent edits. */
+            setHistory(history: IDataHistory): void;
+            /** Adds a typed object to the inspector. */
+            inspect(data: any, type: string | FTypeDescriptor | Function, options?: IInspectorOptions): void;
+            /** Clears all inspectors and watched-data listeners. */
+            resetInspectors(): void;
+            /** Restores all current inspector fields to their defaults. */
+            resetDefault(): void;
+            /** Returns the data inspectors currently owned by this model. */
+            getInspectors(): ReadonlyArray<IDataInspector>;
+            /** Scrolls the panel to a catalog when it exists. */
+            showCatalog(catalog: string): void;
+            /** Returns the current vertical scroll position. */
+            getScrollY(): number;
+            /** Sets the vertical scroll position, retaining it until the view is mounted. */
+            setScrollY(value: number): void;
+            /** Returns the content height, clamped to the optional minimum. */
+            resizeToFit(minSize?: number): number;
+            /** Routes an editor hotkey event to this model's history. */
+            handleHotkey(evt: gui.Event): void;
+        }
+
+        /** Structural role of a field in the inspector schema tree. */
+        export type InspectorFieldKind = "catalog" | "object" | "array" | "dictionary" | "property";
+
+        /** Immutable identity plus mutable schema data used to construct one inspector field. */
+        export interface IInspectorFieldSchema {
+            /** Stable field ID, unique within the owning inspector model. */
+            readonly id: string;
+            /** Structural role that determines the field container behavior. */
+            kind: InspectorFieldKind;
+            /** Descriptor of the object that owns `property`. */
+            objType: FTypeDescriptor;
+            /** Property rendered by this field. */
+            property: FPropertyDescriptor;
+            /** Ordered child-field schemas. */
+            children: IInspectorFieldSchema[];
+        }
+
+        /** Root snapshot used by React's external-store subscription protocol. */
+        export interface IInspectorSnapshot {
+            /** Monotonically increasing model version. */
+            readonly version: number;
+            /** IDs of the current root fields in display order. */
+            readonly rootIds: ReadonlyArray<string>;
+        }
+
+        /** Per-field snapshot used to avoid rerendering unrelated inspector fields. */
+        export interface IInspectorFieldSnapshot {
+            /** Current field instance. */
+            readonly field: IPropertyField;
+            /** Version incremented when field data or status changes. */
+            readonly version: number;
+            /** Version incremented when the field's child structure changes. */
+            readonly structureVersion: number;
+        }
+
+        /** Read-only reactive store exposed by an inspector model. */
+        export interface IInspectorStore {
+            /** Return the current root snapshot. */
+            getSnapshot(): IInspectorSnapshot;
+            /** Return the current snapshot for a field ID. */
+            getFieldSnapshot(fieldId: string): IInspectorFieldSnapshot;
+            /** Resolve a field ID to its live field instance. */
+            getField(fieldId: string): IPropertyField;
+            /** Subscribe to root changes; the returned function unsubscribes. */
+            subscribe(listener: () => void): () => void;
+            /** Subscribe to one field; the returned function unsubscribes. */
+            subscribeField(fieldId: string, listener: () => void): () => void;
+        }
+
+        /** Inspector data model that owns field construction, resolution, and granular notifications. */
+        export interface IInspectorModel extends IDataInspector {
+            /** Build child schemas for an object type while guarding recursive type graphs. */
+            createObjectChildSchemas(typeDef: FTypeDescriptor, parentId: string, visitedTypes?: Set<string>, objectDepth?: number): IInspectorFieldSchema[];
+            /** Construct and register a live property field from a schema. */
+            createField(schema: IInspectorFieldSchema, parent?: IPropertyField): IPropertyField;
+            /** Notify subscribers that a field's data or status changed. */
+            notifyField(field: IPropertyField): void;
+            /** Notify subscribers that a field's child structure changed. */
+            onFieldStructureChanged(field: IPropertyField): void;
+            /** Resolve all currently inspected data targets before rendering or refreshing. */
+            resolveDatas(): Promise<void>;
+        }
+
         export interface IInspectorLayout {
             /**
              * Tests whether the specified object is accepted for rendering.
@@ -4101,11 +6944,12 @@ declare global {
             getInspectors(): ReadonlyArray<IDataInspector>;
 
             /**
-             * Handy method to get all AssetField objects.
+             * Handy method to get all property fields with the specified tag.
+             * @param tag The tag.
              * @param result If provided, the result will be added to this array. Otherwise, a new array will be created.
-             * @returns All AssetField objects.
+             * @returns The array of property fields with the specified tag.
              */
-            getAllResourceInspectors(result?: Array<IPropertyField>): Array<IPropertyField>;
+            getFieldsByTag(tag: string, result?: Array<IPropertyField>): Array<IPropertyField>;
 
             /**
              * Display all inspectors.
@@ -4124,6 +6968,7 @@ declare global {
              */
             reset(): void;
         }
+
         /**
          * Inspecting target interface.
          */
@@ -4198,8 +7043,9 @@ declare global {
              * @param text Default text. 
              * @param multiline Whether the input text is multiline. 
              */
-            show(popupOwner: gui.Widget, msg?: string, text?: string, multiline?: boolean): Promise<void>;
+            show(popupOwner: DialogPopupOwner, msg?: string, text?: string, multiline?: boolean): Promise<void>;
         }
+
         export interface IHotkeyManager {
             /**
              * Install the hotkey manager to the given groot.
@@ -4213,25 +7059,24 @@ declare global {
             initKeyMap(): void;
 
             /**
+             * Register a key combination.
+             * @param combo The key combination to register.
+             * @param func The function name associated with the key combination. 
+             */
+            enableKey(combo: string, func?: string): void;
+
+            /**
              * Check if a key combination is registered.
              * @param combo The key combination to check.
              * @returns True if the key combination is registered, false otherwise. 
              */
             isComboRegistered(combo: string): boolean;
-
-            /**
-             * Manually invoke the underlying keyboard event handler to produce a specific key combination effect.
-             * @param character The actual character that was pressed.
-             * @param modifiers An array of modifiers that were held down when the key was pressed.
-             * @param eventType The type of the event (e.g., keydown, keyup).
-             */
-            handleKey(character: string, modifiers: string[], eventType: string): void;
-
             /**
              * Manually trigger a key combination
              * @param combo The key combination to trigger.
+             * @param groot The groot to dispatch the hotkey event to. Defaults to groot of the main window.
              */
-            emit(combo: string): void;
+            emit(combo: string, groot?: gui.GRoot): void;
         }
         /**
          * Interface for the hierarchy panel
@@ -4239,9 +7084,9 @@ declare global {
         export interface IHierarchyPanel extends IEditorPanel {
             /**
              * Get current selected node. Null if no node is selected. Return the first selected node if multiple nodes are selected.
-             * @returns The selected node.
+             * @returns The first selected node, or null when no node is selected.
              */
-            getSelectedNode(): IMyNode;
+            getSelectedNode(): IMyNode | null;
 
             /**
              * Get current selected nodes. Empty array if no node is selected.
@@ -4273,6 +7118,34 @@ declare global {
              */
             highlight(sceneNode: IMyNode): void;
         }
+
+        /** Options supported by the React gradient editor dialog. */
+        export interface GradientEditDialogOptions extends GradientInputOptions {
+            /** Hides alpha-stop editing. */
+            hideAlpha?: boolean;
+        }
+
+        /**
+         * Interface for the React gradient editor dialog.
+         */
+        export interface IGradientEditDialog extends IDialog {
+            /**
+             * Show the gradient editor.
+             * @param popupOwner Element or widget used to position the popup.
+             * @param value Initial gradient value.
+             * @param options Gradient editing options.
+             * @param onChange Called whenever the edited gradient changes.
+             */
+            show(popupOwner: DialogPopupOwner, value: GradientInputValue, options: GradientEditDialogOptions, onChange: (value: GradientInputValue) => void): Promise<void>;
+
+            /**
+             * Update the value and options displayed by an open gradient editor.
+             * @param value The new gradient value.
+             * @param options The new options. Existing options are retained when omitted.
+             */
+            setValue(value: GradientInputValue, options?: GradientEditDialogOptions): void;
+        }
+
         /**
          * Interface for GUI utils
          */
@@ -4405,6 +7278,502 @@ declare global {
             createInspectorPanel(): InspectorPanel;
         }
         /**
+         * `IEditor.Flow` — the shared, editor-agnostic graph editing core (React Flow
+         * based). Used by editor plugins/panels (and the blueprint & shader editors) to
+         * embed a node graph. The runtime implementation lives in `src/editor/react/flow` and
+         * is mounted onto `IEditor.Flow` in `Mount.ts`.
+         *
+         * Typical usage from a panel:
+         * ```tsx
+         * const store = IEditor.Flow.createGraphStore(initialGraph);
+         * const registry = new IEditor.Flow.NodeRegistry(myDefs);
+         * const portTypes = new IEditor.Flow.PortTypeRegistry(myTypes);
+         * reactDOM.render(<IEditor.Flow.GraphEditor store={store} registry={registry} portTypes={portTypes} />);
+         * ```
+         */
+        export namespace IFlow {
+            /** A point in graph coordinates, before viewport pan and zoom are applied. */
+            interface XY {
+                /** Horizontal graph coordinate. */
+                x: number;
+                /** Vertical graph coordinate. */
+                y: number;
+            }
+
+            /** A node input/output port (slot). */
+            interface GraphPort {
+                /** ID unique within the owning node. */
+                id: string;
+                /** Input or output direction. Links always run from `out` to `in`. */
+                kind: "in" | "out";
+                /** Host-defined type key resolved through `IPortTypeRegistry`. */
+                dataType: string;
+                /** Marks an execution/control-flow port rather than a value port. */
+                isExec?: boolean;
+                /** Where the port is rendered. Defaults to `body`. */
+                placement?: "body" | "header";
+                /** Overrides the default single/multiple-link rule for this port. */
+                multi?: boolean;
+                /** User-facing label. */
+                label?: string;
+                /** Host-owned serializable payload; the editor does not interpret it. */
+                data?: Record<string, any>;
+            }
+
+            /** A node instance on the canvas. */
+            interface GraphNode {
+                /** Stable ID referenced by links and selection state. */
+                id: string;
+                /** Registry key of the node definition. */
+                typeId: string;
+                /** Top-left position in graph coordinates. */
+                position: XY;
+                /** Persisted node size when the host supports resizable nodes. */
+                size?: { w: number; h: number };
+                /** Ordered input ports. */
+                inputs: GraphPort[];
+                /** Ordered output ports. */
+                outputs: GraphPort[];
+                /** Host-owned serializable node properties. */
+                data: Record<string, any>;
+                /** Optional instance title overriding the registered definition title. */
+                title?: string;
+                /** Render without a separate title bar; labels are supplied by the body. */
+                compact?: boolean;
+            }
+
+            /** A directed connection from an output port to an input port. */
+            interface GraphLink {
+                /** Stable link ID used by selection, deletion, and debug highlighting. */
+                id: string;
+                /** Source output-port reference. */
+                from: { node: string; port: string };
+                /** Target input-port reference. */
+                to: { node: string; port: string };
+                /** Host-owned serializable payload; the editor does not interpret it. */
+                data?: Record<string, any>;
+            }
+
+            /** A resizable text annotation stored with the graph. */
+            interface GraphComment {
+                /** Stable comment ID. */
+                id: string;
+                /** Left position in graph coordinates. */
+                x: number;
+                /** Top position in graph coordinates. */
+                y: number;
+                /** Width in graph units. */
+                w: number;
+                /** Height in graph units. */
+                h: number;
+                /** Displayed comment text. */
+                text: string;
+                /** Optional CSS color. */
+                color?: string;
+                /** Host-owned serializable payload. */
+                data?: Record<string, any>;
+            }
+
+            /** Persisted canvas viewport transform. */
+            interface GraphViewport {
+                /** Horizontal pan in client pixels. */
+                x: number;
+                /** Vertical pan in client pixels. */
+                y: number;
+                /** Zoom multiplier. A value of 1 means 100%. */
+                zoom: number;
+            }
+
+            /** The full serializable state of one graph. */
+            interface GraphData {
+                /** Mutable node records owned by the graph store. */
+                nodes: GraphNode[];
+                /** Mutable directed links owned by the graph store. */
+                links: GraphLink[];
+                /** Mutable canvas annotations owned by the graph store. */
+                comments: GraphComment[];
+                /** Persisted pan and zoom. */
+                viewport: GraphViewport;
+            }
+
+            /** Node-and-port reference used by connection commands. */
+            interface PortRef {
+                /** Node ID. */
+                node: string;
+                /** Port ID within the node. */
+                port: string;
+            }
+
+            // --- port types & connection rule ---
+            interface PortTypeInfo {
+                /** Stable type key stored in `GraphPort.dataType`. */
+                key: string;
+                /** CSS color used for ports and links of this type. */
+                color: string;
+                /** Optional user-facing name. */
+                label?: string;
+            }
+            /** Read-only lookup used by graph rendering and connection validation. */
+            interface IPortTypeRegistry {
+                /** Return the registered type, or undefined when the key is unknown. */
+                get(key: string): PortTypeInfo | undefined;
+                /** Return the registered color or the registry fallback color. */
+                color(key: string): string;
+            }
+            /** Fully resolved endpoints supplied to a connection validator. */
+            interface ConnectionContext {
+                /** Source node. */
+                fromNode: GraphNode;
+                /** Source output port. */
+                fromPort: GraphPort;
+                /** Target node. */
+                toNode: GraphNode;
+                /** Target input port. */
+                toPort: GraphPort;
+            }
+            /** Return true to accept a proposed link. */
+            type CanConnect = (ctx: ConnectionContext) => boolean;
+
+            // --- node definitions & registry ---
+            interface NodeDefinition {
+                /** Stable registry key written to `GraphNode.typeId`. */
+                typeId: string;
+                /** Default user-facing node title. */
+                title: string;
+                /** Slash-separated, stable menu grouping path. */
+                menuPath?: string;
+                /** Localized display path; menu identity and grouping use menuPath. */
+                displayMenuPath?: string;
+                /** Additional case-insensitive add-menu search terms. */
+                keywords?: string[];
+                /** Description shown by hosts that provide node help. */
+                description?: string;
+                /** Optional CSS color for the node header. */
+                headerColor?: string;
+                /** Key into `GraphEditorProps.bodyRenderers`. */
+                bodyRenderer?: string;
+                /** Create a complete new node at the supplied graph position. */
+                create(position: XY): GraphNode;
+            }
+            /** Flattened entry returned by node-registry add menus. */
+            interface NodeMenuItem {
+                /** Node definition key created by this entry. */
+                typeId: string;
+                /** User-facing entry label. */
+                label: string;
+                /** Stable slash-separated grouping path. */
+                path: string;
+                /** Localized path used only for display and search. */
+                displayPath?: string;
+                keywords?: string[];
+                /** Optional native-menu choices shown after this entry is clicked. */
+                choices?: Array<{ typeId: string; label: string }>;
+            }
+            interface ConnectionMenuContext {
+                /** Node whose loose connection handle opened the menu. */
+                node: GraphNode;
+                /** Port whose loose connection handle opened the menu. */
+                port: GraphPort;
+                /** React Flow handle side involved in the connection gesture. */
+                handleType: "source" | "target";
+            }
+            /** Add-node menu result customized for a pending connection. */
+            interface ConnectionNodeMenu {
+                /** Entries compatible with the pending connection. */
+                items: NodeMenuItem[];
+                /** Optional menu folder to reveal initially. */
+                focusPath?: string;
+            }
+            /** Read-only registry used to create nodes and populate add-node menus. */
+            interface INodeRegistry {
+                /** Return a definition, or undefined when `typeId` is unknown. */
+                getDefinition(typeId: string): NodeDefinition | undefined;
+                /** Return all registered definitions in registry order. */
+                list(): NodeDefinition[];
+                /** Build flattened entries for the normal add-node menu. */
+                menuItems(): NodeMenuItem[];
+                /** Folder revealed when the regular canvas add-node menu opens. */
+                defaultMenuFocusPath?(): string | undefined;
+                menuItemsForConnection?(ctx: ConnectionMenuContext): ConnectionNodeMenu | undefined;
+                /** Create a node, or undefined when `typeId` is unknown. */
+                createNode(typeId: string, position: XY): GraphNode | undefined;
+            }
+
+            /** Bridges an editor's save format to/from {@link GraphData}. */
+            interface IGraphAdapter<TSave = any> {
+                /** Decode the host save format into normalized graph data. */
+                toGraphData(save: TSave): GraphData;
+                /** Encode normalized graph data into the host save format. */
+                fromGraphData(data: GraphData): TSave;
+            }
+
+            /** Reactive single-source-of-truth store with undo/redo. */
+            interface GraphStore {
+                /** Current mutable graph document. Mutate it through `commands` or `silent`. */
+                readonly data: GraphData;
+                /** Monotonically changing snapshot token for React subscriptions. */
+                readonly version: number;
+                /** Whether an undo entry is available. */
+                readonly canUndo: boolean;
+                /** Whether a redo entry is available. */
+                readonly canRedo: boolean;
+                /** True while subscribers are handling a pan/zoom-only notification. */
+                readonly transientViewportChange: boolean;
+                /** Replace the document and clear transient state. */
+                setData(raw: GraphData): void;
+                /** Update pan/zoom as a transient change that is not added to undo history. */
+                setViewport(viewport: GraphViewport): void;
+                /** Subscribe to changes; the returned function removes the subscription. */
+                subscribe(cb: () => void): () => void;
+                /** Return the current snapshot token for `useSyncExternalStore`. */
+                getSnapshot(): number;
+                /** Apply the most recent undo entry. */
+                undo(): void;
+                /** Apply the most recent redo entry. */
+                redo(): void;
+                /** Run mutations without recording undo; notify subscribers unless `notify` is false. */
+                silent(fn: () => void, notify?: boolean): void;
+                /** Remove subscriptions and detach the optional version tracker. */
+                dispose(): void;
+            }
+
+            interface NodeBodyProps {
+                /** Node currently being rendered. */
+                node: GraphNode;
+                /** Owning store used to apply edits. */
+                store: GraphStore;
+                /** Port-type lookup used by custom controls. */
+                portTypes: IPortTypeRegistry;
+                /** Test whether the supplied port currently has at least one link. */
+                isConnected: (port: GraphPort | string, kind?: GraphPort["kind"]) => boolean;
+            }
+            /** React renderer for a registered node body. */
+            type NodeBodyRenderer = (props: NodeBodyProps) => React.ReactNode;
+
+            interface PortInputContext {
+                /** Node containing the unconnected input. */
+                node: GraphNode;
+                /** Unconnected input port being rendered. */
+                port: GraphPort;
+                /** Owning store used to apply literal changes. */
+                store: GraphStore;
+                /** Notify the host after this inline editor changes the port's literal value. */
+                onValueChange?: () => void;
+            }
+            /** Override an unconnected input's inline control; undefined = built-in. */
+            type PortInputRenderer = (ctx: PortInputContext) => React.ReactNode | undefined;
+
+            /** A drag-and-drop drop onto the canvas, with flow-space position resolved. */
+            interface CanvasDropInfo {
+                /** Browser client X coordinate of the drop. */
+                clientX: number;
+                /** Browser client Y coordinate of the drop. */
+                clientY: number;
+                /** Drop position converted to graph coordinates. */
+                flow: { x: number; y: number };
+                /** Native drag payload. Read it synchronously during the callback. */
+                dataTransfer: DataTransfer;
+            }
+
+            /** Imperative handle exposed via {@link GraphEditorProps.controllerRef}. */
+            interface GraphEditorApi {
+                /** Center the viewport on a node and select it. */
+                focusNode(nodeId: string): void;
+            }
+
+            /** A context-menu entry an editor can append to the node right-click menu. */
+            interface GraphMenuItem {
+                /** Stable menu item ID. */
+                id?: string;
+                /** User-facing label; omitted for separators. */
+                label?: string;
+                /** Menu item kind. Defaults to `normal`. */
+                type?: "normal" | "separator";
+                /** Whether the item can be activated. Defaults to true. */
+                enabled?: boolean;
+                /** Called when the item is selected. */
+                click?: () => void;
+            }
+
+            interface GraphEditorProps {
+                /** Document store. Dispose it when the owning panel is destroyed. */
+                store: GraphStore;
+                /** Node definitions and add-menu entries. */
+                registry: INodeRegistry;
+                /** Port colors and labels. */
+                portTypes: IPortTypeRegistry;
+                /** Connection validator. Defaults to `defaultCanConnect`. */
+                canConnect?: CanConnect;
+                /** Called after a link is added or removed. */
+                onConnectionChange?: (store: GraphStore, link: GraphLink, connected: boolean) => void;
+                /** Custom node-body renderers keyed by `NodeDefinition.bodyRenderer`. */
+                bodyRenderers?: Record<string, NodeBodyRenderer>;
+                /** Override the editor for unconnected input literals. */
+                renderPortInput?: PortInputRenderer;
+                /** Notify the host after an unconnected input's literal/null state changes. */
+                onInputValueChange?: (store: GraphStore, node: GraphNode, port: GraphPort) => void;
+                /** Feature-owned accessible label for the nullable-input action. */
+                inputNullLabel?: (isNull: boolean) => string;
+                /** Handle an external drag-drop onto the canvas (e.g. blackboard items). */
+                onCanvasDrop?: (info: CanvasDropInfo) => void;
+                /** Open AddNodeMenu directly when right-clicking empty canvas. */
+                directAddNodeMenuOnCanvasContextMenu?: boolean;
+                /** Receives an imperative handle (focus a node, …) once mounted. */
+                controllerRef?: React.RefObject<GraphEditorApi | null>;
+                /** Show the minimap overview. Defaults to false. */
+                showMiniMap?: boolean;
+                /** Minimum viewport zoom multiplier. */
+                minZoom?: number;
+                /** Maximum viewport zoom multiplier. */
+                maxZoom?: number;
+                /** Additional CSS class for the editor root. */
+                className?: string;
+                /** Node ids carrying a debugger breakpoint (renders an indicator). */
+                breakpointNodeIds?: ReadonlySet<string>;
+                /** Link ids that should play the debug flow animation. */
+                flowingEdgeIds?: ReadonlySet<string>;
+                /** Extra items appended to a node's right-click menu (e.g. breakpoint toggle). */
+                nodeMenuItems?: (nodeId: string, selectedIds: string[]) => GraphMenuItem[];
+                /** Node ids selected when this editor instance mounts. */
+                initialSelectedNodeIds?: ReadonlySet<string> | readonly string[];
+                /** Notifies the host whenever the selected graph-node ids change. */
+                onNodeSelectionChange?: (selectedIds: string[]) => void;
+                /** Handle DOM Ctrl/Cmd+Z/Y inside the graph. Defaults to true. */
+                historyHotkeys?: boolean;
+            }
+
+            /** Generic reactive + undoable document store (base of GraphStore). */
+            interface DocStore<T extends object> {
+                /** Current mutable document. */
+                readonly data: T;
+                /** Monotonically changing snapshot token. */
+                readonly version: number;
+                /** Whether an undo entry is available. */
+                readonly canUndo: boolean;
+                /** Whether a redo entry is available. */
+                readonly canRedo: boolean;
+                /** Replace the document and notify subscribers. */
+                setData(raw: T): void;
+                /** Subscribe to changes; the returned function removes the subscription. */
+                subscribe(cb: () => void): () => void;
+                /** Return the current snapshot token for `useSyncExternalStore`. */
+                getSnapshot(): number;
+                /** Apply the most recent undo entry. */
+                undo(): void;
+                /** Apply the most recent redo entry. */
+                redo(): void;
+                /** Clear all undo and redo entries. */
+                resetHistory(): void;
+                /** Run mutations without recording undo; notify subscribers unless `notify` is false. */
+                silent(fn: () => void, notify?: boolean): void;
+                /** Remove subscriptions and detach the optional version tracker. */
+                dispose(): void;
+            }
+
+            /** Serializable clipboard payload created by `commands.copyNodes`. */
+            interface ClipboardData {
+                /** Copied nodes. */
+                nodes: GraphNode[];
+                /** Links whose two endpoints are both copied. */
+                links: GraphLink[];
+                /** Copied comments. */
+                comments: GraphComment[];
+            }
+
+            // --- constructible classes (runtime values) ---
+            interface GraphStoreConstructor {
+                /** Create a graph store; the store owns a normalized clone of `initial`. */
+                new(initial?: GraphData, versionTracker?: IVersionTracker): GraphStore;
+            }
+            /** Mutable registry used while configuring an editor. */
+            interface MutableNodeRegistry extends INodeRegistry {
+                /** Add or replace a definition by `typeId`. */
+                add(def: NodeDefinition): void;
+            }
+            /** Constructor for a mutable node registry. */
+            interface NodeRegistryConstructor {
+                new(defs?: NodeDefinition[]): MutableNodeRegistry;
+            }
+            /** Constructor for a port-type registry. */
+            interface PortTypeRegistryConstructor {
+                new(types?: PortTypeInfo[], fallbackColor?: string): IPortTypeRegistry;
+            }
+
+            // --- the React component & factory values ---
+            /** React component for editing a graph backed by `GraphStore`. */
+            const GraphEditor: (props: GraphEditorProps) => React.ReactElement;
+            /** Built-in node body renderer used by {@link GraphEditor}. */
+            const DefaultNodeBody: (props: NodeBodyProps) => React.ReactElement;
+            /** Constructible graph-store runtime value. */
+            const GraphStore: GraphStoreConstructor;
+            /** Constructible node-registry runtime value. */
+            const NodeRegistry: NodeRegistryConstructor;
+            /** Constructible port-type-registry runtime value. */
+            const PortTypeRegistry: PortTypeRegistryConstructor;
+            /** Create a normalized reactive graph store. */
+            const createGraphStore: (initial?: GraphData, versionTracker?: IVersionTracker) => GraphStore;
+            /** Default validator: output to input, compatible data types, and no duplicate link. */
+            const defaultCanConnect: CanConnect;
+            /** Return the default multiple-link policy for a port. */
+            const defaultPortMulti: (port: GraphPort) => boolean;
+            /** Fill missing viewport fields and clamp zoom to the supplied bounds. */
+            const normalizeGraphViewport: (
+                viewport: Partial<GraphViewport> | null | undefined,
+                minZoom?: number,
+                maxZoom?: number,
+            ) => GraphViewport;
+            /** Create empty graph data with a default viewport. */
+            const emptyGraph: () => GraphData;
+            /** Generate a process-local unique graph ID with an optional prefix. */
+            const nextId: (prefix?: string) => string;
+            /** Find a node by ID, or undefined when it is absent. */
+            const findNode: (data: GraphData, id: string) => GraphNode | undefined;
+            /** Return every link connected to the specified node port. */
+            const linksOfPort: (data: GraphData, nodeId: string, portId: string) => GraphLink[];
+            /** Bundled component CSS. GraphEditor registers it automatically. */
+            const styles: string;
+
+            /** Create a generic reactive, undoable document store. */
+            const createDocStore: <T extends object>(initial: T, versionTracker?: IVersionTracker) => DocStore<T>;
+
+            /** Mutation helpers operating on a {@link GraphStore}. */
+            namespace commands {
+                /** Add a node and return its ID. The node is recorded as one undoable change. */
+                function addNode(store: GraphStore, node: GraphNode): string;
+                /** Remove nodes, their connected links, and their selection state. */
+                function removeNodes(store: GraphStore, ids: string[]): void;
+                /** Remove a link by ID. Unknown IDs are ignored. */
+                function removeLink(store: GraphStore, linkId: string): void;
+                /** Validate and add a link; return its new ID, or null when rejected. */
+                function connect(store: GraphStore, from: PortRef, to: PortRef): string | null;
+                /** Remove every link connected to a node port. */
+                function disconnectPort(store: GraphStore, ref: PortRef): void;
+                /** Move multiple nodes by a graph-coordinate delta as one change. */
+                function moveNodes(store: GraphStore, ids: string[], dx: number, dy: number): void;
+                /** Set one node's absolute graph position. */
+                function setNodePosition(store: GraphStore, id: string, x: number, y: number): void;
+                /** Set the viewport without creating an undo entry. */
+                function setViewport(store: GraphStore, viewport: GraphViewport): void;
+                /** Set one key in a node's host-owned `data` record. */
+                function setNodeData(store: GraphStore, id: string, key: string, value: any): void;
+                /** Set the literal value stored for an unconnected input port. */
+                function setInputValue(store: GraphStore, nodeId: string, portId: string, value: any): void;
+                /** Toggle the explicit-null state of an unconnected input port. */
+                function setInputNull(store: GraphStore, nodeId: string, portId: string, isNull: boolean): void;
+                /** Add a canvas comment and return its ID. */
+                function addComment(store: GraphStore, comment: GraphComment): string;
+                /** Partially update a canvas comment. */
+                function updateComment(store: GraphStore, id: string, patch: Partial<GraphComment>): void;
+                /** Remove a canvas comment by ID. */
+                function removeComment(store: GraphStore, id: string): void;
+                /** Copy nodes and only the links whose endpoints are both copied. */
+                function copyNodes(store: GraphStore, ids: string[]): ClipboardData;
+                /** Paste clipboard data at an optional graph-coordinate offset and return new node IDs. */
+                function paste(store: GraphStore, clip: ClipboardData, offset?: XY): string[];
+            }
+        }
+
+        /**
          * File tab information
          */
         export interface IFileTabInfo {
@@ -4437,12 +7806,59 @@ declare global {
              * Closable flag. If it is true, the tab can not be closed.
              */
             noClose?: boolean;
+
+            /**
+             * Display title for non-asset tabs.
+             */
+            title?: string;
+
+            /**
+             * Display path/tooltip for non-asset tabs.
+             */
+            path?: string;
+
+            /**
+             * Display icon for non-asset tabs.
+             */
+            icon?: string;
         }
+
+        export interface IFileTabBarOptions {
+            /**
+             * Whether tabs represent real project assets. Default is true.
+             */
+            realAsset?: boolean;
+        }
+
+        /** Visual density used by the shared file tab bar component. */
+        export type FileTabBarViewVariant = "heavy" | "light" | "weak";
 
         /**
          * File tab bar interface
          */
         export interface IFileTabBar {
+            /** Release the native context menu and all retained callbacks. */
+            dispose(): void;
+
+            /**
+             * Called when a tab is selected.
+             * @param tab The selected tab.
+             */
+            onTabSelected: (tab: IFileTabInfo) => void;
+
+            /**
+             * Called before tabs are closed.
+             * @param tabs Tabs to close.
+             * @param needSave Whether the modified tabs should be saved before closing.
+             */
+            onTabWillClose: (tabs: IFileTabInfo[], needSave: boolean) => Promise<void>;
+
+            /**
+             * Called when tabs need to be saved without closing.
+             * @param tabs Tabs to save.
+             */
+            onTabSave: (tabs: IFileTabInfo[]) => Promise<void>;
+
             /**
              * Add a tab.
              * @param tabInfo Information of the tab.
@@ -4505,6 +7921,19 @@ declare global {
             enableMenu: boolean;
 
             /**
+             * Refresh the display information of a tab.
+             * @param tabId The id of the tab to update.
+             */
+            updateUI(tabId: string): void;
+
+            /**
+             * Move a tab to a new display index.
+             * @param tabId The id of the tab to move.
+             * @param insertIndex The target insertion index.
+             */
+            moveTab(tabId: string, insertIndex: number): void;
+
+            /**
              * Query to close all tabs.
              * @param includeScene Allow to include scene tabs. Default is false.
              * @returns A promise that resolves with a boolean indicating whether the tabs are allowed to be closed.
@@ -4517,6 +7946,27 @@ declare global {
              */
             queryToSaveAllTabs(): Promise<boolean>;
         }
+
+        /**
+         * Props for the shared React file tab bar view.
+         */
+        export interface IFileTabBarViewProps {
+            /**
+             * File tab bar model created by `IEditor.React.FileTabBar`.
+             */
+            tabBar: IFileTabBar;
+
+            /**
+             * Visual density of the tab bar. Default is heavy.
+             */
+            variant?: FileTabBarViewVariant;
+
+            /**
+             * Whether to show the save and save-all tool buttons. Default is false.
+             */
+            showSaveButtons?: boolean;
+        }
+
         /**
          * File actions
          */
@@ -4528,7 +7978,7 @@ declare global {
             onOpen?: (asset: IAssetInfo) => Promise<void>;
 
             /**
-             * Called in Editor.scene.createNodeByAsset() to create a node. This can be triggered in several scenarios, such as when a asset is dragged into the hierarchy list, or when a asset is dragged into the scene, or when the user calls Editor.scene.createNodeByAsset() through a script.
+             * Called by `Editor.scene.createNodeByAsset()` when an asset is dragged into the hierarchy or scene, or when a plugin requests node creation.
              * 
              * If the asset can create a node object, it returns a node object; otherwise, it returns null, indicating that creating a node is not supported.
              * 
@@ -4540,7 +7990,7 @@ declare global {
              * @param options The options for creating the node. 
              * @returns A new node object, null if creating a node is not supported. 
              */
-            onCreateNode?: (asset: IAssetInfo, props: any, parentNode?: IMyNode, options?: ICreateNodeOptions) => Promise<IMyNode>;
+            onCreateNode?: (asset: IAssetInfo, props: any, parentNode?: IMyNode, options?: ICreateNodeOptions) => Promise<IMyNode | null>;
 
             /**
              * Called when an asset is dragged into the scene.
@@ -4566,7 +8016,7 @@ declare global {
             onCreateInField?: (field: IPropertyField) => Promise<void>;
 
             /**
-             * Called in Editor.scene.createNodeByAsset() to create a node. This can be triggered in several scenarios, such as when a asset is dragged into the hierarchy list, or when a asset is dragged into the scene, or when the user calls Editor.scene.createNodeByAsset() through a script.
+             * Called by `Editor.scene.createNodeByAsset()` for a GUI prefab when an asset is dragged into the hierarchy or scene, or when a plugin requests node creation.
              * 
              * The difference between this method and onCreateNode is that this method is called when the scene is a GUI prefab.
              * 
@@ -4580,7 +8030,7 @@ declare global {
              * @param options The options for creating the node. 
              * @returns A new node object, null if creating a node is not supported. 
              */
-            onCreateNode_GUI?: (asset: IAssetInfo, props: any, parentNode?: IMyNode, options?: ICreateNodeOptions) => Promise<IMyNode>;
+            onCreateNode_GUI?: (asset: IAssetInfo, props: any, parentNode?: IMyNode, options?: ICreateNodeOptions) => Promise<IMyNode | null>;
 
             /**
              * Called when an asset is dragged into the scene.
@@ -4613,6 +8063,7 @@ declare global {
              */
             onCreateInField_GUI?: (field: IPropertyField) => Promise<void>;
         }
+
         /**
          * Extension manager interface
          */
@@ -4660,6 +8111,20 @@ declare global {
              * @param type The data type corresponding to the configuration. If it is a string, it means that this type has been registered through typeRegistry. If it is FTypeDescriptor, it will be automatically registered when created. If it is a Function, it means that this is a class decorated with ＠IEditor.regClass.
              */
             createSettings(name: string, pathToAsset: string, type?: string | FTypeDescriptor | Function): void;
+
+            /**
+             * Create a new settings. It usually corresponds to a configuration file and may be saved to different locations depending on the value of location.
+             * 
+             * In different processes, developers can access the configuration data through Editor.getSettings. If you want to modify the configuration data, it is generally done in the UI process. The data will be automatically saved to the file after modification.
+             * 
+             * Each configuration has a corresponding data type, which can be manually written and registered through typeRegistry, or it can be a class decorated with @IEditor.regClass.
+             * 
+             * This method is only allowed to be called in ＠IEditor.onLoad.
+             * 
+             * @param name The name of the configuration. It should be unique within the editor and use characters that conform to file name specifications. The file name of the configuration file will automatically be prefixed with "plugin-" to help users understand that this is a configuration file created by a plugin.
+             * @param options Options for creating settings.
+             */
+            createSettings(name: string, options?: ICreateSettingsOptions): void;
 
             /**
              * Create a custom build target.
@@ -4737,11 +8202,23 @@ declare global {
              * i18n is supported in the menu name, and the format is `i18n:xxx`, where `xxx` is the key of the i18n string.
              * e.g. `App/tool/i18n:module:test`.
              * Note that a string with or without `i18n:` prefix is treated as the same menu item name.
-             * e.g. `App/tool/i18n:module:group/a` and `App/tool/group/a:` will be in the same submenu.
+             * e.g. `App/tool/i18n:module:group/a` and `App/tool/group/a` will be in the same submenu.
              * @param callback The callback function for the menu item. It will be called when the menu item is clicked. Can be omitted if the menu has a default handler.
              * @param options The options for the menu.
+             * @see IEditor.menu
              */
             addMenuItem(name: string, callback?: IMenuItem['click'], options?: ICustomMenuItemOptions): void;
+
+            /**
+             * Register a hotkey. When the user presses the corresponding key combination, the callback function will be called.
+             * 
+             * This method is only allowed to be called in ＠IEditor.onLoad.
+             * 
+             * @param combo The key combination, such as "ctrl+s".
+             * @param callback The callback function. It will be called when the user presses the corresponding key combination.
+             * @see IEditor.hotkey
+             */
+            registerHotkey(combo: string, callback: Function): void;
 
             /**
              * Find a function by name. The name is in the form of "className.staticMethodName".
@@ -4749,8 +8226,9 @@ declare global {
              * @param name objectName.methodName
              * @returns The function found. Null if not found.
              */
-            findFunction(name: string): Function;
+            findFunction(name: string): Function | null;
         }
+
         /**
          * Interface for event tracking
          */
@@ -4810,6 +8288,11 @@ declare global {
              * The current application directory.
              */
             readonly appPath: string;
+
+            /**
+             * The version of the application.
+             */
+            readonly appVersion: string;
 
             /**
              * The path of the user data. 
@@ -4876,7 +8359,7 @@ declare global {
             /**
              * Whether the app is in the cli mode. A cli mode is a mode that runs the app in the command line.
              */
-            readonly cliMode: boolean;
+            readonly cliMode: IRendererInfo['cliMode'];
 
             /**
              * The type registry of the editor.
@@ -4978,6 +8461,11 @@ declare global {
             readonly clipboard: IClipboard;
 
             /**
+             * The title bar of the editor.
+             */
+            readonly titleBar: ITitleBar;
+
+            /**
              * Create the panel manager.
              * @param options 
              * @param placeHolder 
@@ -5063,9 +8551,9 @@ declare global {
             /**
              * Get the dialog object according to the class synchronously.
              * @param cls A class that implements the IDialog interface.
-             * @return The dialog object.
+             * @return The initialized dialog object, or null if it has not been created yet or is still being created.
              */
-            getDialogSync<T extends IDialog>(cls: gui.Constructor<T>): T;
+            getDialogSync<T extends IDialog>(cls: gui.Constructor<T>): T | null;
 
             /**
              * Show a dialog.
@@ -5075,7 +8563,7 @@ declare global {
              * @param args The arguments of the dialog. The arguments are passed to the onShown method of the dialog.
              * @return The dialog object.
              */
-            showDialog<T extends IDialog>(cls: gui.Constructor<T>, popupOwner?: gui.Widget, ...args: any[]): Promise<T>;
+            showDialog<T extends IDialog>(cls: gui.Constructor<T>, popupOwner?: gui.Widget | HTMLElement, ...args: any[]): Promise<T>;
 
             /**
              * Get the menu object by ID. Same as IEditor.Menu.getById function.
@@ -5101,7 +8589,21 @@ declare global {
              * @param widget The widget to show the error message. 
              * @param str The error message.
              */
-            showErrorTips(widget: gui.Widget, str: string): void;
+            showErrorTips(widget: gui.Widget | HTMLElement, str: string): void;
+
+            /**
+             * Clear all error message tooltips.
+             */
+            clearErrorTips(): void;
+
+            /**
+             * Show a toast message. A toast message is a message that appears at the bottom of the window and automatically disappears after a few seconds. It is used to provide feedback to the user.
+             * @param message The message to display in the toast.
+             * @param type The type of the toast. It can be "info", "warning", or "error". The default is "info". 
+             * @param buttons An array of buttons to display in the toast. Each button has a label, a primary flag indicating whether it is the primary button, and a callback function that is called when the button is clicked. If not provided, no buttons will be displayed.
+             * @param duration The duration to show the toast, in milliseconds. If not provided, the toast will not automatically disappear.
+             */
+            showToast(message: string, type?: "info" | "warning" | "error", buttons?: Array<{ label: string, primary?: boolean, callback: () => boolean }>, duration?: number): void;
 
             /**
              * Open a file for editing. Depending on the file type, different editors will be opened. For example, opening a xx.ls file will open the scene editor, and opening a **.bp will open the blueprint editor.
@@ -5201,13 +8703,13 @@ declare global {
             confirm(msg: string): Promise<boolean>;
 
             /**
-             * Show a prompt message box. The user can input a string.
+             * Show a prompt message box. The user can input a string. If the user confirms, return the string input by the user, otherwise return null.
              * @param title The title of the message box.
              * @param text The text of the message box.
              * @param multiline If true, the input box is multiline.
-             * @return The string input by the user.
+             * @return The string input by the user. If the user cancels, return null.
              */
-            prompt(title?: string, text?: string, multiline?: boolean): Promise<string>;
+            prompt(title?: string, text?: string, multiline?: boolean): Promise<string | null>;
 
             /**
              * Show a loading view. It is only used during the editor startup phase.
@@ -5314,7 +8816,7 @@ declare global {
             /**
              * Console message event.
              */
-            readonly onConsoleMessage: IDelegate<(message: string, level: number, group: string) => void>;
+            readonly onConsoleMessage: IDelegate<(message: string, level: number, group: string, line?: number, sourceId?: string) => void>;
         }
 
         /**
@@ -5344,6 +8846,7 @@ declare global {
              */
             onOpenFile?(filePath: string): void;
         }
+
         export type EditorPanelUsage = "common" | "project-settings" | "build-settings" | "preference" | "preview";
         /**
          * Options for the panel.
@@ -5384,9 +8887,18 @@ declare global {
              */
             showInMenu?: boolean;
             /**
+             * Menu items with the same menuGroup will be grouped together in the Panel menu. Default is empty.
+             */
+            menuGroup?: string;
+            /**
              * Whether the panel can be displayed in a popup window. Default is true.
              */
             allowPopup?: boolean;
+            /**
+             * Whether a new popup window created for this panel stays in front of the main window. Default is true.
+             * This option is only applied when creating the popup window; adding the panel to an existing popup does not change that window.
+             */
+            alwaysInFront?: boolean;
             /**
              * Whether to start automatically. Default is true.
              */
@@ -5479,6 +8991,18 @@ declare global {
             onSceneDeactivate?(scene: IMyScene): void;
 
             /**
+             * Called before the scene is saved.
+             * @param scene The scene to save.
+             */
+            onBeforeSaveScene?(scene: IMyScene): Promise<void> | void;
+
+            /**
+             * Called after a scene save attempt finishes, including when saving fails.
+             * @param scene The scene involved in the save attempt.
+             */
+            onAfterSaveScene?(scene: IMyScene): Promise<void> | void;
+
+            /**
              * Called when a hotkey is pressed if the panel gains focus.
              * @param combo The hotkey combo.
              * @returns Whether the hotkey is consumed. 
@@ -5503,7 +9027,25 @@ declare global {
              * @returns 
              */
             onExtensionReload?(): void;
+
+            /**
+             * Returns the names of files that have unsaved changes in this panel.
+             * The returned names are included in the save confirmation shown when the editor is closing.
+             * Panels implementing this method should also implement onSave to save these files when requested.
+             */
+            getUnsavedFiles?(): Array<string>;
+
+            /**
+             * Called when the editor is about to be closed or the panel is about to be destroyed, allowing you to save data and release resources. If there are multiple panels with onSave, they will be called sequentially, and the editor will wait for all of them to complete before closing.
+             */
+            onSave?(): Promise<void>;
+
+            /**
+             * Called to write the panel's state information to Editor.workspaceConf, so that the state can be restored the next time it is reopened.
+             */
+            onSaveStatus?(): void;
         }
+
         export interface MessageBoxOptions {
             /**
              * Content of the message box.
@@ -5710,8 +9252,11 @@ declare global {
              */
             bookmark?: string;
         }
+        export type DialogPopupOwner = gui.Widget | HTMLElement;
+
         /**
          * Dialog interface. A dialog is a window that can be shown to the user.
+         * @typeParam T The type of the root widget displayed by the dialog.
          */
         export interface IDialog<T extends gui.Widget = gui.Widget> {
             /**
@@ -5769,6 +9314,12 @@ declare global {
             alwaysInFront: boolean;
 
             /**
+             * Whether to use the currently focused editor window as the native owner when show() is called without a popupOwner. Default is false.
+             * An explicitly supplied popupOwner takes precedence. This option only applies to non-modal dialogs because a modal window's native parent cannot be changed after creation.
+             */
+            useFocusedWindowAsOwner: boolean;
+
+            /**
              * The title of the dialog.
              */
             title: string;
@@ -5791,7 +9342,7 @@ declare global {
             /**
              * Popup owner of the dialog, which is passed in show() method.
              */
-            get popupOwner(): gui.Widget;
+            get popupOwner(): DialogPopupOwner;
 
             /**
              * Whether the dialog is showing.
@@ -5803,7 +9354,7 @@ declare global {
              * @param popupOwner If the dialog is a popup window, it is used to calculate the popup position.
              * @param args Arguments passed to the onShown() method.
              */
-            show(popupOwner?: gui.Widget, ...args: any[]): Promise<void>;
+            show(popupOwner?: DialogPopupOwner, ...args: any[]): Promise<void>;
 
             /**
              * Hide the dialog.
@@ -5811,7 +9362,8 @@ declare global {
             hide(): void;
 
             /**
-             * You can use this method to wait for the dialog to close and get the return value. The return value refers to the value set through Dialog.result.
+             * Wait for the dialog to close and get its result.
+             * @returns The value assigned to `Dialog.result`, or `null` if the dialog is closed or cancelled without producing a result.
              */
             getResult(): Promise<any>;
 
@@ -5853,6 +9405,11 @@ declare global {
              * @param h height.
              */
             setSize(w: number, h: number): void;
+
+            /**
+             * Get the height of the title bar of the dialog.
+             */
+            getTitleBarHeight(): number;
         }
 
         /**
@@ -5972,9 +9529,9 @@ declare global {
             /**
              * A number version is designated for each watchable object. When the object is modified, the version number is incremented by 1.
              * @param obj The watchable object.
-             * @returns The version number.
+             * @returns The version number, or null when `obj` is not a watchable object.
              */
-            function getVersion(obj: any): number;
+            function getVersion(obj: any): number | null;
 
             /**
              * Add a listener to the object.
@@ -6007,9 +9564,18 @@ declare global {
              * @param fromObj The source object.
              * @param toObj The target object.
              * @param result The result array. If provided, the result will be pushed into this array, otherwise a new array will be created.
-             * @returns The path from fromObj to toObj.
+             * @returns The path from `fromObj` to `toObj`, or null if no path can be found.
              */
-            function getPath(fromObj: Object, toObj: Object, result?: Array<string>): Array<string>;
+            function getPath(fromObj: Object, toObj: Object, result?: Array<string>): Array<string> | null;
+
+            /**
+             * Find the path from fromObj to the object that satisfies the predicate. Returns null if it fails.
+             * @param fromObj The source object.
+             * @param predicate The predicate function to test each object. If the function returns true, the object is considered a match.
+             * @param result The result array. If provided, the result will be pushed into this array.
+             * @returns The object that satisfies the predicate, or null if not found.
+             */
+            function findPath(fromObj: Object, predicate: (obj: any) => boolean, result?: Array<string>): any | null;
 
             /**
              * Execute a function, and any modifications to watched objects within this function will not trigger change callback functions.
@@ -6091,11 +9657,6 @@ declare global {
             readonly fullUpdating: boolean;
 
             /**
-             * The owner widget of the inspector.
-             */
-            get ownerWidget(): gui.Tree;
-
-            /**
              * Get the inspection data. It is an array of objects, because the inspector can inspect multiple objects at the same time.
              */
             getData(): ReadonlyArray<any>;
@@ -6114,9 +9675,16 @@ declare global {
             setData(target: any, data?: any, status?: any): void;
 
             /**
-             * Refresh the inspector. You dont need to call this method if the inspector is updated by setData.
+             * Refresh the inspector. You do not need to call this method if the inspector is updated by `setData`.
              */
             refresh(): void;
+
+            /**
+             * Notify the inspector that the data has changed. The inspector will update the display according to the data path provided.
+             * You do not need to call this method because the inspector is automatically notified when the data changes.
+             * @param datapath The path of the changed data. It is an array of strings, each string is a key in the data object. The inspector will update the display of the field that corresponds to the data path.
+             */
+            notifyChange(datapath: ReadonlyArray<string>): void;
 
             /**
              * The Inspector will use the name of the data type as the title by default. If you need to customize the title, you can call this method.
@@ -6138,6 +9706,16 @@ declare global {
             getCatalogField(name: string): IPropertyField;
 
             /**
+             * Get a UI status value of a field.
+             */
+            getStatus(field: IPropertyField, name: string): any;
+
+            /**
+             * Set a UI status value of a field.
+             */
+            setStatus(field: IPropertyField, name: string, value: any): void;
+
+            /**
              * Set the style of the catalog bar.
              * @param style The style to be set.
              */
@@ -6152,22 +9730,22 @@ declare global {
             runValidators(parentField?: IPropertyField): boolean;
 
             /**
-             * Scroll to the specified node.
-             * @param node The node to scroll to. 
+             * Scroll to the specified field.
+             * @param field The field to scroll to. 
              * @param ani Whether to animate the scrolling. 
-             * @param setFirst Whether to display the node at the top of the view area if possible.
+             * @param setFirst Whether to display the field at the top of the view area if possible.
              */
-            scrollTo(node: gui.TreeNode, ani?: boolean, setFirst?: boolean): void;
+            scrollTo(field: IPropertyField, ani?: boolean, setFirst?: boolean): void;
 
             /**
-             * Scroll to the specified node.
-             * @param node The node to scroll to.
+             * Scroll to the specified field.
+             * @param field The field to scroll to.
              * @param ani Whether to animate the scrolling.
-             * @param secondNode The second node is commonly displayed before the specified node. 
-             * When we try to scroll to the specified node to make it visible, we will also make sure the second node is visible.
-             * If it is not possible to make both nodes visible, the second node will be displayed at the top of the view area.
+             * @param secondField The second field is commonly displayed before the specified field.
+             * When we try to scroll to the specified field to make it visible, we will also make sure the second field is visible.
+             * If it is not possible to make both fields visible, the second field will be displayed at the top of the view area.
              */
-            scrollTo(node: gui.TreeNode, ani?: boolean, secondNode?: gui.TreeNode): void;
+            scrollTo(field: IPropertyField, ani?: boolean, secondField?: IPropertyField): void;
 
             /**
              * Set a flag for the specified field.
@@ -6184,6 +9762,17 @@ declare global {
              */
             dispose(): void;
         }
+
+        export type DataHistoryItemAction = "edit" | "undo" | "redo";
+
+        export type DataHistoryItemAppliedHandler = (
+            target: any,
+            datapath: ReadonlyArray<string>,
+            value: any,
+            oldValue: any,
+            action: DataHistoryItemAction,
+        ) => void;
+
         /**
          * Interface for version tracking
          */
@@ -6213,6 +9802,13 @@ declare global {
              * The changed event. It will be triggered when the data is changed, undone or redone.
              */
             readonly onChanged: IDelegate<() => void>;
+
+            /**
+             * Triggered synchronously for every accepted edit and for every item applied
+             * by undo or redo. Unlike `onChanged`, this event is not delayed until a
+             * history batch is packed.
+             */
+            readonly onItemApplied: IDelegate<DataHistoryItemAppliedHandler>;
 
             /**
              * If the undo/redo is processing.
@@ -6260,9 +9856,15 @@ declare global {
              * @param extInfo Additional information. It is internally used by the editor to record array changes.
              * @param transient Whether the change is transient. A transient change will not affect the versionTracker.
              * @param batchId The batch ID. If this ID is provided, the change will attempt to merge or add to the undo stack's queue with the same batch ID.
-             * @param group The group ID. If this ID is provided, the change will be added to the specified group. A DataHistory can be seperated into multiple groups, and undo/redo operations can be performed in each group separately.
+             * @param group The group ID. If this ID is provided, the change will be added to the specified group. A DataHistory can be separated into multiple groups, and undo/redo operations can be performed in each group separately.
              */
             addChange(target: any, datapath: string | string[], value: any, oldvalue: any, extInfo?: any, transient?: boolean, batchId?: number, group?: number): number;
+
+            /**
+             * Get the most recent batch ID. If there are no changes or the latest batch is too old, it returns null.
+             * @returns The most recent batch ID, or null.
+             */
+            getRecentBatchId(): number | null;
 
             /**
              * If there are changes pending, flush them immediately.
@@ -6328,6 +9930,7 @@ declare global {
              */
             clearGroup(group: number): boolean;
         }
+
         /**
          * Interface for data components.
          */
@@ -6346,6 +9949,11 @@ declare global {
              * The type name of the component.
              */
             readonly typeName: string;
+
+            /**
+             * The type descriptor of the component. It could be null if the type is not registered.
+             */
+            readonly typeDef: FTypeDescriptor | null;
 
             /**
              * Update the data of the component.
@@ -6377,6 +9985,37 @@ declare global {
              */
             destroy(): void;
         }
+        /** Fully resolved options stored in a curve editor model. */
+        export interface CurveEditDialogOptions extends Required<Pick<CurveInputOptions,
+            "min" | "max" | "maxKeyFrame" | "isCurve" | "isWeight" | "forceStartEndKeys" | "isNormalization">> {
+        }
+
+        /** Editable value and resolved options consumed by the React curve editor dialog. */
+        export interface CurveEditDialogValue extends CurveInputValue {
+            /** Options controlling curve constraints and editing behavior. */
+            options: CurveEditDialogOptions;
+        }
+
+        /**
+         * Interface for the React curve editor dialog.
+         */
+        export interface ICurveEditDialog extends IDialog {
+            /**
+             * Show the curve editor.
+             * @param popupOwner Element or widget used to position the popup.
+             * @param value Initial curve value and resolved editing options.
+             * @param readonly Whether editing is disabled.
+             * @param onChange Called whenever the edited curve changes.
+             */
+            show(popupOwner: DialogPopupOwner, value: CurveEditDialogValue, readonly: boolean, onChange: (value: CurveEditDialogValue) => void): Promise<void>;
+
+            /**
+             * Update the value displayed by an open curve editor.
+             * @param value The new curve value and resolved editing options.
+             */
+            setValue(value: CurveEditDialogValue): void;
+        }
+
         /**
          * Interface for the crypto utils
          */
@@ -6525,6 +10164,27 @@ declare global {
              */
             save(): void;
         }
+        /**
+         * Interface for the React color picker dialog.
+         */
+        export interface IColorPickerDialog extends IDialog {
+            /**
+             * Show the color picker.
+             * @param popupOwner Element or widget used to position the popup.
+             * @param color Initial color displayed by the picker.
+             * @param hideAlpha Whether to hide alpha editing and force alpha to 1.
+             * @param onChange Called whenever the edited color changes.
+             */
+            show(popupOwner: DialogPopupOwner, color: gui.Color, hideAlpha: boolean, onChange: (color: gui.Color) => void): Promise<void>;
+
+            /**
+             * Update the color displayed by an open picker.
+             * @param color The new color.
+             * @param hideAlpha Whether to hide alpha editing. Existing behavior is retained when omitted.
+             */
+            setValue(color: gui.Color, hideAlpha?: boolean): void;
+        }
+
 
         export interface IClipboard {
             // Docs: https://electronjs.org/docs/api/clipboard
@@ -6532,17 +10192,17 @@ declare global {
             /**
              * An array of supported formats for the clipboard `type`.
              */
-            availableFormats(type?: 'selection' | 'clipboard'): string[];
+            availableFormats(type?: 'selection' | 'clipboard'): Promise<string[]>;
             /**
              * Clears the clipboard content.
              */
-            clear(type?: 'selection' | 'clipboard'): void;
+            clear(type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Whether the clipboard supports the specified `format`.
              *
              * @experimental
              */
-            has(format: string, type?: 'selection' | 'clipboard'): boolean;
+            has(format: string, type?: 'selection' | 'clipboard'): Promise<boolean>;
             /**
              * Reads `format` type from the clipboard.
              *
@@ -6551,7 +10211,7 @@ declare global {
              *
              * @experimental
              */
-            read(format: string): string;
+            read(format: string): Promise<string>;
             /**
              * * `title` string
              * * `url` string
@@ -6562,13 +10222,13 @@ declare global {
              *
              * @platform darwin,win32
              */
-            readBookmark(): any;
+            readBookmark(): Promise<any>;
             /**
              * Reads `format` type from the clipboard.
              *
              * @experimental
              */
-            readBuffer(format: string): Buffer;
+            readBuffer(format: string): Promise<Buffer>;
             /**
              * The text on the find pasteboard, which is the pasteboard that holds information
              * about the current state of the active application’s find panel.
@@ -6579,27 +10239,27 @@ declare global {
              *
              * @platform darwin
              */
-            readFindText(): string;
+            readFindText(): Promise<string>;
             /**
              * The content in the clipboard as markup.
              */
-            readHTML(type?: 'selection' | 'clipboard'): string;
+            readHTML(type?: 'selection' | 'clipboard'): Promise<string>;
             /**
              * The image content in the clipboard.
              */
-            readImage(type?: 'selection' | 'clipboard'): any;
+            readImage(type?: 'selection' | 'clipboard'): Promise<any>;
             /**
              * The content in the clipboard as RTF.
              */
-            readRTF(type?: 'selection' | 'clipboard'): string;
+            readRTF(type?: 'selection' | 'clipboard'): Promise<string>;
             /**
              * The content in the clipboard as plain text.
              */
-            readText(type?: 'selection' | 'clipboard'): string;
+            readText(type?: 'selection' | 'clipboard'): Promise<string>;
             /**
              * Writes `data` to the clipboard.
              */
-            write(data: any, type?: 'selection' | 'clipboard'): void;
+            write(data: any, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `title` (macOS only) and `url` into the clipboard as a bookmark.
              *
@@ -6609,13 +10269,13 @@ declare global {
              *
              * @platform darwin,win32
              */
-            writeBookmark(title: string, url: string, type?: 'selection' | 'clipboard'): void;
+            writeBookmark(title: string, url: string, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `buffer` into the clipboard as `format`.
              *
              * @experimental
              */
-            writeBuffer(format: string, buffer: Buffer, type?: 'selection' | 'clipboard'): void;
+            writeBuffer(format: string, buffer: Buffer, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `text` into the find pasteboard (the pasteboard that holds
              * information about the current state of the active application’s find panel) as
@@ -6624,24 +10284,25 @@ declare global {
              *
              * @platform darwin
              */
-            writeFindText(text: string): void;
+            writeFindText(text: string): Promise<void>;
             /**
              * Writes `markup` to the clipboard.
              */
-            writeHTML(markup: string, type?: 'selection' | 'clipboard'): void;
+            writeHTML(markup: string, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes `image` to the clipboard.
              */
-            writeImage(image: any, type?: 'selection' | 'clipboard'): void;
+            writeImage(image: any, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `text` into the clipboard in RTF.
              */
-            writeRTF(text: string, type?: 'selection' | 'clipboard'): void;
+            writeRTF(text: string, type?: 'selection' | 'clipboard'): Promise<void>;
             /**
              * Writes the `text` into the clipboard as plain text.
              */
-            writeText(text: string, type?: 'selection' | 'clipboard'): void;
+            writeText(text: string, type?: 'selection' | 'clipboard'): Promise<void>;
         }
+
         /**
          * Class registry for editor. It is internally used by editor.
          */
@@ -6691,7 +10352,7 @@ declare global {
              * @example
              * ```
              * //The settings panel id is "TestBuildSettings", which can be used in this field.
-             * @IEditor.panel("TestBuildSettings", { usage: "build-settings", title: "My Test" })
+             * ＠IEditor.panel("TestBuildSettings", { usage: "build-settings", title: "My Test" })
              * export class TestBuildSettings extends IEditor.EditorPanel {
              * }
              * ```
@@ -6699,7 +10360,7 @@ declare global {
             inspector?: string;
 
             /**
-             * The build template path. It is a absolute path to the directory that contains the build template files.
+             * Absolute path to the directory containing the build-template files.
              * Contents in the directory will be copied to the build output directory during the build process.
              */
             templatePath?: string;
@@ -6726,6 +10387,11 @@ declare global {
             isMiniGame?: boolean;
 
             /**
+             * Whether the build target is a native platform, e.g. Android, iOS, Windows, Mac, etc.
+             */
+            isNative?: boolean;
+
+            /**
              * Sets the position of the build target in the build settings panel. 
              * 
              * Supported syntax: "first" / "last" / "before id" / "after id". e.g. "before web" or "after android".
@@ -6741,16 +10407,49 @@ declare global {
             Android = 1,
             IOS = 2,
         }
+
+        export interface IBuildSettingsPanel extends IEditorPanel {
+            /**
+             * Get all registered build targets.
+             * @return A record mapping build target names to their info.
+             */
+            getBuildTargets(): Record<string, Readonly<IBuildTargetInfo>>;
+
+            /**
+             * Get a build target info by its name.
+             * @param name The name of the build target.
+             * @return The build target info, or null if not found.
+             */
+            getBuildTarget(name: string): Readonly<IBuildTargetInfo> | null;
+
+            /**
+             * Show the catalog for a specific build target.
+             * @param catalog The name of the catalog to show.
+             * @param catalog2 An optional secondary catalog name.
+             */
+            showCatalog(catalog: string, catalog2?: string): void;
+        }
+
         /**
          * Tools for asset store
          */
         export namespace IAssetStoreTools {
+            type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+            type QueryValue = string | number | boolean | null | undefined;
+
+            interface RequestOptions {
+                method?: Method;
+                query?: Record<string, QueryValue | QueryValue[]>;
+                body?: unknown;
+                /** Where the editor injects authentication. Defaults to query for GET and body for other methods. */
+                auth?: "auto" | "query" | "body";
+            }
+
             /**
-             * Subscribe a resource.
-             * @param resourceId The resource id.
-             * @returns A promise that resolves with a boolean indicating whether the resource is subscribed successfully. 
+             * Request a JSON API under the Asset Store origin. Authentication is supplied by the editor.
+             * `path` must be a relative API path and must not contain a query string or fragment.
              */
-            function subscribe(resourceId: string): Promise<boolean>;
+            function request<T = any>(path: string, options?: RequestOptions): Promise<T>;
 
             /**
              * Upload a package to the asset store.
@@ -6770,7 +10469,9 @@ declare global {
              * @returns A promise that resolves with the result.
              */
             function callPluginBackend(action: string, resourceId: string, billingMethod: number, data: any): Promise<any>;
+
         }
+
         /**
          * Asset Panel Interface
          */
@@ -6900,6 +10601,9 @@ declare global {
             I18nSettings,
 
             Dll,
+            CSS,
+            ComputeShader,
+            ScriptableObject
         }
 
         /**
@@ -6950,15 +10654,28 @@ declare global {
              * The asset is a built-in asset.
              */
             BuiltIn = 0x10000,
+            /**
+             * The asset is a feature pack asset.
+             */
+            FeaturePack = 0x20000,
+
+            /**
+             * The asset is a package or feature pack asset.
+             */
+            PackageLike = Packages | FeaturePack,
         }
 
         /**
          * Asset changed flag
          */
         export enum AssetChangedFlag {
+            /** Existing asset contents or metadata changed. */
             Modified = 0,
+            /** A new asset was added to the database. */
             New = 1,
+            /** An asset was removed from the database. */
             Deleted = 2,
+            /** An asset moved or was renamed. */
             Moved = 3
         }
 
@@ -6983,13 +10700,13 @@ declare global {
              */
             Editor = 4,
             /**
-             * A script is a javascript file.
+             * A JavaScript file.
              */
             Javascript = 8
         }
 
         /**
-         * Asset Infomation
+         * Asset information stored by the asset database.
          */
         export interface IAssetInfo {
             /**
@@ -7032,10 +10749,8 @@ declare global {
              * If the asset has children, only meaningful for folders and some special assets like fbx.
              */
             hasChild: boolean;
-            /**
-             * Asset flags
-             */
-            flags: number;
+            /** Bitmask composed from {@link AssetFlags}. */
+            flags: AssetFlags;
             /**
              * Asset script type
              */
@@ -7065,7 +10780,7 @@ declare global {
         }
 
         /**
-         * Custom asset filter. Can be used to register custom asset filters through the `IEditorEnv.assetMgr.customAssetFilters` method.
+         * Custom asset filter registered through `EditorEnv.assetMgr.customAssetFilters` in the Scene process.
          */
         export interface IAssetFilter {
             /**
@@ -7076,6 +10791,7 @@ declare global {
             (asset: IAssetInfo): boolean;
         }
 
+        /** Filters and result limits used by asset-search APIs. */
         export interface IFindAssetsOptions {
             /**
              * Whether to match the sub type. Some assets have a type and a sub type. Such as a json asset has a type of `Json` and a sub type of `Spine` if it is a description file of spine.
@@ -7083,7 +10799,7 @@ declare global {
             matchSubType?: boolean;
 
             /**
-             * The custom filter. Developers can register custom filters by calling the `IEditorEnv.assetMgr.customAssetFilters` method in scene process.
+             * The custom filter name registered through `EditorEnv.assetMgr.customAssetFilters` in the Scene process.
              */
             customFilter?: string;
 
@@ -7102,10 +10818,42 @@ declare global {
              */
             limit?: number;
         }
+
+        export interface IAssetDependencyTool {
+            /**
+             * Query the dependencies of the given assets.
+             * @param assetIds The asset IDs or paths to query.
+             * @param includeIndirectLinks Whether to include indirect dependencies.
+             * @param noSubAsset Whether to exclude sub-assets and only return their parent assets.
+             * @returns A promise that resolves to a tuple containing an array of asset info objects representing the dependencies and an array of asset IDs or paths that were not found.
+             */
+            queryDependency(assetIds: ReadonlyArray<string>, includeIndirectLinks?: boolean, noSubAsset?: boolean): Promise<[Array<IAssetInfo>, Array<string>]>;
+
+            /**
+             * Query the assets that reference the given asset IDs or paths.
+             * @param assets The asset IDs or paths to query.
+             * @returns A promise that resolves to an array of asset info objects representing the referencing assets. 
+             */
+            queryReference(assets: ReadonlyArray<string>): Promise<Array<IAssetInfo>>;
+
+            /**
+             * Replace references in assets based on the given replacements mapping.
+             * @param replacements A mapping of original asset IDs or paths to new asset IDs or paths. 
+             * @param targetAssets An optional set of assets to limit the replacement operation to.
+             * @returns A promise that resolves to an array of asset ids representing the assets that were modified.
+             */
+            replaceReference(replacements: Record<string, string>, targetAssets?: ReadonlySet<IAssetInfo>): Promise<Array<string>>;
+        }
+
         /**
          * Interface for an asset database.
          */
         export interface IAssetDb {
+            /**
+             * The id of the root asset, which is the project root folder.
+             */
+            readonly rootAssetId: string;
+
             /**
              * Triggered when an asset is changed.
              * @param assetId The id of the asset.
@@ -7137,7 +10885,7 @@ declare global {
              * @param folderAssetId The id of the folder asset.
              * @param types The types of the assets.
              * @param matchSubType Whether to match the sub type. Some assets have a type and a sub type. Such as a json asset has a type of `Json` and a sub type of `Spine` if it is a description file of spine.
-             * @param customFilter The custom filter. Developers can register custom filters by calling the `IEditorEnv.assetMgr.customAssetFilters` method in scene process.
+             * @param customFilter The custom filter. Register it through `EditorEnv.assetMgr.customAssetFilters` in the Scene process.
              * @returns The assets in the specified folder.
              */
             getFolderContent(folderAssetId: string, types?: ReadonlyArray<AssetType | string>, matchSubType?: boolean, customFilter?: string): Promise<IAssetInfo[]>;
@@ -7146,28 +10894,29 @@ declare global {
              * Get the asset by the id or path.
              * @param assetIdOrPath The id or path of the asset.
              * @param allowResourcesSearch Whether to allow searching in the resources folder.
-             * @returns The asset.
+             * @returns The asset, or null if no matching asset is found.
              */
-            getAsset(assetIdOrPath: string, allowResourcesSearch?: boolean): Promise<IAssetInfo>;
+            getAsset(assetIdOrPath: string, allowResourcesSearch?: boolean): Promise<IAssetInfo | null>;
 
             /**
              * Get the asset by the id or path synchronously. Can only be used if the asset is already queried.
              * @param assetIdOrPath The id or path of the asset.
-             * @returns The asset.
+             * @param allowResourcesSearch Whether to allow searching in the resources folder.
+             * @returns The cached asset, or null if it has not been queried or does not exist.
              */
-            getAssetSync(assetIdOrPath: string): IAssetInfo;
+            getAssetSync(assetIdOrPath: string, allowResourcesSearch?: boolean): IAssetInfo | null;
 
             /**
              * Get all parent assets of the specified asset id (including itself), arranged in order from the root directory to itself.
              * @param assetId The id of the asset.
-             * @returns An array of all parent assets.
+             * @returns Parent assets from the project root through the requested asset, or `null` if the asset ID cannot be resolved.
              * @example
              * ```
-             * let parents = await IEditor.assetDb.getAssetsInPath('GUID');
+             * let parents = await Editor.assetDb.getAssetsInPath('GUID');
              * // parents: [assets, folder, asset]
              * ```
              */
-            getAssetsInPath(assetId: string): Promise<Array<IAssetInfo>>;
+            getAssetsInPath(assetId: string): Promise<Array<IAssetInfo> | null>;
 
             /**
              * Set the meta data of the asset. The meta data is stored in the meta file of the asset. 
@@ -7177,9 +10926,9 @@ declare global {
              * @param data The data to be stored in the meta file. It is an object or string. If it is a string, it is stringified from an object.
              * @example
              * ```
-             * await IEditor.assetDb.setMetaData('GUID', { importer: { textureType: 2 } });
+             * await Editor.assetDb.setMetaData('GUID', { importer: { textureType: 2 } });
              * 
-             * await IEditor.assetDb.setMetaData('GUID', { customData: 'Hello World!' });
+             * await Editor.assetDb.setMetaData('GUID', { customData: 'Hello World!' });
              * ```
              */
             setMetaData(assetId: string, data: any): Promise<void>;
@@ -7191,9 +10940,9 @@ declare global {
              * @param idAndDataArray The array of the id and data to be stored in the meta file. The data is an object or string. If it is a string, it is stringified from an object.
              * @example
              * ```
-             * await IEditor.assetDb.setMetaData('GUID1', { importer: { textureType: 2 } }, 'GUID2', { importer: { textureType: 2 } });
+             * await Editor.assetDb.setMetaData('GUID1', { importer: { textureType: 2 } }, 'GUID2', { importer: { textureType: 2 } });
              * 
-             * await IEditor.assetDb.setMetaData('GUID1', { customData: 'Hello World!' }, 'GUID2', { customData: 'Hello World!' });
+             * await Editor.assetDb.setMetaData('GUID1', { customData: 'Hello World!' }, 'GUID2', { customData: 'Hello World!' });
              * ```
              */
             setMetaData(...idAndDataArray: any[]): Promise<void>;
@@ -7204,30 +10953,30 @@ declare global {
              * @param source If sourceIsPath is true, the source is the path of the source file, and the file is created by copying the source file. Otherwise, the source is the content of the file.
              * @param sourceIsPath Whether the source is a path.
              * @param allowOverwrite Whether to allow overwriting the file. If the file already exists, the file is overwritten. Default is true.
-             * @returns The asset information of the file.
+             * @returns The asset information of the file, or null if the operation fails.
              */
-            writeFile(filePath: string, source?: string, sourceIsPath?: boolean, allowOverwrite?: boolean): Promise<IAssetInfo>;
+            writeFile(filePath: string, source?: string, sourceIsPath?: boolean, allowOverwrite?: boolean): Promise<IAssetInfo | null>;
 
             /**
              * Write the file with a template to the specified path. Create a new asset if the file does not exist, and return existing assets if the file exists.
              * @param filePath The path of the file. The path is relative to the assets folder.
-             * @param templateName The name of the template. It can be a absolute path or a file name. If it is a file name, the default template path will be used.
+             * @param templateName The template name, an absolute path, or a file name resolved from the default template directory.
              * @param templateArgs The arguments of the template. 
              * @param allowOverwrite Whether to allow overwriting the file. If the file already exists, the file is overwritten. Default is true.
              * @returns The asset information of the file.
              * @example
              * ```
-             * await IEditor.assetDb.createFileFromTemplate('test.lmat', 'templateName', { key: 'value' });
+             * await Editor.assetDb.createFileFromTemplate('test.lmat', 'templateName', { key: 'value' });
              * ```
              */
-            createFileFromTemplate(filePath: string, templateName: string, templateArgs?: Record<string, string>, allowOverwrite?: boolean): Promise<IAssetInfo>;
+            createFileFromTemplate(filePath: string, templateName: string, templateArgs?: Record<string, string>, allowOverwrite?: boolean): Promise<IAssetInfo | null>;
 
             /**
              * Create a folder at the specified path. 
              * @param folderPath The path of the folder. The path is relative to the assets folder.
-             * @returns The asset information of the folder.
+             * @returns The asset information of the folder, or null if the operation fails.
              */
-            createFolder(folderPath: string): Promise<IAssetInfo>;
+            createFolder(folderPath: string): Promise<IAssetInfo | null>;
 
             /**
              * Get the path of the source file of the prefab asset. For prefab assets like fbx/gltf, their scene files are generated in the library folder. This method can get the path of the scene file.
@@ -7276,7 +11025,7 @@ declare global {
              * @param asset The asset.
              * @returns The initials of the asset.
              */
-            getAssetInitials(asset: IAssetInfo): string;
+            getAssetInitials(asset: IAssetInfo): string[];
 
             /**
              * Get the icon of the asset. The icon is the image of the asset.
@@ -7301,6 +11050,13 @@ declare global {
              * @returns The icon of the folder. The first element is the icon in normal state, and the second element is the icon in opened state.
              */
             getFolderIcon(name: string): [string, string];
+
+            /**
+             * Get the thumbnail image url of the asset. The thumbnail is a small image generated by the editor to represent the asset.
+             * @param assetId The id of the asset.
+             * @returns The thumbnail image url of the asset.
+             */
+            getAssetThumbnail(assetId: string): string;
 
             /**
              * Get the thumbnail image url of the asset.
@@ -7334,7 +11090,7 @@ declare global {
              * @param keyword The keyword.
              * @param types The types of the assets. 
              * @param matchSubType Whether to match the sub type. Some assets have a type and a sub type. Such as a json asset has a type of `Json` and a sub type of `Spine` if it is a description file of spine.
-             * @param customFilter The custom filter. Developers can register custom filters by calling the `IEditorEnv.assetMgr.customAssetFilters` method in scene process.
+             * @param customFilter The custom filter. Register it through `EditorEnv.assetMgr.customAssetFilters` in the Scene process.
              * @returns The assets that match the keyword.
              */
             search(keyword: string, types?: ReadonlyArray<AssetType | string>, matchSubType?: boolean, customFilter?: string): Promise<Array<IAssetInfo>>;
@@ -7353,7 +11109,7 @@ declare global {
              * @param assetIds The asset ids. 
              * @param types The types of the assets. 
              * @param matchSubType Whether to match the sub type. Some assets have a type and a sub type. Such as a json asset has a type of `Json` and a sub type of `Spine` if it is a description file of spine. 
-             * @param customFilter The custom filter. Developers can register custom filters by calling the `IEditorEnv.assetMgr.customAssetFilters` method in scene process. 
+             * @param customFilter The custom filter. Register it through `EditorEnv.assetMgr.customAssetFilters` in the Scene process.
              * @returns The assets that match the asset ids and other conditions.
              */
             filter(assetIds: ReadonlyArray<string>, types?: ReadonlyArray<AssetType | string>, matchSubType?: boolean, customFilter?: string): Promise<Array<IAssetInfo>>;
@@ -7392,7 +11148,7 @@ declare global {
             delete(assets: ReadonlyArray<IAssetInfo>): Promise<void>;
 
             /**
-             * Create a temporary asset. The temporary asset is not saved to the disk. It is internally used by AssetsPanel to create a new asset.
+             * Create a temporary asset. The temporary asset is not saved to the disk. It is internally used by AssetPanel to create a new asset.
              * @param fileName The name of the temporary asset.
              * @returns The temporary asset.
              */
@@ -7431,6 +11187,7 @@ declare global {
              */
             flushChanges(): Promise<void>;
         }
+
         /**
          * Interface for the Add Modules dialog.
          */
@@ -7440,8 +11197,9 @@ declare global {
              * @param popupOwner Popup owner.
              * @param selectedModules Selected modules. 
              */
-            show(popupOwner: gui.Widget, selectedModules?: Array<string>): Promise<void>;
+            show(popupOwner: DialogPopupOwner, selectedModules?: Array<string>): Promise<void>;
         }
+
         /**
          * Information about the current user.
          */
@@ -7497,11 +11255,6 @@ declare global {
             readonly userInfo: IUserInfo;
 
             /**
-             * The token used to visit the store.
-             */
-            readonly storeToken: string;
-
-            /**
              * Log in.
              */
             login(): Promise<void>;
@@ -7511,6 +11264,7 @@ declare global {
              */
             logout(): Promise<void>;
         }
+
         /**
          * Interface for an abort token.
          */
@@ -7685,14 +11439,22 @@ declare global {
 
             /**
              * Whether the property is serializable. If false, the property will not be serialized. Default is true.
+             * 
+             * boolean: False means not serializable, true means serializable.
+             * 
+             * string: For example, "!!data.a". If !!data.a is true, it indicates that this property is serializable.
              */
-            serializable?: boolean;
+            serializable?: boolean | string;
             /**
              * When the property does not participate in serialization, if its data may be affected by another serializable property, fill in the name of other property here.
              * 
              * This is usually used to determine whether the prefab property is overridden.
              */
             affectBy?: string;
+            /**
+             * The property is only effective in the editor and will be stripped in the build.
+             */
+            stripInBuild?: boolean;
 
             /**
              * Whether the text input is multiline. Default is false.
@@ -7876,6 +11638,15 @@ declare global {
              * - move: Move an element to a specified position.
              */
             arrayActions?: Array<"append" | "insert" | "delete" | "move">;
+
+            /**
+             * Applicable to array type properties. Defines an optional header and proportional width for each column
+             * rendered by a compound array-element inspector. Width values are percentages and are normalized when
+             * their total is not exactly 100.
+             *
+             * Use "i18n:<key>" or "i18n:<file-id>:<key>" for localized captions.
+             */
+            arrayColumns?: Array<{ caption: string; width: number }>;
 
             /**
              * Applicable to array or dictionary type properties. Here you can define the properties of array/dictionary elements.
@@ -8119,6 +11890,11 @@ declare global {
             newNodeName?: string;
 
             /**
+             * Default file name without extension when this asset type is created from the Project/Create menu.
+             */
+            newAssetName?: string;
+
+            /**
              * Icon of the type.  Images are generally placed in the editorResources directory or its subdirectories, and then referenced using a path starting from editorResources, such as "editorResources/my-plugin/icon.png".
              */
             icon?: string;
@@ -8283,9 +12059,24 @@ declare global {
             caption?: string;
 
             /**
+             * Button caption when the bound toggle property is true.
+             *
+             * Use "i18n:&lt;key&gt;" or "i18n:&lt;file-id&gt;:&lt;key&gt;" to specify the key of the internationalization string.
+             */
+            selectCaption?: string;
+
+            /**
              * Button tips.
              */
             tips?: string;
+
+            /**
+             * Makes this button toggle a boolean property.
+             *
+             * Set to true to toggle the field's own property, or provide a property name
+             * to toggle another property on the same object.
+             */
+            toggleProperty?: true | string;
 
             /**
              * If this is defined, a event with this name will be emitted when the button is clicked.
@@ -8309,10 +12100,16 @@ declare global {
             runNodeScript?: string;
 
             /**
+             * If this is defined, a panel will be focused when the button is clicked.
+             */
+            focusPanel?: string;
+
+            /**
              * Bind a hotkey to the button.
              */
             sceneHotkey?: string;
         }
+
         export interface ISceneEditor extends IEditorFrontEnd {
             /**
              * Data analysis support.
@@ -8343,12 +12140,17 @@ declare global {
             saveAll(): void;
 
             /**
+             * Discard changes of the current scene.
+             */
+            discardChanges(): void;
+
+            /**
              * Save all scenes with confirmation.
              * @returns Returns true if all scenes are saved successfully. Returns false if any scene is not saved.
              */
             queryToSaveAll(): Promise<boolean>;
         }
-        export interface IPlayControls extends gui.Widget {
+        export interface IPlayControls {
             /**
              * An behavior of the play button. If true, the play button will play the current scene. If false, the play button will play the startup scene.
              */
@@ -8376,6 +12178,26 @@ declare global {
             play(currentOrStartup: boolean, player?: "browser" | "editor" | "emulator"): boolean;
 
             /**
+             * Stops playing the scene.
+             */
+            stop(): void;
+
+            /**
+             * Pauses playing the scene.
+             */
+            pause(): void;
+
+            /**
+             * Resumes playing the scene.
+             */
+            resume(): void;
+
+            /**
+             * Steps to the next frame when the scene is paused.
+             */
+            stepNextFrame(): void;
+
+            /**
              * Gets the URL to play the scene.
              * @param currentOrStartup If true, get the URL to play the current scene. If false, get the URL to play the startup scene. 
              * @param additionParams Additional parameters to add to the URL.
@@ -8387,39 +12209,54 @@ declare global {
              */
             getPlayURL(currentOrStartup?: boolean, additionParams?: Record<string, string>, player?: "browser" | "editor" | "emulator"): string;
         }
-        export class Dialog<T extends gui.Widget = gui.Widget> implements IDialog {
+
+        export class Dialog<T extends gui.Widget = gui.Widget> implements IDialog<T> {
             resizable: boolean;
             modal: boolean;
             closable: boolean;
             frame: boolean;
             transparent: boolean;
             showType: "none" | "popup" | "dropdown";
-            alwaysInFront: boolean;
             readonly features: Record<string, any>;
+            useFocusedWindowAsOwner: boolean;
             readonly id: string;
             name: string;
             saveBounds: boolean;
             protected _win: Window;
             protected _groot: gui.GRoot;
-            protected _modalWaitLayer: gui.Widget;
+            protected _modalWaitLayer: ReactDOM;
             protected result: any;
+            private _modalWaitText;
+            private _modalWaitColor;
             private _contentPane;
             private _popupOwner;
+            private _popupOwnerGRoot;
+            private _popupOwnerDialogId;
             private _x;
             private _y;
             private _width;
             private _height;
+            private _contentPaneInitialWidth;
+            private _contentPaneInitialHeight;
+            private _contentPaneInitialExplicitSize;
+            private _explicitSize;
+            private _restoredBoundsSize;
+            private _autoSizeMeasured;
             private _titleStr;
+            private _alwaysInFront;
             private _showing;
             private _creatingWin;
             private _blockLayer;
+            private _titleBar;
             constructor();
             get contentPane(): T;
             set contentPane(value: T);
-            get popupOwner(): gui.Widget;
+            get popupOwner(): DialogPopupOwner;
             get isShowing(): boolean;
+            get alwaysInFront(): boolean;
+            set alwaysInFront(value: boolean);
             create(): Promise<void>;
-            show(popupOwner?: gui.Widget, ...args: any[]): Promise<void>;
+            show(popupOwner?: DialogPopupOwner, ...args: any[]): Promise<void>;
             hide(): void;
             getResult(): Promise<any>;
             dispose(): void;
@@ -8430,12 +12267,25 @@ declare global {
             get winY(): number;
             get winWidth(): number;
             get winHeight(): number;
+            protected get physicalWinWidth(): number;
+            private getWindowSizeInfo;
             setPos(x: number, y: number): void;
             setSize(width: number, height: number): void;
+            private applyDialogSize;
+            private applyAutoSizeOnce;
+            private waitForAutoSizeLayout;
+            private needAutoSizeBeforeShow;
+            private measureContentSize;
+            private measureReactContentSize;
+            private getInitialContentSize;
+            private isValidSize;
+            private syncInitialContentPaneSize;
+            private hasExplicitContentPaneSize;
             protected showModalWait(msg?: string): void;
             protected closeModalWait(): void;
             protected setupModalLayer(color?: gui.Color, msg?: string): void;
             private createModalLayer;
+            private renderModalLayer;
             protected onInit(): void;
             protected onShown(...args: any[]): void;
             protected onHide(): void;
@@ -8445,29 +12295,246 @@ declare global {
             private fixXY;
             private fixSize;
             private fixResize;
+            getTitleBarHeight(): number;
+            protected injectDialogStyles(doc: Document): void;
         }
-
         export class EditorPanel implements IEditorPanel {
             panelOptions: IPanelOptions;
             panelId: string;
             protected _panel: gui.Widget;
-            protected _modalWaitLayer: gui.Widget;
+            protected _modalWaitLayer: ReactDOM;
+            private _modalWaitText;
             create(): Promise<void>;
             get contentPane(): gui.Widget;
             protected showModalWait(msg?: string): void;
             protected closeModalWait(): void;
             protected setupModalLayer(color?: gui.Color, msg?: string): void;
             private createModalLayer;
+            private renderModalLayer;
             onStart?(): void;
             onUpdate?(): void;
             onDestroy?(): void;
             onSelectionChanged?(): void;
             onSceneActivate?(scene: IMyScene): void;
             onSceneDeactivate?(scene: IMyScene): void;
+            onBeforeSaveScene?(scene: IMyScene): Promise<void> | void;
+            onAfterSaveScene?(scene: IMyScene): Promise<void> | void;
             onHotkey?(combo: string): boolean;
             onGlobalHotkey?(combo: string): boolean;
             onSearch?(searchKey: string): void;
             onExtensionReload?(): void;
+            getUnsavedFiles?(): Array<string>;
+            onSave?(): Promise<void>;
+            onSaveStatus?(): void;
+        }
+
+        export interface ReactDOMOptions {
+            /**
+             * Whether to use Shadow DOM for style isolation.
+             * Defaults to `false` for the internal `ReactDOM` class and `true` for
+             * the public `IEditor.ReactDOM` class.
+             */
+            shadow?: boolean;
+        }
+        /**
+         * A gui.Widget subclass that hosts React content.
+         *
+         * Since it extends gui.Widget, add it to the FairyGUI hierarchy with
+         * `parent.addChild(reactDOM)`. Pass `{ shadow: true }` to enable style
+         * isolation and automatically inject the base theme and editor component
+         * stylesheets.
+         *
+         * Key APIs:
+         * - `render(element)` — render or update React content (JSX).
+         * - `adoptStyles(css)` — inject additional CSS (import .css files as text).
+         * - `dispose()` — unmount React and clean up.
+         * - `ReactDOM.useWidget(widget)` — React hook to embed a FairyGUI widget inside React.
+         * - `ReactDOM.useWidgetEvent(ref, type, handler)` — route a FairyGUI event to an active React region.
+         * - `ReactDOM.createStore(initial)` — create a reactive store for editor→React data flow.
+         *
+         * @example Panel:
+         * ```tsx
+         * import styles from './MyPlugin.css';
+         *
+         * class MyPanel extends IEditor.EditorPanel {
+         *     private _react: IEditor.ReactDOM;
+         *     async create() {
+         *         this._panel = new gui.Widget();
+         *         this._react = new IEditor.ReactDOM();
+         *         this._react.adoptStyles(styles);
+         *         this._react.makeFullSize(this._panel, true);
+         *         this._panel.addChild(this._react);
+         *         this._react.render(<App />);
+         *     }
+         *     onDestroy() { this._react.dispose(); }
+         * }
+         * ```
+         *
+         * @example Dialog:
+         * ```tsx
+         * let reactDOM = new IEditor.ReactDOM();
+         * reactDOM.adoptStyles(styles);
+         * reactDOM.setSize(320, 200);
+         * dialog.contentPane = reactDOM;  // ReactDOM IS a gui.Widget
+         * reactDOM.render(<MyForm />);
+         * ```
+         *
+         * @example Embedding FairyGUI inside React:
+         * ```tsx
+         * function MyComponent() {
+         *     let panel = IEditor.GUIUtils.createInspectorPanel();
+         *     panel.inspect(data, typeDesc);
+         *     panel.resizeToFit();
+         *     let ref = IEditor.ReactDOM.useWidget(panel);
+         *     return <div ref={ref} style={{ height: panel.height }} />;
+         * }
+         * ```
+         *
+         * @example Reactive data bridge:
+         * ```tsx
+         * const store = IEditor.ReactDOM.createStore<string[]>([]);
+         * // Editor side: store.set(newValue);
+         * // React side:  useSyncExternalStore(store.subscribe, store.get);
+         * ```
+         *
+         * @example Internationalization (use standard gui.Translations):
+         * ```tsx
+         * let myI18n = gui.Translations.create("my-plugin")
+         *     .setContent("zh-CN", { hello: "你好" })
+         *     .setContent("en", { hello: "Hello" });
+         * // In JSX: <span>{myI18n.t("hello")}</span>
+         * ```
+         */
+        export class ReactDOM extends gui.Widget {
+            private _shadowRoot;
+            private _reactRoot;
+            private _mountPoint;
+            private _styleHost;
+            private _sheetDocument;
+            private _useShadow;
+            private _wheelTarget;
+            private _explicitSize;
+            private _onNativeWheel;
+            constructor(options?: ReactDOMOptions);
+            /**
+             * The Shadow Root. Useful for creating React Portals (dropdowns,
+             * modals) that stay within the style-isolated boundary.
+             */
+            get shadowRoot(): ShadowRoot | null;
+            /**
+             * The mount point element inside the host element or Shadow DOM.
+             */
+            get mountPoint(): HTMLDivElement;
+            get explicitSize(): boolean;
+            setSize(wv: number, hv: number, changeByLayout?: boolean): this;
+            /**
+             * Render a React element into the Shadow DOM container.
+             * Can be called multiple times to update the content.
+             */
+            render(element: any): void;
+            /**
+             * Inject additional CSS into this container's Shadow DOM.
+             * Typically used with CSS imported as text via the css-text esbuild plugin.
+             *
+             * ```ts
+             * import styles from './MyPlugin.css';
+             * reactDOM.adoptStyles(styles);
+             * ```
+             */
+            adoptStyles(css: string): void;
+            /**
+             * Unmount React and clean up.
+             */
+            dispose(): void;
+            /**
+             * Called by FairyGUI when the widget is added to the stage.
+             * Rebuild adoptedStyleSheets if the element moved to a different
+             * document (e.g. Dialog popup in a new Electron window).
+             */
+            protected onEnable(): void;
+            private _handleNativeWheel;
+            /**
+             * React hook for embedding a FairyGUI Widget inside React.
+             *
+             * Pass a widget instance. Returns a `ref` to attach to a container div.
+             * The widget is automatically mounted, sized via ResizeObserver,
+             * and cleaned up on unmount.
+             *
+             * @example
+             * ```tsx
+             * function MyApp() {
+             *     let panel = IEditor.GUIUtils.createInspectorPanel();
+             *     panel.inspect(data, typeDesc);
+             *     panel.resizeToFit();
+             *
+             *     let ref = IEditor.ReactDOM.useWidget(panel);
+             *
+             *     return (
+             *         <div>
+             *             <h3>Properties</h3>
+             *             <div ref={ref} style={{ height: panel.height }} />
+             *         </div>
+             *     );
+             * }
+             * ```
+             */
+            static useWidget(contentWidget: gui.Widget): React.RefObject<HTMLDivElement>;
+            /**
+             * Route a bubbling FairyGUI event from the owning Widget to a React region.
+             * When several regions share one ReactDOM host, only the region most recently
+             * focused or pressed receives the event. Nested regions take precedence.
+             *
+             * @param ref A stable ref attached to the root element of the React region.
+             * @param type FairyGUI event type, for example `hotkey` or `search`.
+             * @param handler Event handler for the active region.
+             * @param enabled Whether the bridge should be active. Defaults to true.
+             *
+             * @example
+             * ```tsx
+             * function HistoryView({ history }) {
+             *     const ref = React.useRef<HTMLDivElement>(null);
+             *     IEditor.ReactDOM.useWidgetEvent(ref, "hotkey", event => {
+             *         if (event.data === "undo" && history.undo())
+             *             event.stopPropagation();
+             *     });
+             *     return <div ref={ref}>...</div>;
+             * }
+             * ```
+             */
+            static useWidgetEvent<T extends HTMLElement>(ref: React.RefObject<T | null>, type: string, handler: (event: gui.Event) => void, enabled?: boolean): void;
+            /**
+             * Create a minimal external store for bridging editor events into React.
+             * Works with React 18's `useSyncExternalStore` hook.
+             *
+             * @example
+             * ```tsx
+             * const store = IEditor.ReactDOM.createStore<string[]>([]);
+             *
+             * // Editor side: push data
+             * store.set(newValue);
+             *
+             * // React side: subscribe
+             * function List() {
+             *     const ids = useSyncExternalStore(store.subscribe, store.get);
+             *     return <ul>{ids.map(id => <li key={id}>{id}</li>)}</ul>;
+             * }
+             * ```
+             */
+            static createStore<T>(initialValue: T): {
+                /** Get current snapshot (identity-stable between sets). */
+                get: () => T;
+                /** Replace value and notify all subscribers. */
+                set: (next: T) => void;
+                /** Subscribe for change notifications. Returns unsubscribe function. */
+                subscribe: (fn: () => void) => () => boolean;
+            };
+        }
+        /**
+         * Public React host exposed to plugins as `IEditor.ReactDOM`.
+         * Uses Shadow DOM by default so plugin styles are isolated from the IDE.
+         */
+        export class PluginReactDOM extends ReactDOM {
+            constructor(options?: ReactDOMOptions);
         }
 
         export class NodeRefInput extends gui.Label {
@@ -8518,6 +12585,10 @@ declare global {
             private _suffix;
             private _prevTabStop;
             private _savedText;
+            private _isPointerLocked;
+            private _onPointerMoveHandler;
+            private _accumulatedMovement;
+            private _enablePointerLock;
             constructor();
             /**
              * Number of decimal places. Default is 3;
@@ -8541,6 +12612,12 @@ declare global {
              */
             get suffix(): string;
             set suffix(value: string);
+            /**
+             * Whether to enable pointer lock when dragging. Default is true.
+             * When enabled, the mouse cursor will be locked and hidden during dragging for better UX.
+             */
+            get enablePointerLock(): boolean;
+            set enablePointerLock(value: boolean);
             get value(): number;
             set value(val: number);
             get text(): string;
@@ -8550,6 +12627,7 @@ declare global {
             private _holderDragStart;
             private _holderDragEnd;
             private _holderDragMove;
+            private _handlePointerMove;
             private __click;
             private __focusIn;
             private __focusOut;
@@ -8560,11 +12638,18 @@ declare global {
         export class NumericInputWithSlider extends gui.Label {
             private _slider;
             private _input;
+            private _centeredAtOne;
             constructor();
             get min(): number;
             set min(value: number);
             get max(): number;
             set max(value: number);
+            /**
+             * If true, the center of the slider represents the value 1.0, with the left side representing values between min and 1.0,
+             * and the right side representing values between 1.0 and max.
+             */
+            get centeredAtOne(): boolean;
+            set centeredAtOne(value: boolean);
             get fractionDigits(): number;
             set fractionDigits(value: number);
             get step(): number;
@@ -8578,6 +12663,7 @@ declare global {
             get text(): string;
             set text(value: string);
             onConstruct(): void;
+            private syncInputToSlider;
         }
 
         export class ResourceInput extends gui.Label {
@@ -8622,8 +12708,12 @@ declare global {
             private onDragOver;
             private onDrop;
             protected __click(evt: gui.Event): void;
+            protected __rightClick(evt: gui.Event): Promise<void>;
             private onHotkey;
             private submit;
+            copy(): void;
+            paste(): Promise<void>;
+            private cloneMaterial;
         }
 
         export class ColorInput extends gui.Widget {
@@ -8674,6 +12764,7 @@ declare global {
             get hasValue(): boolean;
             set hasValue(value: boolean);
             onConstruct(): void;
+            private getDialogOptions;
         }
 
         export interface GradientRGBElement {
@@ -8717,10 +12808,6 @@ declare global {
             maxKeyFrame: number;
             isCurve: boolean;
             isWeight: boolean;
-            /**
-             * Whether to fill the key frame data according to the maximum key frame
-             */
-            isAutoFillKeyFrame: boolean;
             hideAlpha: boolean;
             constructor();
             get checkable(): boolean;
@@ -8734,6 +12821,8 @@ declare global {
             applyChange(): void;
             private drawCurve;
             onConstruct(): void;
+            private createDialogModel;
+            private commitDialogModel;
         }
 
         export enum TangentMode {
@@ -8777,6 +12866,7 @@ declare global {
             startEditing(): void;
             cancelEditing(): void;
             onConstruct(): void;
+            protected onNativeDragStart(evt: gui.Event): void;
             private onClickHandler;
             getFullWidth(): number;
         }
@@ -8819,6 +12909,7 @@ declare global {
             protected _lang: gui.Widget;
             protected _key: gui.TextField;
             protected _textInfo: gui.I18nTextInfo;
+            private _canceled;
             get text(): string;
             set text(value: string);
             get editable(): boolean;
@@ -8865,28 +12956,32 @@ declare global {
         }
 
         export class InspectorPanel extends gui.Widget {
-            private _tree;
-            private _inspectorHelper;
-            private _watchDatas;
-            private _history;
-            private _changes;
+            private _model;
+            private _react;
+            constructor();
             /**
              * Whether to allow undo. If true, the history will be recorded and can be undone.
+             * The data pass in through inspect method must be watched by DataWatcher, Otherwise, the undo will not work for those changes.
              */
-            allowUndo: boolean;
+            get allowUndo(): boolean;
+            set allowUndo(value: boolean);
             /**
              * Whether to stop tracing data changes. If true, the data change notification will not be sent.
              */
-            stopTrace: boolean;
+            get stopTrace(): boolean;
+            set stopTrace(value: boolean);
             /**
              * A delegate that is called when the data changes.
              */
-            readonly onDataChanged: IDelegate<(sender: any, datapath: string[], value: any, oldvalue: any) => void>;
-            constructor();
+            get onDataChanged(): IDelegate<(sender: any, datapath: string[], value: any, oldvalue: any) => void>;
             /**
              * Data history. It is used to record the data changes and can be undone.
              */
             get history(): IDataHistory;
+            /**
+             * Set the history used by this inspector for undo and redo.
+             */
+            setHistory(history: IDataHistory): void;
             /**
              * Clear all inspectors and reset the inspector panel.
              */
@@ -8912,8 +13007,15 @@ declare global {
              * @param catalog Catalog name.
              */
             showCatalog(catalog: string): void;
-            private _onDataChanged;
-            private emitChanges;
+            /** Returns the current vertical scroll position. */
+            getScrollY(): number;
+            /** Sets the vertical scroll position. */
+            setScrollY(value: number): void;
+            /**
+             * Resize the panel to fit the content. It will resize the panel to fit the content height, and keep the width unchanged.
+             * @param minSize The minimum height of the panel. If the content height is less than the minimum height, the panel will be resized to the minimum height.
+             */
+            resizeToFit(minSize?: number): void;
             private onHotkey;
         }
 
@@ -8928,15 +13030,55 @@ declare global {
             Readonly2 = 7,
             _Max = 8
         }
-        export class PropertyField extends gui.TreeNode implements IPropertyField {
+
+        export interface IPropertyFieldState {
+            owner: IInspectorModel;
+            id: string;
+            schemaId: string;
+            kind: InspectorFieldKind;
+            depth: number;
+            path: string[];
+            caption: string;
+            help: string;
+            icon?: string;
+            visible: boolean;
+            readonly: boolean;
+            expanded: boolean;
+            overrided: boolean;
+            version: number;
+            structureVersion: number;
+            createInitialized?: boolean;
+            createFailed?: boolean;
+            host?: gui.Widget;
+            content?: gui.Widget;
+            element?: HTMLElement;
+            errorElement?: HTMLElement;
+            pendingError?: string;
+            pendingScroll?: {
+                ani?: boolean;
+                setFirst?: boolean | IPropertyField;
+            };
+            styles?: string;
+        }
+        export class PropertyField implements IPropertyField {
             inspector: IDataInspector;
             objType: Readonly<FTypeDescriptor>;
             property: Readonly<FPropertyDescriptor>;
             target: IInspectingTarget;
+            react?: IPropertyFieldState;
+            readonly children: PropertyField[];
             watchProps: Array<string>;
             memberProps: Array<FPropertyDescriptor>;
+            tag: string;
+            private _parent;
             get parent(): IPropertyField;
+            get isFolder(): boolean;
+            addChild(child: PropertyField): PropertyField;
+            replaceChild(oldChild: PropertyField, newChild: PropertyField): PropertyField;
+            removeChild(child: PropertyField): PropertyField;
             create(): IPropertyFieldCreateResult;
+            render?(): ReactNode;
+            renderChildrenFooter?(): ReactNode;
             makeReadonly(value: boolean): void;
             refresh(): void;
             getStatus(name: string): any;
@@ -8954,119 +13096,200 @@ declare global {
             private doPasteData;
             private doResetData;
             copyData(): void;
-            pasteData(data?: any): void;
-            resetData(): void;
-            hasClipboardData(): boolean;
+            pasteData(data?: any): Promise<void>;
+            resetData(): Promise<void>;
+            private fetchScriptDefaults;
+            setNumValue(num: number): void;
+            hasClipboardData(): Promise<boolean>;
         }
 
-        export class ButtonsField extends PropertyField {
-            protected list: gui.List;
-            private _hasHotkey;
+        export class EnumField extends PropertyField {
             create(): IPropertyFieldCreateResult;
-            protected addButton(info: string | IPropertyButtonInfo): gui.Widget;
-            private onClickButton;
-            private handleHotkey;
             refresh(): void;
+            render(): import("react/jsx-runtime").JSX.Element;
+            /**
+             * Resolves the enum source displayed by this field.
+             * Override this method to provide enum items dynamically.
+             * @returns The resolved enum items.
+             */
+            protected resolveEnumSource(): unknown[];
+            private resolveEnumSourceFor;
+            /**
+             * Resolves the value represented by an enum source item.
+             * @param item The enum source item.
+             * @param index The index of the item in the resolved enum source.
+             * @returns The value submitted when the item is selected.
+             */
+            protected getEnumItemValue(item: unknown, index: number): any;
+            private formatEnumItems;
+            private formatEnumItemsFor;
+            private getEnumItemValueFor;
+            private isEnumObject;
+            private createEnumItem;
+            private isSelectedValue;
+            private toSubmitValue;
         }
 
-        export class VecField extends PropertyField {
-            protected _input: gui.Widget;
-            protected _inputs: Array<NumericInput>;
-            protected _members: Array<FPropertyDescriptor>;
-            protected _axes: Array<any>;
-            private _hasValue;
-            private _checkable;
-            create(res?: "Vec2Field" | "Vec3Field" | "Vec4Field"): IPropertyFieldCreateResult;
-            protected onSubmit(index: number, num: number): void;
-            refresh(): void;
-        }
-        export class Vec2Field extends VecField {
-            create(): IPropertyFieldCreateResult;
-        }
-        export class Vec3Field extends VecField {
-            create(): IPropertyFieldCreateResult;
-        }
-        export class Vec4Field extends VecField {
-            create(): IPropertyFieldCreateResult;
-        }
-
+        export type DictionaryModelField = PropertyField & {
+            id: string;
+            kind: string;
+            expanded: boolean;
+            children: PropertyField[];
+            getCollectionLength(): number;
+            canAppendChild(): boolean;
+            addDictionaryEntry(key: string): boolean;
+            destroyCollection(): boolean;
+            syncDynamicChildren(): boolean;
+        };
         export class DictionaryField extends PropertyField {
-            protected _input: gui.Widget;
-            protected _buttons: gui.Box;
-            protected _editModeButton: gui.Widget;
-            protected _showNewInput: gui.Controller;
-            protected _keyInput: TextInput;
-            private _readOnly;
-            private _elementProp;
-            private _elementCaptionFunc;
-            private _elementTipsFunc;
-            private _hideEditMode;
+            private _dynamicPool;
             create(): IPropertyFieldCreateResult;
-            get elementPropTemplate(): FPropertyDescriptor;
-            getElementCaption(key: string): string;
-            getElementTips(key: string): string;
             refresh(): void;
-            protected onClickEditMode(): void;
-            protected onShowAddInput(evt: gui.Event): void;
-            protected onClickAdd(evt: gui.Event): void;
-            private onClickDestroyDict;
+            refreshChildren(): void;
+            render(): React.ReactNode;
+            /**
+             * Provides the initial key shown when adding a dictionary entry.
+             * @param _field The dictionary field being edited.
+             * @returns The initial key, or an empty string when no key is suggested.
+             */
+            protected getInitialKey(_field: DictionaryModelField): string;
+            /**
+             * Creates a custom add control for the dictionary toolbar.
+             * @param _field The dictionary field being edited.
+             * @returns The custom control, or `null` to use the built-in add button.
+             */
+            protected getCustomAddButton(_field: DictionaryModelField): ReactNode;
+            addDictionaryEntry(key: string): boolean;
+            deleteDictionaryEntry(key: string): boolean;
+            canAppendChild(): boolean;
+            destroyCollection(): boolean;
+            getCollectionLength(): number;
+            syncDynamicChildren(): boolean;
+            private refreshDynamicChild;
+            private clearDynamicChildren;
+            /**
+             * Resolves the caption displayed for a dictionary entry.
+             * @param key The dictionary entry key.
+             * @returns The entry caption.
+             */
+            protected getElementCaption(key: string): string;
+            /**
+             * Resolves the help text displayed for a dictionary entry.
+             * @param key The dictionary entry key.
+             * @returns The entry help text.
+             */
+            protected getElementTips(key: string): string;
+            private takeDynamicChild;
         }
 
         export class ArrayField extends PropertyField {
-            protected _input: gui.Widget;
-            protected _buttons: gui.Box;
-            protected _editModeButton: gui.Widget;
-            private _elementProp;
-            private _elementIsAsset;
-            private _elementAssetTypeFilter;
-            private _elementCaptionFunc;
-            private _elementTipsFunc;
-            private _editMode;
-            private _arrayActions;
-            private _hideEditMode;
-            private _insertingIndex;
+            private _dynamicPool;
             create(): IPropertyFieldCreateResult;
-            get editMode(): number;
-            get elementPropTemplate(): FPropertyDescriptor;
-            getElementCaption(index: number): string;
-            getElementTips(index: number): string;
             refresh(): void;
-            private onClickEditMode;
-            private changeEditMode;
-            private onClickAdd;
-            private onAdd;
-            private doAdd;
-            onClickCreateInstance(typeName: string): void;
-            private onClickDestroyArray;
-            onNativeDragOver(evt: gui.Event): void;
-            onNativeDrop(evt: gui.Event): Promise<void>;
+            refreshChildren(): void;
+            render(): React.ReactNode;
+            renderChildrenFooter(): ReactNode;
+            /**
+             * Renders subclass-specific controls alongside the built-in collection toolbar controls.
+             * Override this method instead of render() to preserve the standard collection behavior and layout.
+             */
+            protected renderExtraToolbarButtons(): ReactNode;
+            /**
+             * Handles a request to append an element to the array.
+             * Override this method to provide a custom value picker or add workflow.
+             * @param anchor The add button used to anchor any related UI.
+             */
+            protected onAddElement(anchor: HTMLElement): void | Promise<void>;
+            appendArrayElement(): boolean;
+            insertArrayElement(index?: number, elementValue?: unknown, elementPropOverride?: FPropertyDescriptor): boolean;
+            moveArrayElement(fromIndex: number, toIndex: number): boolean;
+            deleteArrayElement(index: number): boolean;
+            canAppendChild(): boolean;
+            destroyCollection(): boolean;
+            getCollectionLength(): number;
+            syncDynamicChildren(): boolean;
+            private refreshDynamicChild;
+            private clearDynamicChildren;
+            /**
+             * Resolves the caption displayed for an array element.
+             * @param index The array element index.
+             * @returns The element caption.
+             */
+            protected getElementCaption(index: number): string;
+            /**
+             * Resolves the help text displayed for an array element.
+             * @param index The array element index.
+             * @returns The element help text.
+             */
+            protected getElementTips(index: number): string;
+            private takeDynamicChild;
         }
 
         export class ObjectField extends PropertyField {
-            enabledButton: gui.Button;
-            includeProps: Array<FPropertyDescriptor>;
             selfType: FTypeDescriptor;
             selfTypeBase: FTypeDescriptor;
-            familyFields: Record<string, ObjectField>;
-            defaultCatalogBarStyle: CatalogBarStyle;
-            protected _input: gui.Widget;
-            protected _buttons: gui.Box;
-            protected _actionButton: gui.Widget;
-            private _typeName;
-            private _prefabNewAddedSign;
+            private _activeField;
+            private _objectTypeName;
             create(): IPropertyFieldCreateResult;
             refresh(): void;
-            private onClickAction;
+            refreshChildren(): void;
+            render(): React.ReactNode;
+            /**
+             * Renders subclass-specific controls alongside the built-in object toolbar controls.
+             * Override this method instead of render() to preserve the standard object behavior and layout.
+             */
+            protected renderExtraToolbarButtons(): React.ReactNode;
+            showObjectActionMenu(field: PropertyField, anchor: HTMLElement): void;
             onClickCreateInstance(typeName: string): void;
+            private syncObjectChildren;
+            private getObjectTypeName;
+            private clearObjectChildren;
+            private getDefaultObjectMenu;
             onClickSetNull(): void;
-            setupCatalogBar(isComponent: boolean, removable?: boolean): void;
-            setCatalogBarStyle(style: CatalogBarStyle): void;
-            resetComponentDefault(): Promise<void>;
-            removeComponent(): void;
-            moveUp(): void;
-            moveDown(): void;
-            copyComponent(): void;
-            pasteComponent(): Promise<void>;
+        }
+
+        export class InfoField extends PropertyField {
+            create(): IPropertyFieldCreateResult;
+            refresh(): void;
+            render(): React.ReactNode;
+            /**
+             * Resolves the informational text displayed by this field.
+             * Override this method to provide text from a custom source.
+             * @returns The informational text, or an empty string to hide the field.
+             */
+            protected getInfoText(): string;
+            private getInfoIcon;
+        }
+
+        export class ButtonsField extends PropertyField {
+            create(): IPropertyFieldCreateResult;
+            render(): React.ReactNode;
+            getButtons(): IPropertyButtonInfo[];
+            runButton(button: IPropertyButtonInfo, index?: number, element?: HTMLElement): Promise<void>;
+            getButtonSelected(button: IPropertyButtonInfo): boolean;
+            private toggleButton;
+            /**
+             * Handles the custom event configured for a property button.
+             * Override this method to route button events to a custom target.
+             * @param button The button descriptor whose event is being dispatched.
+             * @param element The HTML button element that initiated the event.
+             * @returns Whether the event was handled.
+             */
+            protected handleButtonEvent(button: IPropertyButtonInfo, element?: HTMLElement): Promise<boolean>;
+        }
+
+        export class VecField extends PropertyField {
+            create(): IPropertyFieldCreateResult;
+            render(): import("react/jsx-runtime").JSX.Element;
+            private getAxisTitle;
+            private getVectorSize;
+            private getAxes;
+            private getAxisValue;
+            private setAxisValue;
+            private setMemberValue;
+            private setStringValue;
+            private setStructuredValue;
+            private setHasValue;
         }
 
         export class FileInspectorLayout implements IInspectorLayout {
@@ -9179,6 +13402,7 @@ declare global {
         const ClassRegistry: typeof IClassRegistry;
 
         /**
+         * @deprecated
          * The `ListHelper` class is used to help manage lists.
          * @param list The list to manage.
          * @param indexColumn The column name of the index.
@@ -9186,6 +13410,7 @@ declare global {
         const ListHelper: new (list: gui.List, indexColumn?: string) => IListHelper;
 
         /**
+         * @deprecated
          * The `ListInsertionHelper` class is used to help insert items into the list.
          * 
          * This class can highlight the insertion position when a scene node or asset is dragged and dropped into the list, 
@@ -9199,10 +13424,9 @@ declare global {
         /**
          * The `DataInspector` class is used to inspect the data of the specified type.
          * @param outputType The type of the data to inspect.
-         * @param widgetItem The widget type used for each row in the interface, usually not needed unless there are customization requirements.
          * @returns The inspector object.
          */
-        const DataInspector: new (outputType: string, widgetItem?: string) => IDataInspector;
+        const DataInspector: new (outputType: string) => IDataInspector;
 
         /**
          * The `InspectorHelper` class is used to help create inspector interfaces.
@@ -9231,7 +13455,7 @@ declare global {
          * 
          * An iframe is an inline frame that can be used to embed another document within the current HTML document.
          */
-        const WebIFrame: new () => IWebIFrame;
+        const WebIFrame: new (options?: IWebIFrameOptions) => IWebIFrame;
 
         /**
          * The `Conf` class is used to read and write configuration files.
@@ -9272,11 +13496,6 @@ declare global {
         const ZipFileR: new () => IZipFileR;
 
         /**
-         * The `InspectorItem` class is used to create an inspector item.
-         */
-        const InspectorItem: new () => gui.Button;
-
-        /**
          * The `AssetStoreTools` class is used to manage asset store tools.
          */
         const AssetStoreTools: typeof IAssetStoreTools;
@@ -9301,13 +13520,16 @@ declare global {
          * The `BuildTask` class is used to start a build task.
          * @param platform The platform to build. e.g. "web", "android", "ios", etc.
          * @param destPath The destination path of the build. Defaults to null.
+         * @param recompileMode Whether to run in recompile mode, where only scripts are built and assets are not exported.
          */
-        const BuildTask: { start(platform: string, destPath?: string): void };
+        const BuildTask: { start(platform: string, destPath?: string, recompileMode?: boolean): void };
 
         /**
          * The `DataComponent` class is used to create a data component.
          * @param type The type of the data component.
          * @param data The data of the component.
+         * @param noInitialLoading Whether to skip the initial loading of data. Defaults to false.
+         * @param hasTypeField Whether the object includes a type field, ie. "_$type". Defaults to false.
          * @example
          * ```
          * ＠IEditor.regClass()
@@ -9329,7 +13551,7 @@ declare global {
          * dc.props.name = "Test"; //Output: Set name: Test
          * ```
          */
-        const DataComponent: new (type: string | Function, data?: any) => IDataComponent;
+        const DataComponent: new (type: string | Function, data?: any, noInitialLoading?: boolean, hasTypeField?: boolean) => IDataComponent;
 
         /**
          * The `InspectorRegistry` class is used to register inspector fields.
@@ -9352,9 +13574,24 @@ declare global {
         const SelectNodeDialog: new () => ISelectNodeDialog;
 
         /**
-         * The `ColorPickerDialog` class is used to create a color picker dialog.
+         * The React `ColorPickerDialog` class is used to create a color picker dialog.
          */
-        const ColorPickerDialog: new () => IDialog;
+        const ColorPickerDialog: new () => IColorPickerDialog;
+
+        /**
+         * The React `GradientEditDialog` class is used to edit gradients.
+         */
+        const GradientEditDialog: new () => IGradientEditDialog;
+
+        /**
+         * The React `CurveEditDialog` class is used to edit curves.
+         */
+        const CurveEditDialog: new () => ICurveEditDialog;
+
+        /**
+         * The React `PolygonEditDialog` class is used to edit polygons.
+         */
+        const PolygonEditDialog: new () => IDialog;
 
         /**
          * The `InputTextDialog` class is used to create a dialog for entering text.
@@ -9369,11 +13606,6 @@ declare global {
         const InputTextDialog: new () => IInputTextDialog;
 
         /**
-         * The `ChooseUploadTargetDialog` class is used to create a dialog for selecting the upload target.
-         */
-        const ChooseUploadTargetDialog: new () => IDialog;
-
-        /**
          * The `QRCodeDialog` class is used to create a dialog for displaying a QR code.
          */
         const QRCodeDialog: new () => IQRCodeDialog;
@@ -9385,7 +13617,7 @@ declare global {
         /**
          * The `utils` object provides various utility functions.
         */
-        const utils: ICryptoUtils & INativeTools & IUUIDUtils & IObjectUtils & IUtils & INetUtils & IDataUtils & ITemplateUtils & IPlist & ITypeParser;
+        const utils: ICryptoUtils & INativeTools & IUUIDUtils & IObjectUtils & IUtils & IPinyinUtils & INetUtils & IDataUtils & ITemplateUtils & IPlist & ITypeParser;
 
         /**
          * The `GUIUtils` object provides various GUI utility functions.
@@ -9406,6 +13638,42 @@ declare global {
          * The `JsonBin` object is used to serialize and deserialize objects into binary data.
          */
         const JsonBin: IJsonBin;
+
+        /**
+         * The `AssetDependencyTool` object is used to query asset dependencies and references.
+         */
+        const AssetDependencyTool: IAssetDependencyTool;
+
+        /** Tools for importing and exporting Laya resource packages. */
+        const PackageTool: typeof IPackageTool;
+
+        /**
+         * The `React` namespace contains React components that can be used in the editor.
+         */
+        const React: typeof ReactComponents;
+
+        /**
+         * The shared graph editing core (React Flow based). Values are accessed
+         * as `IEditor.Flow.GraphEditor`, `IEditor.Flow.createGraphStore`, etc.
+         * The corresponding types live under {@link IFlow} (e.g.
+         * `IEditor.IFlow.GraphData`, `IEditor.IFlow.GraphEditorProps`).
+         */
+        const Flow: typeof IFlow;
+
+        /**
+         * The shared *state-machine* graph editor (pinless, straight links with
+         * a mid-line arrow). Values are accessed as
+         * `IEditor.StateGraph.StateGraphEditor`, `IEditor.StateGraph.styles`, etc.
+         * The corresponding types live under {@link IStateGraph}.
+         */
+        const StateGraph: typeof IStateGraph;
+
+        /**
+         * Shared high-performance timeline editor. Runtime values are available
+         * as `IEditor.Timeline.TimelineEditor` and `styles`;
+         * types live under {@link ITimeline}.
+         */
+        const Timeline: typeof ITimeline;
 
         /**
          * References a commonjs module. You can import built-in Node.js modules such as: path, fs, child_process, etc. 
@@ -9476,6 +13744,8 @@ declare global {
          */
         function classInfo(info?: Partial<FTypeDescriptor>): Function;
 
+        type FPropertyTypeExt = string | Function | [FPropertyTypeExt] | ["Record", FPropertyTypeExt];
+
         /**
          * Decorator function for registering a property. 
          * 
@@ -9509,10 +13779,13 @@ declare global {
          * 
          *     ＠IEditor.property({ type: String, enumSource: [ { name: "A", value: "a" }, { name: "B", value: "b" } ] })
          *     enumName: string = "a";
+         * 
+         *    ＠IEditor.property({ type: CustomClass }) //CustomClass must have been registered using IEditor.regClass()
+         *    custom: CustomClass = new CustomClass();
          * }
          * ```
          */
-        function property(info: FPropertyType | Function | Partial<FPropertyDescriptor | { type: Function }>): Function;
+        function property(info: FPropertyType | Function | Partial<FPropertyDescriptor | { type: FPropertyTypeExt }>): Function;
 
         /**
          * Decorator function for registering a field. 
@@ -9548,7 +13821,7 @@ declare global {
          * }
          * ```
          */
-        function inspectorField(name: string): (func: new () => PropertyField) => void;
+        function inspectorField(name: string): (func: IPropertyFieldConstructor) => void;
 
         /**
          * Decorator function for registering a inspector layout.
@@ -9596,10 +13869,17 @@ declare global {
          * @example
          * ```
          * ＠IEditor.panel("com.example.MyPanel", { title: "My Panel", icon: "editorResources/MyPanel.svg" })
-         * class MyPanel extends EditorPanel {
+         * class MyPanel extends IEditor.EditorPanel {
+         *     private view: IEditor.ReactDOM;
+         *
          *     create() {
-         *         this._panel = IEditor.GUIUtils.createInspectorPanel();
-         *         this._panel.inspect({}, DataType);
+         *         this.view = new IEditor.ReactDOM();
+         *         this._panel = this.view;
+         *         this.view.render(IEditor.React.createElement("div", null, "My Panel"));
+         *     }
+         *
+         *     onDestroy() {
+         *         this.view.dispose();
          *     }
          * }
          * ```
@@ -9615,7 +13895,7 @@ declare global {
          * i18n is supported in the menu name, and the format is `i18n:xxx`, where `xxx` is the key of the i18n string.
          * e.g. `App/tool/i18n:module:test`.
          * Note that a string with or without `i18n:` prefix is treated as the same menu item name.
-         * e.g. `App/tool/i18n:module:group/a` and `App/tool/group/a:` will be in the same submenu.
+         * e.g. `App/tool/i18n:module:group/a` and `App/tool/group/a` will be in the same submenu.
          * @param options The options for the menu.
          * @returns The menu decorator function.
          * @example
@@ -9627,6 +13907,23 @@ declare global {
          * ```
          */
         function menu(name: string, options?: ICustomMenuItemOptions): Function;
+
+        /**
+         * Decorator function for registering a hotkey.
+         * 
+         * A hotkey is a combination of keys that can trigger a specific function when pressed.
+         * @param combo The key combination of the hotkey. The format is "ctrl+shift+a", "alt+b", "f1", etc.
+         * 'mod' can be used as a platform-independent modifier key, which maps to 'ctrl' on Windows/Linux and 'meta' on macOS. For example, "mod+shift+a" will be "ctrl+shift+a" on Windows/Linux and "meta+shift+a" on macOS.
+         * @returns The hotkey decorator function.
+         * @example
+         * ```
+         * ＠IEditor.hotkey("ctrl+shift+a")
+         * function onHotkey() {
+         *    console.log("Hotkey triggered.");
+         * }
+         * ```
+         */
+        function hotkey(combo: string): Function;
     }
 
     /**

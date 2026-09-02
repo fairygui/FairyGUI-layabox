@@ -431,7 +431,7 @@ namespace fgui {
             if (!child.displayObject)
                 return;
 
-            if (child.internalVisible && (child.displayObject != this._displayObject.mask || this._displayObject._struct)) { //3.3开始mask需要visible，之前不需要
+            if (child.internalVisible && (child.displayObject != this._displayObject.mask || (this._displayObject as any)._struct)) { //3.3开始mask需要visible，之前不需要
                 if (!child.displayObject.parent) {
                     var index: number = 0
                     if (this._childrenRenderOrder == ChildrenRenderOrder.Ascent) {
@@ -676,7 +676,7 @@ namespace fgui {
 
         public setMask(value: Laya.Sprite, reversed: boolean): void {
             if (this._mask && this._mask != value) {
-                if (this._mask.blendMode == "destination-out")
+                if (this._mask.blendMode == "destination-out" as any || this._mask.blendMode == "destinationOut")
                     this._mask.blendMode = null;
             }
 
@@ -696,7 +696,7 @@ namespace fgui {
             if (reversed) {
                 this._displayObject.mask = null;
                 this._displayObject.cacheAs = "bitmap";
-                this._mask.blendMode = "destination-out";
+                this._mask.blendMode = "destination-out" as any;
             }
             else
                 this._displayObject.mask = this._mask;
